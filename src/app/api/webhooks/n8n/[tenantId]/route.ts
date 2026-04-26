@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyHmacSignature } from '@/lib/n8n/client'
 
+type IncomingMessage = {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+type WebhookPayload = {
+  session_id: string
+  messages: IncomingMessage[]
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ tenantId: string }> }
@@ -12,14 +22,13 @@ export async function POST(
 
   const supabase = createAdminClient()
 
-  // Obtener el secreto HMAC del teatro
-  const { data: theatre, error } = await supabase
+  const { data: theatre, error: theatreError } = await supabase
     .from('theatres')
     .select('n8n_hmac_secret')
     .eq('id', tenantId)
     .single()
 
-  if (error || !theatre) {
+  if (theatreError || !theatre) {
     return NextResponse.json({ error: 'Theatre not found' }, { status: 404 })
   }
 
@@ -27,33 +36,28 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
-  const payload = JSON.parse(rawBody) as {
-    session_id: string
-    messages: Array<{ role: 'user' | 'assistant'; content: string; created_at?: string }>
-  }
+  const payload = JSON.parse(rawBody) as WebhookPayload
 
-  // Crear o recuperar la conversación
-  const { data: conversation, error: convError } = await supabase
+  // Crear conversación si no existe — si ya existe, no tocar nada (el trigger gestiona message_count)
+  const { data: upserted, error: upsertError } = await supabase
     .from('conversations')
-    .upsert({
-      theatre_id: tenantId,
-      session_id: payload.session_id,
-      message_count: payload.messages.length,
-    }, { onConflict: 'session_id' })
+    .upsert(
+      { theatre_id: tenantId, session_id: payload.session_id },
+      { onConflict: 'session_id' }
+    )
     .select('id')
     .single()
 
-  if (convError || !conversation) {
+  if (upsertError || !upserted) {
     return NextResponse.json({ error: 'Failed to upsert conversation' }, { status: 500 })
   }
 
-  // Insertar mensajes
+  // Insertar solo los mensajes nuevos — el trigger incrementa message_count automáticamente
   const messages = payload.messages.map((msg) => ({
-    conversation_id: conversation.id,
+    conversation_id: upserted.id,
     theatre_id: tenantId,
     role: msg.role,
     content: msg.content,
-    created_at: msg.created_at,
   }))
 
   const { error: msgError } = await supabase.from('messages').insert(messages)
@@ -62,5 +66,5 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to insert messages' }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, conversation_id: upserted.id })
 }

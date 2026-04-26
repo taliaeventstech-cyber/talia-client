@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 
 interface Props {
@@ -12,7 +13,9 @@ export default async function AnalyticsPage({ params }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: analytics } = await supabase
+  const admin = createAdminClient()
+
+  const { data: analytics } = await admin
     .from('analytics_daily')
     .select('date, total_conversations, total_messages, avg_messages_per_conversation')
     .eq('theatre_id', tenantId)

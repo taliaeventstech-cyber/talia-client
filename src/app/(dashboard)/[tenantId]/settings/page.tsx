@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 
 interface Props {
@@ -12,7 +13,9 @@ export default async function SettingsPage({ params }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: theatre } = await supabase
+  const admin = createAdminClient()
+
+  const { data: theatre } = await admin
     .from('theatres')
     .select('name, slug, n8n_webhook_url')
     .eq('id', tenantId)

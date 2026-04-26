@@ -1,10 +1,24 @@
+import { createClient } from '@/lib/supabase/server'
+import { ensureUserMembership } from '@/lib/auth/membership'
+import { redirect } from 'next/navigation'
 
-import styles from "./page.module.css";
+export default async function Home() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-export default function Home() {
-  return (
-    <div className={styles.page}>
-      
-    </div>
-  );
+  if (!user) redirect('/login')
+
+  let { data: member } = await supabase
+    .from('users')
+    .select('theatre_id')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (!member) {
+    member = await ensureUserMembership(user)
+  }
+
+  if (member) redirect(`/${member.theatre_id}/overview`)
+
+  redirect('/login')
 }

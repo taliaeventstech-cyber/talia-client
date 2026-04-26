@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 
 interface Props {
@@ -13,8 +14,10 @@ export default async function DashboardLayout({ children, params }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const admin = createAdminClient()
+
   // Verificar que el usuario pertenece a este teatro
-  const { data: membership } = await supabase
+  const { data: membership } = await admin
     .from('users')
     .select('role')
     .eq('id', user.id)

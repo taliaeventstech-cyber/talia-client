@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 
 interface Props {
@@ -12,7 +13,9 @@ export default async function ConversationsPage({ params }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: conversations } = await supabase
+  const admin = createAdminClient()
+
+  const { data: conversations } = await admin
     .from('conversations')
     .select('id, session_id, started_at, message_count')
     .eq('theatre_id', tenantId)
