@@ -93,6 +93,41 @@ export type Database = {
           },
         ]
       }
+      conversation_topics: {
+        Row: {
+          created_at: string | null
+          id: string
+          session_id: string | null
+          theatre_id: string | null
+          topic: string | null
+          user_message: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          session_id?: string | null
+          theatre_id?: string | null
+          topic?: string | null
+          user_message?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          session_id?: string | null
+          theatre_id?: string | null
+          topic?: string | null
+          user_message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_topics_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -202,7 +237,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_theatre_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       message_role: "user" | "assistant"

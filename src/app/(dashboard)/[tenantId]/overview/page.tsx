@@ -16,7 +16,7 @@ export default async function OverviewPage({ params }: Props) {
 
   const admin = createAdminClient()
 
-  const [{ data: theatre }, { data: recentConversations }, { count: totalConversations }] =
+  const [{ data: theatre }, { data: recentConversations }, { count: totalConversations }, { data: topics }] =
     await Promise.all([
       admin.from('theatres').select('name').eq('id', tenantId).single(),
       admin
@@ -29,7 +29,14 @@ export default async function OverviewPage({ params }: Props) {
         .from('conversations')
         .select('*', { count: 'exact', head: true })
         .eq('theatre_id', tenantId),
+      admin
+        .from('conversation_topics')
+        .select('topic')
+        .eq('theatre_id', tenantId)
+        .not('topic', 'is', null)
+        .limit(500),
     ])
+  const topTopics = getTopTopics(topics ?? [], 5)
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: 900, margin: '0 auto' }}>
@@ -39,6 +46,22 @@ export default async function OverviewPage({ params }: Props) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
         <StatCard label="Total conversaciones" value={totalConversations ?? 0} />
       </div>
+
+      <section style={{ marginBottom: '2.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', marginBottom: '1rem' }}>
+          <h2 style={{ margin: 0 }}>Temas más preguntados</h2>
+          <Link href={`/${tenantId}/analytics`}>Ver analytics</Link>
+        </div>
+        {topTopics.length === 0 ? (
+          <p style={{ color: '#999' }}>Aún no hay temas clasificados.</p>
+        ) : (
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            {topTopics.map((item) => (
+              <TopicBar key={item.topic} topic={item.topic} count={item.count} max={topTopics[0].count} />
+            ))}
+          </div>
+        )}
+      </section>
 
       <h2 style={{ marginBottom: '1rem' }}>Últimas conversaciones</h2>
       {recentConversations?.length === 0 ? (
@@ -78,6 +101,35 @@ function getVisitorEmail(metadata: unknown) {
   const email = (metadata as { email?: unknown; visitor_email?: unknown }).email
     ?? (metadata as { email?: unknown; visitor_email?: unknown }).visitor_email
   return typeof email === 'string' && email ? email : null
+}
+
+function getTopTopics(topics: { topic: string | null }[], limit: number) {
+  const counts = new Map<string, number>()
+  topics.forEach(({ topic }) => {
+    if (!topic) return
+    counts.set(topic, (counts.get(topic) ?? 0) + 1)
+  })
+
+  return Array.from(counts.entries())
+    .map(([topic, count]) => ({ topic, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit)
+}
+
+function TopicBar({ topic, count, max }: { topic: string; count: number; max: number }) {
+  const width = `${Math.max(8, Math.round((count / max) * 100))}%`
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+        <span style={{ textTransform: 'capitalize' }}>{topic}</span>
+        <strong>{count}</strong>
+      </div>
+      <div style={{ height: 10, background: '#eee', borderRadius: 999, overflow: 'hidden' }}>
+        <div style={{ width, height: '100%', background: '#111' }} />
+      </div>
+    </div>
+  )
 }
 
 function StatCard({ label, value }: { label: string; value: number }) {
