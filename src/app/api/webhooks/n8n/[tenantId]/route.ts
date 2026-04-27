@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyHmacSignature } from '@/lib/n8n/client'
+import type { Json } from '@/types/database.types'
 
 type IncomingMessage = {
   role: 'user' | 'assistant'
@@ -10,6 +11,7 @@ type IncomingMessage = {
 type WebhookPayload = {
   session_id: string
   messages: IncomingMessage[]
+  metadata?: Json
 }
 
 export async function POST(
@@ -37,14 +39,16 @@ export async function POST(
   }
 
   const payload = JSON.parse(rawBody) as WebhookPayload
+  const conversation = {
+    theatre_id: tenantId,
+    session_id: payload.session_id,
+    ...(payload.metadata ? { metadata: payload.metadata } : {}),
+  }
 
   // Crear conversación si no existe — si ya existe, no tocar nada (el trigger gestiona message_count)
   const { data: upserted, error: upsertError } = await supabase
     .from('conversations')
-    .upsert(
-      { theatre_id: tenantId, session_id: payload.session_id },
-      { onConflict: 'session_id' }
-    )
+    .upsert(conversation, { onConflict: 'session_id' })
     .select('id')
     .single()
 

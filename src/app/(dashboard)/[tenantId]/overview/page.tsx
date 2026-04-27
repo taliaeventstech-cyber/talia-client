@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 interface Props {
@@ -20,7 +21,7 @@ export default async function OverviewPage({ params }: Props) {
       admin.from('theatres').select('name').eq('id', tenantId).single(),
       admin
         .from('conversations')
-        .select('id, session_id, started_at, message_count')
+        .select('id, session_id, started_at, message_count, metadata')
         .eq('theatre_id', tenantId)
         .order('started_at', { ascending: false })
         .limit(5),
@@ -47,16 +48,22 @@ export default async function OverviewPage({ params }: Props) {
           <thead>
             <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
               <th style={{ padding: '0.5rem' }}>Session ID</th>
+              <th style={{ padding: '0.5rem' }}>Email</th>
               <th style={{ padding: '0.5rem' }}>Inicio</th>
               <th style={{ padding: '0.5rem' }}>Mensajes</th>
+              <th style={{ padding: '0.5rem' }}></th>
             </tr>
           </thead>
           <tbody>
             {recentConversations?.map((c) => (
               <tr key={c.id} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ padding: '0.5rem', fontFamily: 'monospace', fontSize: '0.8rem' }}>{c.session_id.slice(0, 16)}...</td>
+                <td style={{ padding: '0.5rem' }}>{getVisitorEmail(c.metadata) ?? '-'}</td>
                 <td style={{ padding: '0.5rem' }}>{new Date(c.started_at).toLocaleString('es-ES')}</td>
                 <td style={{ padding: '0.5rem' }}>{c.message_count}</td>
+                <td style={{ padding: '0.5rem', textAlign: 'right' }}>
+                  <Link href={`/${tenantId}/conversations/${c.id}`}>Ver mensajes</Link>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -64,6 +71,13 @@ export default async function OverviewPage({ params }: Props) {
       )}
     </div>
   )
+}
+
+function getVisitorEmail(metadata: unknown) {
+  if (!metadata || typeof metadata !== 'object') return null
+  const email = (metadata as { email?: unknown; visitor_email?: unknown }).email
+    ?? (metadata as { email?: unknown; visitor_email?: unknown }).visitor_email
+  return typeof email === 'string' && email ? email : null
 }
 
 function StatCard({ label, value }: { label: string; value: number }) {
