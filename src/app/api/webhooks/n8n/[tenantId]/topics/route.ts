@@ -41,7 +41,18 @@ export async function POST(
     })
 
   if (error) {
-    return NextResponse.json({ error: 'Failed to insert topic' }, { status: 500 })
+    console.error('Failed to insert conversation topic', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    })
+
+    return NextResponse.json({
+      error: 'Failed to insert topic',
+      details: error.message,
+      code: error.code,
+    }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })
