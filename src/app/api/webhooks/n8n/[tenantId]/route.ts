@@ -26,7 +26,7 @@ export async function POST(
 
   const { data: theatre, error: theatreError } = await supabase
     .from('theatres')
-    .select('n8n_hmac_secret')
+    .select('webhook_secret, n8n_hmac_secret')
     .eq('id', tenantId)
     .single()
 
@@ -34,7 +34,9 @@ export async function POST(
     return NextResponse.json({ error: 'Theatre not found' }, { status: 404 })
   }
 
-  if (theatre.n8n_hmac_secret && !verifyHmacSignature(rawBody, signature, theatre.n8n_hmac_secret)) {
+  const webhookSecret = theatre.webhook_secret ?? theatre.n8n_hmac_secret
+
+  if (webhookSecret && !verifyHmacSignature(rawBody, signature, webhookSecret)) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 

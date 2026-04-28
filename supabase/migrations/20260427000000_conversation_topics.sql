@@ -17,6 +17,13 @@ create table if not exists public.conversation_topics (
   created_at timestamptz default now()
 );
 
+alter table public.conversation_topics
+  add column if not exists theatre_id uuid references public.theatres(id) on delete cascade,
+  add column if not exists session_id text,
+  add column if not exists topic text,
+  add column if not exists user_message text,
+  add column if not exists created_at timestamptz default now();
+
 alter table public.conversation_topics enable row level security;
 
 drop policy if exists "tenant_select" on public.conversation_topics;

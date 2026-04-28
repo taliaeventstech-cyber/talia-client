@@ -59,6 +59,7 @@ export type Database = {
         Row: {
           ended_at: string | null
           id: string
+          last_message_at: string | null
           message_count: number
           metadata: Json | null
           session_id: string
@@ -68,6 +69,7 @@ export type Database = {
         Insert: {
           ended_at?: string | null
           id?: string
+          last_message_at?: string | null
           message_count?: number
           metadata?: Json | null
           session_id: string
@@ -77,6 +79,7 @@ export type Database = {
         Update: {
           ended_at?: string | null
           id?: string
+          last_message_at?: string | null
           message_count?: number
           metadata?: Json | null
           session_id?: string
@@ -173,30 +176,51 @@ export type Database = {
       theatres: {
         Row: {
           created_at: string
+          fallback_email: string | null
+          fallback_phone: string | null
           id: string
           n8n_hmac_secret: string | null
           n8n_webhook_url: string | null
           name: string
+          plan: string
+          scrape_urls: Json
           slug: string
+          system_prompt: string | null
           updated_at: string
+          webhook_secret: string | null
+          widget_config: Json
         }
         Insert: {
           created_at?: string
+          fallback_email?: string | null
+          fallback_phone?: string | null
           id?: string
           n8n_hmac_secret?: string | null
           n8n_webhook_url?: string | null
           name: string
+          plan?: string
+          scrape_urls?: Json
           slug: string
+          system_prompt?: string | null
           updated_at?: string
+          webhook_secret?: string | null
+          widget_config?: Json
         }
         Update: {
           created_at?: string
+          fallback_email?: string | null
+          fallback_phone?: string | null
           id?: string
           n8n_hmac_secret?: string | null
           n8n_webhook_url?: string | null
           name?: string
+          plan?: string
+          scrape_urls?: Json
           slug?: string
+          system_prompt?: string | null
           updated_at?: string
+          webhook_secret?: string | null
+          widget_config?: Json
         }
         Relationships: []
       }
