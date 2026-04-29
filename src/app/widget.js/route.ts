@@ -110,7 +110,8 @@ const widgetScript = String.raw`
     return '\
       <style>\
         :host { all: initial; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }\
-        .toggle { position: fixed; right: 20px; bottom: 20px; z-index: 2147483647; width: 56px; height: 56px; border: 0; border-radius: 999px; background: ' + primaryColor + '; color: white; font: 700 18px system-ui; cursor: pointer; box-shadow: 0 10px 30px rgba(0,0,0,.25); }\
+        .toggle { position: fixed; right: 20px; bottom: 20px; z-index: 2147483647; width: 56px; height: 56px; border: 0; border-radius: 999px; background: ' + primaryColor + '; color: white; cursor: pointer; box-shadow: 0 10px 30px rgba(0,0,0,.25); display: grid; place-items: center; }\
+        .toggle svg { width: 28px; height: 28px; display: block; }\
         .panel { position: fixed; right: 20px; bottom: 88px; z-index: 2147483647; width: min(360px, calc(100vw - 40px)); height: 520px; max-height: calc(100vh - 120px); background: white; color: #111; border: 1px solid #ddd; border-radius: 12px; box-shadow: 0 18px 60px rgba(0,0,0,.25); overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; }\
         .panel[hidden] { display: none !important; }\
         .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: ' + primaryColor + '; color: white; font: 700 15px system-ui; }\
@@ -128,7 +129,13 @@ const widgetScript = String.raw`
         <div class="messages" data-messages><div class="message assistant">Hola, soy ' + escapeHtml(assistantName) + '. ¿En qué puedo ayudarte?</div></div>\
         <form class="form" data-form><input class="input" data-input placeholder="Escribe tu mensaje..." autocomplete="off" /><button class="send" type="submit">Enviar</button></form>\
       </section>\
-      <button class="toggle" data-toggle aria-label="Abrir chat">?</button>';
+      <button class="toggle" data-toggle aria-label="Abrir asistente virtual">\
+        <svg viewBox="0 0 28 28" aria-hidden="true" focusable="false" fill="none" xmlns="http://www.w3.org/2000/svg">\
+          <path d="M5.25 6.8C5.25 4.98 6.73 3.5 8.55 3.5h10.9c1.82 0 3.3 1.48 3.3 3.3v7.7c0 1.82-1.48 3.3-3.3 3.3h-6.17l-5.1 4.2v-4.2h.37c-1.82 0-3.3-1.48-3.3-3.3V6.8Z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>\
+          <path d="M10 10.5h7.2M10 14h4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>\
+          <path d="M21 3.5l.75 1.6 1.65.75-1.65.75L21 8.2l-.75-1.6-1.65-.75 1.65-.75L21 3.5Z" fill="currentColor"/>\
+        </svg>\
+      </button>';
   }
 
   function escapeHtml(value) {
