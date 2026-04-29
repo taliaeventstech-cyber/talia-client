@@ -32,10 +32,17 @@ export default async function SettingsPage({ params }: Props) {
       <h1>Configuración</h1>
       <p>Teatro: {theatre?.name}</p>
 
-      <section style={{ marginTop: '2rem', marginBottom: '2rem' }}>
-        <h2>Embed</h2>
-        <pre style={{ whiteSpace: 'pre-wrap', border: '1px solid #eee', borderRadius: 8, padding: '1rem' }}>{embedCode}</pre>
-      </section>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 280px', gap: '1.5rem', marginTop: '2rem', marginBottom: '2rem' }}>
+        <section>
+          <h2>Embed</h2>
+          <pre style={{ whiteSpace: 'pre-wrap', border: '1px solid #eee', borderRadius: 8, padding: '1rem', overflowX: 'auto' }}>{embedCode}</pre>
+        </section>
+
+        <section>
+          <h2>Preview</h2>
+          <WidgetPreview assistantName={widgetConfig.assistantName} primaryColor={widgetConfig.primaryColor} />
+        </section>
+      </div>
 
       {theatre ? (
         <SettingsForm
@@ -67,10 +74,41 @@ function getWidgetConfig(value: unknown) {
 }
 
 function getEmbedCode(tenantId: string, widgetConfig: { assistantName: string; primaryColor: string }) {
+  const appUrl = getAppUrl()
+
   return `<script
-  src="https://talia.app/widget.js"
+  src="${appUrl}/widget.js"
   data-tenant="${tenantId}"
   data-color="${widgetConfig.primaryColor}"
   data-name="${widgetConfig.assistantName}"
 ></script>`
+}
+
+function getAppUrl() {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  return 'http://localhost:3000'
+}
+
+function WidgetPreview({ assistantName, primaryColor }: { assistantName: string; primaryColor: string }) {
+  return (
+    <div style={{ border: '1px solid #eee', borderRadius: 8, padding: '1rem', minHeight: 220, position: 'relative', background: '#fafafa' }}>
+      <div style={{ border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+        <div style={{ background: primaryColor, color: '#fff', padding: '0.75rem', fontWeight: 700 }}>
+          {assistantName}
+        </div>
+        <div style={{ padding: '0.75rem', display: 'grid', gap: '0.6rem', fontSize: '0.9rem' }}>
+          <p style={{ margin: 0, background: '#f1f1f1', borderRadius: 8, padding: '0.6rem' }}>
+            Hola, soy {assistantName}. ¿En qué puedo ayudarte?
+          </p>
+          <p style={{ margin: 0, justifySelf: 'end', background: primaryColor, color: '#fff', borderRadius: 8, padding: '0.6rem' }}>
+            Quiero información
+          </p>
+        </div>
+      </div>
+      <div style={{ position: 'absolute', right: 16, bottom: 16, width: 48, height: 48, borderRadius: 999, background: primaryColor, color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700 }}>
+        ?
+      </div>
+    </div>
+  )
 }
