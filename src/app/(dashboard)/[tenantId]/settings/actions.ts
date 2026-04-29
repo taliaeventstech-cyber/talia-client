@@ -2,6 +2,8 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { assertTenantAdmin } from '@/lib/tenants/service'
+import { updateTenantSettings as updateTenantSettingsRecord } from '@/lib/tenants/settings'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
@@ -31,14 +33,9 @@ export async function updateTenantSettings(
   if (!user) redirect('/login')
 
   const admin = createAdminClient()
-  const { data: membership } = await admin
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .eq('theatre_id', tenantId)
-    .single()
+  const isAdmin = await assertTenantAdmin(admin, user.id, tenantId)
 
-  if (!membership || membership.role !== 'admin') {
+  if (!isAdmin) {
     return { ok: false, message: 'No tienes permisos para editar esta configuración.' }
   }
 
@@ -61,23 +58,20 @@ export async function updateTenantSettings(
   }
 
   const { data } = parsed
-  const { error } = await admin
-    .from('theatres')
-    .update({
-      plan: data.plan,
-      system_prompt: data.systemPrompt || null,
-      fallback_email: data.fallbackEmail || null,
-      fallback_phone: data.fallbackPhone || null,
-      scrape_urls: data.scrapeUrls,
-      widget_config: {
+  const updated = await updateTenantSettingsRecord(admin, tenantId, {
+    plan: data.plan,
+    systemPrompt: data.systemPrompt,
+    fallbackEmail: data.fallbackEmail,
+    fallbackPhone: data.fallbackPhone,
+    scrapeUrls: data.scrapeUrls,
+    widgetConfig: {
         assistantName: data.assistantName,
         primaryColor: data.primaryColor,
-      },
-    })
-    .eq('id', tenantId)
+    },
+  })
 
-  if (error) {
-    return { ok: false, message: `No se pudo guardar: ${error.message}` }
+  if (!updated.ok) {
+    return { ok: false, message: `No se pudo guardar: ${updated.error}` }
   }
 
   revalidatePath(`/${tenantId}/settings`)
