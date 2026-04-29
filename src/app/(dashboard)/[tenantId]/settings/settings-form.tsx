@@ -13,6 +13,7 @@ type SettingsFormProps = {
   }
   widgetConfig: {
     assistantName: string
+    initialMessage: string
     primaryColor: string
   }
   scrapeUrls: string[]
@@ -59,6 +60,16 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, scrapeUrls }: Se
           <label style={fieldStyle}>
             Nombre del asistente
             <input name="assistant_name" defaultValue={widgetConfig.assistantName} style={inputStyle} />
+          </label>
+
+          <label style={fieldStyle}>
+            Mensaje inicial
+            <textarea
+              name="initial_message"
+              defaultValue={widgetConfig.initialMessage}
+              rows={3}
+              style={{ ...inputStyle, resize: 'vertical' }}
+            />
           </label>
 
           <label style={fieldStyle}>

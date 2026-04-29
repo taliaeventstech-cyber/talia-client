@@ -28,14 +28,15 @@ const widgetScript = String.raw`
     });
 
   function mountWidget(config) {
-    var assistantName = script.getAttribute('data-name') || config.assistantName || 'TALIA';
-    var primaryColor = script.getAttribute('data-color') || config.primaryColor || '#000000';
+    var assistantName = config.assistantName || script.getAttribute('data-name') || 'TALIA';
+    var initialMessage = config.initialMessage || script.getAttribute('data-initial-message') || 'Hola, soc TALIA. En què et puc ajudar?';
+    var primaryColor = config.primaryColor || script.getAttribute('data-color') || '#000000';
     var host = document.createElement('div');
     host.id = 'talia-widget-root';
     document.body.appendChild(host);
 
     var root = host.attachShadow({ mode: 'open' });
-    root.innerHTML = getTemplate(assistantName, primaryColor);
+    root.innerHTML = getTemplate(assistantName, initialMessage, primaryColor);
 
     var panel = root.querySelector('[data-panel]');
     var toggle = root.querySelector('[data-toggle]');
@@ -106,7 +107,7 @@ const widgetScript = String.raw`
     if (typing) typing.remove();
   }
 
-  function getTemplate(assistantName, primaryColor) {
+  function getTemplate(assistantName, initialMessage, primaryColor) {
     return '\
       <style>\
         :host { all: initial; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }\
@@ -126,7 +127,7 @@ const widgetScript = String.raw`
       </style>\
       <section class="panel" data-panel hidden>\
         <div class="header"><span>' + escapeHtml(assistantName) + '</span><button class="close" data-close aria-label="Cerrar">×</button></div>\
-        <div class="messages" data-messages><div class="message assistant">Hola, soy ' + escapeHtml(assistantName) + '. ¿En qué puedo ayudarte?</div></div>\
+        <div class="messages" data-messages><div class="message assistant">' + escapeHtml(initialMessage) + '</div></div>\
         <form class="form" data-form><input class="input" data-input placeholder="Escribe tu mensaje..." autocomplete="off" /><button class="send" type="submit">Enviar</button></form>\
       </section>\
       <button class="toggle" data-toggle aria-label="Abrir asistente virtual">\
