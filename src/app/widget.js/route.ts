@@ -133,7 +133,6 @@ const widgetScript = String.raw`
         <svg viewBox="0 0 28 28" aria-hidden="true" focusable="false" fill="none" xmlns="http://www.w3.org/2000/svg">\
           <path d="M5.25 6.8C5.25 4.98 6.73 3.5 8.55 3.5h10.9c1.82 0 3.3 1.48 3.3 3.3v7.7c0 1.82-1.48 3.3-3.3 3.3h-6.17l-5.1 4.2v-4.2h.37c-1.82 0-3.3-1.48-3.3-3.3V6.8Z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>\
           <path d="M10 10.5h7.2M10 14h4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>\
-          <path d="M21 3.5l.75 1.6 1.65.75-1.65.75L21 8.2l-.75-1.6-1.65-.75 1.65-.75L21 3.5Z" fill="currentColor"/>\
         </svg>\
       </button>';
   }
