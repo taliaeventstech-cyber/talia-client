@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useState } from 'react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 
 function LoginForm() {
@@ -75,6 +76,9 @@ function LoginForm() {
           {loading ? 'Entrando...' : 'Entrar'}
         </button>
       </form>
+      <p style={{ marginTop: '1rem', color: '#666', fontSize: '0.9rem' }}>
+        ¿No tienes cuenta? <Link href="/signup" style={{ color: '#000', fontWeight: 700 }}>Crear cuenta</Link>
+      </p>
     </>
   )
 }

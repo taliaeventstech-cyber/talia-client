@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { ensureUserMembership } from '@/lib/auth/membership'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -15,17 +14,13 @@ export async function GET(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.redirect(`${origin}/login`)
 
-  let { data: member } = await supabase
+  const { data: member } = await supabase
     .from('users')
     .select('theatre_id')
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!member) {
-    member = await ensureUserMembership(user)
-  }
-
-  if (!member) return NextResponse.redirect(`${origin}/login?error=no_membership`)
+  if (!member) return NextResponse.redirect(`${origin}/onboarding`)
 
   return NextResponse.redirect(`${origin}/${member.theatre_id}/overview`)
 }

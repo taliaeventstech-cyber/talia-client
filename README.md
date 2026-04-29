@@ -152,12 +152,18 @@ All tables use **Row Level Security (RLS)**. Users only see data from their own 
 
 The workflow is multi-tenant by design. The `tenant_id` is sent by the widget on every message and drives the entire execution.
 
+Importable workflow:
+
+```txt
+n8n-workflows/TALIA-Generic-Multi-Tenant-Widget-Webhook.json
 ```
-Chat Trigger (webhook, public)
+
+```
+Webhook Trigger (public, generic)
   │  receives: { chatInput, sessionId, tenant_id }
   ▼
-HTTP Request → GET /rest/v1/theatres?id=eq.{tenant_id}
-  │  fetches: system_prompt, scrape_urls, fallback_email, fallback_phone
+HTTP Request → GET /api/internal/tenants/{tenant_id}/chat-config
+  │  fetches: system_prompt, scrape_urls, fallback_email, fallback_phone, widget_config
   ▼
 Set Node → builds dynamic system prompt from DB data
   ▼
@@ -198,7 +204,7 @@ Each theatre gets a unique embed snippet from their dashboard settings:
 ></script>
 ```
 
-The widget is a lightweight JS file hosted on our CDN. It reads `data-tenant` and includes it in every message sent to n8n.
+The widget is a lightweight JS file hosted on our CDN. It reads `data-tenant`, sends messages to TALIA's `/api/chat/[tenantId]`, and TALIA forwards them to the correct n8n webhook server-side.
 
 ---
 
@@ -209,9 +215,9 @@ The widget is a lightweight JS file hosted on our CDN. It reads `data-tenant` an
   /(marketing)
     /page.tsx              → landing page
     /pricing/page.tsx      → pricing plans
-  /(auth)
-    /signup/page.tsx       → register theatre
+    /signup/page.tsx       → register user
     /login/page.tsx
+  /onboarding/page.tsx     → create theatre tenant
   /(dashboard)
     /[tenantId]
       /overview/page.tsx   → volume, topics, peak hours
@@ -219,9 +225,51 @@ The widget is a lightweight JS file hosted on our CDN. It reads `data-tenant` an
       /analytics/page.tsx  → charts (Recharts)
       /settings/page.tsx   → system prompt, URLs, embed code, branding
   /api
+    /chat/[tenantId]/route.ts → widget → n8n proxy
+    /internal
+      /tenants/[tenantId]/chat-config/route.ts → tenant runtime config for n8n
     /webhooks
       /n8n/[tenantId]/route.ts         → receive conversations from n8n
       /n8n/[tenantId]/topics/route.ts  → receive topic classifications
+```
+
+---
+
+## API Endpoints (Dashboard → n8n)
+
+### `POST /api/chat/[tenantId]`
+Receives widget messages, loads the theatre's `n8n_webhook_url`, forwards the message to n8n server-side, and returns the assistant reply to the widget.
+
+Payload:
+```json
+{
+  "session_id": "abc-123",
+  "message": "Quines obres hi ha?"
+}
+```
+
+### `GET /api/internal/tenants/[tenantId]/chat-config`
+Internal runtime config endpoint for the generic n8n workflow.
+
+If `INTERNAL_API_KEY` is configured, n8n must send it in:
+
+```txt
+x-talia-internal-key: <INTERNAL_API_KEY>
+```
+
+Response:
+```json
+{
+  "tenant_id": "abc123",
+  "name": "Teatre Nacional de Catalunya",
+  "assistant_name": "TALIA",
+  "primary_color": "#8056cf",
+  "system_prompt": "...",
+  "fallback_email": "info@tnc.cat",
+  "fallback_phone": "933 065 700",
+  "scrape_urls": ["https://www.tnc.cat/es"],
+  "topic_categories": ["agenda", "precios", "horarios", "ubicacion", "visita", "entradas", "accesibilidad", "saludo", "otro"]
+}
 ```
 
 ---
@@ -304,10 +352,25 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 # n8n
 N8N_BASE_URL=https://your-n8n.onrender.com
-N8N_MASTER_WEBHOOK_URL=
+N8N_MASTER_WEBHOOK_URL=https://your-n8n.onrender.com/webhook/talia/chat
+DEFAULT_N8N_WEBHOOK_URL=https://your-n8n.onrender.com/webhook/talia/chat
+
+# Optional. If set, n8n must send x-talia-internal-key with the same value.
+INTERNAL_API_KEY=
 
 # App
 NEXT_PUBLIC_APP_URL=https://talia.app
+```
+
+The generic n8n workflow keeps `N8N_BLOCK_ENV_ACCESS_IN_NODE=true` compatible. It does not use
+`$env`; the internal TALIA config request uses an n8n **HTTP Header Auth** credential instead.
+
+n8n credential required for `Fetch Tenant Config`:
+
+```txt
+Credential type: HTTP Header Auth
+Name: x-talia-internal-key
+Value: <same value as INTERNAL_API_KEY>
 ```
 
 ---
@@ -318,7 +381,7 @@ NEXT_PUBLIC_APP_URL=https://talia.app
 - [x] Chatbot working with real-time web scraping
 - [x] Topic classification per conversation
 - [x] Basic analytics data being captured
-- [ ] Multi-tenant n8n workflow (next)
+- [x] Multi-tenant n8n workflow
 - [ ] Supabase schema
 - [ ] Next.js dashboard
 - [ ] Widget JS

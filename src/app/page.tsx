@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { ensureUserMembership } from '@/lib/auth/membership'
 import { redirect } from 'next/navigation'
 
 export default async function Home() {
@@ -8,17 +7,13 @@ export default async function Home() {
 
   if (!user) redirect('/login')
 
-  let { data: member } = await supabase
+  const { data: member } = await supabase
     .from('users')
     .select('theatre_id')
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!member) {
-    member = await ensureUserMembership(user)
-  }
-
   if (member) redirect(`/${member.theatre_id}/overview`)
 
-  redirect('/login')
+  redirect('/onboarding')
 }
