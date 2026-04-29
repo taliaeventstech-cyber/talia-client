@@ -58,7 +58,7 @@ function extractReply(value: unknown): string | null {
   if (!value || typeof value !== 'object') return null
 
   const record = value as Record<string, unknown>
-  const direct = record.output ?? record.text ?? record.response ?? record.answer ?? record.message
+  const direct = record.reply ?? record.output ?? record.text ?? record.response ?? record.answer ?? record.message
   if (typeof direct === 'string') return direct
 
   if (direct && typeof direct === 'object') {
