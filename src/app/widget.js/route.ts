@@ -44,12 +44,25 @@ const widgetScript = String.raw`
     var input = root.querySelector('[data-input]');
     var messages = root.querySelector('[data-messages]');
 
+    panel.hidden = true;
+    toggle.setAttribute('aria-expanded', 'false');
+
     toggle.addEventListener('click', function () {
       panel.hidden = !panel.hidden;
-      if (!panel.hidden) input.focus();
+      toggle.setAttribute('aria-expanded', String(!panel.hidden));
+      if (!panel.hidden) setTimeout(function () { input.focus(); }, 0);
     });
     close.addEventListener('click', function () {
       panel.hidden = true;
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.focus();
+    });
+    root.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        panel.hidden = true;
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.focus();
+      }
     });
     form.addEventListener('submit', function (event) {
       event.preventDefault();
@@ -99,6 +112,7 @@ const widgetScript = String.raw`
         :host { all: initial; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }\
         .toggle { position: fixed; right: 20px; bottom: 20px; z-index: 2147483647; width: 56px; height: 56px; border: 0; border-radius: 999px; background: ' + primaryColor + '; color: white; font: 700 18px system-ui; cursor: pointer; box-shadow: 0 10px 30px rgba(0,0,0,.25); }\
         .panel { position: fixed; right: 20px; bottom: 88px; z-index: 2147483647; width: min(360px, calc(100vw - 40px)); height: 520px; max-height: calc(100vh - 120px); background: white; color: #111; border: 1px solid #ddd; border-radius: 12px; box-shadow: 0 18px 60px rgba(0,0,0,.25); overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; }\
+        .panel[hidden] { display: none !important; }\
         .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: ' + primaryColor + '; color: white; font: 700 15px system-ui; }\
         .close { border: 0; background: transparent; color: white; font-size: 22px; cursor: pointer; line-height: 1; }\
         .messages { padding: 14px; overflow: auto; display: flex; flex-direction: column; gap: 10px; background: #fafafa; }\
