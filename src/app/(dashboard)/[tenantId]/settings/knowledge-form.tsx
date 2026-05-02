@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
-import { createKnowledgeItem, type SettingsFormState } from './actions'
+import { createKnowledgeItem, uploadKnowledgeExcel, type SettingsFormState, type ExcelUploadState } from './actions'
 
 type KnowledgeItem = {
   id: string
@@ -23,8 +23,14 @@ const initialState: SettingsFormState = {
   message: '',
 }
 
+const excelInitialState: ExcelUploadState = {
+  ok: false,
+  message: '',
+}
+
 export function KnowledgeForm({ tenantId, items }: KnowledgeFormProps) {
   const [state, formAction, pending] = useActionState(createKnowledgeItem.bind(null, tenantId), initialState)
+  const [excelState, excelFormAction, excelPending] = useActionState(uploadKnowledgeExcel.bind(null, tenantId), excelInitialState)
   const [open, setOpen] = useState(true)
 
   return (
@@ -146,6 +152,34 @@ export function KnowledgeForm({ tenantId, items }: KnowledgeFormProps) {
       ) : (
         <p className="muted">Aún no hay respuestas oficiales cargadas para este tenant.</p>
       )}
+
+      <div className="knowledge-divider" />
+
+      <div>
+        <p className="section-label">Importar desde Excel</p>
+        <p className="muted" style={{ marginTop: 4 }}>Columnas requeridas: <code>question</code>, <code>answer</code>. Opcionales: <code>category</code>, <code>language</code>, <code>priority</code>.</p>
+      </div>
+
+      <form action={excelFormAction} className="stack">
+        {excelState.message ? (
+          <p role="status" className={`notice ${excelState.ok ? 'notice-success' : 'notice-error'}`}>
+            {excelState.message}
+          </p>
+        ) : null}
+
+        <p className="notice notice-warning">
+          Si ya tienes un Excel importado, sus respuestas serán reemplazadas por las del nuevo archivo. Las FAQs añadidas manualmente no se ven afectadas.
+        </p>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <label className="field" style={{ flex: 1, margin: 0 }}>
+            <input type="file" name="file" accept=".xlsx,.xls,.csv" required />
+          </label>
+          <button className="button-primary" type="submit" disabled={excelPending} style={{ opacity: excelPending ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+            {excelPending ? 'Importando...' : 'Importar Excel'}
+          </button>
+        </div>
+      </form>
         </>
       ) : null}
     </section>

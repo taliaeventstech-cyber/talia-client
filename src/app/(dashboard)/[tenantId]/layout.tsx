@@ -41,7 +41,7 @@ export default async function DashboardLayout({ children, params }: Props) {
             className="dashboard-logo"
             priority
           />
-        
+          <span className="dashboard-brand-name">Backstage</span>
         </div>
         <DashboardNav tenantId={tenantId} />
       </aside>
