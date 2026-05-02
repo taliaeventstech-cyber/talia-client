@@ -33,30 +33,34 @@ export default async function AnalyticsPage({ params }: Props) {
   const recentTopics = topics?.slice(0, 20) ?? []
 
   return (
-    <main style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: 1100, margin: '0 auto' }}>
-      <h1>Analytics</h1>
+    <main className="page-shell">
+      <header className="page-header">
+        <p className="section-label">Data</p>
+        <h1>Temas e intención</h1>
+        <p className="muted">Preguntas clasificadas, temas frecuentes y señales de intención detectadas en el chatbot.</p>
+      </header>
 
-      <section style={{ marginTop: '2rem' }}>
+      <section className="card stack">
         <h2>Temas más preguntados</h2>
         {topTopics.length === 0 ? (
-          <p style={{ color: '#999' }}>Aún no hay temas clasificados.</p>
+          <p className="muted">Aún no hay temas clasificados.</p>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
+          <table className="data-table">
             <thead>
-              <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                <th style={{ padding: '0.75rem 0.5rem' }}>Tema</th>
-                <th style={{ padding: '0.75rem 0.5rem' }}>Preguntas</th>
-                <th style={{ padding: '0.75rem 0.5rem' }}>Peso</th>
+              <tr>
+                <th>Tema</th>
+                <th>Preguntas</th>
+                <th>Peso</th>
               </tr>
             </thead>
             <tbody>
               {topTopics.map((item) => (
-                <tr key={item.topic} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '0.75rem 0.5rem', textTransform: 'capitalize' }}>{item.topic}</td>
-                  <td style={{ padding: '0.75rem 0.5rem' }}>{item.count}</td>
-                  <td style={{ padding: '0.75rem 0.5rem' }}>
-                    <div style={{ height: 10, background: '#eee', borderRadius: 999, overflow: 'hidden' }}>
-                      <div style={{ width: `${item.percentage}%`, height: '100%', background: '#111' }} />
+                <tr key={item.topic}>
+                  <td style={{ textTransform: 'capitalize' }}>{item.topic}</td>
+                  <td>{item.count}</td>
+                  <td>
+                    <div className="progress-track">
+                      <div className="progress-fill" style={{ width: `${item.percentage}%` }} />
                     </div>
                   </td>
                 </tr>
@@ -66,25 +70,25 @@ export default async function AnalyticsPage({ params }: Props) {
         )}
       </section>
 
-      <section style={{ marginTop: '2.5rem' }}>
+      <section className="card stack">
         <h2>Últimas preguntas clasificadas</h2>
         {recentTopics.length === 0 ? (
-          <p style={{ color: '#999' }}>Sin preguntas clasificadas.</p>
+          <p className="muted">Sin preguntas clasificadas.</p>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem', fontSize: '0.9rem' }}>
+          <table className="data-table">
             <thead>
-              <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                <th style={{ padding: '0.75rem 0.5rem' }}>Tema</th>
-                <th style={{ padding: '0.75rem 0.5rem' }}>Pregunta</th>
-                <th style={{ padding: '0.75rem 0.5rem' }}>Fecha</th>
+              <tr>
+                <th>Tema</th>
+                <th>Pregunta</th>
+                <th>Fecha</th>
               </tr>
             </thead>
             <tbody>
               {recentTopics.map((topic, index) => (
-                <tr key={`${topic.created_at}-${index}`} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '0.75rem 0.5rem', textTransform: 'capitalize' }}>{topic.topic ?? '-'}</td>
-                  <td style={{ padding: '0.75rem 0.5rem' }}>{topic.user_message ?? '-'}</td>
-                  <td style={{ padding: '0.75rem 0.5rem' }}>
+                <tr key={`${topic.created_at}-${index}`}>
+                  <td style={{ textTransform: 'capitalize' }}>{topic.topic ?? '-'}</td>
+                  <td>{topic.user_message ?? '-'}</td>
+                  <td>
                     {topic.created_at ? new Date(topic.created_at).toLocaleString('es-ES') : '-'}
                   </td>
                 </tr>
@@ -94,9 +98,9 @@ export default async function AnalyticsPage({ params }: Props) {
         )}
       </section>
 
-      <section style={{ marginTop: '2.5rem' }}>
+      <section className="card stack">
         <h2>Resumen diario</h2>
-        <pre>{JSON.stringify(analytics?.slice(0, 3), null, 2)}</pre>
+        <pre className="ai-output">{JSON.stringify(analytics?.slice(0, 3), null, 2)}</pre>
       </section>
     </main>
   )

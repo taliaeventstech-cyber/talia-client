@@ -1,14 +1,16 @@
-# TALIA – Multi-tenant AI Assistant Platform
+# TALIA – Multi-tenant AI Platform for Culture
 
-TALIA is a SaaS platform that allows cultural venues (theatres, museums, exhibition centres) to deploy an AI-powered chatbot on their website. Each client gets their own configured assistant, managed from a shared dashboard, orchestrated by a single n8n workflow.
+TALIA is a SaaS platform for the cultural sector. The first active module, **Attention**, gives theatres and cultural venues AI-powered support across channels. The current implementation focuses on the web chatbot, but the product direction includes web chat, email and voice agents over one shared tenant, conversation and knowledge layer.
+
+For the product roadmap and module architecture, see [docs/product-roadmap.md](docs/product-roadmap.md).
 
 ---
 
 ## Core Concept
 
-A theatre signs up → configures their TALIA from the dashboard → gets an embed code → pastes it on their WordPress → their visitors chat with a fully customised AI assistant. No technical knowledge required on the client side.
+A theatre signs up → configures Talía from the dashboard → connects one or more Attention channels → uploads or configures trusted information sources → visitors/customers get support through web chat, email or voice.
 
-The key architectural decision: **one n8n workflow serves all clients**. The workflow reads each theatre's configuration from Supabase on every request, using `tenant_id` to isolate data and behaviour per client.
+The key architectural decision today: **one generic n8n workflow serves all web-chat clients**. The workflow reads each theatre's configuration from Supabase on every request, using `tenant_id` to isolate data and behaviour per client. As Attention grows, n8n/channel integrations should behave as adapters over a shared core.
 
 ---
 
@@ -316,6 +318,10 @@ Payload:
 
 ---
 
+## Product Roadmap
+
+The historical build order below describes the current web-chat MVP. The broader product roadmap is maintained in [docs/product-roadmap.md](docs/product-roadmap.md) and should guide new product decisions.
+
 ## Build Order
 
 Build in this sequence — each phase depends on the previous.
@@ -377,11 +383,16 @@ Value: <same value as INTERNAL_API_KEY>
 
 ## Current Status
 
-- [x] n8n workflow operational (IDEAL Barcelona pilot)
-- [x] Chatbot working with real-time web scraping
+- [x] Supabase tenant schema and dashboard auth
+- [x] Next.js dashboard shell
+- [x] Configurable widget JS
+- [x] Generic multi-tenant n8n workflow
+- [x] Widget → TALIA API → n8n server-side flow
+- [x] Conversation and message capture
 - [x] Topic classification per conversation
-- [x] Basic analytics data being captured
-- [x] Multi-tenant n8n workflow
-- [ ] Supabase schema
-- [ ] Next.js dashboard
-- [ ] Widget JS
+- [x] Basic analytics dashboard
+- [x] Tenant widget branding from Supabase
+- [ ] Deterministic tenant knowledge base
+- [ ] Attention inbox model across chat/email/voice
+- [ ] Email agent
+- [ ] Voice agent

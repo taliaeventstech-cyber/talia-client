@@ -28,17 +28,19 @@ export default async function SettingsPage({ params }: Props) {
   const embedCode = getEmbedCode(tenantId, widgetConfig)
 
   return (
-    <main style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: 900, margin: '0 auto' }}>
-      <h1>Configuración</h1>
-      <p>Teatro: {theatre?.name}</p>
+    <main className="page-shell">
+      <header className="page-header">
+        <h1>Configuración</h1>
+     
+      </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 280px', gap: '1.5rem', marginTop: '2rem', marginBottom: '2rem' }}>
-        <section>
+      <div className="two-column-grid">
+        <section className="card stack">
           <h2>Embed</h2>
-          <pre style={{ whiteSpace: 'pre-wrap', border: '1px solid #eee', borderRadius: 8, padding: '1rem', overflowX: 'auto' }}>{embedCode}</pre>
+          <pre className="ai-output" style={{ whiteSpace: 'pre-wrap' }}>{embedCode}</pre>
         </section>
 
-        <section>
+        <section className="card stack">
           <h2>Preview</h2>
           <WidgetPreview widgetConfig={widgetConfig} />
         </section>
@@ -92,8 +94,8 @@ function getAppUrl() {
 
 function WidgetPreview({ widgetConfig }: { widgetConfig: { assistantName: string; initialMessage: string; primaryColor: string } }) {
   return (
-    <div style={{ border: '1px solid #eee', borderRadius: 8, padding: '1rem', minHeight: 220, position: 'relative', background: '#fafafa' }}>
-      <div style={{ border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+    <div style={{ minHeight: 220, position: 'relative' }}>
+      <div style={{ border: '0.5px solid var(--color-border)', borderRadius: 12, overflow: 'hidden', background: 'var(--color-surface)' }}>
         <div style={{ background: widgetConfig.primaryColor, color: '#fff', padding: '0.75rem', fontWeight: 700 }}>
           {widgetConfig.assistantName}
         </div>

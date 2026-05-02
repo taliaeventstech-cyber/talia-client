@@ -44,21 +44,20 @@ function LoginForm() {
 
   return (
     <>
-      <h1 style={{ marginBottom: '0.5rem' }}>TALIA</h1>
-      <p style={{ color: '#666', marginBottom: '2rem' }}>Accede a tu dashboard</p>
+      <h1>Talía</h1>
+      <p className="muted" style={{ marginBottom: 24 }}>Accede a tu dashboard</p>
       {(error ?? errorParam) && (
-        <p style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 6, padding: '0.75rem', fontSize: '0.85rem', color: '#b91c1c', marginBottom: '1rem' }}>
+        <p className="notice notice-error" style={{ marginBottom: 16 }}>
           {error ?? errorParam}
         </p>
       )}
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <form className="form-grid" onSubmit={handleSubmit}>
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="tu@email.com"
           required
-          style={{ padding: '0.75rem', fontSize: '1rem', border: '1px solid #ddd', borderRadius: 6 }}
         />
         <input
           type="password"
@@ -66,18 +65,17 @@ function LoginForm() {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Contraseña"
           required
-          style={{ padding: '0.75rem', fontSize: '1rem', border: '1px solid #ddd', borderRadius: 6 }}
         />
         <button
+          className="button-primary"
           type="submit"
           disabled={loading}
-          style={{ padding: '0.75rem', fontSize: '1rem', background: '#000', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
         >
           {loading ? 'Entrando...' : 'Entrar'}
         </button>
       </form>
-      <p style={{ marginTop: '1rem', color: '#666', fontSize: '0.9rem' }}>
-        ¿No tienes cuenta? <Link href="/signup" style={{ color: '#000', fontWeight: 700 }}>Crear cuenta</Link>
+      <p className="muted" style={{ marginTop: 16, fontSize: 13 }}>
+        ¿No tienes cuenta? <Link className="link-accent" href="/signup">Crear cuenta</Link>
       </p>
     </>
   )
@@ -85,10 +83,12 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div style={{ padding: '2rem', maxWidth: 400, margin: '10vh auto', fontFamily: 'sans-serif' }}>
+    <main className="auth-shell">
+      <section className="auth-card">
       <Suspense>
         <LoginForm />
       </Suspense>
-    </div>
+      </section>
+    </main>
   )
 }

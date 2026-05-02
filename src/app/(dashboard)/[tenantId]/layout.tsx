@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import Link from 'next/link'
+import { DashboardNav } from '@/components/dashboard-nav'
+import { ThemeToggle } from '@/components/theme-toggle'
+import Image from 'next/image'
 import { redirect } from 'next/navigation'
 
 interface Props {
@@ -28,22 +30,35 @@ export default async function DashboardLayout({ children, params }: Props) {
   if (!membership) redirect('/login')
 
   return (
-    <>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', padding: '1rem 2rem', borderBottom: '1px solid #222', fontFamily: 'sans-serif' }}>
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.95rem' }}>
-          <Link href={`/${tenantId}/overview`}>Overview</Link>
-          <Link href={`/${tenantId}/conversations`}>Conversaciones</Link>
-          <Link href={`/${tenantId}/analytics`}>Analytics</Link>
-          <Link href={`/${tenantId}/settings`}>Settings</Link>
-        </nav>
+    <div className="dashboard-shell">
+      <aside className="dashboard-sidebar">
+        <div className="dashboard-brand">
+          <Image
+            src="/talia-logo-marble.png"
+            alt="Talía"
+            width={552}
+            height={151}
+            className="dashboard-logo"
+            priority
+          />
+        
+        </div>
+        <DashboardNav tenantId={tenantId} />
+      </aside>
 
-        <form action="/auth/logout" method="post">
-          <button type="submit" style={{ border: '1px solid #555', borderRadius: 6, background: 'transparent', color: 'inherit', padding: '0.45rem 0.75rem', cursor: 'pointer' }}>
-            Cerrar sesión
-          </button>
-        </form>
+      <header className="dashboard-topbar">
+       
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <ThemeToggle />
+          <form action="/auth/logout" method="post">
+            <button className="button-outline" type="submit">
+              Cerrar sesión
+            </button>
+          </form>
+        </div>
       </header>
-      {children}
-    </>
+
+      <div className="dashboard-main">{children}</div>
+    </div>
   )
 }

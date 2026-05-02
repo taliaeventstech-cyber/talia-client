@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { MessagesSquare } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
@@ -40,40 +41,47 @@ export default async function ConversationsPage({ params }: Props) {
   })
 
   return (
-    <main style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: 1100, margin: '0 auto' }}>
-      <h1>Conversaciones</h1>
-      <p>{conversations?.length ?? 0} conversaciones</p>
+    <main className="page-shell">
+      <header className="page-header">
+        <h1>Conversaciones</h1>
+        <p className="muted">{conversations?.length ?? 0} conversaciones</p>
+      </header>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', marginTop: '1.5rem' }}>
+      <section className="card">
+      <table className="data-table">
         <thead>
-          <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-            <th style={{ padding: '0.75rem 0.5rem' }}>Session ID</th>
-            <th style={{ padding: '0.75rem 0.5rem' }}>Email</th>
-            <th style={{ padding: '0.75rem 0.5rem' }}>Último mensaje</th>
-            <th style={{ padding: '0.75rem 0.5rem' }}>Inicio</th>
-            <th style={{ padding: '0.75rem 0.5rem' }}>Mensajes</th>
-            <th style={{ padding: '0.75rem 0.5rem' }}></th>
+          <tr>
+            <th>Session ID</th>
+            <th>Email</th>
+            <th>Último mensaje</th>
+            <th>Inicio</th>
+            <th>Mensajes</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           {conversations?.map((conversation) => (
-            <tr key={conversation.id} style={{ borderBottom: '1px solid #eee' }}>
-              <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace', fontSize: '0.8rem' }}>
+            <tr key={conversation.id}>
+              <td className="mono">
                 {conversation.session_id.slice(0, 16)}...
               </td>
-              <td style={{ padding: '0.75rem 0.5rem' }}>{getVisitorEmail(conversation.metadata) ?? '-'}</td>
-              <td style={{ padding: '0.75rem 0.5rem', maxWidth: 360 }}>
+              <td>{getVisitorEmail(conversation.metadata) ?? '-'}</td>
+              <td style={{ maxWidth: 360 }}>
                 {truncate(latestMessageByConversation.get(conversation.id) ?? '-', 120)}
               </td>
-              <td style={{ padding: '0.75rem 0.5rem' }}>{new Date(conversation.started_at).toLocaleString('es-ES')}</td>
-              <td style={{ padding: '0.75rem 0.5rem' }}>{conversation.message_count}</td>
-              <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>
-                <Link href={`/${tenantId}/conversations/${conversation.id}`}>Ver mensajes</Link>
+              <td>{new Date(conversation.started_at).toLocaleString('es-ES')}</td>
+              <td>{conversation.message_count}</td>
+              <td style={{ textAlign: 'right' }}>
+                <Link className="link-accent link-with-icon" href={`/${tenantId}/conversations/${conversation.id}`}>
+                  <MessagesSquare aria-hidden="true" size={14} strokeWidth={2} />
+                  Ver mensajes
+                </Link>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      </section>
     </main>
   )
 }

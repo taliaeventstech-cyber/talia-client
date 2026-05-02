@@ -28,121 +28,82 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, scrapeUrls }: Se
   const [state, formAction, pending] = useActionState(updateTenantSettings.bind(null, tenantId), initialState)
 
   return (
-    <form action={formAction} style={{ display: 'grid', gap: '1.5rem' }}>
+    <form action={formAction} className="stack">
       {state.message ? (
         <p
           role="status"
-          style={{
-            margin: 0,
-            border: `1px solid ${state.ok ? '#86efac' : '#fca5a5'}`,
-            borderRadius: 8,
-            padding: '0.75rem',
-            color: state.ok ? '#166534' : '#991b1b',
-            background: state.ok ? '#f0fdf4' : '#fef2f2',
-          }}
+          className={`notice ${state.ok ? 'notice-success' : 'notice-error'}`}
         >
           {state.message}
         </p>
       ) : null}
 
-      <section>
+      <section className="card stack">
         <h2>Chatbot</h2>
-        <div style={{ display: 'grid', gap: '1rem' }}>
-          <label style={fieldStyle}>
+        <div className="form-grid">
+          <label className="field">
             Plan
-            <select name="plan" defaultValue={theatre.plan} style={inputStyle}>
+            <select name="plan" defaultValue={theatre.plan}>
               <option value="esencial">Esencial</option>
               <option value="profesional">Profesional</option>
               <option value="pro">Pro</option>
             </select>
           </label>
 
-          <label style={fieldStyle}>
+          <label className="field">
             Nombre del asistente
-            <input name="assistant_name" defaultValue={widgetConfig.assistantName} style={inputStyle} />
+            <input name="assistant_name" defaultValue={widgetConfig.assistantName} />
           </label>
 
-          <label style={fieldStyle}>
+          <label className="field">
             Mensaje inicial
-            <textarea
-              name="initial_message"
-              defaultValue={widgetConfig.initialMessage}
-              rows={3}
-              style={{ ...inputStyle, resize: 'vertical' }}
-            />
+            <textarea name="initial_message" defaultValue={widgetConfig.initialMessage} rows={3} />
           </label>
 
-          <label style={fieldStyle}>
+          <label className="field">
             Color principal
-            <input name="primary_color" type="color" defaultValue={widgetConfig.primaryColor} style={{ ...inputStyle, height: 44 }} />
+            <input name="primary_color" type="color" defaultValue={widgetConfig.primaryColor} style={{ height: 44 }} />
           </label>
 
-          <label style={fieldStyle}>
+          <label className="field">
             Email fallback
-            <input name="fallback_email" type="email" defaultValue={theatre.fallback_email ?? ''} style={inputStyle} />
+            <input name="fallback_email" type="email" defaultValue={theatre.fallback_email ?? ''} />
           </label>
 
-          <label style={fieldStyle}>
+          <label className="field">
             Teléfono fallback
-            <input name="fallback_phone" defaultValue={theatre.fallback_phone ?? ''} style={inputStyle} />
+            <input name="fallback_phone" defaultValue={theatre.fallback_phone ?? ''} />
           </label>
         </div>
       </section>
 
-      <section>
+      <section className="card stack">
         <h2>Prompt base</h2>
         <textarea
           name="system_prompt"
           defaultValue={theatre.system_prompt ?? ''}
           rows={12}
-          style={{ ...inputStyle, fontFamily: 'monospace', resize: 'vertical' }}
+          className="mono"
         />
       </section>
 
-      <section>
+      <section className="card stack">
         <h2>URLs scrapeables</h2>
-        <div style={{ display: 'grid', gap: '0.75rem' }}>
+        <div className="form-grid">
           {[0, 1, 2, 3].map((index) => (
             <input
               key={index}
               name={`scrape_url_${index + 1}`}
               defaultValue={scrapeUrls[index] ?? ''}
               placeholder="https://..."
-              style={inputStyle}
             />
           ))}
         </div>
       </section>
 
-      <button type="submit" disabled={pending} style={{ ...buttonStyle, opacity: pending ? 0.7 : 1 }}>
+      <button className="button-primary" type="submit" disabled={pending} style={{ opacity: pending ? 0.7 : 1 }}>
         {pending ? 'Guardando...' : 'Guardar configuración'}
       </button>
     </form>
   )
-}
-
-const fieldStyle: React.CSSProperties = {
-  display: 'grid',
-  gap: '0.35rem',
-  fontWeight: 600,
-}
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  boxSizing: 'border-box',
-  border: '1px solid #ddd',
-  borderRadius: 8,
-  padding: '0.75rem',
-  font: 'inherit',
-}
-
-const buttonStyle: React.CSSProperties = {
-  width: 'fit-content',
-  border: 0,
-  borderRadius: 8,
-  padding: '0.8rem 1rem',
-  background: '#111',
-  color: '#fff',
-  font: 'inherit',
-  cursor: 'pointer',
 }
