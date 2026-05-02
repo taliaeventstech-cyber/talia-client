@@ -6,6 +6,7 @@ export type PublicWidgetConfig = {
   tenantId: string
   name: string
   assistantName: string
+  initialMessage: string
   primaryColor: string
   fallbackEmail: string | null
   fallbackPhone: string | null
@@ -75,6 +76,7 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
       tenantId: data.id,
       name: data.name,
       assistantName: widgetConfig.assistantName,
+      initialMessage: widgetConfig.initialMessage,
       primaryColor: widgetConfig.primaryColor,
       fallbackEmail: data.fallback_email,
       fallbackPhone: data.fallback_phone,
@@ -136,12 +138,13 @@ export async function getTenantRuntimeChatConfig(admin: AdminClient, tenantId: s
 
 function getWidgetConfig(value: unknown) {
   if (!value || typeof value !== 'object') {
-    return { assistantName: 'TALIA', primaryColor: '#000000' }
+    return { assistantName: 'TALIA', initialMessage: 'Hola, soc TALIA. En què et puc ajudar?', primaryColor: '#000000' }
   }
 
-  const config = value as { assistantName?: unknown; primaryColor?: unknown }
+  const config = value as { assistantName?: unknown; initialMessage?: unknown; primaryColor?: unknown }
   return {
     assistantName: typeof config.assistantName === 'string' ? config.assistantName : 'TALIA',
+    initialMessage: typeof config.initialMessage === 'string' ? config.initialMessage : 'Hola, soc TALIA. En què et puc ajudar?',
     primaryColor: typeof config.primaryColor === 'string' ? config.primaryColor : '#000000',
   }
 }

@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 
@@ -36,14 +37,20 @@ export default async function ConversationDetailPage({ params }: Props) {
   const visitorEmail = getVisitorEmail(conversation.metadata)
 
   return (
-    <main style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: 900, margin: '0 auto' }}>
-      <Link href={`/${tenantId}/conversations`}>Volver a conversaciones</Link>
+    <main className="page-shell">
+      <Link className="back-link" href={`/${tenantId}/conversations`}>
+        <ArrowLeft aria-hidden="true" size={14} strokeWidth={2} />
+        <span>Volver a conversaciones</span>
+      </Link>
 
-      <header style={{ marginTop: '1.5rem', marginBottom: '2rem' }}>
-        <h1 style={{ marginBottom: '0.5rem' }}>Conversación</h1>
-        <dl style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '0.5rem 1rem', color: '#666' }}>
+      <header className="card stack">
+        <div className="page-header">
+          <p className="section-label">Conversation log</p>
+          <h1>Conversación</h1>
+        </div>
+        <dl style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px 16px' }}>
           <dt>Session ID</dt>
-          <dd style={{ margin: 0, fontFamily: 'monospace' }}>{conversation.session_id}</dd>
+          <dd className="mono">{conversation.session_id}</dd>
           <dt>Email</dt>
           <dd style={{ margin: 0 }}>{visitorEmail ?? '-'}</dd>
           <dt>Inicio</dt>
@@ -53,27 +60,19 @@ export default async function ConversationDetailPage({ params }: Props) {
         </dl>
       </header>
 
-      <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <section className="chat-log">
         {messages?.map((message) => (
           <article
             key={message.id}
-            style={{
-              border: '1px solid #eee',
-              borderRadius: 8,
-              padding: '1rem',
-              marginLeft: message.role === 'assistant' ? '2rem' : 0,
-              marginRight: message.role === 'user' ? '2rem' : 0,
-              background: message.role === 'assistant' ? '#111' : '#f7f7f7',
-              color: message.role === 'assistant' ? '#fff' : '#111',
-            }}
+            className={`card message-card ${message.role === 'assistant' ? 'message-card-assistant' : 'message-card-user'}`}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.75rem' }}>
+            <div className="message-meta">
               <strong>{message.role === 'assistant' ? 'TALIA' : 'Usuario'}</strong>
-              <time style={{ color: message.role === 'assistant' ? '#aaa' : '#666', fontSize: '0.85rem' }}>
+              <time>
                 {new Date(message.created_at).toLocaleString('es-ES')}
               </time>
             </div>
-            <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{message.content}</p>
+            <p style={{ whiteSpace: 'pre-wrap' }}>{message.content}</p>
           </article>
         ))}
       </section>

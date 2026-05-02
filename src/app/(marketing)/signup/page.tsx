@@ -48,27 +48,27 @@ export default function SignupPage() {
   }
 
   return (
-    <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: '2rem', fontFamily: 'sans-serif', background: '#f7f7f7' }}>
-      <section style={{ width: '100%', maxWidth: 440, background: '#fff', border: '1px solid #e5e5e5', borderRadius: 8, padding: '2rem' }}>
-        <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Crear cuenta TALIA</h1>
-        <p style={{ color: '#666', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+    <main className="auth-shell">
+      <section className="auth-card">
+        <h1>Crear cuenta Talía</h1>
+        <p className="muted" style={{ marginBottom: 24 }}>
           Registra tu teatro y configura tu asistente para instalarlo en tu web.
         </p>
 
         {error ? (
-          <p style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 6, padding: '0.75rem', fontSize: '0.9rem', color: '#b91c1c', marginBottom: '1rem' }}>
+          <p className="notice notice-error" style={{ marginBottom: 16 }}>
             {error}
           </p>
         ) : null}
 
         {message ? (
-          <p style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 6, padding: '0.75rem', fontSize: '0.9rem', color: '#166534', marginBottom: '1rem' }}>
+          <p className="notice notice-success" style={{ marginBottom: 16 }}>
             {message}
           </p>
         ) : null}
 
-        <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1rem' }}>
-          <label style={{ display: 'grid', gap: '0.35rem', fontWeight: 700 }}>
+        <form className="form-grid" onSubmit={handleSubmit}>
+          <label className="field">
             Email
             <input
               type="email"
@@ -76,11 +76,10 @@ export default function SignupPage() {
               onChange={(event) => setEmail(event.target.value)}
               required
               placeholder="tu@email.com"
-              style={{ padding: '0.75rem', fontSize: '1rem', border: '1px solid #ddd', borderRadius: 6 }}
             />
           </label>
 
-          <label style={{ display: 'grid', gap: '0.35rem', fontWeight: 700 }}>
+          <label className="field">
             Contraseña
             <input
               type="password"
@@ -89,21 +88,20 @@ export default function SignupPage() {
               required
               minLength={8}
               placeholder="Mínimo 8 caracteres"
-              style={{ padding: '0.75rem', fontSize: '1rem', border: '1px solid #ddd', borderRadius: 6 }}
             />
           </label>
 
           <button
+            className="button-primary"
             type="submit"
             disabled={loading}
-            style={{ padding: '0.8rem', fontSize: '1rem', fontWeight: 700, background: '#000', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
           >
             {loading ? 'Creando cuenta...' : 'Crear cuenta'}
           </button>
         </form>
 
-        <p style={{ marginTop: '1rem', color: '#666', fontSize: '0.9rem' }}>
-          ¿Ya tienes cuenta? <Link href="/login" style={{ color: '#000', fontWeight: 700 }}>Entrar</Link>
+        <p className="muted" style={{ marginTop: 16, fontSize: 13 }}>
+          ¿Ya tienes cuenta? <Link className="link-accent" href="/login">Entrar</Link>
         </p>
       </section>
     </main>

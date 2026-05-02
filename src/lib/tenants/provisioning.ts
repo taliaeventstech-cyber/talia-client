@@ -19,6 +19,7 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
   const scrapeUrls = input.websiteUrl ? [input.websiteUrl] : []
   const widgetConfig = {
     assistantName: input.assistantName || 'TALIA',
+    initialMessage: 'Hola, soc TALIA. En què et puc ajudar?',
     primaryColor: input.primaryColor || '#000000',
   } satisfies Json
 

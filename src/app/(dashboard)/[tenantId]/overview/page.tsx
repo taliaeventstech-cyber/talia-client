@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { MessagesSquare } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
@@ -39,23 +40,26 @@ export default async function OverviewPage({ params }: Props) {
   const topTopics = getTopTopics(topics ?? [], 5)
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: 900, margin: '0 auto' }}>
-      <h1 style={{ marginBottom: '0.25rem' }}>{theatre?.name ?? 'Dashboard'}</h1>
-      <p style={{ color: '#666', marginBottom: '2rem' }}>Panel de control TALIA</p>
+    <main className="page-shell">
+      <header className="page-header">
+       
+        <h1>{theatre?.name ?? 'Dashboard'}</h1>
+        <p className="muted">Panel de control Talía</p>
+      </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+      <div className="kpi-row">
         <StatCard label="Total conversaciones" value={totalConversations ?? 0} />
       </div>
 
-      <section style={{ marginBottom: '2.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', marginBottom: '1rem' }}>
-          <h2 style={{ margin: 0 }}>Temas más preguntados</h2>
-          <Link href={`/${tenantId}/analytics`}>Ver analytics</Link>
+      <section className="card stack">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem' }}>
+          <h2>Temas más preguntados</h2>
+          <Link className="link-accent" href={`/${tenantId}/analytics`}>Ver analytics</Link>
         </div>
         {topTopics.length === 0 ? (
-          <p style={{ color: '#999' }}>Aún no hay temas clasificados.</p>
+          <p className="muted">Aún no hay temas clasificados.</p>
         ) : (
-          <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div className="stack">
             {topTopics.map((item) => (
               <TopicBar key={item.topic} topic={item.topic} count={item.count} max={topTopics[0].count} />
             ))}
@@ -63,36 +67,41 @@ export default async function OverviewPage({ params }: Props) {
         )}
       </section>
 
-      <h2 style={{ marginBottom: '1rem' }}>Últimas conversaciones</h2>
+      <section className="card stack">
+      <h2>Últimas conversaciones</h2>
       {recentConversations?.length === 0 ? (
-        <p style={{ color: '#999' }}>Sin conversaciones aún. Configura el nodo HTTP Request en n8n para empezar a recibir datos.</p>
+        <p className="muted">Sin conversaciones aún. Configura el nodo HTTP Request en n8n para empezar a recibir datos.</p>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+        <table className="data-table">
           <thead>
-            <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-              <th style={{ padding: '0.5rem' }}>Session ID</th>
-              <th style={{ padding: '0.5rem' }}>Email</th>
-              <th style={{ padding: '0.5rem' }}>Inicio</th>
-              <th style={{ padding: '0.5rem' }}>Mensajes</th>
-              <th style={{ padding: '0.5rem' }}></th>
+            <tr>
+              <th>Session ID</th>
+              <th>Email</th>
+              <th>Inicio</th>
+              <th>Mensajes</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {recentConversations?.map((c) => (
-              <tr key={c.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '0.5rem', fontFamily: 'monospace', fontSize: '0.8rem' }}>{c.session_id.slice(0, 16)}...</td>
-                <td style={{ padding: '0.5rem' }}>{getVisitorEmail(c.metadata) ?? '-'}</td>
-                <td style={{ padding: '0.5rem' }}>{new Date(c.started_at).toLocaleString('es-ES')}</td>
-                <td style={{ padding: '0.5rem' }}>{c.message_count}</td>
-                <td style={{ padding: '0.5rem', textAlign: 'right' }}>
-                  <Link href={`/${tenantId}/conversations/${c.id}`}>Ver mensajes</Link>
+              <tr key={c.id}>
+                <td className="mono">{c.session_id.slice(0, 16)}...</td>
+                <td>{getVisitorEmail(c.metadata) ?? '-'}</td>
+                <td>{new Date(c.started_at).toLocaleString('es-ES')}</td>
+                <td>{c.message_count}</td>
+                <td style={{ textAlign: 'right' }}>
+                  <Link className="link-accent link-with-icon" href={`/${tenantId}/conversations/${c.id}`}>
+                    <MessagesSquare aria-hidden="true" size={14} strokeWidth={2} />
+                    Ver mensajes
+                  </Link>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
-    </div>
+      </section>
+    </main>
   )
 }
 
@@ -121,12 +130,12 @@ function TopicBar({ topic, count, max }: { topic: string; count: number; max: nu
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
         <span style={{ textTransform: 'capitalize' }}>{topic}</span>
-        <strong>{count}</strong>
+        <strong className="mono">{count}</strong>
       </div>
-      <div style={{ height: 10, background: '#eee', borderRadius: 999, overflow: 'hidden' }}>
-        <div style={{ width, height: '100%', background: '#111' }} />
+      <div className="progress-track">
+        <div className="progress-fill" style={{ width }} />
       </div>
     </div>
   )
@@ -134,9 +143,9 @@ function TopicBar({ topic, count, max }: { topic: string; count: number; max: nu
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div style={{ border: '1px solid #eee', borderRadius: 8, padding: '1.25rem' }}>
-      <p style={{ margin: 0, color: '#666', fontSize: '0.85rem' }}>{label}</p>
-      <p style={{ margin: '0.5rem 0 0', fontSize: '2rem', fontWeight: 700 }}>{value}</p>
+    <div className="kpi-card">
+      <p className="kpi-label">{label}</p>
+      <p className="kpi-value">{value}</p>
     </div>
   )
 }

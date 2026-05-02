@@ -12,62 +12,54 @@ export function OnboardingForm({ email }: { email: string }) {
   const [state, action, pending] = useActionState(createTenant, initialState)
 
   return (
-    <form action={action} style={{ display: 'grid', gap: '1rem' }}>
+    <form action={action} className="form-grid">
       {state.message ? (
-        <p style={{ background: state.ok ? '#f0fdf4' : '#fef2f2', border: `1px solid ${state.ok ? '#86efac' : '#fca5a5'}`, borderRadius: 6, padding: '0.75rem', color: state.ok ? '#166534' : '#b91c1c' }}>
+        <p className={`notice ${state.ok ? 'notice-success' : 'notice-error'}`}>
           {state.message}
         </p>
       ) : null}
 
-      <label style={{ display: 'grid', gap: '0.35rem', fontWeight: 700 }}>
+      <label className="field">
         Nombre del teatro
-        <input name="theatre_name" required placeholder="Teatre Nacional de Catalunya" style={inputStyle} />
+        <input name="theatre_name" required placeholder="Teatre Nacional de Catalunya" />
       </label>
 
-      <label style={{ display: 'grid', gap: '0.35rem', fontWeight: 700 }}>
+      <label className="field">
         Web oficial
-        <input name="website_url" type="url" placeholder="https://www.tnc.cat/es" style={inputStyle} />
+        <input name="website_url" type="url" placeholder="https://www.tnc.cat/es" />
       </label>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-        <label style={{ display: 'grid', gap: '0.35rem', fontWeight: 700 }}>
+      <div className="form-row">
+        <label className="field">
           Email de contacto
-          <input name="fallback_email" type="email" placeholder={email || 'info@teatro.com'} style={inputStyle} />
+          <input name="fallback_email" type="email" placeholder={email || 'info@teatro.com'} />
         </label>
 
-        <label style={{ display: 'grid', gap: '0.35rem', fontWeight: 700 }}>
+        <label className="field">
           Teléfono
-          <input name="fallback_phone" placeholder="+34 ..." style={inputStyle} />
+          <input name="fallback_phone" placeholder="+34 ..." />
         </label>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '1rem' }}>
-        <label style={{ display: 'grid', gap: '0.35rem', fontWeight: 700 }}>
+      <div className="form-row-narrow">
+        <label className="field">
           Nombre del asistente
-          <input name="assistant_name" defaultValue="TALIA" required style={inputStyle} />
+          <input name="assistant_name" defaultValue="TALIA" required />
         </label>
 
-        <label style={{ display: 'grid', gap: '0.35rem', fontWeight: 700 }}>
+        <label className="field">
           Color
-          <input name="primary_color" defaultValue="#000000" pattern="^#[0-9a-fA-F]{6}$" required style={inputStyle} />
+          <input name="primary_color" defaultValue="#000000" pattern="^#[0-9a-fA-F]{6}$" required />
         </label>
       </div>
 
       <button
+        className="button-primary"
         type="submit"
         disabled={pending}
-        style={{ marginTop: '0.5rem', padding: '0.85rem', border: 0, borderRadius: 6, background: '#000', color: '#fff', fontSize: '1rem', fontWeight: 700, cursor: 'pointer' }}
       >
         {pending ? 'Creando teatro...' : 'Crear teatro y entrar'}
       </button>
     </form>
   )
 }
-
-const inputStyle = {
-  padding: '0.75rem',
-  fontSize: '1rem',
-  border: '1px solid #ddd',
-  borderRadius: 6,
-  background: '#fff',
-} satisfies React.CSSProperties
