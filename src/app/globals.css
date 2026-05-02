@@ -321,6 +321,9 @@ textarea {
   height: 28px;
   border-radius: 6px;
   color: var(--color-text-tertiary);
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
 }
 
 .nav-icon-link:hover,
@@ -381,15 +384,74 @@ textarea {
 }
 
 .nav-link {
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   gap: 8px;
-  border-left: 2px solid transparent;
   border-radius: 0 6px 6px 0;
   color: var(--color-text-secondary);
   font-size: 13px;
   font-weight: 400;
   padding: 8px 10px;
+  overflow: hidden;
+  transition:
+    color 180ms ease,
+    font-weight 180ms ease,
+    transform 180ms ease;
+}
+
+.nav-link::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--color-surface-2);
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 2px;
+  z-index: 0;
+  border-radius: 999px;
+  background: var(--color-brand);
+  opacity: 0;
+  transform: scaleY(0.4);
+  transform-origin: center;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.nav-link > svg {
+  position: relative;
+  z-index: 1;
+}
+
+.nav-link:hover {
+  color: var(--color-brand);
+}
+
+.nav-link:hover::before,
+.nav-link-active::before {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.nav-link:hover::after,
+.nav-link-active::after {
+  opacity: 1;
+  transform: scaleY(1);
 }
 
 .nav-link-nested {
@@ -398,8 +460,6 @@ textarea {
 }
 
 .nav-link-active {
-  background: var(--color-surface-2);
-  border-left-color: var(--color-brand);
   color: var(--color-brand);
   font-weight: 500;
 }

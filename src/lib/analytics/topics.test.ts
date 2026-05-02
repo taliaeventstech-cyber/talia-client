@@ -15,6 +15,19 @@ describe('classifyConversationTopic', () => {
     expect(classifyConversationTopic('otro', 'Quins espectacles hi ha aquesta setmana?')).toBe('agenda')
   })
 
+  it('does not classify questions that start with a greeting as saludo', () => {
+    expect(classifyConversationTopic('otro', 'Hola, donde está el teatro?')).toBe('ubicacion')
+    expect(classifyConversationTopic('otro', 'Hola, quiero comprar entradas')).toBe('entradas')
+    expect(classifyConversationTopic('otro', 'Hola')).toBe('otro')
+    expect(classifyConversationTopic('otro', 'Hola! Quins espectacles teniu?')).toBe('agenda')
+  })
+
+  it('does not persist workflow saludo as an analytics topic', () => {
+    expect(classifyConversationTopic('saludo', 'Hola! Es pot anar en cadira de rodes?')).toBe('accesibilidad')
+    expect(classifyConversationTopic('saludo', 'Hola, quins espectacles hi ha?')).toBe('agenda')
+    expect(classifyConversationTopic('saludo', 'Bona tarda')).toBe('otro')
+  })
+
   it('normalizes accented workflow topics', () => {
     expect(classifyConversationTopic('ubicación', undefined)).toBe('ubicacion')
   })

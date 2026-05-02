@@ -1,4 +1,3 @@
-const widgetScript = String.raw`
 (function () {
   var script = document.currentScript;
   if (!script) return;
@@ -53,11 +52,13 @@ const widgetScript = String.raw`
       toggle.setAttribute('aria-expanded', String(!panel.hidden));
       if (!panel.hidden) setTimeout(function () { input.focus(); }, 0);
     });
+
     close.addEventListener('click', function () {
       panel.hidden = true;
       toggle.setAttribute('aria-expanded', 'false');
       toggle.focus();
     });
+
     root.addEventListener('keydown', function (event) {
       if (event.key === 'Escape') {
         panel.hidden = true;
@@ -65,6 +66,7 @@ const widgetScript = String.raw`
         toggle.focus();
       }
     });
+
     form.addEventListener('submit', function (event) {
       event.preventDefault();
       var text = input.value.trim();
@@ -80,7 +82,7 @@ const widgetScript = String.raw`
     fetch(baseUrl + '/api/chat/' + tenantId, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId, message: text })
+      body: JSON.stringify({ session_id: sessionId, message: text }),
     })
       .then(function (response) { return response.json(); })
       .then(function (data) {
@@ -144,15 +146,3 @@ const widgetScript = String.raw`
     });
   }
 })();
-`
-
-export function GET() {
-  return new Response(widgetScript, {
-    headers: {
-      'Content-Type': 'application/javascript; charset=utf-8',
-      'Cache-Control': 'public, max-age=300',
-      'Access-Control-Allow-Origin': '*',
-      'Cross-Origin-Resource-Policy': 'cross-origin',
-    },
-  })
-}

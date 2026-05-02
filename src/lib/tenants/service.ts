@@ -131,7 +131,7 @@ export async function getTenantRuntimeChatConfig(admin: AdminClient, tenantId: s
       fallbackEmail: data.fallback_email,
       fallbackPhone: data.fallback_phone,
       scrapeUrls,
-      topicCategories: ['agenda', 'precios', 'horarios', 'ubicacion', 'visita', 'entradas', 'accesibilidad', 'saludo', 'otro'],
+      topicCategories: ['agenda', 'precios', 'horarios', 'ubicacion', 'visita', 'entradas', 'accesibilidad', 'otro'],
     } satisfies TenantRuntimeChatConfig,
   }
 }

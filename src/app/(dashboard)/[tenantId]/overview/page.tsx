@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { classifyConversationTopic } from '@/lib/analytics/topics'
 import { MessagesSquare } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
@@ -32,7 +33,7 @@ export default async function OverviewPage({ params }: Props) {
         .eq('theatre_id', tenantId),
       admin
         .from('conversation_topics')
-        .select('topic')
+        .select('topic, user_message')
         .eq('theatre_id', tenantId)
         .not('topic', 'is', null)
         .limit(500),
@@ -112,11 +113,12 @@ function getVisitorEmail(metadata: unknown) {
   return typeof email === 'string' && email ? email : null
 }
 
-function getTopTopics(topics: { topic: string | null }[], limit: number) {
+function getTopTopics(topics: { topic: string | null; user_message: string | null }[], limit: number) {
   const counts = new Map<string, number>()
-  topics.forEach(({ topic }) => {
-    if (!topic) return
-    counts.set(topic, (counts.get(topic) ?? 0) + 1)
+  topics.forEach(({ topic, user_message }) => {
+    const normalized = classifyConversationTopic(topic ?? undefined, user_message ?? undefined)
+    if (!normalized || normalized === 'otro') return
+    counts.set(normalized, (counts.get(normalized) ?? 0) + 1)
   })
 
   return Array.from(counts.entries())

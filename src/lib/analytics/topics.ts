@@ -18,7 +18,6 @@ const ALLOWED_TOPICS = new Set([
   'visita',
   'entradas',
   'accesibilidad',
-  'saludo',
   'otro',
 ])
 
@@ -52,6 +51,9 @@ export async function saveConversationTopic(admin: AdminClient, input: SaveTopic
 export function classifyConversationTopic(topic: string | undefined, userMessage: string | undefined) {
   if (topic && !isExpressionLiteral(topic)) {
     const normalized = normalizeText(topic).trim()
+    if (normalized === 'saludo') {
+      return inferTopic(userMessage)
+    }
     if (ALLOWED_TOPICS.has(normalized) && normalized !== 'otro') return normalized
   }
 
@@ -67,7 +69,6 @@ function inferTopic(message: string | undefined) {
   if (!message) return 'otro'
   const normalized = normalizeText(message)
 
-  if (matches(normalized, ['hola', 'buenas', 'bon dia', 'bona tarda', 'bona nit', 'hello'])) return 'saludo'
   if (matches(normalized, ['accessible', 'accessibilitat', 'accesibilidad', 'accesible', 'adaptado', 'adaptada', 'cadira de rodes', 'silla de ruedas', 'movilidad reducida', 'wheelchair'])) return 'accesibilidad'
   if (matches(normalized, ['entrada', 'entradas', 'entrades', 'ticket', 'tickets', 'comprar', 'compra', 'reserva', 'reservar', 'booking'])) return 'entradas'
   if (matches(normalized, ['precio', 'precios', 'preu', 'preus', 'tarifa', 'tarifas', 'descuento', 'descuentos', 'descompte', 'descomptes', 'cuesta', 'cost', 'price', 'prices'])) return 'precios'

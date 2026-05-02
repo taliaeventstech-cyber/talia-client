@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { classifyConversationTopic } from '@/lib/analytics/topics'
 import { redirect } from 'next/navigation'
 
 interface Props {
@@ -29,8 +30,9 @@ export default async function AnalyticsPage({ params }: Props) {
       .order('created_at', { ascending: false })
       .limit(500),
   ])
-  const topTopics = getTopTopics(topics ?? [])
-  const recentTopics = topics?.slice(0, 20) ?? []
+  const normalizedTopics = normalizeTopics(topics ?? [])
+  const topTopics = getTopTopics(normalizedTopics)
+  const recentTopics = normalizedTopics.slice(0, 20)
 
   return (
     <main className="page-shell">
@@ -86,7 +88,7 @@ export default async function AnalyticsPage({ params }: Props) {
             <tbody>
               {recentTopics.map((topic, index) => (
                 <tr key={`${topic.created_at}-${index}`}>
-                  <td style={{ textTransform: 'capitalize' }}>{topic.topic ?? '-'}</td>
+                  <td style={{ textTransform: 'capitalize' }}>{topic.topic}</td>
                   <td>{topic.user_message ?? '-'}</td>
                   <td>
                     {topic.created_at ? new Date(topic.created_at).toLocaleString('es-ES') : '-'}
@@ -106,10 +108,17 @@ export default async function AnalyticsPage({ params }: Props) {
   )
 }
 
-function getTopTopics(topics: { topic: string | null }[]) {
+function normalizeTopics(topics: { topic: string | null; user_message: string | null; created_at: string | null }[]) {
+  return topics.map((topic) => ({
+    ...topic,
+    topic: classifyConversationTopic(topic.topic ?? undefined, topic.user_message ?? undefined),
+  }))
+}
+
+function getTopTopics(topics: { topic: string }[]) {
   const counts = new Map<string, number>()
   topics.forEach(({ topic }) => {
-    if (!topic) return
+    if (!topic || topic === 'otro') return
     counts.set(topic, (counts.get(topic) ?? 0) + 1)
   })
 
