@@ -151,6 +151,8 @@ export function GET() {
     headers: {
       'Content-Type': 'application/javascript; charset=utf-8',
       'Cache-Control': 'public, max-age=300',
+      'Access-Control-Allow-Origin': '*',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
     },
   })
 }

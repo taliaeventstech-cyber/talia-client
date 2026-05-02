@@ -81,6 +81,7 @@ function getEmbedCode(tenantId: string, widgetConfig: { assistantName: string; p
 
   return `<script
   src="${appUrl}/widget.js"
+  crossorigin="anonymous"
   data-tenant="${tenantId}"
   data-color="${widgetConfig.primaryColor}"
 ></script>`
