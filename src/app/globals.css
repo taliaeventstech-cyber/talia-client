@@ -166,6 +166,34 @@ textarea {
   font-weight: 500;
 }
 
+.field-hint {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.knowledge-help {
+  display: grid;
+  gap: 4px;
+  border: 0.5px solid color-mix(in srgb, var(--color-ia) 26%, transparent);
+  border-radius: 8px;
+  background: var(--color-ia-bg);
+  color: var(--color-text-secondary);
+  padding: 14px 16px;
+}
+
+.knowledge-help strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.knowledge-help span {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 .muted {
   color: var(--color-text-secondary);
 }
@@ -176,6 +204,25 @@ textarea {
   font-weight: 500;
   letter-spacing: 0.07em;
   text-transform: uppercase;
+}
+
+.collapsible-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.collapsible-header:hover :where(.section-label) {
+  color: var(--color-text-secondary);
 }
 
 .button-primary,

@@ -24,6 +24,14 @@ const settingsSchema = z.object({
   scrapeUrls: z.array(z.string().trim().url('Todas las URLs deben ser válidas')).max(4),
 })
 
+const knowledgeItemSchema = z.object({
+  question: z.string().trim().min(4, 'La pregunta debe tener al menos 4 caracteres').max(500),
+  answer: z.string().trim().min(4, 'La respuesta debe tener al menos 4 caracteres').max(4000),
+  category: z.string().trim().max(80).optional(),
+  language: z.enum(['es', 'ca', 'en']),
+  priority: z.coerce.number().int().min(0).max(100),
+})
+
 export async function updateTenantSettings(
   tenantId: string,
   _previousState: SettingsFormState,
@@ -79,4 +87,88 @@ export async function updateTenantSettings(
 
   revalidatePath(`/${tenantId}/settings`)
   return { ok: true, message: 'Configuración guardada correctamente.' }
+}
+
+export async function createKnowledgeItem(
+  tenantId: string,
+  _previousState: SettingsFormState,
+  formData: FormData
+): Promise<SettingsFormState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const admin = createAdminClient()
+  const isAdmin = await assertTenantAdmin(admin, user.id, tenantId)
+
+  if (!isAdmin) {
+    return { ok: false, message: 'No tienes permisos para editar esta fuente.' }
+  }
+
+  const parsed = knowledgeItemSchema.safeParse({
+    question: formData.get('question'),
+    answer: formData.get('answer'),
+    category: formData.get('category'),
+    language: formData.get('language') || 'es',
+    priority: formData.get('priority') || 0,
+  })
+
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? 'La FAQ no es válida.' }
+  }
+
+  const source = await getOrCreateManualKnowledgeSource(admin, tenantId)
+  if (!source.ok) {
+    return { ok: false, message: source.error }
+  }
+
+  const { data } = parsed
+  const { error } = await admin
+    .from('knowledge_items')
+    .insert({
+      theatre_id: tenantId,
+      source_id: source.id,
+      question: data.question,
+      answer: data.answer,
+      category: data.category || null,
+      language: data.language,
+      priority: data.priority,
+      active: true,
+    })
+
+  if (error) {
+    return { ok: false, message: `No se pudo guardar la FAQ: ${error.message}` }
+  }
+
+  revalidatePath(`/${tenantId}/settings`)
+  return { ok: true, message: 'FAQ añadida correctamente.' }
+}
+
+async function getOrCreateManualKnowledgeSource(admin: ReturnType<typeof createAdminClient>, tenantId: string) {
+  const existing = await admin
+    .from('knowledge_sources')
+    .select('id')
+    .eq('theatre_id', tenantId)
+    .eq('type', 'manual')
+    .eq('name', 'FAQs manuales')
+    .maybeSingle()
+
+  if (existing.data) return { ok: true as const, id: existing.data.id }
+
+  const created = await admin
+    .from('knowledge_sources')
+    .insert({
+      theatre_id: tenantId,
+      type: 'manual',
+      name: 'FAQs manuales',
+      status: 'ready',
+    })
+    .select('id')
+    .single()
+
+  if (created.error || !created.data) {
+    return { ok: false as const, error: `No se pudo crear la fuente manual: ${created.error?.message ?? 'error desconocido'}` }
+  }
+
+  return { ok: true as const, id: created.data.id }
 }

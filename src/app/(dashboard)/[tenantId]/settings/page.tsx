@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
+import { KnowledgeForm } from './knowledge-form'
 import { SettingsForm } from './settings-form'
 
 interface Props {
@@ -16,11 +17,21 @@ export default async function SettingsPage({ params }: Props) {
 
   const admin = createAdminClient()
 
-  const { data: theatre } = await admin
-    .from('theatres')
-    .select('name, slug, plan, system_prompt, fallback_email, fallback_phone, scrape_urls, widget_config, n8n_webhook_url')
-    .eq('id', tenantId)
-    .single()
+  const [{ data: theatre }, { data: knowledgeItems }] = await Promise.all([
+    admin
+      .from('theatres')
+      .select('name, slug, plan, system_prompt, fallback_email, fallback_phone, scrape_urls, widget_config, n8n_webhook_url')
+      .eq('id', tenantId)
+      .single(),
+    admin
+      .from('knowledge_items')
+      .select('id, question, answer, category, language, priority')
+      .eq('theatre_id', tenantId)
+      .eq('active', true)
+      .order('priority', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(20),
+  ])
   const widgetConfig = getWidgetConfig(theatre?.widget_config)
   const scrapeUrls = Array.isArray(theatre?.scrape_urls)
     ? theatre.scrape_urls.filter((url): url is string => typeof url === 'string')
@@ -47,17 +58,20 @@ export default async function SettingsPage({ params }: Props) {
       </div>
 
       {theatre ? (
-        <SettingsForm
-          tenantId={tenantId}
-          theatre={{
-            plan: theatre.plan,
-            system_prompt: theatre.system_prompt,
-            fallback_email: theatre.fallback_email,
-            fallback_phone: theatre.fallback_phone,
-          }}
-          widgetConfig={widgetConfig}
-          scrapeUrls={scrapeUrls}
-        />
+        <>
+          <KnowledgeForm tenantId={tenantId} items={knowledgeItems ?? []} />
+          <SettingsForm
+            tenantId={tenantId}
+            theatre={{
+              plan: theatre.plan,
+              system_prompt: theatre.system_prompt,
+              fallback_email: theatre.fallback_email,
+              fallback_phone: theatre.fallback_phone,
+            }}
+            widgetConfig={widgetConfig}
+            scrapeUrls={scrapeUrls}
+          />
+        </>
       ) : null}
     </main>
   )

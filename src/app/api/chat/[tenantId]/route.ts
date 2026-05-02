@@ -1,5 +1,8 @@
+import { saveConversation } from '@/lib/chat/service'
 import { sendChatMessageToN8n } from '@/lib/chat/n8n'
+import { saveConversationTopic } from '@/lib/analytics/topics'
 import { corsJson, corsNoContent } from '@/lib/http/cors'
+import { searchTenantKnowledge, shouldAnswerFromKnowledge } from '@/lib/knowledge/service'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getTenantChatConfig } from '@/lib/tenants/service'
 
@@ -27,6 +30,45 @@ export async function POST(
 
   if (!tenant.ok) {
     return corsJson({ error: tenant.error }, { status: 404 })
+  }
+
+  const knowledgeMatches = await searchTenantKnowledge(admin, tenantId, message)
+  if (shouldAnswerFromKnowledge(knowledgeMatches)) {
+    const match = knowledgeMatches[0]
+
+    await Promise.all([
+      saveConversation(admin, {
+        tenantId,
+        sessionId,
+        messages: [
+          { role: 'user', content: message },
+          { role: 'assistant', content: match.answer },
+        ],
+        metadata: {
+          source: 'knowledge_base',
+          knowledge_item_id: match.id,
+          knowledge_score: match.score,
+        },
+      }),
+      saveConversationTopic(admin, {
+        tenantId,
+        sessionId,
+        topic: match.category ?? undefined,
+        userMessage: message,
+      }),
+    ])
+
+    return corsJson({
+      reply: match.answer,
+      session_id: sessionId,
+      source: {
+        type: 'knowledge_base',
+        id: match.id,
+        question: match.question,
+        category: match.category,
+        score: match.score,
+      },
+    })
   }
 
   if (!tenant.config.n8nWebhookUrl) {

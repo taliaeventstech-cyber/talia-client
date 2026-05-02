@@ -31,5 +31,6 @@ export async function GET(
     fallback_phone: result.config.fallbackPhone,
     scrape_urls: result.config.scrapeUrls,
     topic_categories: result.config.topicCategories,
+    knowledge_items: result.config.knowledgeItems,
   })
 }

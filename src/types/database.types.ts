@@ -131,6 +131,116 @@ export type Database = {
           },
         ]
       }
+      knowledge_items: {
+        Row: {
+          active: boolean
+          answer: string
+          category: string | null
+          created_at: string
+          id: string
+          language: string
+          metadata: Json
+          priority: number
+          question: string
+          source_id: string | null
+          theatre_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          answer: string
+          category?: string | null
+          created_at?: string
+          id?: string
+          language?: string
+          metadata?: Json
+          priority?: number
+          question: string
+          source_id?: string | null
+          theatre_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          answer?: string
+          category?: string | null
+          created_at?: string
+          id?: string
+          language?: string
+          metadata?: Json
+          priority?: number
+          question?: string
+          source_id?: string | null
+          theatre_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_items_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_items_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_sources: {
+        Row: {
+          config: Json
+          created_at: string
+          id: string
+          last_error: string | null
+          last_synced_at: string | null
+          name: string
+          source_url: string | null
+          status: string
+          theatre_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_synced_at?: string | null
+          name: string
+          source_url?: string | null
+          status?: string
+          theatre_id: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_synced_at?: string | null
+          name?: string
+          source_url?: string | null
+          status?: string
+          theatre_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_sources_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string

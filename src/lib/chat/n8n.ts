@@ -1,8 +1,16 @@
+export type KnowledgeFaqHint = {
+  question: string
+  answer: string
+  category: string | null
+  priority: number
+}
+
 export type N8nChatInput = {
   webhookUrl: string
   tenantId: string
   sessionId: string
   message: string
+  relevantKnowledge?: KnowledgeFaqHint[]
 }
 
 export async function sendChatMessageToN8n(input: N8nChatInput) {
@@ -15,6 +23,9 @@ export async function sendChatMessageToN8n(input: N8nChatInput) {
       session_id: input.sessionId,
       chatInput: input.message,
       message: input.message,
+      ...(input.relevantKnowledge?.length
+        ? { relevant_knowledge: input.relevantKnowledge }
+        : {}),
     }),
   })
 

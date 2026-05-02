@@ -17,6 +17,14 @@ export type TenantChatConfig = {
   n8nWebhookUrl: string | null
 }
 
+export type KnowledgeFaqItem = {
+  question: string
+  answer: string
+  category: string | null
+  priority: number
+  language: string
+}
+
 export type TenantRuntimeChatConfig = {
   tenantId: string
   name: string
@@ -27,6 +35,7 @@ export type TenantRuntimeChatConfig = {
   fallbackPhone: string | null
   scrapeUrls: string[]
   topicCategories: string[]
+  knowledgeItems: KnowledgeFaqItem[]
 }
 
 export async function getTenantWebhookSecret(admin: AdminClient, tenantId: string) {
@@ -105,20 +114,37 @@ export async function getTenantChatConfig(admin: AdminClient, tenantId: string) 
 }
 
 export async function getTenantRuntimeChatConfig(admin: AdminClient, tenantId: string) {
-  const { data, error } = await admin
-    .from('theatres')
-    .select('id, name, system_prompt, fallback_email, fallback_phone, scrape_urls, widget_config')
-    .eq('id', tenantId)
-    .single()
+  const [theatreResult, knowledgeResult] = await Promise.all([
+    admin
+      .from('theatres')
+      .select('id, name, system_prompt, fallback_email, fallback_phone, scrape_urls, widget_config')
+      .eq('id', tenantId)
+      .single(),
+    admin
+      .from('knowledge_items')
+      .select('question, answer, category, priority, language')
+      .eq('theatre_id', tenantId)
+      .eq('active', true)
+      .order('priority', { ascending: false })
+      .limit(50),
+  ])
 
-  if (error || !data) {
+  if (theatreResult.error || !theatreResult.data) {
     return { ok: false as const, error: 'Tenant not found' }
   }
 
+  const data = theatreResult.data
   const widgetConfig = getWidgetConfig(data.widget_config)
   const scrapeUrls = Array.isArray(data.scrape_urls)
     ? data.scrape_urls.filter((url): url is string => typeof url === 'string')
     : []
+  const knowledgeItems: KnowledgeFaqItem[] = (knowledgeResult.data ?? []).map((item) => ({
+    question: item.question,
+    answer: item.answer,
+    category: item.category,
+    priority: item.priority,
+    language: item.language,
+  }))
 
   return {
     ok: true as const,
@@ -132,6 +158,7 @@ export async function getTenantRuntimeChatConfig(admin: AdminClient, tenantId: s
       fallbackPhone: data.fallback_phone,
       scrapeUrls,
       topicCategories: ['agenda', 'precios', 'horarios', 'ubicacion', 'visita', 'entradas', 'accesibilidad', 'otro'],
+      knowledgeItems,
     } satisfies TenantRuntimeChatConfig,
   }
 }
