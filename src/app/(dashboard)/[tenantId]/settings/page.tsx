@@ -68,7 +68,13 @@ export default async function SettingsPage({ params }: Props) {
               fallback_email: theatre.fallback_email,
               fallback_phone: theatre.fallback_phone,
             }}
-            widgetConfig={widgetConfig}
+            widgetConfig={{
+              assistantName: widgetConfig.assistantName,
+              initialMessage: widgetConfig.initialMessage,
+              primaryColor: widgetConfig.primaryColor,
+              autoOpen: widgetConfig.autoOpen,
+              autoOpenDelay: widgetConfig.autoOpenDelay,
+            }}
             scrapeUrls={scrapeUrls}
           />
         </>
@@ -79,25 +85,30 @@ export default async function SettingsPage({ params }: Props) {
 
 function getWidgetConfig(value: unknown) {
   if (!value || typeof value !== 'object') {
-    return { assistantName: 'TALIA', initialMessage: 'Hola, soc TALIA. En què et puc ajudar?', primaryColor: '#000000' }
+    return { assistantName: 'TALIA', initialMessage: 'Hola, soc TALIA. En què et puc ajudar?', primaryColor: '#000000', autoOpen: false, autoOpenDelay: 3 }
   }
 
-  const config = value as { assistantName?: unknown; initialMessage?: unknown; primaryColor?: unknown }
+  const config = value as { assistantName?: unknown; initialMessage?: unknown; primaryColor?: unknown; autoOpen?: unknown; autoOpenDelay?: unknown }
   return {
     assistantName: typeof config.assistantName === 'string' ? config.assistantName : 'TALIA',
     initialMessage: typeof config.initialMessage === 'string' ? config.initialMessage : 'Hola, soc TALIA. En què et puc ajudar?',
     primaryColor: typeof config.primaryColor === 'string' ? config.primaryColor : '#000000',
+    autoOpen: config.autoOpen === true,
+    autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
   }
 }
 
-function getEmbedCode(tenantId: string, widgetConfig: { assistantName: string; primaryColor: string }) {
+function getEmbedCode(tenantId: string, widgetConfig: { assistantName: string; primaryColor: string; autoOpen: boolean; autoOpenDelay: number }) {
   const appUrl = getAppUrl()
+  const autoOpenAttrs = widgetConfig.autoOpen
+    ? `\n  data-auto-open="true"\n  data-auto-open-delay="${widgetConfig.autoOpenDelay}"`
+    : ''
 
   return `<script
   src="${appUrl}/widget.js"
   crossorigin="anonymous"
   data-tenant="${tenantId}"
-  data-color="${widgetConfig.primaryColor}"
+  data-color="${widgetConfig.primaryColor}"${autoOpenAttrs}
 ></script>`
 }
 

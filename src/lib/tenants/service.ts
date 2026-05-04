@@ -10,6 +10,8 @@ export type PublicWidgetConfig = {
   primaryColor: string
   fallbackEmail: string | null
   fallbackPhone: string | null
+  autoOpen: boolean
+  autoOpenDelay: number
 }
 
 export type TenantChatConfig = {
@@ -89,6 +91,8 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
       primaryColor: widgetConfig.primaryColor,
       fallbackEmail: data.fallback_email,
       fallbackPhone: data.fallback_phone,
+      autoOpen: widgetConfig.autoOpen,
+      autoOpenDelay: widgetConfig.autoOpenDelay,
     } satisfies PublicWidgetConfig,
   }
 }
@@ -165,14 +169,16 @@ export async function getTenantRuntimeChatConfig(admin: AdminClient, tenantId: s
 
 function getWidgetConfig(value: unknown) {
   if (!value || typeof value !== 'object') {
-    return { assistantName: 'TALIA', initialMessage: 'Hola, soc TALIA. En què et puc ajudar?', primaryColor: '#000000' }
+    return { assistantName: 'TALIA', initialMessage: 'Hola, soc TALIA. En què et puc ajudar?', primaryColor: '#000000', autoOpen: false, autoOpenDelay: 3 }
   }
 
-  const config = value as { assistantName?: unknown; initialMessage?: unknown; primaryColor?: unknown }
+  const config = value as { assistantName?: unknown; initialMessage?: unknown; primaryColor?: unknown; autoOpen?: unknown; autoOpenDelay?: unknown }
   return {
     assistantName: typeof config.assistantName === 'string' ? config.assistantName : 'TALIA',
     initialMessage: typeof config.initialMessage === 'string' ? config.initialMessage : 'Hola, soc TALIA. En què et puc ajudar?',
     primaryColor: typeof config.primaryColor === 'string' ? config.primaryColor : '#000000',
+    autoOpen: config.autoOpen === true,
+    autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
   }
 }
 

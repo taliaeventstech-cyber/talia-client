@@ -47,6 +47,15 @@
     panel.hidden = true;
     toggle.setAttribute('aria-expanded', 'false');
 
+    if (config.autoOpen) {
+      var delay = typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3;
+      setTimeout(function () {
+        panel.hidden = false;
+        toggle.setAttribute('aria-expanded', 'true');
+        setTimeout(function () { input.focus(); }, 0);
+      }, delay * 1000);
+    }
+
     toggle.addEventListener('click', function () {
       panel.hidden = !panel.hidden;
       toggle.setAttribute('aria-expanded', String(!panel.hidden));

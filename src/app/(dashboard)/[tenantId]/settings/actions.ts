@@ -23,6 +23,8 @@ const settingsSchema = z.object({
   fallbackPhone: z.string().trim().max(40).optional(),
   systemPrompt: z.string().trim().max(8000).optional(),
   scrapeUrls: z.array(z.string().trim().url('Todas las URLs deben ser válidas')).max(4),
+  autoOpen: z.boolean(),
+  autoOpenDelay: z.coerce.number().int().min(0).max(60),
 })
 
 const knowledgeItemSchema = z.object({
@@ -62,6 +64,8 @@ export async function updateTenantSettings(
     fallbackPhone: String(formData.get('fallback_phone') ?? '').trim(),
     systemPrompt: String(formData.get('system_prompt') ?? '').trim(),
     scrapeUrls: urls,
+    autoOpen: formData.get('auto_open') === 'on',
+    autoOpenDelay: formData.get('auto_open_delay') ?? 3,
   })
 
   if (!parsed.success) {
@@ -79,6 +83,8 @@ export async function updateTenantSettings(
       assistantName: data.assistantName,
       initialMessage: data.initialMessage,
       primaryColor: data.primaryColor,
+      autoOpen: data.autoOpen,
+      autoOpenDelay: data.autoOpenDelay,
     },
   })
 
