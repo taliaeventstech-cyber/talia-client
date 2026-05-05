@@ -28,19 +28,46 @@ const elevenLabsSchema = z.object({
   }),
 })
 
+async function verifyElevenLabsSignature(request: NextRequest, rawBody: string): Promise<boolean> {
+  const secret = process.env.ELEVENLABS_WEBHOOK_SECRET
+  if (!secret) return true // no secret configured → skip verification
+
+  const signature = request.headers.get('elevenlabs-signature')
+  if (!signature) return false
+
+  // ElevenLabs sends: t=<timestamp>,v0=<hmac>
+  const parts = Object.fromEntries(signature.split(',').map((p) => p.split('=')))
+  const timestamp = parts['t']
+  const receivedHmac = parts['v0']
+  if (!timestamp || !receivedHmac) return false
+
+  // Reject if timestamp is older than 5 minutes
+  if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${timestamp}.${rawBody}`))
+  const expectedHmac = Array.from(new Uint8Array(mac)).map((b) => b.toString(16).padStart(2, '0')).join('')
+
+  return expectedHmac === receivedHmac
+}
+
 export async function POST(request: NextRequest) {
-  const internalKey = process.env.INTERNAL_API_KEY
-  const providedKey = request.headers.get('x-talia-internal-key')
-  // ElevenLabs signs with its own secret; for now we accept any request that
-  // either matches the internal key or comes without one (ElevenLabs path).
-  // TODO: verify ElevenLabs webhook signature header when secret is configured.
-  if (internalKey && providedKey && providedKey !== internalKey) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const rawBody = await request.text()
+
+  const isValid = await verifyElevenLabsSignature(request, rawBody)
+  if (!isValid) {
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
   let body: unknown
   try {
-    body = await request.json()
+    body = JSON.parse(rawBody)
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
