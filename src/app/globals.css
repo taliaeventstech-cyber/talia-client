@@ -337,23 +337,26 @@ textarea {
 }
 
 .dashboard-brand {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
   margin-bottom: 32px;
 }
 
 .dashboard-logo {
-  width: 142px;
+  width: 100px;
   height: auto;
   display: block;
 }
 
 .dashboard-brand-name {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--color-text-tertiary);
+  align-self: flex-end;
+  margin-bottom: 3px;
 }
 
 .dashboard-nav {

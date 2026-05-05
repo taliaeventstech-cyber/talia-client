@@ -36,13 +36,7 @@ export function DashboardNav({ tenantId }: { tenantId: string }) {
           </div>
         </div>
 
-        <div className="nav-channel nav-channel-disabled" aria-disabled="true">
-          <div className="nav-channel-title">
-            <Mail size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
-            <span>Agente de email</span>
-            <span className="nav-channel-status">Próximo</span>
-          </div>
-        </div>
+        
 
         <div className="nav-channel">
           <div className="nav-channel-title">
@@ -57,6 +51,14 @@ export function DashboardNav({ tenantId }: { tenantId: string }) {
               <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
               Configuración
             </Link>
+          </div>
+        </div>
+
+        <div className="nav-channel nav-channel-disabled" aria-disabled="true">
+          <div className="nav-channel-title">
+            <Mail size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
+            <span>Agente de email</span>
+            <span className="nav-channel-status">Próximo</span>
           </div>
         </div>
 
