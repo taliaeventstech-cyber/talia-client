@@ -1,19 +1,32 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { KnowledgeForm } from './knowledge-form'
 import { SettingsForm } from './settings-form'
 
 interface Props {
   params: Promise<{ tenantId: string }>
+  searchParams: Promise<{ tab?: string }>
 }
 
-export default async function SettingsPage({ params }: Props) {
+const TABS = [
+  { value: 'general', label: 'General' },
+  { value: 'knowledge', label: 'Base de conocimiento' },
+  { value: 'preview', label: 'Preview' },
+] as const
+
+type Tab = (typeof TABS)[number]['value']
+
+export default async function SettingsPage({ params, searchParams }: Props) {
   const { tenantId } = await params
+  const { tab: tabParam } = await searchParams
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+
+  const activeTab: Tab = TABS.find((t) => t.value === tabParam)?.value ?? 'general'
 
   const admin = createAdminClient()
 
@@ -23,63 +36,97 @@ export default async function SettingsPage({ params }: Props) {
       .select('name, slug, plan, system_prompt, fallback_email, fallback_phone, scrape_urls, widget_config, n8n_webhook_url')
       .eq('id', tenantId)
       .single(),
-    admin
-      .from('knowledge_items')
-      .select('id, question, answer, category, language, priority')
-      .eq('theatre_id', tenantId)
-      .eq('active', true)
-      .order('priority', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(20),
+    activeTab === 'knowledge'
+      ? admin
+          .from('knowledge_items')
+          .select('id, question, answer, category, language, priority')
+          .eq('theatre_id', tenantId)
+          .eq('active', true)
+          .order('priority', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(20)
+      : Promise.resolve({ data: [] }),
   ])
+
   const widgetConfig = getWidgetConfig(theatre?.widget_config)
   const scrapeUrls = Array.isArray(theatre?.scrape_urls)
     ? theatre.scrape_urls.filter((url): url is string => typeof url === 'string')
     : []
-  const embedCode = getEmbedCode(tenantId, widgetConfig)
 
   return (
     <main className="page-shell">
       <header className="page-header">
+        <p className="section-label">Chatbot web</p>
         <h1>Configuración</h1>
-     
       </header>
 
-      <div className="two-column-grid">
-        <section className="card stack">
-          <h2>Embed</h2>
-          <pre className="ai-output" style={{ whiteSpace: 'pre-wrap' }}>{embedCode}</pre>
-        </section>
-
-        <section className="card stack">
-          <h2>Preview</h2>
-          <WidgetPreview widgetConfig={widgetConfig} />
-        </section>
+      <div className="channel-tabs" role="tablist">
+        {TABS.map(({ value, label }) => (
+          <Link
+            key={value}
+            href={`/${tenantId}/settings?tab=${value}`}
+            role="tab"
+            aria-selected={activeTab === value}
+            className={`channel-tab ${activeTab === value ? 'channel-tab-active' : ''}`}
+          >
+            {label}
+          </Link>
+        ))}
       </div>
 
-      {theatre ? (
-        <>
-          <KnowledgeForm tenantId={tenantId} items={knowledgeItems ?? []} />
-          <SettingsForm
-            tenantId={tenantId}
-            theatre={{
-              plan: theatre.plan,
-              system_prompt: theatre.system_prompt,
-              fallback_email: theatre.fallback_email,
-              fallback_phone: theatre.fallback_phone,
-            }}
-            widgetConfig={{
-              assistantName: widgetConfig.assistantName,
-              initialMessage: widgetConfig.initialMessage,
-              primaryColor: widgetConfig.primaryColor,
-              autoOpen: widgetConfig.autoOpen,
-              autoOpenDelay: widgetConfig.autoOpenDelay,
-            }}
-            scrapeUrls={scrapeUrls}
-          />
-        </>
+      {activeTab === 'general' && theatre ? (
+        <SettingsForm
+          tenantId={tenantId}
+          theatre={{
+            plan: theatre.plan,
+            system_prompt: theatre.system_prompt,
+            fallback_email: theatre.fallback_email,
+            fallback_phone: theatre.fallback_phone,
+          }}
+          widgetConfig={{
+            assistantName: widgetConfig.assistantName,
+            initialMessage: widgetConfig.initialMessage,
+            primaryColor: widgetConfig.primaryColor,
+            autoOpen: widgetConfig.autoOpen,
+            autoOpenDelay: widgetConfig.autoOpenDelay,
+          }}
+          scrapeUrls={scrapeUrls}
+        />
+      ) : null}
+
+      {activeTab === 'knowledge' && theatre ? (
+        <KnowledgeForm tenantId={tenantId} items={knowledgeItems ?? []} />
+      ) : null}
+
+      {activeTab === 'preview' ? (
+        <PreviewTab tenantId={tenantId} widgetConfig={widgetConfig} />
       ) : null}
     </main>
+  )
+}
+
+function PreviewTab({
+  tenantId,
+  widgetConfig,
+}: {
+  tenantId: string
+  widgetConfig: ReturnType<typeof getWidgetConfig>
+}) {
+  const embedCode = getEmbedCode(tenantId, widgetConfig)
+
+  return (
+    <div className="two-column-grid">
+      <section className="card stack">
+        <h2>Código de integración</h2>
+        <p className="muted">Pega este script antes del cierre de <code>&lt;/body&gt;</code> en tu web.</p>
+        <pre className="ai-output" style={{ whiteSpace: 'pre-wrap' }}>{embedCode}</pre>
+      </section>
+
+      <section className="card stack">
+        <h2>Preview</h2>
+        <WidgetPreview widgetConfig={widgetConfig} />
+      </section>
+    </div>
   )
 }
 
@@ -98,7 +145,7 @@ function getWidgetConfig(value: unknown) {
   }
 }
 
-function getEmbedCode(tenantId: string, widgetConfig: { assistantName: string; primaryColor: string; autoOpen: boolean; autoOpenDelay: number }) {
+function getEmbedCode(tenantId: string, widgetConfig: { primaryColor: string; autoOpen: boolean; autoOpenDelay: number }) {
   const appUrl = getAppUrl()
   const autoOpenAttrs = widgetConfig.autoOpen
     ? `\n  data-auto-open="true"\n  data-auto-open-delay="${widgetConfig.autoOpenDelay}"`
@@ -126,7 +173,7 @@ function WidgetPreview({ widgetConfig }: { widgetConfig: { assistantName: string
           {widgetConfig.assistantName}
         </div>
         <div style={{ padding: '0.75rem', display: 'grid', gap: '0.6rem', fontSize: '0.9rem' }}>
-          <p style={{ margin: 0, background: '#f1f1f1', borderRadius: 8, padding: '0.6rem' }}>
+          <p style={{ margin: 0, background: '#f1f1f1', color: '#1A1A2E', borderRadius: 8, padding: '0.6rem' }}>
             {widgetConfig.initialMessage}
           </p>
           <p style={{ margin: 0, justifySelf: 'end', background: widgetConfig.primaryColor, color: '#fff', borderRadius: 8, padding: '0.6rem' }}>

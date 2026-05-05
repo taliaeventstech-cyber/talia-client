@@ -3,11 +3,14 @@ import { getLatestUserMessage } from '@/lib/chat/service'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
+export type Channel = 'web' | 'email' | 'voice' | 'whatsapp'
+
 export type SaveTopicInput = {
   tenantId: string
   sessionId: string
   topic?: string
   userMessage?: string
+  channel?: Channel
 }
 
 const ALLOWED_TOPICS = new Set([
@@ -34,6 +37,7 @@ export async function saveConversationTopic(admin: AdminClient, input: SaveTopic
       session_id: input.sessionId,
       topic,
       user_message: userMessage ?? '',
+      channel: input.channel ?? 'web',
     })
 
   if (error) {

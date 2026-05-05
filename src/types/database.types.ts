@@ -98,6 +98,7 @@ export type Database = {
       }
       conversation_topics: {
         Row: {
+          channel: string
           created_at: string | null
           id: string
           session_id: string | null
@@ -106,6 +107,7 @@ export type Database = {
           user_message: string | null
         }
         Insert: {
+          channel?: string
           created_at?: string | null
           id?: string
           session_id?: string | null
@@ -114,6 +116,7 @@ export type Database = {
           user_message?: string | null
         }
         Update: {
+          channel?: string
           created_at?: string | null
           id?: string
           session_id?: string | null

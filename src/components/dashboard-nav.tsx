@@ -2,29 +2,16 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { MessageSquare, Network, Settings } from 'lucide-react'
-
-const chatbotLinks = [
-  { href: 'conversations', label: 'Conversaciones' },
-]
+import { Mail, MessageCircle, MessageSquare, Network, Phone, SlidersHorizontal, Megaphone } from 'lucide-react'
 
 export function DashboardNav({ tenantId }: { tenantId: string }) {
   const pathname = usePathname()
+  const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
 
   return (
     <nav className="dashboard-nav" aria-label="Navegación principal">
-      <div className="nav-section">
-        <div className="nav-section-header">
-          <p className="nav-section-label">Módulo Atención</p>
-          <Link
-            className={`nav-icon-link ${pathname === `/${tenantId}/settings` ? 'nav-icon-link-active' : ''}`}
-            href={`/${tenantId}/settings`}
-            aria-label="Settings chatbot"
-            title="Settings chatbot"
-          >
-            <Settings aria-hidden="true" size={15} strokeWidth={2} />
-          </Link>
-        </div>
+      <div className="nav-section nav-section-first">
+        <p className="nav-section-label">Atención</p>
 
         <div className="nav-channel">
           <div className="nav-channel-title">
@@ -32,21 +19,26 @@ export function DashboardNav({ tenantId }: { tenantId: string }) {
             <span className="nav-channel-status">Activo</span>
           </div>
           <div className="nav-subnav">
-            {chatbotLinks.map((link) => {
-              const href = `/${tenantId}/${link.href}`
-              const isActive = pathname === href || pathname.startsWith(`${href}/`)
-              return (
-                <Link key={link.href} className={`nav-link nav-link-nested ${isActive ? 'nav-link-active' : ''}`} href={href}>
-                  {link.href === 'conversations' ? <MessageSquare aria-hidden="true" size={14} strokeWidth={2} /> : null}
-                  {link.label}
-                </Link>
-              )
-            })}
+            <Link
+              className={`nav-link nav-link-nested ${active(`/${tenantId}/conversations`) ? 'nav-link-active' : ''}`}
+              href={`/${tenantId}/conversations`}
+            >
+              <MessageSquare size={14} strokeWidth={2} aria-hidden="true" />
+              Conversaciones
+            </Link>
+            <Link
+              className={`nav-link nav-link-nested ${active(`/${tenantId}/settings`) ? 'nav-link-active' : ''}`}
+              href={`/${tenantId}/settings`}
+            >
+              <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
+              Configuración
+            </Link>
           </div>
         </div>
 
         <div className="nav-channel nav-channel-disabled" aria-disabled="true">
           <div className="nav-channel-title">
+            <Mail size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
             <span>Agente de email</span>
             <span className="nav-channel-status">Próximo</span>
           </div>
@@ -54,45 +46,51 @@ export function DashboardNav({ tenantId }: { tenantId: string }) {
 
         <div className="nav-channel nav-channel-disabled" aria-disabled="true">
           <div className="nav-channel-title">
-            <span>Agente Instagram</span>
+            <Phone size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
+            <span>Agente de voz</span>
+            <span className="nav-channel-status">Próximo</span>
+          </div>
+        </div>
+
+        <div className="nav-channel nav-channel-disabled" aria-disabled="true">
+          <div className="nav-channel-title">
+            <MessageCircle size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
+            <span>WhatsApp</span>
             <span className="nav-channel-status">Próximo</span>
           </div>
         </div>
       </div>
 
       <div className="nav-section">
-        <p className="nav-section-label">Módulo Data</p>
-        <div className="nav-channel">
-          <div className="nav-channel-title">
-            <span>Chatbot</span>
-          </div>
-          <div className="nav-subnav">
-            <Link
-              className={`nav-link nav-link-nested ${pathname === `/${tenantId}/analytics` ? 'nav-link-active' : ''}`}
-              href={`/${tenantId}/analytics`}
-            >
-              <Network aria-hidden="true" size={14} strokeWidth={2} />
-              Temas e intención
-            </Link>
-            <div className="nav-channel nav-channel-disabled" aria-disabled="true">
-              <div className="nav-channel-title nav-channel-title-nested">
-                <span>Operativa</span>
-                <span className="nav-channel-status">Próximo</span>
-              </div>
+        <p className="nav-section-label">Data</p>
+        <div className="nav-subnav nav-subnav-root">
+          <Link
+            className={`nav-link nav-link-nested ${active(`/${tenantId}/analytics`) ? 'nav-link-active' : ''}`}
+            href={`/${tenantId}/analytics`}
+          >
+            <Network size={14} strokeWidth={2} aria-hidden="true" />
+            Temas e intención
+          </Link>
+          <div className="nav-channel nav-channel-disabled" aria-disabled="true">
+            <div className="nav-channel-title nav-channel-title-nested">
+              <span>Operativa</span>
+              <span className="nav-channel-status">Próximo</span>
             </div>
           </div>
         </div>
       </div>
 
       <div className="nav-section">
-        <p className="nav-section-label">Módulo Marketing</p>
+        <p className="nav-section-label">Marketing</p>
         <div className="nav-channel nav-channel-disabled" aria-disabled="true">
           <div className="nav-channel-title">
+            <Megaphone size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
             <span>Campañas</span>
             <span className="nav-channel-status">Próximo</span>
           </div>
         </div>
       </div>
+
     </nav>
   )
 }

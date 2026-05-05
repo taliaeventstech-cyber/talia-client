@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Widget test</title>
+  <style>
+    body { font-family: sans-serif; padding: 40px; background: #f5f5f5; color: #333; }
+    h1 { font-size: 1.4rem; margin-bottom: 8px; }
+    p { color: #666; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <h1>Página de prueba del widget</h1>
+  <p>El widget debería aparecer en la esquina inferior derecha.</p>
+  <p>Reemplaza <code>TU_TENANT_ID</code> en el atributo <code>data-tenant</code> del script.</p>
+
+  <script
+  src="http://localhost:3000/widget.js"
+  crossorigin="anonymous"
+  data-tenant="bd1ddb0a-02db-4035-877a-afa3662147ac"
+  data-color="#bf0d4b"
+  data-auto-open="true"
+  data-auto-open-delay="3"
+></script>
+</body>
+</html>
