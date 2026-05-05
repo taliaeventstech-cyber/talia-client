@@ -44,11 +44,19 @@ export function DashboardNav({ tenantId }: { tenantId: string }) {
           </div>
         </div>
 
-        <div className="nav-channel nav-channel-disabled" aria-disabled="true">
+        <div className="nav-channel">
           <div className="nav-channel-title">
-            <Phone size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
+         
             <span>Agente de voz</span>
-            <span className="nav-channel-status">Próximo</span>
+          </div>
+          <div className="nav-subnav">
+            <Link
+              className={`nav-link nav-link-nested ${active(`/${tenantId}/voice/settings`) ? 'nav-link-active' : ''}`}
+              href={`/${tenantId}/voice/settings`}
+            >
+              <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
+              Configuración
+            </Link>
           </div>
         </div>
 

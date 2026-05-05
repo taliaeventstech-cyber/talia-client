@@ -289,6 +289,7 @@ export type Database = {
       theatres: {
         Row: {
           created_at: string
+          elevenlabs_agent_id: string | null
           fallback_email: string | null
           fallback_phone: string | null
           id: string
@@ -300,11 +301,20 @@ export type Database = {
           slug: string
           system_prompt: string | null
           updated_at: string
+          voice_enabled: boolean
+          voice_id: string | null
+          voice_language: string
+          voice_max_turns: number
+          voice_phone_number: string | null
+          voice_system_prompt: string | null
+          voice_temperature: number
+          voice_tone: string
           webhook_secret: string | null
           widget_config: Json
         }
         Insert: {
           created_at?: string
+          elevenlabs_agent_id?: string | null
           fallback_email?: string | null
           fallback_phone?: string | null
           id?: string
@@ -316,11 +326,20 @@ export type Database = {
           slug: string
           system_prompt?: string | null
           updated_at?: string
+          voice_enabled?: boolean
+          voice_id?: string | null
+          voice_language?: string
+          voice_max_turns?: number
+          voice_phone_number?: string | null
+          voice_system_prompt?: string | null
+          voice_temperature?: number
+          voice_tone?: string
           webhook_secret?: string | null
           widget_config?: Json
         }
         Update: {
           created_at?: string
+          elevenlabs_agent_id?: string | null
           fallback_email?: string | null
           fallback_phone?: string | null
           id?: string
@@ -332,10 +351,62 @@ export type Database = {
           slug?: string
           system_prompt?: string | null
           updated_at?: string
+          voice_enabled?: boolean
+          voice_id?: string | null
+          voice_language?: string
+          voice_max_turns?: number
+          voice_phone_number?: string | null
+          voice_system_prompt?: string | null
+          voice_temperature?: number
+          voice_tone?: string
           webhook_secret?: string | null
           widget_config?: Json
         }
         Relationships: []
+      }
+      voice_conversations: {
+        Row: {
+          call_sid: string
+          created_at: string
+          duration_sec: number | null
+          from_number: string | null
+          id: string
+          theatre_id: string
+          topic: string | null
+          transcript: Json | null
+          turns: number | null
+        }
+        Insert: {
+          call_sid: string
+          created_at?: string
+          duration_sec?: number | null
+          from_number?: string | null
+          id?: string
+          theatre_id: string
+          topic?: string | null
+          transcript?: Json | null
+          turns?: number | null
+        }
+        Update: {
+          call_sid?: string
+          created_at?: string
+          duration_sec?: number | null
+          from_number?: string | null
+          id?: string
+          theatre_id?: string
+          topic?: string | null
+          transcript?: Json | null
+          turns?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_conversations_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       users: {
         Row: {

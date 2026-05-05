@@ -117,6 +117,76 @@ export async function getTenantChatConfig(admin: AdminClient, tenantId: string) 
   }
 }
 
+export type TenantVoiceConfig = {
+  tenantId: string
+  name: string
+  elevenLabsAgentId: string | null
+  voiceEnabled: boolean
+  voicePhoneNumber: string | null
+  voiceId: string | null
+  voiceLanguage: string
+  voiceTone: string
+  voiceTemperature: number
+  voiceSystemPrompt: string
+  voiceCustomPrompt: string | null
+  voiceMaxTurns: number
+  fallbackEmail: string | null
+  fallbackPhone: string | null
+  knowledgeItems: KnowledgeFaqItem[]
+}
+
+export async function getTenantVoiceConfig(admin: AdminClient, tenantId: string) {
+  const [theatreResult, knowledgeResult] = await Promise.all([
+    admin
+      .from('theatres')
+      .select('id, name, fallback_email, fallback_phone, elevenlabs_agent_id, voice_enabled, voice_phone_number, voice_id, voice_language, voice_tone, voice_temperature, voice_system_prompt, voice_max_turns')
+      .eq('id', tenantId)
+      .single(),
+    admin
+      .from('knowledge_items')
+      .select('question, answer, category, priority, language')
+      .eq('theatre_id', tenantId)
+      .eq('active', true)
+      .order('priority', { ascending: false })
+      .limit(50),
+  ])
+
+  if (theatreResult.error || !theatreResult.data) {
+    return { ok: false as const, error: 'Tenant not found' }
+  }
+
+  const data = theatreResult.data
+  const knowledgeItems: KnowledgeFaqItem[] = (knowledgeResult.data ?? []).map((item) => ({
+    question: item.question,
+    answer: item.answer,
+    category: item.category,
+    priority: item.priority,
+    language: item.language,
+  }))
+
+  return {
+    ok: true as const,
+    config: {
+      tenantId: data.id,
+      name: data.name,
+      elevenLabsAgentId: data.elevenlabs_agent_id,
+      voiceEnabled: data.voice_enabled,
+      voicePhoneNumber: data.voice_phone_number,
+      voiceId: data.voice_id,
+      voiceLanguage: data.voice_language,
+      voiceTone: data.voice_tone,
+      voiceTemperature: data.voice_temperature,
+      voiceSystemPrompt: data.voice_system_prompt || '',
+      voiceCustomPrompt: data.voice_system_prompt,
+      voiceMaxTurns: data.voice_max_turns,
+      fallbackEmail: data.fallback_email,
+      fallbackPhone: data.fallback_phone,
+      knowledgeItems,
+    } satisfies TenantVoiceConfig,
+  }
+}
+
+
 export async function getTenantRuntimeChatConfig(admin: AdminClient, tenantId: string) {
   const [theatreResult, knowledgeResult] = await Promise.all([
     admin
