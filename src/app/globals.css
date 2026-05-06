@@ -225,6 +225,24 @@ textarea {
   color: var(--color-text-secondary);
 }
 
+.collapsible-chevron {
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+  margin-top: 4px;
+  transition:
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.collapsible-header:hover .collapsible-chevron {
+  color: var(--color-gold);
+}
+
+.collapsible-chevron[data-open="true"] {
+  color: var(--color-gold);
+  transform: rotate(180deg);
+}
+
 .button-primary,
 .button-outline {
   border-radius: 6px;

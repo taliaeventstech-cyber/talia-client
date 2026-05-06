@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { saveConversationTopic } from '@/lib/analytics/topics'
+import { classifyConversationTopic, saveConversationTopic } from '@/lib/analytics/topics'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -30,13 +30,18 @@ const elevenLabsSchema = z.object({
 
 async function verifyElevenLabsSignature(request: NextRequest, rawBody: string): Promise<boolean> {
   const secret = process.env.ELEVENLABS_WEBHOOK_SECRET
-  if (!secret) return true // no secret configured → skip verification
+  if (!secret) {
+    return process.env.NODE_ENV !== 'production'
+  }
 
   const signature = request.headers.get('elevenlabs-signature')
   if (!signature) return false
 
   // ElevenLabs sends: t=<timestamp>,v0=<hmac>
-  const parts = Object.fromEntries(signature.split(',').map((p) => p.split('=')))
+  const parts = Object.fromEntries(signature.split(',').map((part) => {
+    const [key, ...value] = part.trim().split('=')
+    return [key, value.join('=')]
+  }))
   const timestamp = parts['t']
   const receivedHmac = parts['v0']
   if (!timestamp || !receivedHmac) return false
@@ -54,7 +59,29 @@ async function verifyElevenLabsSignature(request: NextRequest, rawBody: string):
   const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${timestamp}.${rawBody}`))
   const expectedHmac = Array.from(new Uint8Array(mac)).map((b) => b.toString(16).padStart(2, '0')).join('')
 
-  return expectedHmac === receivedHmac
+  return timingSafeEqualHex(expectedHmac, receivedHmac)
+}
+
+function timingSafeEqualHex(expected: string, received: string) {
+  if (!/^[a-f0-9]+$/i.test(received) || expected.length !== received.length) return false
+
+  const expectedBytes = hexToBytes(expected)
+  const receivedBytes = hexToBytes(received)
+  if (expectedBytes.length !== receivedBytes.length) return false
+
+  let diff = 0
+  for (let i = 0; i < expectedBytes.length; i += 1) {
+    diff |= expectedBytes[i] ^ receivedBytes[i]
+  }
+  return diff === 0
+}
+
+function hexToBytes(value: string) {
+  const bytes = new Uint8Array(value.length / 2)
+  for (let i = 0; i < value.length; i += 2) {
+    bytes[i / 2] = Number.parseInt(value.slice(i, i + 2), 16)
+  }
+  return bytes
 }
 
 export async function POST(request: NextRequest) {
@@ -103,28 +130,39 @@ export async function POST(request: NextRequest) {
   const fromNumber = data.metadata?.phone_call?.caller_id ?? null
   const durationSec = data.metadata?.call_duration_secs ?? null
   const turns = transcript ? Math.floor(transcript.length / 2) : null
+  const summary = data.analysis?.transcript_summary ?? null
+  const lastUserMessage = transcript ? [...transcript].reverse().find((m) => m.role === 'user')?.content : undefined
+  const topic = classifyConversationTopic(summary ?? undefined, lastUserMessage)
 
-  const { error: insertError } = await admin.from('voice_conversations').insert({
+  const { error: insertError } = await admin.from('voice_conversations').upsert({
     theatre_id: theatreId,
     call_sid: data.conversation_id,
+    status: data.status ?? null,
     from_number: fromNumber,
     duration_sec: durationSec ? Math.round(durationSec) : null,
     turns,
     transcript,
-    topic: data.analysis?.transcript_summary ?? null,
-  })
+    summary,
+    topic,
+  }, { onConflict: 'call_sid' })
 
   if (insertError) {
     return NextResponse.json({ error: insertError.message }, { status: 500 })
   }
 
   // Save topic to shared analytics (shows up in Data → Temas e intención under "Voz")
-  if (transcript?.length) {
-    const lastUserMessage = [...transcript].reverse().find((m) => m.role === 'user')?.content
+  if (lastUserMessage) {
+    await admin
+      .from('conversation_topics')
+      .delete()
+      .eq('theatre_id', theatreId)
+      .eq('session_id', data.conversation_id)
+      .eq('channel', 'voice')
+
     await saveConversationTopic(admin, {
       tenantId: theatreId,
       sessionId: data.conversation_id,
-      topic: data.analysis?.transcript_summary,
+      topic,
       userMessage: lastUserMessage,
       channel: 'voice',
     })

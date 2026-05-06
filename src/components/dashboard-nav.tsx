@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Mail, MessageCircle, MessageSquare, Network, Phone, SlidersHorizontal, Megaphone } from 'lucide-react'
+import { Mail, MessageCircle, MessageSquare, Network, SlidersHorizontal, Megaphone } from 'lucide-react'
 
 export function DashboardNav({ tenantId }: { tenantId: string }) {
   const pathname = usePathname()

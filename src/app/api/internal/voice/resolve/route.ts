@@ -5,6 +5,11 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   const internalKey = process.env.INTERNAL_API_KEY
   const providedKey = request.headers.get('x-talia-internal-key')
+
+  if (!internalKey && process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Internal API key not configured' }, { status: 503 })
+  }
+
   if (internalKey && providedKey !== internalKey) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

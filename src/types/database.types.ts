@@ -371,6 +371,8 @@ export type Database = {
           duration_sec: number | null
           from_number: string | null
           id: string
+          status: string | null
+          summary: string | null
           theatre_id: string
           topic: string | null
           transcript: Json | null
@@ -382,6 +384,8 @@ export type Database = {
           duration_sec?: number | null
           from_number?: string | null
           id?: string
+          status?: string | null
+          summary?: string | null
           theatre_id: string
           topic?: string | null
           transcript?: Json | null
@@ -393,6 +397,8 @@ export type Database = {
           duration_sec?: number | null
           from_number?: string | null
           id?: string
+          status?: string | null
+          summary?: string | null
           theatre_id?: string
           topic?: string | null
           transcript?: Json | null

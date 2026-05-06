@@ -106,14 +106,21 @@ export async function updateVoiceSettings(
 
   if (error) return { ok: false, message: `No se pudo guardar: ${error.message}` }
 
-  // Sync to ElevenLabs in the background (non-blocking, failure is logged but not surfaced)
   if (data.elevenLabsAgentId) {
-    await syncAgentToElevenLabs(data.elevenLabsAgentId, {
+    const syncResult = await syncAgentToElevenLabs(data.elevenLabsAgentId, {
       systemPrompt: effectivePrompt,
       voiceId: data.voiceId ?? null,
       language: data.voiceLanguage,
       temperature: data.voiceTemperature,
     })
+
+    if (!syncResult.ok) {
+      revalidatePath(`/${tenantId}/voice/settings`)
+      return {
+        ok: false,
+        message: `La configuración se guardó en TALIA, pero no se pudo sincronizar con ElevenLabs: ${syncResult.error}`,
+      }
+    }
   }
 
   revalidatePath(`/${tenantId}/voice/settings`)
@@ -121,7 +128,13 @@ export async function updateVoiceSettings(
 }
 
 export async function regenerateVoicePrompt(tenantId: string): Promise<{ prompt: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
   const admin = createAdminClient()
+  const isAdmin = await assertTenantAdmin(admin, user.id, tenantId)
+  if (!isAdmin) return { prompt: '' }
 
   const [theatreRes, knowledgeRes] = await Promise.all([
     admin

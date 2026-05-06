@@ -7,11 +7,14 @@ type SyncParams = {
   temperature: number // 0-100, maps to 0.0-1.0
 }
 
-export async function syncAgentToElevenLabs(agentId: string, params: SyncParams): Promise<void> {
+export type ElevenLabsSyncResult =
+  | { ok: true }
+  | { ok: false; error: string; status?: number }
+
+export async function syncAgentToElevenLabs(agentId: string, params: SyncParams): Promise<ElevenLabsSyncResult> {
   const apiKey = process.env.ELEVENLABS_API_KEY
   if (!apiKey) {
-    console.warn('[elevenlabs-sync] ELEVENLABS_API_KEY not set, skipping sync')
-    return
+    return { ok: false, error: 'ELEVENLABS_API_KEY no está configurada.' }
   }
 
   const body: Record<string, unknown> = {
@@ -21,7 +24,7 @@ export async function syncAgentToElevenLabs(agentId: string, params: SyncParams)
           prompt: params.systemPrompt,
           temperature: params.temperature / 100,
         },
-        language: params.language,
+        ...(params.language === 'ca' ? {} : { language: params.language }),
       },
       ...(params.voiceId
         ? { tts: { voice_id: params.voiceId } }
@@ -29,17 +32,31 @@ export async function syncAgentToElevenLabs(agentId: string, params: SyncParams)
     },
   }
 
-  const res = await fetch(`${ELEVENLABS_BASE}/v1/convai/agents/${agentId}`, {
-    method: 'PATCH',
-    headers: {
-      'xi-api-key': apiKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  })
+  let res: Response
+  try {
+    res = await fetch(`${ELEVENLABS_BASE}/v1/convai/agents/${agentId}`, {
+      method: 'PATCH',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    })
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'No se pudo conectar con ElevenLabs.',
+    }
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    console.error(`[elevenlabs-sync] PATCH agent ${agentId} failed: ${res.status} ${text}`)
+    return {
+      ok: false,
+      status: res.status,
+      error: text || `ElevenLabs respondió con HTTP ${res.status}.`,
+    }
   }
+
+  return { ok: true }
 }
