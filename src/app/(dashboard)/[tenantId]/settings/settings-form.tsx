@@ -6,7 +6,6 @@ import { updateTenantSettings, type SettingsFormState } from './actions'
 type SettingsFormLabels = {
   chatbot: string
   plan: string
-  assistantName: string
   initialMessage: string
   primaryColor: string
   fallbackEmail: string
@@ -27,7 +26,6 @@ type SettingsFormProps = {
     fallback_phone: string | null
   }
   widgetConfig: {
-    assistantName: string
     initialMessage: string
     primaryColor: string
     autoOpen: boolean
@@ -65,11 +63,6 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels }: Settin
               <option value="profesional">Profesional</option>
               <option value="pro">Pro</option>
             </select>
-          </label>
-
-          <label className="field">
-            {labels.assistantName}
-            <input name="assistant_name" defaultValue={widgetConfig.assistantName} />
           </label>
 
           <label className="field">

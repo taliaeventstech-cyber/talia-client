@@ -20,10 +20,10 @@ export default async function OnboardingPage() {
     <main className="auth-shell">
       <section className="auth-card onboarding-card stack">
         <p className="section-label">Onboarding Talía</p>
-        <h1>Crea el perfil de tu teatro</h1>
+        <h1>Prepara TALIA para tu entidad cultural</h1>
         <p className="muted" style={{ maxWidth: 620 }}>
-          Esta información alimenta el widget, el prompt inicial y la configuración base del tenant.
-          Podrás editarla después desde Settings.
+          Te haremos unas pocas preguntas para crear el espacio inicial. Lo técnico, como fuentes,
+          Excel o instalación del snippet, podrás completarlo después desde el dashboard.
         </p>
 
         <OnboardingForm email={user.email ?? ''} />

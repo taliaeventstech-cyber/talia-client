@@ -290,17 +290,22 @@ export type Database = {
         Row: {
           created_at: string
           elevenlabs_agent_id: string | null
+          entity_type: string
           fallback_email: string | null
           fallback_phone: string | null
           id: string
           n8n_hmac_secret: string | null
           n8n_webhook_url: string | null
           name: string
+          onboarding_completed: boolean
+          onboarding_goals: Json
           plan: string
+          primary_language: string
           scrape_urls: Json
           slug: string
           system_prompt: string | null
           updated_at: string
+          website_url: string | null
           voice_enabled: boolean
           voice_id: string | null
           voice_language: string
@@ -315,17 +320,22 @@ export type Database = {
         Insert: {
           created_at?: string
           elevenlabs_agent_id?: string | null
+          entity_type?: string
           fallback_email?: string | null
           fallback_phone?: string | null
           id?: string
           n8n_hmac_secret?: string | null
           n8n_webhook_url?: string | null
           name: string
+          onboarding_completed?: boolean
+          onboarding_goals?: Json
           plan?: string
+          primary_language?: string
           scrape_urls?: Json
           slug: string
           system_prompt?: string | null
           updated_at?: string
+          website_url?: string | null
           voice_enabled?: boolean
           voice_id?: string | null
           voice_language?: string
@@ -340,17 +350,22 @@ export type Database = {
         Update: {
           created_at?: string
           elevenlabs_agent_id?: string | null
+          entity_type?: string
           fallback_email?: string | null
           fallback_phone?: string | null
           id?: string
           n8n_hmac_secret?: string | null
           n8n_webhook_url?: string | null
           name?: string
+          onboarding_completed?: boolean
+          onboarding_goals?: Json
           plan?: string
+          primary_language?: string
           scrape_urls?: Json
           slug?: string
           system_prompt?: string | null
           updated_at?: string
+          website_url?: string | null
           voice_enabled?: boolean
           voice_id?: string | null
           voice_language?: string

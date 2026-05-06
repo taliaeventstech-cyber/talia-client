@@ -16,7 +16,6 @@ export type SettingsFormState = {
 
 const settingsSchema = z.object({
   plan: z.enum(['esencial', 'profesional', 'pro']),
-  assistantName: z.string().trim().min(1, 'El nombre del asistente es obligatorio').max(60),
   initialMessage: z.string().trim().min(1, 'El mensaje inicial es obligatorio').max(300),
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'El color debe estar en formato hexadecimal'),
   fallbackEmail: z.string().trim().email('El email no es válido').optional().or(z.literal('')),
@@ -54,7 +53,6 @@ export async function updateTenantSettings(
 
   const parsed = settingsSchema.safeParse({
     plan: formData.get('plan'),
-    assistantName: formData.get('assistant_name'),
     initialMessage: formData.get('initial_message'),
     primaryColor: formData.get('primary_color'),
     fallbackEmail: String(formData.get('fallback_email') ?? '').trim(),
@@ -75,7 +73,7 @@ export async function updateTenantSettings(
     fallbackEmail: data.fallbackEmail,
     fallbackPhone: data.fallbackPhone,
     widgetConfig: {
-      assistantName: data.assistantName,
+      assistantName: 'TALIA',
       initialMessage: data.initialMessage,
       primaryColor: data.primaryColor,
       autoOpen: data.autoOpen,

@@ -7,6 +7,8 @@ export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -43,8 +45,43 @@ export default function SignupPage() {
       return
     }
 
+    setPendingEmail(email)
     setMessage(result.message ?? 'Cuenta creada. Revisa tu email para continuar.')
     setLoading(false)
+  }
+
+  async function handleResendConfirmation() {
+    const targetEmail = pendingEmail || email
+    if (!targetEmail) return
+
+    setResending(true)
+    setError(null)
+    setMessage(null)
+
+    let response: Response
+    let result: { error?: string; message?: string }
+
+    try {
+      response = await fetch('/auth/resend-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetEmail }),
+      })
+      result = await response.json()
+    } catch {
+      setError('No se pudo conectar con el servidor.')
+      setResending(false)
+      return
+    }
+
+    if (!response.ok) {
+      setError(result.error ?? 'No se pudo reenviar el email de confirmación.')
+      setResending(false)
+      return
+    }
+
+    setMessage(result.message ?? 'Email reenviado.')
+    setResending(false)
   }
 
   return (
@@ -62,9 +99,19 @@ export default function SignupPage() {
         ) : null}
 
         {message ? (
-          <p className="notice notice-success" style={{ marginBottom: 16 }}>
-            {message}
-          </p>
+          <div className="notice notice-success" style={{ marginBottom: 16 }}>
+            <p>{message}</p>
+            {pendingEmail ? (
+              <button
+                className="button-link"
+                type="button"
+                onClick={handleResendConfirmation}
+                disabled={resending}
+              >
+                {resending ? 'Reenviando...' : 'Reenviar email de confirmación'}
+              </button>
+            ) : null}
+          </div>
         ) : null}
 
         <form className="form-grid" onSubmit={handleSubmit}>

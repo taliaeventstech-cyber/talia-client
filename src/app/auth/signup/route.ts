@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getAuthCallbackUrl } from '@/lib/auth/callback-url'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -19,13 +20,12 @@ export async function POST(request: NextRequest) {
   }
 
   const { email, password } = parsed.data
-  const origin = request.nextUrl.origin
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${origin}/auth/callback`,
+      emailRedirectTo: getAuthCallbackUrl(request),
     },
   })
 
@@ -37,19 +37,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ redirectTo: await getPostAuthRedirect(supabase, data.session.user.id) })
   }
 
-  const signIn = await supabase.auth.signInWithPassword({ email, password })
-
-  if (signIn.data.user) {
-    return NextResponse.json({ redirectTo: await getPostAuthRedirect(supabase, signIn.data.user.id) })
-  }
-
-  if (!data.session) {
-    return NextResponse.json({
-      message: 'Revisa tu email para confirmar la cuenta antes de continuar.',
-    })
-  }
-
-  return NextResponse.json({ redirectTo: '/onboarding' })
+  return NextResponse.json({
+    status: 'confirmation_required',
+    message: 'Te hemos enviado un email de confirmación. Revisa tu bandeja de entrada antes de continuar.',
+  })
 }
 
 async function getPostAuthRedirect(

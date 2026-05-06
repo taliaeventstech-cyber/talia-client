@@ -77,7 +77,6 @@ const es = {
     form: {
       chatbot: 'Chatbot',
       plan: 'Plan',
-      assistantName: 'Nombre del asistente',
       initialMessage: 'Mensaje inicial',
       primaryColor: 'Color principal',
       fallbackEmail: 'Email fallback',
@@ -286,7 +285,6 @@ const ca: Dictionary = {
     form: {
       chatbot: 'Chatbot',
       plan: 'Pla',
-      assistantName: 'Nom de l’assistent',
       initialMessage: 'Missatge inicial',
       primaryColor: 'Color principal',
       fallbackEmail: 'Email fallback',

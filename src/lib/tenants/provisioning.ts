@@ -3,14 +3,27 @@ import type { Json } from '@/types/database.types'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
+export type CulturalEntityType =
+  | 'theatre'
+  | 'museum'
+  | 'cinema'
+  | 'auditorium'
+  | 'festival'
+  | 'cultural_center'
+  | 'other'
+
+export type TenantLanguage = 'ca' | 'es' | 'en'
+
 export type CreateTenantInput = {
   userId: string
   userEmail: string
+  entityType: CulturalEntityType
   theatreName: string
   websiteUrl?: string
   fallbackEmail?: string
   fallbackPhone?: string
-  assistantName?: string
+  primaryLanguage: TenantLanguage
+  onboardingGoals: string[]
   primaryColor?: string
 }
 
@@ -18,8 +31,8 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
   const slug = await getAvailableSlug(admin, slugify(input.theatreName))
   const scrapeUrls = input.websiteUrl ? [input.websiteUrl] : []
   const widgetConfig = {
-    assistantName: input.assistantName || 'TALIA',
-    initialMessage: 'Hola, soc TALIA. En què et puc ajudar?',
+    assistantName: 'TALIA',
+    initialMessage: getInitialMessage(input.primaryLanguage, input.entityType),
     primaryColor: input.primaryColor || '#000000',
   } satisfies Json
 
@@ -28,12 +41,17 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
     .insert({
       name: input.theatreName,
       slug,
+      entity_type: input.entityType,
+      primary_language: input.primaryLanguage,
+      website_url: input.websiteUrl || null,
+      onboarding_goals: input.onboardingGoals,
+      onboarding_completed: true,
       plan: 'esencial',
       fallback_email: input.fallbackEmail || input.userEmail,
       fallback_phone: input.fallbackPhone || null,
       scrape_urls: scrapeUrls,
       widget_config: widgetConfig,
-      system_prompt: buildInitialSystemPrompt(input.theatreName, input.websiteUrl),
+      system_prompt: buildInitialSystemPrompt(input),
       n8n_webhook_url: getDefaultN8nWebhookUrl(),
     })
     .select('id')
@@ -63,16 +81,63 @@ function getDefaultN8nWebhookUrl() {
   return process.env.DEFAULT_N8N_WEBHOOK_URL || null
 }
 
-function buildInitialSystemPrompt(theatreName: string, websiteUrl?: string) {
-  const websiteLine = websiteUrl ? `Web oficial: ${websiteUrl}` : null
+function buildInitialSystemPrompt(input: CreateTenantInput) {
+  const websiteLine = input.websiteUrl ? `Web oficial: ${input.websiteUrl}` : null
+  const languageLine = `Idioma principal: ${getLanguageName(input.primaryLanguage)}.`
+  const goalsLine = input.onboardingGoals.length
+    ? `Prioriza estas áreas: ${input.onboardingGoals.map(getGoalLabel).join(', ')}.`
+    : null
 
   return [
-    `Eres TALIA, el asistente virtual de ${theatreName}.`,
-    'Ayuda a los visitantes con información práctica, programación, entradas, horarios, ubicación y accesibilidad.',
+    `Eres TALIA, el asistente virtual de ${input.theatreName}.`,
+    `La entidad cultural es de tipo: ${getEntityTypeLabel(input.entityType)}.`,
+    languageLine,
+    'Ayuda a los visitantes con información práctica, programación, entradas o reservas, horarios, ubicación y accesibilidad.',
+    goalsLine,
     websiteLine,
-    'Responde siempre de forma clara, breve y profesional.',
+    'Responde siempre en el idioma del usuario, de forma clara, breve y profesional.',
     'Si no sabes una respuesta con seguridad, deriva al contacto oficial del teatro.',
   ].filter(Boolean).join('\n')
+}
+
+function getInitialMessage(language: TenantLanguage, entityType: CulturalEntityType) {
+  const entity = getEntityTypeLabel(entityType).toLowerCase()
+
+  if (language === 'ca') return `Hola, soc TALIA. En què et puc ajudar sobre ${entity}?`
+  if (language === 'en') return `Hi, I am TALIA. How can I help you with this ${entity}?`
+  return `Hola, soy TALIA. ¿En qué puedo ayudarte sobre ${entity}?`
+}
+
+function getLanguageName(language: TenantLanguage) {
+  if (language === 'ca') return 'catalán'
+  if (language === 'en') return 'inglés'
+  return 'español'
+}
+
+function getEntityTypeLabel(entityType: CulturalEntityType) {
+  const labels: Record<CulturalEntityType, string> = {
+    theatre: 'teatro',
+    museum: 'museo',
+    cinema: 'cine',
+    auditorium: 'auditorio o sala de conciertos',
+    festival: 'festival',
+    cultural_center: 'centro cultural',
+    other: 'entidad cultural',
+  }
+  return labels[entityType]
+}
+
+function getGoalLabel(goal: string) {
+  const labels: Record<string, string> = {
+    faqs: 'preguntas frecuentes',
+    agenda: 'programación y agenda',
+    tickets: 'entradas y reservas',
+    hours: 'horarios',
+    location: 'ubicación y cómo llegar',
+    accessibility: 'accesibilidad',
+    prices: 'precios y descuentos',
+  }
+  return labels[goal] ?? goal
 }
 
 async function getAvailableSlug(admin: AdminClient, baseSlug: string) {

@@ -85,7 +85,6 @@ export default async function SettingsPage({ params, searchParams }: Props) {
             fallback_phone: theatre.fallback_phone,
           }}
           widgetConfig={{
-            assistantName: widgetConfig.assistantName,
             initialMessage: widgetConfig.initialMessage,
             primaryColor: widgetConfig.primaryColor,
             autoOpen: widgetConfig.autoOpen,
