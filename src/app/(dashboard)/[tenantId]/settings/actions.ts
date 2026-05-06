@@ -1,6 +1,7 @@
 'use server'
 
 import * as XLSX from 'xlsx'
+import { requireTenantPermission } from '@/lib/auth/tenant-access'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { assertTenantAdmin } from '@/lib/tenants/service'
@@ -40,6 +41,7 @@ export async function updateTenantSettings(
   _previousState: SettingsFormState,
   formData: FormData
 ): Promise<SettingsFormState> {
+  await requireTenantPermission(tenantId, 'manage_chatbot', 'chatbot')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -94,6 +96,7 @@ export async function updateScrapeUrls(
   _previousState: SettingsFormState,
   formData: FormData
 ): Promise<SettingsFormState> {
+  await requireTenantPermission(tenantId, 'manage_chatbot', 'chatbot')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -127,6 +130,7 @@ export async function createKnowledgeItem(
   _previousState: SettingsFormState,
   formData: FormData
 ): Promise<SettingsFormState> {
+  await requireTenantPermission(tenantId, 'manage_knowledge', 'chatbot')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -189,6 +193,7 @@ export async function uploadKnowledgeExcel(
   _previousState: ExcelUploadState,
   formData: FormData
 ): Promise<ExcelUploadState> {
+  await requireTenantPermission(tenantId, 'manage_knowledge', 'chatbot')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -312,6 +317,7 @@ export async function updateKnowledgeItem(
   _previousState: SettingsFormState,
   formData: FormData
 ): Promise<SettingsFormState> {
+  await requireTenantPermission(tenantId, 'manage_knowledge', 'chatbot')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -355,6 +361,7 @@ export async function deleteKnowledgeItem(
   tenantId: string,
   itemId: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  await requireTenantPermission(tenantId, 'manage_knowledge', 'chatbot')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

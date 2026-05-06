@@ -23,7 +23,7 @@ export default async function OnboardingPage() {
           <p className="section-label">Acceso privado</p>
           <h1>Talía funciona por invitación</h1>
           <p className="muted">
-            Esta cuenta no está vinculada a ningún tenant. Si ya eres cliente, usa el enlace de invitación
+            Esta cuenta no está vinculada a ningún cliente. Si ya eres cliente, usa el enlace de invitación
             que te ha enviado el equipo de Talía.
           </p>
           <form action="/auth/logout" method="post">

@@ -1,7 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireTenantPermission } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { KnowledgeForm } from './knowledge-form'
 import { SettingsForm } from './settings-form'
@@ -17,16 +16,12 @@ export default async function SettingsPage({ params, searchParams }: Props) {
   const { tenantId } = await params
   const { tab: tabParam } = await searchParams
   const dictionary = await getDictionary(await getLocale())
+  await requireTenantPermission(tenantId, 'manage_chatbot', 'chatbot')
   const tabs = [
     { value: 'general', label: dictionary.settings.tabs.general },
     { value: 'knowledge', label: dictionary.settings.tabs.knowledge },
     { value: 'preview', label: dictionary.settings.tabs.preview },
   ] satisfies { value: Tab; label: string }[]
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
   const activeTab: Tab = tabs.find((t) => t.value === tabParam)?.value ?? 'general'
 
   const admin = createAdminClient()

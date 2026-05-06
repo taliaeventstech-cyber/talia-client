@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireTenantPermission } from '@/lib/auth/tenant-access'
+import { hasTenantPermission } from '@/lib/auth/permissions'
 import { classifyConversationTopic } from '@/lib/analytics/topics'
 import { getDictionary, getLocale, getTopicLabel } from '@/lib/i18n/dictionaries'
 import { Bot, CheckCircle2, Database, MessageSquareText, MessagesSquare, Mic2, SlidersHorizontal } from 'lucide-react'
@@ -16,6 +18,7 @@ export default async function OverviewPage({ params }: Props) {
   const locale = await getLocale()
   const dictionary = await getDictionary(locale)
   const copy = dictionary.overview
+  const access = await requireTenantPermission(tenantId, 'view_overview')
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -108,10 +111,12 @@ export default async function OverviewPage({ params }: Props) {
             <p className="eyebrow">{copy.modules.section}</p>
             <h2>{copy.modules.title}</h2>
           </div>
-          <Link className="link-accent link-with-icon" href={`/${tenantId}/settings`}>
-            <SlidersHorizontal aria-hidden="true" size={14} strokeWidth={2} />
-            {copy.modules.configure}
-          </Link>
+          {hasTenantPermission(access.role, 'manage_chatbot') ? (
+            <Link className="link-accent link-with-icon" href={`/${tenantId}/settings`}>
+              <SlidersHorizontal aria-hidden="true" size={14} strokeWidth={2} />
+              {copy.modules.configure}
+            </Link>
+          ) : null}
         </div>
 
         <div className="overview-grid">

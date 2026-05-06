@@ -1,8 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import { requireTenantPermission } from '@/lib/auth/tenant-access'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { DeleteConversationButton } from '../delete-button'
 
 interface Props {
@@ -11,10 +11,7 @@ interface Props {
 
 export default async function ConversationDetailPage({ params }: Props) {
   const { tenantId, conversationId } = await params
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const access = await requireTenantPermission(tenantId, 'view_conversations', 'chatbot')
 
   const admin = createAdminClient()
 
@@ -50,7 +47,9 @@ export default async function ConversationDetailPage({ params }: Props) {
             <p className="section-label">Conversation log</p>
             <h1>Conversación</h1>
           </div>
-          <DeleteConversationButton tenantId={tenantId} conversationId={conversationId} />
+          {access.role === 'owner' || access.role === 'admin' ? (
+            <DeleteConversationButton tenantId={tenantId} conversationId={conversationId} />
+          ) : null}
         </div>
         <dl style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px 16px' }}>
           <dt>Session ID</dt>

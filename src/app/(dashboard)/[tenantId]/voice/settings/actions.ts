@@ -1,5 +1,6 @@
 'use server'
 
+import { requireTenantPermission } from '@/lib/auth/tenant-access'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { assertTenantAdmin } from '@/lib/tenants/service'
@@ -31,6 +32,7 @@ export async function updateVoiceSettings(
   _previousState: VoiceSettingsState,
   formData: FormData
 ): Promise<VoiceSettingsState> {
+  await requireTenantPermission(tenantId, 'manage_voice', 'voice')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -128,6 +130,7 @@ export async function updateVoiceSettings(
 }
 
 export async function regenerateVoicePrompt(tenantId: string): Promise<{ prompt: string }> {
+  await requireTenantPermission(tenantId, 'manage_voice', 'voice')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

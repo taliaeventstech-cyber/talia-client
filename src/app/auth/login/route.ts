@@ -12,6 +12,10 @@ export async function POST(request: NextRequest) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error || !data.user) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[auth-login]', error?.message || 'No user returned from Supabase Auth')
+    }
+
     return NextResponse.json({ error: 'Email o contraseña incorrectos' }, { status: 401 })
   }
 
@@ -21,5 +25,15 @@ export async function POST(request: NextRequest) {
     .eq('id', data.user.id)
     .maybeSingle()
 
-  return NextResponse.json({ redirectTo: member ? `/${member.theatre_id}/overview` : '/onboarding' })
+  if (member) {
+    return NextResponse.json({ redirectTo: `/${member.theatre_id}/overview` })
+  }
+
+  const { data: platformAdmin } = await supabase
+    .from('platform_admins')
+    .select('role')
+    .eq('user_id', data.user.id)
+    .maybeSingle()
+
+  return NextResponse.json({ redirectTo: platformAdmin ? '/backstage' : '/onboarding' })
 }

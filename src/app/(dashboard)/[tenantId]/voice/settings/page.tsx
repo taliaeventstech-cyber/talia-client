@@ -1,5 +1,5 @@
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireTenantPermission } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { getTenantVoiceConfig } from '@/lib/tenants/service'
 import { buildVoicePrompt, type VoiceTone } from '@/lib/voice/prompt-builder'
@@ -18,10 +18,7 @@ function getAppUrl() {
 export default async function VoiceSettingsPage({ params }: Props) {
   const { tenantId } = await params
   const dictionary = await getDictionary(await getLocale())
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  await requireTenantPermission(tenantId, 'manage_voice', 'voice')
 
   const admin = createAdminClient()
   const result = await getTenantVoiceConfig(admin, tenantId)

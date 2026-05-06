@@ -15,5 +15,13 @@ export default async function Home() {
 
   if (member) redirect(`/${member.theatre_id}/overview`)
 
+  const { data: platformAdmin } = await supabase
+    .from('platform_admins')
+    .select('role')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (platformAdmin) redirect('/backstage')
+
   redirect('/onboarding')
 }

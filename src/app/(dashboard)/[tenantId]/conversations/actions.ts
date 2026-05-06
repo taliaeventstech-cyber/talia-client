@@ -1,22 +1,16 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
-import { assertTenantAdmin } from '@/lib/tenants/service'
+import { requireTenantPermission } from '@/lib/auth/tenant-access'
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 
 export async function deleteConversation(
   tenantId: string,
   conversationId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  await requireTenantPermission(tenantId, 'delete_conversations', 'chatbot')
 
   const admin = createAdminClient()
-  const isAdmin = await assertTenantAdmin(admin, user.id, tenantId)
-  if (!isAdmin) return { ok: false, error: 'Sin permisos.' }
 
   // Fetch session_id to clean up conversation_topics
   const { data: conversation } = await admin

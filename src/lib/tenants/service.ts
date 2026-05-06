@@ -58,14 +58,21 @@ export async function getTenantWebhookSecret(admin: AdminClient, tenantId: strin
 }
 
 export async function assertTenantAdmin(admin: AdminClient, userId: string, tenantId: string) {
-  const { data } = await admin
-    .from('users')
-    .select('role')
-    .eq('id', userId)
-    .eq('theatre_id', tenantId)
-    .single()
+  const [{ data }, { data: platformAdmin }] = await Promise.all([
+    admin
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+      .eq('theatre_id', tenantId)
+      .single(),
+    admin
+      .from('platform_admins')
+      .select('role')
+      .eq('user_id', userId)
+      .maybeSingle(),
+  ])
 
-  return data?.role === 'admin'
+  return Boolean(platformAdmin) || data?.role === 'owner' || data?.role === 'admin'
 }
 
 export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string) {

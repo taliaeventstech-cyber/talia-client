@@ -1,9 +1,8 @@
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireTenantPermission } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { Eye } from 'lucide-react'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { DeleteConversationButton } from './delete-button'
 
 interface Props {
@@ -14,10 +13,7 @@ export default async function ConversationsPage({ params }: Props) {
   const { tenantId } = await params
   const locale = await getLocale()
   const dictionary = await getDictionary(locale)
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const access = await requireTenantPermission(tenantId, 'view_conversations', 'chatbot')
 
   const admin = createAdminClient()
 
@@ -84,7 +80,9 @@ export default async function ConversationsPage({ params }: Props) {
                 >
                   <Eye aria-hidden="true" size={14} strokeWidth={2} />
                 </Link>
-                <DeleteConversationButton tenantId={tenantId} conversationId={conversation.id} variant="icon" />
+                {access.role === 'owner' || access.role === 'admin' ? (
+                  <DeleteConversationButton tenantId={tenantId} conversationId={conversation.id} variant="icon" />
+                ) : null}
               </td>
             </tr>
           ))}

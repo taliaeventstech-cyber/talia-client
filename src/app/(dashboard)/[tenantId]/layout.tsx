@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { DashboardNav } from '@/components/dashboard-nav'
 import { LanguageToggle } from '@/components/language-toggle'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
+import { getTenantAccess } from '@/lib/auth/tenant-access'
 import Image from 'next/image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
@@ -23,17 +23,7 @@ export default async function DashboardLayout({ children, params }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const admin = createAdminClient()
-
-  // Verificar que el usuario pertenece a este teatro
-  const { data: membership } = await admin
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .eq('theatre_id', tenantId)
-    .single()
-
-  if (!membership) redirect('/login')
+  const access = await getTenantAccess(tenantId)
 
   return (
     <div className="dashboard-shell">
@@ -51,6 +41,8 @@ export default async function DashboardLayout({ children, params }: Props) {
         </div>
         <DashboardNav
           tenantId={tenantId}
+          role={access.role}
+          modules={access.modules}
           labels={{
             main: dictionary.nav.main,
             overview: dictionary.nav.overview,
@@ -76,7 +68,7 @@ export default async function DashboardLayout({ children, params }: Props) {
 
       <header className="dashboard-topbar">
         <div className="dashboard-topbar-actions">
-          <Link className="icon-button" href={`/${tenantId}/account`} aria-label="Área de usuario">
+          <Link className="icon-button" href={access.source === 'platform' ? '/backstage' : `/${tenantId}/account`} aria-label="Área de usuario">
             <UserRound size={16} strokeWidth={2} aria-hidden="true" />
           </Link>
           <form action="/auth/logout" method="post">

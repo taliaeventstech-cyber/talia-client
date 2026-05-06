@@ -1,8 +1,7 @@
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireTenantPermission } from '@/lib/auth/tenant-access'
 import { classifyConversationTopic } from '@/lib/analytics/topics'
 import { getDictionary, getLocale, getTopicLabel } from '@/lib/i18n/dictionaries'
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
 interface Props {
@@ -15,15 +14,11 @@ export default async function AnalyticsPage({ params, searchParams }: Props) {
   const { tab: tabParam } = await searchParams
   const locale = await getLocale()
   const dictionary = await getDictionary(locale)
+  await requireTenantPermission(tenantId, 'view_analytics', 'data')
   const tabs = [
     { value: 'intencion', label: dictionary.analytics.tabs.intent },
     { value: 'temas', label: dictionary.analytics.tabs.topics },
   ]
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
   const activeTab = tabs.find((t) => t.value === tabParam)?.value ?? 'intencion'
 
   const admin = createAdminClient()
