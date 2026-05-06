@@ -1,189 +1,138 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { classifyConversationTopic } from '@/lib/analytics/topics'
-import type { Channel } from '@/lib/analytics/topics'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
 interface Props {
   params: Promise<{ tenantId: string }>
-  searchParams: Promise<{ channel?: string }>
+  searchParams: Promise<{ tab?: string }>
 }
 
-const CHANNELS: { value: Channel | 'all'; label: string }[] = [
-  { value: 'all', label: 'Todos' },
-  { value: 'web', label: 'Chatbot web' },
-  { value: 'email', label: 'Email' },
-  { value: 'voice', label: 'Voz' },
-  { value: 'whatsapp', label: 'WhatsApp' },
+const TABS = [
+  { value: 'intencion', label: 'Intención' },
+  { value: 'temas', label: 'Temas' },
 ]
-
-const CHANNEL_LABELS: Record<string, string> = {
-  web: 'Chatbot',
-  email: 'Email',
-  voice: 'Voz',
-  whatsapp: 'WhatsApp',
-}
-
-const CHANNEL_COLORS: Record<string, string> = {
-  web: 'var(--color-ia)',
-  email: 'var(--color-gold)',
-  voice: '#7c5cbf',
-  whatsapp: '#25d366',
-}
 
 export default async function AnalyticsPage({ params, searchParams }: Props) {
   const { tenantId } = await params
-  const { channel: channelParam } = await searchParams
+  const { tab: tabParam } = await searchParams
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const activeChannel = CHANNELS.find((c) => c.value === channelParam)?.value ?? 'all'
+  const activeTab = TABS.find((t) => t.value === tabParam)?.value ?? 'intencion'
 
   const admin = createAdminClient()
 
-  let topicsQuery = admin
+  const { data: topics } = await admin
     .from('conversation_topics')
-    .select('topic, user_message, created_at, channel')
+    .select('topic, user_message, created_at')
     .eq('theatre_id', tenantId)
+    .eq('channel', 'web')
     .order('created_at', { ascending: false })
     .limit(500)
 
-  if (activeChannel !== 'all') {
-    topicsQuery = topicsQuery.eq('channel', activeChannel)
-  }
+  const normalizedTopics = (topics ?? []).map((t) => ({
+    ...t,
+    topic: classifyConversationTopic(t.topic ?? undefined, t.user_message ?? undefined),
+  }))
 
-  const [{ data: analytics }, { data: topics }] = await Promise.all([
-    admin
-      .from('analytics_daily')
-      .select('date, total_conversations, total_messages, avg_messages_per_conversation')
-      .eq('theatre_id', tenantId)
-      .order('date', { ascending: false })
-      .limit(30),
-    topicsQuery,
-  ])
-
-  const normalizedTopics = normalizeTopics(topics ?? [])
   const topTopics = getTopTopics(normalizedTopics)
-  const recentTopics = normalizedTopics.slice(0, 20)
-
-  const channelCounts = getChannelCounts(topics ?? [])
+  const recentTopics = normalizedTopics.slice(0, 50)
 
   return (
     <main className="page-shell">
       <header className="page-header">
-        <p className="section-label">Data</p>
-        <h1>Temas e intención</h1>
-        <p className="muted">Preguntas clasificadas, temas frecuentes y señales de intención detectadas.</p>
+        <p className="section-label">Chatbot web</p>
+        <h1>Análisis</h1>
+        <p className="muted">Intenciones detectadas y temas frecuentes en las conversaciones del chatbot.</p>
       </header>
 
       <div className="channel-tabs" role="tablist">
-        {CHANNELS.map(({ value, label }) => {
-          const count = value === 'all'
-            ? Object.values(channelCounts).reduce((a, b) => a + b, 0)
-            : (channelCounts[value] ?? 0)
-          const href = value === 'all'
-            ? `/${tenantId}/analytics`
-            : `/${tenantId}/analytics?channel=${value}`
-          const isActive = activeChannel === value
-          const hasData = value === 'all' ? count > 0 : count > 0
-
+        {TABS.map(({ value, label }) => {
+          const href = `/${tenantId}/analytics?tab=${value}`
+          const isActive = activeTab === value
           return (
             <Link
               key={value}
               href={href}
               role="tab"
               aria-selected={isActive}
-              className={`channel-tab ${isActive ? 'channel-tab-active' : ''} ${!hasData && value !== 'all' ? 'channel-tab-empty' : ''}`}
+              className={`channel-tab ${isActive ? 'channel-tab-active' : ''}`}
             >
               {label}
-              {count > 0 && <span className="channel-tab-count">{count}</span>}
             </Link>
           )
         })}
       </div>
 
-      <section className="card stack">
-        <h2>Temas más preguntados</h2>
-        {topTopics.length === 0 ? (
-          <p className="muted">Aún no hay temas clasificados.</p>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Tema</th>
-                <th>Preguntas</th>
-                <th>Peso</th>
-              </tr>
-            </thead>
-            <tbody>
-              {topTopics.map((item) => (
-                <tr key={item.topic}>
-                  <td style={{ textTransform: 'capitalize' }}>{item.topic}</td>
-                  <td>{item.count}</td>
-                  <td>
-                    <div className="progress-track">
-                      <div className="progress-fill" style={{ width: `${item.percentage}%` }} />
-                    </div>
-                  </td>
+      {activeTab === 'intencion' && (
+        <section className="card stack">
+          <h2>Intención por categoría</h2>
+          <p className="muted">Distribución de lo que buscan los usuarios al contactar con el chatbot.</p>
+          {topTopics.length === 0 ? (
+            <p className="muted">Aún no hay datos suficientes.</p>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Categoría</th>
+                  <th>Conversaciones</th>
+                  <th>Peso</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
-
-      <section className="card stack">
-        <h2>Últimas preguntas clasificadas</h2>
-        {recentTopics.length === 0 ? (
-          <p className="muted">Sin preguntas clasificadas.</p>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Tema</th>
-                <th>Pregunta</th>
-                {activeChannel === 'all' && <th>Canal</th>}
-                <th>Fecha</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentTopics.map((topic, index) => (
-                <tr key={`${topic.created_at}-${index}`}>
-                  <td style={{ textTransform: 'capitalize' }}>{topic.topic}</td>
-                  <td>{topic.user_message ?? '-'}</td>
-                  {activeChannel === 'all' && (
+              </thead>
+              <tbody>
+                {topTopics.map((item) => (
+                  <tr key={item.topic}>
+                    <td style={{ textTransform: 'capitalize' }}>{item.topic}</td>
+                    <td>{item.count}</td>
                     <td>
-                      <span className="channel-badge" style={{ background: `color-mix(in srgb, ${CHANNEL_COLORS[topic.channel ?? 'web'] ?? CHANNEL_COLORS.web} 14%, transparent)`, color: CHANNEL_COLORS[topic.channel ?? 'web'] ?? CHANNEL_COLORS.web }}>
-                        {CHANNEL_LABELS[topic.channel ?? 'web'] ?? topic.channel}
-                      </span>
+                      <div className="progress-track">
+                        <div className="progress-fill" style={{ width: `${item.percentage}%` }} />
+                      </div>
                     </td>
-                  )}
-                  <td>
-                    {topic.created_at ? new Date(topic.created_at).toLocaleString('es-ES') : '-'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      )}
 
-      <section className="card stack">
-        <h2>Resumen diario</h2>
-        <pre className="ai-output">{JSON.stringify(analytics?.slice(0, 3), null, 2)}</pre>
-      </section>
+      {activeTab === 'temas' && (
+        <section className="card stack">
+          <h2>Preguntas recientes</h2>
+          <p className="muted">Últimas preguntas clasificadas por tema.</p>
+          {recentTopics.length === 0 ? (
+            <p className="muted">Sin preguntas clasificadas.</p>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Tema</th>
+                  <th>Pregunta</th>
+                  <th>Fecha</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentTopics.map((topic, index) => (
+                  <tr key={`${topic.created_at}-${index}`}>
+                    <td style={{ textTransform: 'capitalize' }}>{topic.topic}</td>
+                    <td>{topic.user_message ?? '—'}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      {topic.created_at ? new Date(topic.created_at).toLocaleString('es-ES') : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      )}
     </main>
   )
-}
-
-function normalizeTopics(topics: { topic: string | null; user_message: string | null; created_at: string | null; channel?: string | null }[]) {
-  return topics.map((topic) => ({
-    ...topic,
-    topic: classifyConversationTopic(topic.topic ?? undefined, topic.user_message ?? undefined),
-  }))
 }
 
 function getTopTopics(topics: { topic: string }[]) {
@@ -192,9 +141,7 @@ function getTopTopics(topics: { topic: string }[]) {
     if (!topic || topic === 'otro') return
     counts.set(topic, (counts.get(topic) ?? 0) + 1)
   })
-
-  const total = Array.from(counts.values()).reduce((sum, count) => sum + count, 0)
-
+  const total = Array.from(counts.values()).reduce((sum, n) => sum + n, 0)
   return Array.from(counts.entries())
     .map(([topic, count]) => ({
       topic,
@@ -202,13 +149,4 @@ function getTopTopics(topics: { topic: string }[]) {
       percentage: total === 0 ? 0 : Math.round((count / total) * 100),
     }))
     .sort((a, b) => b.count - a.count)
-}
-
-function getChannelCounts(topics: { channel?: string | null }[]) {
-  const counts: Record<string, number> = {}
-  topics.forEach(({ channel }) => {
-    const key = channel ?? 'web'
-    counts[key] = (counts[key] ?? 0) + 1
-  })
-  return counts
 }

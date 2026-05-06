@@ -1,8 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { MessagesSquare } from 'lucide-react'
+import { Eye } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { DeleteConversationButton } from './delete-button'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -71,11 +72,16 @@ export default async function ConversationsPage({ params }: Props) {
               </td>
               <td>{new Date(conversation.started_at).toLocaleString('es-ES')}</td>
               <td>{conversation.message_count}</td>
-              <td style={{ textAlign: 'right' }}>
-                <Link className="link-accent link-with-icon" href={`/${tenantId}/conversations/${conversation.id}`}>
-                  <MessagesSquare aria-hidden="true" size={14} strokeWidth={2} />
-                  Ver mensajes
+              <td style={{ textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+                <Link
+                  className="link-accent"
+                  aria-label="Ver mensajes"
+                  href={`/${tenantId}/conversations/${conversation.id}`}
+                  style={{ display: 'grid', placeItems: 'center', padding: 4, borderRadius: 4 }}
+                >
+                  <Eye aria-hidden="true" size={14} strokeWidth={2} />
                 </Link>
+                <DeleteConversationButton tenantId={tenantId} conversationId={conversation.id} variant="icon" />
               </td>
             </tr>
           ))}

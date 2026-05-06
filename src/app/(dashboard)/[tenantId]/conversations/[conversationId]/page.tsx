@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
+import { DeleteConversationButton } from '../delete-button'
 
 interface Props {
   params: Promise<{ tenantId: string; conversationId: string }>
@@ -44,9 +45,12 @@ export default async function ConversationDetailPage({ params }: Props) {
       </Link>
 
       <header className="card stack">
-        <div className="page-header">
-          <p className="section-label">Conversation log</p>
-          <h1>Conversación</h1>
+        <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <p className="section-label">Conversation log</p>
+            <h1>Conversación</h1>
+          </div>
+          <DeleteConversationButton tenantId={tenantId} conversationId={conversationId} />
         </div>
         <dl style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px 16px' }}>
           <dt>Session ID</dt>

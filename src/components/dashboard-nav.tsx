@@ -27,6 +27,13 @@ export function DashboardNav({ tenantId }: { tenantId: string }) {
               Conversaciones
             </Link>
             <Link
+              className={`nav-link nav-link-nested ${active(`/${tenantId}/analytics`) ? 'nav-link-active' : ''}`}
+              href={`/${tenantId}/analytics`}
+            >
+              <Network size={14} strokeWidth={2} aria-hidden="true" />
+              Análisis
+            </Link>
+            <Link
               className={`nav-link nav-link-nested ${active(`/${tenantId}/settings`) ? 'nav-link-active' : ''}`}
               href={`/${tenantId}/settings`}
             >
@@ -71,26 +78,7 @@ export function DashboardNav({ tenantId }: { tenantId: string }) {
         </div>
       </div>
 
-      <div className="nav-section">
-        <p className="nav-section-label">Data</p>
-        <div className="nav-subnav nav-subnav-root">
-          <Link
-            className={`nav-link nav-link-nested ${active(`/${tenantId}/analytics`) ? 'nav-link-active' : ''}`}
-            href={`/${tenantId}/analytics`}
-          >
-            <Network size={14} strokeWidth={2} aria-hidden="true" />
-            Temas e intención
-          </Link>
-          <div className="nav-channel nav-channel-disabled" aria-disabled="true">
-            <div className="nav-channel-title nav-channel-title-nested">
-              <span>Operativa</span>
-              <span className="nav-channel-status">Próximo</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="nav-section">
+<div className="nav-section">
         <p className="nav-section-label">Marketing</p>
         <div className="nav-channel nav-channel-disabled" aria-disabled="true">
           <div className="nav-channel-title">
