@@ -38,6 +38,10 @@ export async function createTenant(
 
   if (existing) redirect(`/${existing.theatre_id}/overview`)
 
+  if (process.env.ENABLE_SELF_SERVE_ONBOARDING !== 'true') {
+    return { ok: false, message: 'El alta de tenants está disponible solo por invitación.' }
+  }
+
   const parsed = onboardingSchema.safeParse({
     entityType: formData.get('entity_type'),
     theatreName: formData.get('theatre_name'),

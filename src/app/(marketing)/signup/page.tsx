@@ -6,6 +6,10 @@ import { useState } from 'react'
 export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [inviteToken, setInviteToken] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    return new URLSearchParams(window.location.search).get('invite') ?? ''
+  })
   const [loading, setLoading] = useState(false)
   const [resending, setResending] = useState(false)
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
@@ -25,7 +29,7 @@ export default function SignupPage() {
       response = await fetch('/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, inviteToken }),
       })
       result = await response.json()
     } catch {
@@ -89,7 +93,7 @@ export default function SignupPage() {
       <section className="auth-card">
         <h1>Crear cuenta Talía</h1>
         <p className="muted" style={{ marginBottom: 24 }}>
-          Registra tu teatro y configura tu asistente para instalarlo en tu web.
+          Talía es un servicio privado para entidades culturales. Usa la invitación que te hemos enviado para activar tu cuenta.
         </p>
 
         {error ? (
@@ -138,12 +142,24 @@ export default function SignupPage() {
             />
           </label>
 
+          <label className="field">
+            Invitación
+            <input
+              type="text"
+              value={inviteToken}
+              onChange={(event) => setInviteToken(event.target.value)}
+              required
+              placeholder="Token de invitación"
+              autoComplete="off"
+            />
+          </label>
+
           <button
             className="button-primary"
             type="submit"
-            disabled={loading}
+            disabled={loading || !inviteToken}
           >
-            {loading ? 'Creando cuenta...' : 'Crear cuenta'}
+            {loading ? 'Activando cuenta...' : 'Activar cuenta'}
           </button>
         </form>
 

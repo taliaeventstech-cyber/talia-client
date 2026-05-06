@@ -286,6 +286,103 @@ export type Database = {
           },
         ]
       }
+      signup_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          revoked_at: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          theatre_id: string
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          revoked_at?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          theatre_id: string
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          revoked_at?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          theatre_id?: string
+          token_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signup_invites_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_modules: {
+        Row: {
+          config: Json
+          created_at: string
+          disabled_at: string | null
+          enabled_at: string | null
+          id: string
+          module_key: string
+          status: string
+          theatre_id: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          disabled_at?: string | null
+          enabled_at?: string | null
+          id?: string
+          module_key: string
+          status?: string
+          theatre_id: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          disabled_at?: string | null
+          enabled_at?: string | null
+          id?: string
+          module_key?: string
+          status?: string
+          theatre_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_modules_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       theatres: {
         Row: {
           created_at: string
@@ -473,7 +570,7 @@ export type Database = {
     }
     Enums: {
       message_role: "user" | "assistant"
-      user_role: "admin" | "viewer"
+      user_role: "owner" | "admin" | "operator" | "analyst" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -602,7 +699,7 @@ export const Constants = {
   public: {
     Enums: {
       message_role: ["user", "assistant"],
-      user_role: ["admin", "viewer"],
+      user_role: ["owner", "admin", "operator", "analyst", "viewer"],
     },
   },
 } as const

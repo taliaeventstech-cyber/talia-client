@@ -16,6 +16,24 @@ export default async function OnboardingPage() {
 
   if (member) redirect(`/${member.theatre_id}/overview`)
 
+  if (process.env.ENABLE_SELF_SERVE_ONBOARDING !== 'true') {
+    return (
+      <main className="auth-shell">
+        <section className="auth-card stack">
+          <p className="section-label">Acceso privado</p>
+          <h1>Talía funciona por invitación</h1>
+          <p className="muted">
+            Esta cuenta no está vinculada a ningún tenant. Si ya eres cliente, usa el enlace de invitación
+            que te ha enviado el equipo de Talía.
+          </p>
+          <form action="/auth/logout" method="post">
+            <button className="button-primary" type="submit">Cerrar sesión</button>
+          </form>
+        </section>
+      </main>
+    )
+  }
+
   return (
     <main className="auth-shell">
       <section className="auth-card onboarding-card stack">

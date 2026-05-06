@@ -116,7 +116,7 @@ function DetailItem({ icon, label, value }: { icon: ReactNode; label: string; va
 }
 
 function formatRole(copy: Awaited<ReturnType<typeof getDictionary>>['account'], role: string) {
-  return role === 'admin' ? copy.roles.admin : copy.roles.viewer
+  return copy.roles[role as keyof typeof copy.roles] ?? copy.roles.viewer
 }
 
 function formatEntityType(copy: Awaited<ReturnType<typeof getDictionary>>['account'], type?: string | null) {

@@ -103,7 +103,10 @@ const es = {
     teamTitle: 'Gestión de equipo',
     teamDescription: 'Esta zona será el lugar natural para cambiar contraseña, gestionar invitaciones, roles y facturación.',
     roles: {
+      owner: 'Propietario',
       admin: 'Administrador',
+      operator: 'Operador',
+      analyst: 'Analista',
       viewer: 'Lectura',
     },
     entityTypes: {
@@ -399,7 +402,10 @@ const ca: Dictionary = {
     teamTitle: 'Gestió d’equip',
     teamDescription: 'Aquesta zona serà el lloc natural per canviar contrasenya, gestionar invitacions, rols i facturació.',
     roles: {
+      owner: 'Propietari',
       admin: 'Administrador',
+      operator: 'Operador',
+      analyst: 'Analista',
       viewer: 'Lectura',
     },
     entityTypes: {
