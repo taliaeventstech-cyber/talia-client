@@ -105,6 +105,25 @@ textarea {
   background: var(--color-surface);
   color: var(--color-text-primary);
   padding: 10px 12px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238888a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 12%, transparent);
 }
 
 textarea {
@@ -171,6 +190,49 @@ textarea {
   font-size: 12px;
   font-weight: 400;
   line-height: 1.45;
+}
+
+.tooltip-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.tooltip-icon {
+  color: var(--color-text-tertiary);
+  cursor: default;
+  transition: color 150ms ease;
+}
+
+.tooltip-wrap:hover .tooltip-icon {
+  color: var(--color-gold);
+}
+
+.tooltip-tip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 260px;
+  background: var(--color-text-primary);
+  color: var(--color-surface);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  line-height: 1.55;
+  font-weight: 400;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 150ms ease, visibility 150ms ease;
+  z-index: 50;
+  white-space: normal;
+  text-align: left;
+}
+
+.tooltip-wrap:hover .tooltip-tip {
+  opacity: 1;
+  visibility: visible;
 }
 
 .knowledge-help {
@@ -264,6 +326,10 @@ textarea {
 
 [data-theme="dark"] .button-primary {
   color: #1a1a2e;
+}
+
+[data-theme="dark"] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235a5a7a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
 
 .button-outline {

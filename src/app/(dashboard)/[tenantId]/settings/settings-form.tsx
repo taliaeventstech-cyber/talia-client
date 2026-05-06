@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState } from 'react'
 import { updateTenantSettings, type SettingsFormState } from './actions'
 
 type SettingsFormProps = {
@@ -18,7 +18,6 @@ type SettingsFormProps = {
     autoOpen: boolean
     autoOpenDelay: number
   }
-  scrapeUrls: string[]
 }
 
 const initialState: SettingsFormState = {
@@ -26,9 +25,8 @@ const initialState: SettingsFormState = {
   message: '',
 }
 
-export function SettingsForm({ tenantId, theatre, widgetConfig, scrapeUrls }: SettingsFormProps) {
+export function SettingsForm({ tenantId, theatre, widgetConfig }: SettingsFormProps) {
   const [state, formAction, pending] = useActionState(updateTenantSettings.bind(null, tenantId), initialState)
-  const [urls, setUrls] = useState<string[]>(scrapeUrls.length ? scrapeUrls : [''])
 
   return (
     <form action={formAction} className="stack">
@@ -111,43 +109,6 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, scrapeUrls }: Se
           rows={12}
           className="mono"
         />
-      </section>
-
-      <section className="card stack">
-        <h2>URLs scrapeables</h2>
-        <div className="stack" style={{ gap: 8 }}>
-          {urls.map((url, index) => (
-            <div key={index} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input
-                name={`scrape_url_${index + 1}`}
-                value={url}
-                onChange={(e) => setUrls((prev) => prev.map((u, i) => (i === index ? e.target.value : u)))}
-                placeholder="https://..."
-                style={{ flex: 1 }}
-              />
-              {urls.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => setUrls((prev) => prev.filter((_, i) => i !== index))}
-                  style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-muted)', fontSize: 18, lineHeight: 1, padding: '0 4px' }}
-                  aria-label="Eliminar URL"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-        {urls.length < 4 && (
-          <button
-            type="button"
-            className="button-outline"
-            onClick={() => setUrls((prev) => [...prev, ''])}
-            style={{ alignSelf: 'flex-start' }}
-          >
-            + Añadir URL
-          </button>
-        )}
       </section>
 
       <button className="button-primary" type="submit" disabled={pending} style={{ opacity: pending ? 0.7 : 1 }}>

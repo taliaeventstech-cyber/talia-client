@@ -8,7 +8,6 @@ export type TenantSettingsInput = {
   systemPrompt?: string
   fallbackEmail?: string
   fallbackPhone?: string
-  scrapeUrls: string[]
   widgetConfig: Json
 }
 
@@ -20,7 +19,6 @@ export async function updateTenantSettings(admin: AdminClient, tenantId: string,
       system_prompt: input.systemPrompt || null,
       fallback_email: input.fallbackEmail || null,
       fallback_phone: input.fallbackPhone || null,
-      scrape_urls: input.scrapeUrls,
       widget_config: input.widgetConfig,
     })
     .eq('id', tenantId)

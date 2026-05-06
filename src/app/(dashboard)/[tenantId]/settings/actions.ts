@@ -22,10 +22,11 @@ const settingsSchema = z.object({
   fallbackEmail: z.string().trim().email('El email no es válido').optional().or(z.literal('')),
   fallbackPhone: z.string().trim().max(40).optional(),
   systemPrompt: z.string().trim().max(8000).optional(),
-  scrapeUrls: z.array(z.string().trim().url('Todas las URLs deben ser válidas')).max(4),
   autoOpen: z.boolean(),
   autoOpenDelay: z.coerce.number().int().min(0).max(60),
 })
+
+const scrapeUrlsSchema = z.array(z.string().trim().url('Todas las URLs deben ser válidas')).max(4)
 
 const knowledgeItemSchema = z.object({
   question: z.string().trim().min(4, 'La pregunta debe tener al menos 4 caracteres').max(500),
@@ -51,10 +52,6 @@ export async function updateTenantSettings(
     return { ok: false, message: 'No tienes permisos para editar esta configuración.' }
   }
 
-  const urls = ['scrape_url_1', 'scrape_url_2', 'scrape_url_3', 'scrape_url_4']
-    .map((key) => String(formData.get(key) ?? '').trim())
-    .filter(Boolean)
-
   const parsed = settingsSchema.safeParse({
     plan: formData.get('plan'),
     assistantName: formData.get('assistant_name'),
@@ -63,7 +60,6 @@ export async function updateTenantSettings(
     fallbackEmail: String(formData.get('fallback_email') ?? '').trim(),
     fallbackPhone: String(formData.get('fallback_phone') ?? '').trim(),
     systemPrompt: String(formData.get('system_prompt') ?? '').trim(),
-    scrapeUrls: urls,
     autoOpen: formData.get('auto_open') === 'on',
     autoOpenDelay: formData.get('auto_open_delay') ?? 3,
   })
@@ -78,7 +74,6 @@ export async function updateTenantSettings(
     systemPrompt: data.systemPrompt,
     fallbackEmail: data.fallbackEmail,
     fallbackPhone: data.fallbackPhone,
-    scrapeUrls: data.scrapeUrls,
     widgetConfig: {
       assistantName: data.assistantName,
       initialMessage: data.initialMessage,
@@ -94,6 +89,39 @@ export async function updateTenantSettings(
 
   revalidatePath(`/${tenantId}/settings`)
   return { ok: true, message: 'Configuración guardada correctamente.' }
+}
+
+export async function updateScrapeUrls(
+  tenantId: string,
+  _previousState: SettingsFormState,
+  formData: FormData
+): Promise<SettingsFormState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const admin = createAdminClient()
+  const isAdmin = await assertTenantAdmin(admin, user.id, tenantId)
+  if (!isAdmin) return { ok: false, message: 'No tienes permisos para editar esta configuración.' }
+
+  const urls = ['scrape_url_1', 'scrape_url_2', 'scrape_url_3', 'scrape_url_4']
+    .map((key) => String(formData.get(key) ?? '').trim())
+    .filter(Boolean)
+
+  const parsed = scrapeUrlsSchema.safeParse(urls)
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? 'Las URLs no son válidas.' }
+  }
+
+  const { error } = await admin
+    .from('theatres')
+    .update({ scrape_urls: parsed.data })
+    .eq('id', tenantId)
+
+  if (error) return { ok: false, message: `No se pudo guardar: ${error.message}` }
+
+  revalidatePath(`/${tenantId}/settings`)
+  return { ok: true, message: 'URLs guardadas correctamente.' }
 }
 
 export async function createKnowledgeItem(
@@ -278,6 +306,75 @@ export async function uploadKnowledgeExcel(
       ? `${items.length} respuestas importadas. Las anteriores han sido reemplazadas.`
       : `${items.length} respuestas importadas correctamente.`,
   }
+}
+
+export async function updateKnowledgeItem(
+  tenantId: string,
+  itemId: string,
+  _previousState: SettingsFormState,
+  formData: FormData
+): Promise<SettingsFormState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const admin = createAdminClient()
+  const isAdmin = await assertTenantAdmin(admin, user.id, tenantId)
+  if (!isAdmin) return { ok: false, message: 'Sin permisos.' }
+
+  const parsed = knowledgeItemSchema.safeParse({
+    question: formData.get('question'),
+    answer: formData.get('answer'),
+    category: formData.get('category'),
+    language: formData.get('language') || 'es',
+    priority: formData.get('priority') || 50,
+  })
+
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? 'Datos no válidos.' }
+  }
+
+  const { data } = parsed
+  const { error } = await admin
+    .from('knowledge_items')
+    .update({
+      question: data.question,
+      answer: data.answer,
+      category: data.category || null,
+      language: data.language,
+      priority: data.priority,
+    })
+    .eq('id', itemId)
+    .eq('theatre_id', tenantId)
+
+  if (error) return { ok: false, message: `No se pudo guardar: ${error.message}` }
+
+  revalidatePath(`/${tenantId}/settings`)
+  return { ok: true, message: 'FAQ actualizada.' }
+}
+
+export async function deleteKnowledgeItem(
+  tenantId: string,
+  itemId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const admin = createAdminClient()
+  const isAdmin = await assertTenantAdmin(admin, user.id, tenantId)
+  if (!isAdmin) return { ok: false, error: 'Sin permisos.' }
+
+  const { error } = await admin
+    .from('knowledge_items')
+    .delete()
+    .eq('id', itemId)
+    .eq('theatre_id', tenantId)
+
+  if (error) return { ok: false, error: error.message }
+
+  revalidatePath(`/${tenantId}/settings`)
+  return { ok: true }
 }
 
 async function getOrCreateManualKnowledgeSource(admin: ReturnType<typeof createAdminClient>, tenantId: string) {

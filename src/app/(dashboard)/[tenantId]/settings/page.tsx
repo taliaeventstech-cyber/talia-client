@@ -90,12 +90,11 @@ export default async function SettingsPage({ params, searchParams }: Props) {
             autoOpen: widgetConfig.autoOpen,
             autoOpenDelay: widgetConfig.autoOpenDelay,
           }}
-          scrapeUrls={scrapeUrls}
         />
       ) : null}
 
       {activeTab === 'knowledge' && theatre ? (
-        <KnowledgeForm tenantId={tenantId} items={knowledgeItems ?? []} />
+        <KnowledgeForm tenantId={tenantId} items={knowledgeItems ?? []} scrapeUrls={scrapeUrls} />
       ) : null}
 
       {activeTab === 'preview' ? (
