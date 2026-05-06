@@ -4,19 +4,35 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Mail, MessageCircle, MessageSquare, Network, SlidersHorizontal, Megaphone } from 'lucide-react'
 
-export function DashboardNav({ tenantId }: { tenantId: string }) {
+type DashboardNavLabels = {
+  main: string
+  attention: string
+  webChatbot: string
+  voiceAgent: string
+  emailAgent: string
+  whatsapp: string
+  marketing: string
+  campaigns: string
+  active: string
+  soon: string
+  conversations: string
+  analysis: string
+  settings: string
+}
+
+export function DashboardNav({ tenantId, labels }: { tenantId: string; labels: DashboardNavLabels }) {
   const pathname = usePathname()
   const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
 
   return (
-    <nav className="dashboard-nav" aria-label="Navegación principal">
+    <nav className="dashboard-nav" aria-label={labels.main}>
       <div className="nav-section nav-section-first">
-        <p className="nav-section-label">Atención</p>
+        <p className="nav-section-label">{labels.attention}</p>
 
         <div className="nav-channel">
           <div className="nav-channel-title">
-            <span>Chatbot web</span>
-            <span className="nav-channel-status">Activo</span>
+            <span>{labels.webChatbot}</span>
+            <span className="nav-channel-status">{labels.active}</span>
           </div>
           <div className="nav-subnav">
             <Link
@@ -24,21 +40,21 @@ export function DashboardNav({ tenantId }: { tenantId: string }) {
               href={`/${tenantId}/conversations`}
             >
               <MessageSquare size={14} strokeWidth={2} aria-hidden="true" />
-              Conversaciones
+              {labels.conversations}
             </Link>
             <Link
               className={`nav-link nav-link-nested ${active(`/${tenantId}/analytics`) ? 'nav-link-active' : ''}`}
               href={`/${tenantId}/analytics`}
             >
               <Network size={14} strokeWidth={2} aria-hidden="true" />
-              Análisis
+              {labels.analysis}
             </Link>
             <Link
               className={`nav-link nav-link-nested ${active(`/${tenantId}/settings`) ? 'nav-link-active' : ''}`}
               href={`/${tenantId}/settings`}
             >
               <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
-              Configuración
+              {labels.settings}
             </Link>
           </div>
         </div>
@@ -48,7 +64,7 @@ export function DashboardNav({ tenantId }: { tenantId: string }) {
         <div className="nav-channel">
           <div className="nav-channel-title">
          
-            <span>Agente de voz</span>
+            <span>{labels.voiceAgent}</span>
           </div>
           <div className="nav-subnav">
             <Link
@@ -56,7 +72,7 @@ export function DashboardNav({ tenantId }: { tenantId: string }) {
               href={`/${tenantId}/voice/settings`}
             >
               <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
-              Configuración
+              {labels.settings}
             </Link>
           </div>
         </div>
@@ -64,27 +80,27 @@ export function DashboardNav({ tenantId }: { tenantId: string }) {
         <div className="nav-channel nav-channel-disabled" aria-disabled="true">
           <div className="nav-channel-title">
             <Mail size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
-            <span>Agente de email</span>
-            <span className="nav-channel-status">Próximo</span>
+            <span>{labels.emailAgent}</span>
+            <span className="nav-channel-status">{labels.soon}</span>
           </div>
         </div>
 
         <div className="nav-channel nav-channel-disabled" aria-disabled="true">
           <div className="nav-channel-title">
             <MessageCircle size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
-            <span>WhatsApp</span>
-            <span className="nav-channel-status">Próximo</span>
+            <span>{labels.whatsapp}</span>
+            <span className="nav-channel-status">{labels.soon}</span>
           </div>
         </div>
       </div>
 
 <div className="nav-section">
-        <p className="nav-section-label">Marketing</p>
+        <p className="nav-section-label">{labels.marketing}</p>
         <div className="nav-channel nav-channel-disabled" aria-disabled="true">
           <div className="nav-channel-title">
             <Megaphone size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
-            <span>Campañas</span>
-            <span className="nav-channel-status">Próximo</span>
+            <span>{labels.campaigns}</span>
+            <span className="nav-channel-status">{labels.soon}</span>
           </div>
         </div>
       </div>

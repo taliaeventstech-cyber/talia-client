@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { classifyConversationTopic } from '@/lib/analytics/topics'
+import { getDictionary, getLocale, getTopicLabel } from '@/lib/i18n/dictionaries'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
@@ -9,20 +10,21 @@ interface Props {
   searchParams: Promise<{ tab?: string }>
 }
 
-const TABS = [
-  { value: 'intencion', label: 'Intención' },
-  { value: 'temas', label: 'Temas' },
-]
-
 export default async function AnalyticsPage({ params, searchParams }: Props) {
   const { tenantId } = await params
   const { tab: tabParam } = await searchParams
+  const locale = await getLocale()
+  const dictionary = await getDictionary(locale)
+  const tabs = [
+    { value: 'intencion', label: dictionary.analytics.tabs.intent },
+    { value: 'temas', label: dictionary.analytics.tabs.topics },
+  ]
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const activeTab = TABS.find((t) => t.value === tabParam)?.value ?? 'intencion'
+  const activeTab = tabs.find((t) => t.value === tabParam)?.value ?? 'intencion'
 
   const admin = createAdminClient()
 
@@ -45,13 +47,13 @@ export default async function AnalyticsPage({ params, searchParams }: Props) {
   return (
     <main className="page-shell">
       <header className="page-header">
-        <p className="section-label">Chatbot web</p>
-        <h1>Análisis</h1>
-        <p className="muted">Intenciones detectadas y temas frecuentes en las conversaciones del chatbot.</p>
+        <p className="section-label">{dictionary.analytics.section}</p>
+        <h1>{dictionary.analytics.title}</h1>
+        <p className="muted">{dictionary.analytics.description}</p>
       </header>
 
       <div className="channel-tabs" role="tablist">
-        {TABS.map(({ value, label }) => {
+        {tabs.map(({ value, label }) => {
           const href = `/${tenantId}/analytics?tab=${value}`
           const isActive = activeTab === value
           return (
@@ -70,23 +72,23 @@ export default async function AnalyticsPage({ params, searchParams }: Props) {
 
       {activeTab === 'intencion' && (
         <section className="card stack">
-          <h2>Intención por categoría</h2>
-          <p className="muted">Distribución de lo que buscan los usuarios al contactar con el chatbot.</p>
+          <h2>{dictionary.analytics.intentTitle}</h2>
+          <p className="muted">{dictionary.analytics.intentDescription}</p>
           {topTopics.length === 0 ? (
-            <p className="muted">Aún no hay datos suficientes.</p>
+            <p className="muted">{dictionary.analytics.noData}</p>
           ) : (
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Categoría</th>
-                  <th>Conversaciones</th>
-                  <th>Peso</th>
+                  <th>{dictionary.analytics.table.category}</th>
+                  <th>{dictionary.analytics.table.conversations}</th>
+                  <th>{dictionary.analytics.table.weight}</th>
                 </tr>
               </thead>
               <tbody>
                 {topTopics.map((item) => (
                   <tr key={item.topic}>
-                    <td style={{ textTransform: 'capitalize' }}>{item.topic}</td>
+                    <td>{getTopicLabel(dictionary, item.topic)}</td>
                     <td>{item.count}</td>
                     <td>
                       <div className="progress-track">
@@ -103,26 +105,26 @@ export default async function AnalyticsPage({ params, searchParams }: Props) {
 
       {activeTab === 'temas' && (
         <section className="card stack">
-          <h2>Preguntas recientes</h2>
-          <p className="muted">Últimas preguntas clasificadas por tema.</p>
+          <h2>{dictionary.analytics.recentTitle}</h2>
+          <p className="muted">{dictionary.analytics.recentDescription}</p>
           {recentTopics.length === 0 ? (
-            <p className="muted">Sin preguntas clasificadas.</p>
+            <p className="muted">{dictionary.analytics.noQuestions}</p>
           ) : (
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Tema</th>
-                  <th>Pregunta</th>
-                  <th>Fecha</th>
+                  <th>{dictionary.analytics.table.topic}</th>
+                  <th>{dictionary.analytics.table.question}</th>
+                  <th>{dictionary.analytics.table.date}</th>
                 </tr>
               </thead>
               <tbody>
                 {recentTopics.map((topic, index) => (
                   <tr key={`${topic.created_at}-${index}`}>
-                    <td style={{ textTransform: 'capitalize' }}>{topic.topic}</td>
-                    <td>{topic.user_message ?? '—'}</td>
+                    <td>{getTopicLabel(dictionary, topic.topic)}</td>
+                    <td>{topic.user_message ?? dictionary.common.empty}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>
-                      {topic.created_at ? new Date(topic.created_at).toLocaleString('es-ES') : '—'}
+                      {topic.created_at ? new Date(topic.created_at).toLocaleString(locale === 'ca' ? 'ca-ES' : 'es-ES') : dictionary.common.empty}
                     </td>
                   </tr>
                 ))}

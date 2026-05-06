@@ -5,12 +5,6 @@ import { updateVoiceSettings, regenerateVoicePrompt, type VoiceSettingsState } f
 
 type VoiceTone = 'warm' | 'professional' | 'neutral'
 
-const TONE_LABELS: Record<VoiceTone, string> = {
-  warm: 'Cálido y cercano',
-  professional: 'Profesional y conciso',
-  neutral: 'Neutro y equilibrado',
-}
-
 type VoiceSettingsFormProps = {
   tenantId: string
   current: {
@@ -25,11 +19,46 @@ type VoiceSettingsFormProps = {
     voiceMaxTurns: number
     generatedPrompt: string
   }
+  labels: {
+    state: string
+    enabled: string
+    enabledHint: string
+    elevenLabs: string
+    agentIdHint: string
+    voiceIdHint: string
+    personality: string
+    tone: string
+    toneHint: string
+    creativity: string
+    deterministic: string
+    creative: string
+    telephony: string
+    phoneNumber: string
+    phoneHint: string
+    defaultLanguage: string
+    maxTurns: string
+    maxTurnsHint: string
+    voicePrompt: string
+    regenerate: string
+    generating: string
+    promptHelp: string
+    backToAutomatic: string
+    save: string
+    saving: string
+    temperatures: {
+      veryDeterministic: string
+      deterministic: string
+      balanced: string
+      creative: string
+      veryCreative: string
+    }
+    tones: Record<VoiceTone, string>
+  }
 }
 
 const initialState: VoiceSettingsState = { ok: false, message: '' }
 
-export function VoiceSettingsForm({ tenantId, current }: VoiceSettingsFormProps) {
+export function VoiceSettingsForm({ tenantId, current, labels }: VoiceSettingsFormProps) {
   const [state, formAction, pending] = useActionState(updateVoiceSettings.bind(null, tenantId), initialState)
   const [temperature, setTemperature] = useState(current.voiceTemperature)
   const [customPrompt, setCustomPrompt] = useState(current.voiceCustomPrompt ?? '')
@@ -49,14 +78,14 @@ export function VoiceSettingsForm({ tenantId, current }: VoiceSettingsFormProps)
   }
 
   const tempLabel = temperature <= 20
-    ? 'Muy determinista'
+    ? labels.temperatures.veryDeterministic
     : temperature <= 40
-    ? 'Determinista'
+    ? labels.temperatures.deterministic
     : temperature <= 60
-    ? 'Equilibrado'
+    ? labels.temperatures.balanced
     : temperature <= 80
-    ? 'Creativo'
-    : 'Muy creativo'
+    ? labels.temperatures.creative
+    : labels.temperatures.veryCreative
 
   return (
     <form action={formAction} className="stack">
@@ -67,7 +96,7 @@ export function VoiceSettingsForm({ tenantId, current }: VoiceSettingsFormProps)
       ) : null}
 
       <section className="card stack">
-        <h2>Estado</h2>
+        <h2>{labels.state}</h2>
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
           <input
             type="checkbox"
@@ -75,13 +104,13 @@ export function VoiceSettingsForm({ tenantId, current }: VoiceSettingsFormProps)
             defaultChecked={current.voiceEnabled}
             style={{ width: 16, height: 16 }}
           />
-          <span>Agente de voz activo</span>
+          <span>{labels.enabled}</span>
         </label>
-        <p className="muted">Cuando está activo, las llamadas se registran en TALIA y aparecen en Analytics.</p>
+        <p className="muted">{labels.enabledHint}</p>
       </section>
 
       <section className="card stack">
-        <h2>ElevenLabs</h2>
+        <h2>{labels.elevenLabs}</h2>
         <div className="form-grid">
           <label className="field">
             Agent ID
@@ -92,7 +121,7 @@ export function VoiceSettingsForm({ tenantId, current }: VoiceSettingsFormProps)
               className="mono"
             />
             <span className="field-hint">
-              ElevenLabs → Agentes → [tu agente] → copia el Agent ID de la URL.
+              {labels.agentIdHint}
             </span>
           </label>
 
@@ -105,30 +134,30 @@ export function VoiceSettingsForm({ tenantId, current }: VoiceSettingsFormProps)
               className="mono"
             />
             <span className="field-hint">
-              ElevenLabs → Voices → Voice ID de la voz elegida.
+              {labels.voiceIdHint}
             </span>
           </label>
         </div>
       </section>
 
       <section className="card stack">
-        <h2>Personalidad</h2>
+        <h2>{labels.personality}</h2>
 
         <label className="field">
-          Tono
+          {labels.tone}
           <select name="voice_tone" defaultValue={current.voiceTone}>
-            {(Object.entries(TONE_LABELS) as [VoiceTone, string][]).map(([value, label]) => (
+            {(Object.entries(labels.tones) as [VoiceTone, string][]).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
           <span className="field-hint">
-            Define el estilo de respuesta del agente. Se aplica al prompt generado automáticamente.
+            {labels.toneHint}
           </span>
         </label>
 
         <div className="field">
           <label htmlFor="voice_temperature" style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Creatividad</span>
+            <span>{labels.creativity}</span>
             <span className="muted" style={{ fontSize: '0.8em' }}>{tempLabel} ({temperature}%)</span>
           </label>
           <input
@@ -143,29 +172,29 @@ export function VoiceSettingsForm({ tenantId, current }: VoiceSettingsFormProps)
             style={{ width: '100%' }}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span className="field-hint">Determinista</span>
-            <span className="field-hint">Creativo</span>
+            <span className="field-hint">{labels.deterministic}</span>
+            <span className="field-hint">{labels.creative}</span>
           </div>
         </div>
       </section>
 
       <section className="card stack">
-        <h2>Telefonía</h2>
+        <h2>{labels.telephony}</h2>
         <div className="form-grid">
           <label className="field">
-            Número de teléfono
+            {labels.phoneNumber}
             <input
               name="voice_phone_number"
               defaultValue={current.voicePhoneNumber ?? ''}
               placeholder="+34931234567"
             />
             <span className="field-hint">
-              Configúralo en ElevenLabs → Agentes → Números de teléfono.
+              {labels.phoneHint}
             </span>
           </label>
 
           <label className="field">
-            Idioma por defecto
+            {labels.defaultLanguage}
             <select name="voice_language" defaultValue={current.voiceLanguage}>
               <option value="ca">Català</option>
               <option value="es">Español</option>
@@ -174,7 +203,7 @@ export function VoiceSettingsForm({ tenantId, current }: VoiceSettingsFormProps)
           </label>
 
           <label className="field">
-            Turnos máximos por llamada
+            {labels.maxTurns}
             <input
               name="voice_max_turns"
               type="number"
@@ -183,14 +212,14 @@ export function VoiceSettingsForm({ tenantId, current }: VoiceSettingsFormProps)
               defaultValue={current.voiceMaxTurns}
               style={{ width: 80 }}
             />
-            <span className="field-hint">Límite de seguridad. Recomendado: 10.</span>
+            <span className="field-hint">{labels.maxTurnsHint}</span>
           </label>
         </div>
       </section>
 
       <section className="card stack">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <h2>Prompt de voz</h2>
+          <h2>{labels.voicePrompt}</h2>
           <button
             type="button"
             className="button-ghost"
@@ -198,12 +227,11 @@ export function VoiceSettingsForm({ tenantId, current }: VoiceSettingsFormProps)
             disabled={isRegenerating}
             style={{ fontSize: '0.8em' }}
           >
-            {isRegenerating ? 'Generando...' : 'Regenerar desde plantilla'}
+            {isRegenerating ? labels.generating : labels.regenerate}
           </button>
         </div>
         <p className="muted">
-          Si lo dejas vacío, se genera automáticamente a partir del tono, idioma y base de conocimiento.
-          Escribe aquí para sobrescribir el prompt generado.
+          {labels.promptHelp}
         </p>
         <textarea
           name="voice_custom_prompt"
@@ -220,7 +248,7 @@ export function VoiceSettingsForm({ tenantId, current }: VoiceSettingsFormProps)
             onClick={() => setCustomPrompt('')}
             style={{ fontSize: '0.8em', alignSelf: 'flex-start' }}
           >
-            Volver al prompt automático
+            {labels.backToAutomatic}
           </button>
         )}
       </section>
@@ -231,7 +259,7 @@ export function VoiceSettingsForm({ tenantId, current }: VoiceSettingsFormProps)
         disabled={pending}
         style={{ opacity: pending ? 0.7 : 1 }}
       >
-        {pending ? 'Guardando...' : 'Guardar y sincronizar con ElevenLabs'}
+        {pending ? labels.saving : labels.save}
       </button>
     </form>
   )

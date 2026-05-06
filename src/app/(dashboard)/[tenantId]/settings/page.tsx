@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { KnowledgeForm } from './knowledge-form'
@@ -10,23 +11,23 @@ interface Props {
   searchParams: Promise<{ tab?: string }>
 }
 
-const TABS = [
-  { value: 'general', label: 'General' },
-  { value: 'knowledge', label: 'Base de conocimiento' },
-  { value: 'preview', label: 'Preview' },
-] as const
-
-type Tab = (typeof TABS)[number]['value']
+type Tab = 'general' | 'knowledge' | 'preview'
 
 export default async function SettingsPage({ params, searchParams }: Props) {
   const { tenantId } = await params
   const { tab: tabParam } = await searchParams
+  const dictionary = await getDictionary(await getLocale())
+  const tabs = [
+    { value: 'general', label: dictionary.settings.tabs.general },
+    { value: 'knowledge', label: dictionary.settings.tabs.knowledge },
+    { value: 'preview', label: dictionary.settings.tabs.preview },
+  ] satisfies { value: Tab; label: string }[]
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const activeTab: Tab = TABS.find((t) => t.value === tabParam)?.value ?? 'general'
+  const activeTab: Tab = tabs.find((t) => t.value === tabParam)?.value ?? 'general'
 
   const admin = createAdminClient()
 
@@ -56,12 +57,12 @@ export default async function SettingsPage({ params, searchParams }: Props) {
   return (
     <main className="page-shell">
       <header className="page-header">
-        <p className="section-label">Chatbot web</p>
-        <h1>Configuración</h1>
+        <p className="section-label">{dictionary.settings.section}</p>
+        <h1>{dictionary.settings.title}</h1>
       </header>
 
       <div className="channel-tabs" role="tablist">
-        {TABS.map(({ value, label }) => (
+        {tabs.map(({ value, label }) => (
           <Link
             key={value}
             href={`/${tenantId}/settings?tab=${value}`}
@@ -90,15 +91,16 @@ export default async function SettingsPage({ params, searchParams }: Props) {
             autoOpen: widgetConfig.autoOpen,
             autoOpenDelay: widgetConfig.autoOpenDelay,
           }}
+          labels={dictionary.settings.form}
         />
       ) : null}
 
       {activeTab === 'knowledge' && theatre ? (
-        <KnowledgeForm tenantId={tenantId} items={knowledgeItems ?? []} scrapeUrls={scrapeUrls} />
+        <KnowledgeForm tenantId={tenantId} items={knowledgeItems ?? []} scrapeUrls={scrapeUrls} labels={dictionary.settings.knowledge} />
       ) : null}
 
       {activeTab === 'preview' ? (
-        <PreviewTab tenantId={tenantId} widgetConfig={widgetConfig} />
+        <PreviewTab tenantId={tenantId} widgetConfig={widgetConfig} dictionary={dictionary} />
       ) : null}
     </main>
   )
@@ -107,22 +109,27 @@ export default async function SettingsPage({ params, searchParams }: Props) {
 function PreviewTab({
   tenantId,
   widgetConfig,
+  dictionary,
 }: {
   tenantId: string
   widgetConfig: ReturnType<typeof getWidgetConfig>
+  dictionary: Awaited<ReturnType<typeof getDictionary>>
 }) {
   const embedCode = getEmbedCode(tenantId, widgetConfig)
 
   return (
     <div className="two-column-grid">
       <section className="card stack">
-        <h2>Código de integración</h2>
-        <p className="muted">Pega este script antes del cierre de <code>&lt;/body&gt;</code> en tu web.</p>
+        <h2>{dictionary.settings.integrationCode}</h2>
+        <p
+          className="muted"
+          dangerouslySetInnerHTML={{ __html: dictionary.settings.integrationHelp }}
+        />
         <pre className="ai-output" style={{ whiteSpace: 'pre-wrap' }}>{embedCode}</pre>
       </section>
 
       <section className="card stack">
-        <h2>Preview</h2>
+        <h2>{dictionary.settings.preview}</h2>
         <WidgetPreview widgetConfig={widgetConfig} />
       </section>
     </div>

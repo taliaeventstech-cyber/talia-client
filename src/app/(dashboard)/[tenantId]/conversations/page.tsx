@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { Eye } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
@@ -11,6 +12,8 @@ interface Props {
 
 export default async function ConversationsPage({ params }: Props) {
   const { tenantId } = await params
+  const locale = await getLocale()
+  const dictionary = await getDictionary(locale)
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -44,19 +47,19 @@ export default async function ConversationsPage({ params }: Props) {
   return (
     <main className="page-shell">
       <header className="page-header">
-        <h1>Conversaciones</h1>
-        <p className="muted">{conversations?.length ?? 0} conversaciones</p>
+        <h1>{dictionary.conversations.title}</h1>
+        <p className="muted">{dictionary.conversations.count(conversations?.length ?? 0)}</p>
       </header>
 
       <section className="card">
       <table className="data-table">
         <thead>
           <tr>
-            <th>Session ID</th>
-            <th>Email</th>
-            <th>Último mensaje</th>
-            <th>Inicio</th>
-            <th>Mensajes</th>
+            <th>{dictionary.conversations.table.session}</th>
+            <th>{dictionary.conversations.table.email}</th>
+            <th>{dictionary.conversations.table.lastMessage}</th>
+            <th>{dictionary.conversations.table.started}</th>
+            <th>{dictionary.conversations.table.messages}</th>
             <th></th>
           </tr>
         </thead>
@@ -70,12 +73,12 @@ export default async function ConversationsPage({ params }: Props) {
               <td style={{ maxWidth: 360 }}>
                 {truncate(latestMessageByConversation.get(conversation.id) ?? '-', 120)}
               </td>
-              <td>{new Date(conversation.started_at).toLocaleString('es-ES')}</td>
+              <td>{new Date(conversation.started_at).toLocaleString(locale === 'ca' ? 'ca-ES' : 'es-ES')}</td>
               <td>{conversation.message_count}</td>
               <td style={{ textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
                 <Link
                   className="link-accent"
-                  aria-label="Ver mensajes"
+                  aria-label={dictionary.conversations.viewMessages}
                   href={`/${tenantId}/conversations/${conversation.id}`}
                   style={{ display: 'grid', placeItems: 'center', padding: 4, borderRadius: 4 }}
                 >

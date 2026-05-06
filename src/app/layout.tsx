@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono, Space_Grotesk, Syne } from "next/font/google";
+import { getLocale } from "@/lib/i18n/dictionaries";
 import "./globals.css";
 
 const syne = Syne({
@@ -25,13 +26,15 @@ export const metadata: Metadata = {
   description: "AI attention platform for cultural organizations",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale()
+
   return (
-    <html lang="es" data-theme="light" className={`${syne.variable} ${spaceGrotesk.variable} ${jetBrainsMono.variable}`}>
+    <html lang={locale} data-theme="light" className={`${syne.variable} ${spaceGrotesk.variable} ${jetBrainsMono.variable}`}>
       <body>{children}</body>
     </html>
   );

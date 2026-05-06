@@ -17,6 +17,55 @@ type KnowledgeFormProps = {
   tenantId: string
   items: KnowledgeItem[]
   scrapeUrls: string[]
+  labels: {
+    officialAnswers: string
+    officialAnswersHelp: string
+    visitorQuestion: string
+    visitorQuestionPlaceholder: string
+    visitorQuestionHint: string
+    topic: string
+    noSpecificTopic: string
+    topicHint: string
+    language: string
+    languageHint: string
+    confidence: string
+    confidenceHigh: string
+    confidenceNormal: string
+    confidenceLow: string
+    confidenceHint: string
+    officialAnswer: string
+    officialAnswerPlaceholder: string
+    officialAnswerHint: string
+    adding: string
+    addFaq: string
+    noItems: string
+    importExcel: string
+    importHelp: string
+    importWarning: string
+    importing: string
+    importButton: string
+    scrapeUrls: string
+    scrapeHelp: string
+    deleteUrl: string
+    addUrl: string
+    saveUrls: string
+    saving: string
+    table: {
+      question: string
+      topic: string
+      language: string
+      confidence: string
+    }
+    topics: {
+      agenda: string
+      entradas: string
+      precios: string
+      horarios: string
+      ubicacion: string
+      accesibilidad: string
+      visita: string
+    }
+  }
 }
 
 const initialState: SettingsFormState = {
@@ -29,7 +78,7 @@ const excelInitialState: ExcelUploadState = {
   message: '',
 }
 
-export function KnowledgeForm({ tenantId, items, scrapeUrls }: KnowledgeFormProps) {
+export function KnowledgeForm({ tenantId, items, scrapeUrls, labels }: KnowledgeFormProps) {
   const [isFaqOpen, setIsFaqOpen] = useState(true)
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [isUrlsOpen, setIsUrlsOpen] = useState(false)
@@ -48,14 +97,14 @@ export function KnowledgeForm({ tenantId, items, scrapeUrls }: KnowledgeFormProp
           onClick={() => setIsFaqOpen((open) => !open)}
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <h2>Respuestas oficiales</h2>
+            <h2>{labels.officialAnswers}</h2>
             <span
               className="tooltip-wrap"
               onClick={(e) => e.stopPropagation()}
             >
               <Info size={15} strokeWidth={2} className="tooltip-icon" aria-label="Cómo funciona" />
               <span className="tooltip-tip" role="tooltip">
-                Si una pregunta coincide con una respuesta oficial, TALIA responde con esta información antes de consultar la web o el agente externo.
+                {labels.officialAnswersHelp}
               </span>
             </span>
           </span>
@@ -74,55 +123,55 @@ export function KnowledgeForm({ tenantId, items, scrapeUrls }: KnowledgeFormProp
 
               <div className="form-grid">
                 <label className="field">
-                  Pregunta del visitante
-                  <input name="question" placeholder="Ej. On és el teatre?" required />
-                  <span className="field-hint">Escribe la pregunta como la haría una persona real.</span>
+                  {labels.visitorQuestion}
+                  <input name="question" placeholder={labels.visitorQuestionPlaceholder} required />
+                  <span className="field-hint">{labels.visitorQuestionHint}</span>
                 </label>
 
                 <label className="field">
-                  Tema
+                  {labels.topic}
                   <select name="category" defaultValue="">
-                    <option value="">Sin tema específico</option>
-                    <option value="agenda">Programación / cartelera</option>
-                    <option value="entradas">Entradas</option>
-                    <option value="precios">Precios y descuentos</option>
-                    <option value="horarios">Horarios</option>
-                    <option value="ubicacion">Ubicación / cómo llegar</option>
-                    <option value="accesibilidad">Accesibilidad</option>
-                    <option value="visita">Visita / experiencia</option>
+                    <option value="">{labels.noSpecificTopic}</option>
+                    <option value="agenda">{labels.topics.agenda}</option>
+                    <option value="entradas">{labels.topics.entradas}</option>
+                    <option value="precios">{labels.topics.precios}</option>
+                    <option value="horarios">{labels.topics.horarios}</option>
+                    <option value="ubicacion">{labels.topics.ubicacion}</option>
+                    <option value="accesibilidad">{labels.topics.accesibilidad}</option>
+                    <option value="visita">{labels.topics.visita}</option>
                   </select>
-                  <span className="field-hint">Ayuda a TALIA a encontrar antes la respuesta adecuada.</span>
+                  <span className="field-hint">{labels.topicHint}</span>
                 </label>
 
                 <label className="field">
-                  Idioma
+                  {labels.language}
                   <select name="language" defaultValue="ca">
                     <option value="ca">Català</option>
                     <option value="es">Español</option>
                     <option value="en">English</option>
                   </select>
-                  <span className="field-hint">Idioma en el que está escrita la respuesta oficial.</span>
+                  <span className="field-hint">{labels.languageHint}</span>
                 </label>
 
                 <label className="field">
-                  Confianza de respuesta
+                  {labels.confidence}
                   <select name="priority" defaultValue="50">
-                    <option value="80">Alta: usar casi siempre</option>
-                    <option value="50">Normal: usar cuando encaje</option>
-                    <option value="20">Baja: usar solo si coincide mucho</option>
+                    <option value="80">{labels.confidenceHigh}</option>
+                    <option value="50">{labels.confidenceNormal}</option>
+                    <option value="20">{labels.confidenceLow}</option>
                   </select>
-                  <span className="field-hint">Súbela para información oficial crítica como ubicación, precios o accesibilidad.</span>
+                  <span className="field-hint">{labels.confidenceHint}</span>
                 </label>
               </div>
 
               <label className="field">
-                Respuesta oficial
-                <textarea name="answer" rows={5} placeholder="Ej. El TNC está en la Plaça de les Arts, 1, 08013 Barcelona." required />
-                <span className="field-hint">TALÍA usará este texto como fuente fiable. Evita notas internas.</span>
+                {labels.officialAnswer}
+                <textarea name="answer" rows={5} placeholder={labels.officialAnswerPlaceholder} required />
+                <span className="field-hint">{labels.officialAnswerHint}</span>
               </label>
 
               <button className="button-primary" type="submit" disabled={pending} style={{ opacity: pending ? 0.7 : 1 }}>
-                {pending ? 'Añadiendo...' : 'Añadir FAQ'}
+                {pending ? labels.adding : labels.addFaq}
               </button>
             </form>
 
@@ -130,10 +179,10 @@ export function KnowledgeForm({ tenantId, items, scrapeUrls }: KnowledgeFormProp
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Pregunta</th>
-                    <th>Tema</th>
-                    <th>Idioma</th>
-                    <th>Confianza</th>
+                    <th>{labels.table.question}</th>
+                    <th>{labels.table.topic}</th>
+                    <th>{labels.table.language}</th>
+                    <th>{labels.table.confidence}</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -144,7 +193,7 @@ export function KnowledgeForm({ tenantId, items, scrapeUrls }: KnowledgeFormProp
                 </tbody>
               </table>
             ) : (
-              <p className="muted">Aún no hay respuestas oficiales cargadas.</p>
+              <p className="muted">{labels.noItems}</p>
             )}
           </>
         ) : null}
@@ -158,11 +207,11 @@ export function KnowledgeForm({ tenantId, items, scrapeUrls }: KnowledgeFormProp
           onClick={() => setIsImportOpen((open) => !open)}
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <h2>Importar desde Excel</h2>
+            <h2>{labels.importExcel}</h2>
             <span className="tooltip-wrap" onClick={(e) => e.stopPropagation()}>
               <Info size={15} strokeWidth={2} className="tooltip-icon" aria-label="Cómo funciona la importación" />
               <span className="tooltip-tip" role="tooltip">
-                Columnas requeridas: <code>question</code>, <code>answer</code>. Opcionales: <code>category</code>, <code>language</code>, <code>priority</code>.
+                {labels.importHelp}
               </span>
             </span>
           </span>
@@ -178,7 +227,7 @@ export function KnowledgeForm({ tenantId, items, scrapeUrls }: KnowledgeFormProp
             ) : null}
 
             <p className="notice notice-warning">
-              Si ya tienes un Excel importado, sus respuestas serán reemplazadas por las del nuevo archivo. Las FAQs añadidas manualmente no se ven afectadas.
+              {labels.importWarning}
             </p>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -186,7 +235,7 @@ export function KnowledgeForm({ tenantId, items, scrapeUrls }: KnowledgeFormProp
                 <input type="file" name="file" accept=".xlsx,.xls,.csv" required />
               </label>
               <button className="button-primary" type="submit" disabled={excelPending} style={{ opacity: excelPending ? 0.7 : 1, whiteSpace: 'nowrap' }}>
-                {excelPending ? 'Importando...' : 'Importar Excel'}
+                {excelPending ? labels.importing : labels.importButton}
               </button>
             </div>
           </form>
@@ -201,11 +250,11 @@ export function KnowledgeForm({ tenantId, items, scrapeUrls }: KnowledgeFormProp
           onClick={() => setIsUrlsOpen((open) => !open)}
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <h2>URLs scrapeables</h2>
+            <h2>{labels.scrapeUrls}</h2>
             <span className="tooltip-wrap" onClick={(e) => e.stopPropagation()}>
               <Info size={15} strokeWidth={2} className="tooltip-icon" aria-label="Qué son las URLs scrapeables" />
               <span className="tooltip-tip" role="tooltip">
-                URLs que TALIA puede consultar para obtener información actualizada de tu web.
+                {labels.scrapeHelp}
               </span>
             </span>
           </span>
@@ -235,7 +284,7 @@ export function KnowledgeForm({ tenantId, items, scrapeUrls }: KnowledgeFormProp
                       type="button"
                       onClick={() => setUrls((prev) => prev.filter((_, i) => i !== index))}
                       style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: 18, lineHeight: 1, padding: '0 4px' }}
-                      aria-label="Eliminar URL"
+                      aria-label={labels.deleteUrl}
                     >
                       ×
                     </button>
@@ -251,11 +300,11 @@ export function KnowledgeForm({ tenantId, items, scrapeUrls }: KnowledgeFormProp
                   className="button-outline"
                   onClick={() => setUrls((prev) => [...prev, ''])}
                 >
-                  + Añadir URL
+                  {labels.addUrl}
                 </button>
               )}
               <button className="button-primary" type="submit" disabled={urlsPending} style={{ opacity: urlsPending ? 0.7 : 1 }}>
-                {urlsPending ? 'Guardando...' : 'Guardar URLs'}
+                {urlsPending ? labels.saving : labels.saveUrls}
               </button>
             </div>
           </form>

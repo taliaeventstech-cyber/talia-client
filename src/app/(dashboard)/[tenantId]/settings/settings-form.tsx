@@ -3,6 +3,21 @@
 import { useActionState } from 'react'
 import { updateTenantSettings, type SettingsFormState } from './actions'
 
+type SettingsFormLabels = {
+  chatbot: string
+  plan: string
+  assistantName: string
+  initialMessage: string
+  primaryColor: string
+  fallbackEmail: string
+  fallbackPhone: string
+  autoOpen: string
+  delay: string
+  basePrompt: string
+  saving: string
+  save: string
+}
+
 type SettingsFormProps = {
   tenantId: string
   theatre: {
@@ -18,6 +33,7 @@ type SettingsFormProps = {
     autoOpen: boolean
     autoOpenDelay: number
   }
+  labels: SettingsFormLabels
 }
 
 const initialState: SettingsFormState = {
@@ -25,7 +41,7 @@ const initialState: SettingsFormState = {
   message: '',
 }
 
-export function SettingsForm({ tenantId, theatre, widgetConfig }: SettingsFormProps) {
+export function SettingsForm({ tenantId, theatre, widgetConfig, labels }: SettingsFormProps) {
   const [state, formAction, pending] = useActionState(updateTenantSettings.bind(null, tenantId), initialState)
 
   return (
@@ -40,10 +56,10 @@ export function SettingsForm({ tenantId, theatre, widgetConfig }: SettingsFormPr
       ) : null}
 
       <section className="card stack">
-        <h2>Chatbot</h2>
+        <h2>{labels.chatbot}</h2>
         <div className="form-grid">
           <label className="field">
-            Plan
+            {labels.plan}
             <select name="plan" defaultValue={theatre.plan}>
               <option value="esencial">Esencial</option>
               <option value="profesional">Profesional</option>
@@ -52,27 +68,27 @@ export function SettingsForm({ tenantId, theatre, widgetConfig }: SettingsFormPr
           </label>
 
           <label className="field">
-            Nombre del asistente
+            {labels.assistantName}
             <input name="assistant_name" defaultValue={widgetConfig.assistantName} />
           </label>
 
           <label className="field">
-            Mensaje inicial
+            {labels.initialMessage}
             <textarea name="initial_message" defaultValue={widgetConfig.initialMessage} rows={3} />
           </label>
 
           <label className="field">
-            Color principal
+            {labels.primaryColor}
             <input name="primary_color" type="color" defaultValue={widgetConfig.primaryColor} style={{ height: 44 }} />
           </label>
 
           <label className="field">
-            Email fallback
+            {labels.fallbackEmail}
             <input name="fallback_email" type="email" defaultValue={theatre.fallback_email ?? ''} />
           </label>
 
           <label className="field">
-            Teléfono fallback
+            {labels.fallbackPhone}
             <input name="fallback_phone" defaultValue={theatre.fallback_phone ?? ''} />
           </label>
         </div>
@@ -85,10 +101,10 @@ export function SettingsForm({ tenantId, theatre, widgetConfig }: SettingsFormPr
               defaultChecked={widgetConfig.autoOpen}
               style={{ width: 16, height: 16 }}
             />
-            Abrir widget automáticamente
+            {labels.autoOpen}
           </label>
           <label className="field" style={{ margin: 0 }}>
-            Retardo (segundos)
+            {labels.delay}
             <input
               name="auto_open_delay"
               type="number"
@@ -102,7 +118,7 @@ export function SettingsForm({ tenantId, theatre, widgetConfig }: SettingsFormPr
       </section>
 
       <section className="card stack">
-        <h2>Prompt base</h2>
+        <h2>{labels.basePrompt}</h2>
         <textarea
           name="system_prompt"
           defaultValue={theatre.system_prompt ?? ''}
@@ -112,7 +128,7 @@ export function SettingsForm({ tenantId, theatre, widgetConfig }: SettingsFormPr
       </section>
 
       <button className="button-primary" type="submit" disabled={pending} style={{ opacity: pending ? 0.7 : 1 }}>
-        {pending ? 'Guardando...' : 'Guardar configuración'}
+        {pending ? labels.saving : labels.save}
       </button>
     </form>
   )

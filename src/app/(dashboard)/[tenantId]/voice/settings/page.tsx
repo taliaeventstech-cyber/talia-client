@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { getTenantVoiceConfig } from '@/lib/tenants/service'
 import { buildVoicePrompt, type VoiceTone } from '@/lib/voice/prompt-builder'
 import { redirect } from 'next/navigation'
@@ -16,6 +17,7 @@ function getAppUrl() {
 
 export default async function VoiceSettingsPage({ params }: Props) {
   const { tenantId } = await params
+  const dictionary = await getDictionary(await getLocale())
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -39,27 +41,24 @@ export default async function VoiceSettingsPage({ params }: Props) {
   const appUrl = getAppUrl()
   const postCallWebhook = appUrl
     ? `${appUrl}/api/voice/conversations`
-    : '— configura NEXT_PUBLIC_APP_URL en las variables de entorno —'
+    : dictionary.voice.missingAppUrl
 
   return (
     <main className="page-shell">
       <header className="page-header">
-        <p className="section-label">Agente de voz</p>
-        <h1>Configuración</h1>
+        <p className="section-label">{dictionary.voice.section}</p>
+        <h1>{dictionary.voice.title}</h1>
       </header>
 
       <section className="card stack">
-        <h2>Conexión con ElevenLabs</h2>
-        <p className="muted">
-          Cada teatro tiene su propio agente en ElevenLabs Conversational AI. Configura el webhook post-llamada
-          para que TALIA registre las conversaciones automáticamente.
-        </p>
+        <h2>{dictionary.voice.connectionTitle}</h2>
+        <p className="muted">{dictionary.voice.connectionDescription}</p>
         <div className="form-grid">
           <label className="field">
-            Post-call webhook (ElevenLabs → TALIA)
+            {dictionary.voice.webhookLabel}
             <CopyInput value={postCallWebhook} />
             <span className="field-hint">
-              ElevenLabs → Agentes → [tu agente] → Análisis → Post-call webhook → pega esta URL
+              {dictionary.voice.webhookHint}
             </span>
           </label>
         </div>
@@ -79,6 +78,7 @@ export default async function VoiceSettingsPage({ params }: Props) {
           voiceMaxTurns: config.voiceMaxTurns,
           generatedPrompt,
         }}
+        labels={dictionary.voice.form}
       />
     </main>
   )

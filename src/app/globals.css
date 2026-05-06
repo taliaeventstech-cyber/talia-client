@@ -342,7 +342,8 @@ textarea {
   background: var(--color-surface-2);
 }
 
-.theme-toggle {
+.theme-toggle,
+.language-toggle {
   display: inline-grid;
   grid-template-columns: 1fr 1fr;
   gap: 2px;
@@ -354,7 +355,8 @@ textarea {
   padding: 2px;
 }
 
-.theme-toggle-option {
+.theme-toggle-option,
+.language-toggle-option {
   display: grid;
   place-items: center;
   border-radius: 18px;
@@ -362,12 +364,22 @@ textarea {
   height: 28px;
 }
 
-.theme-toggle-option-active {
+.language-toggle-option {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: 500 11px var(--font-mono);
+}
+
+.theme-toggle-option-active,
+.language-toggle-option-active {
   background: var(--color-surface);
   color: var(--color-text-primary);
 }
 
-[data-theme="dark"] .theme-toggle-option-active {
+[data-theme="dark"] .theme-toggle-option-active,
+[data-theme="dark"] .language-toggle-option-active {
   color: var(--color-ia);
 }
 
