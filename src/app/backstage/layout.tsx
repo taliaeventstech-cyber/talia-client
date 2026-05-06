@@ -14,6 +14,11 @@ export default async function BackstageLayout({ children }: { children: React.Re
           </div>
           <nav className="internal-nav" aria-label="Backstage">
             <Link className="link-accent" href="/backstage">Clientes</Link>
+            <form action="/auth/logout" method="post">
+              <button className="button-outline" type="submit">
+                Cerrar sesión
+              </button>
+            </form>
           </nav>
         </header>
         {children}
