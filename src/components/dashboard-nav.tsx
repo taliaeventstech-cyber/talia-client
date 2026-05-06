@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Mail, MessageCircle, MessageSquare, Network, SlidersHorizontal, Megaphone } from 'lucide-react'
+import { LayoutDashboard, Mail, MessageCircle, MessageSquare, Network, SlidersHorizontal, Megaphone } from 'lucide-react'
 
 type DashboardNavLabels = {
   main: string
+  overview: string
   attention: string
   webChatbot: string
   voiceAgent: string
@@ -26,6 +27,16 @@ export function DashboardNav({ tenantId, labels }: { tenantId: string; labels: D
 
   return (
     <nav className="dashboard-nav" aria-label={labels.main}>
+      <div className="nav-section nav-section-first nav-section-home">
+        <Link
+          className={`nav-link ${active(`/${tenantId}/overview`) ? 'nav-link-active' : ''}`}
+          href={`/${tenantId}/overview`}
+        >
+          <LayoutDashboard size={14} strokeWidth={2} aria-hidden="true" />
+          {labels.overview}
+        </Link>
+      </div>
+
       <div className="nav-section nav-section-first">
         <p className="nav-section-label">{labels.attention}</p>
 

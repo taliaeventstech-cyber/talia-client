@@ -5,7 +5,9 @@ import { LanguageToggle } from '@/components/language-toggle'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import Image from 'next/image'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { UserRound } from 'lucide-react'
 
 interface Props {
   children: React.ReactNode
@@ -51,6 +53,7 @@ export default async function DashboardLayout({ children, params }: Props) {
           tenantId={tenantId}
           labels={{
             main: dictionary.nav.main,
+            overview: dictionary.nav.overview,
             attention: dictionary.nav.attention,
             webChatbot: dictionary.nav.webChatbot,
             voiceAgent: dictionary.nav.voiceAgent,
@@ -65,13 +68,17 @@ export default async function DashboardLayout({ children, params }: Props) {
             settings: dictionary.common.settings,
           }}
         />
+        <div className="dashboard-sidebar-footer">
+          <LanguageToggle locale={locale} dictionary={dictionary} />
+          <ThemeToggle />
+        </div>
       </aside>
 
       <header className="dashboard-topbar">
-       
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <LanguageToggle locale={locale} dictionary={dictionary} />
-          <ThemeToggle />
+        <div className="dashboard-topbar-actions">
+          <Link className="icon-button" href={`/${tenantId}/account`} aria-label="Área de usuario">
+            <UserRound size={16} strokeWidth={2} aria-hidden="true" />
+          </Link>
           <form action="/auth/logout" method="post">
             <button className="button-outline" type="submit">
               {dictionary.common.logout}

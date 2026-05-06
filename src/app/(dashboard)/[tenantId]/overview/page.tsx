@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { classifyConversationTopic } from '@/lib/analytics/topics'
-import { MessagesSquare } from 'lucide-react'
+import { getDictionary, getLocale, getTopicLabel } from '@/lib/i18n/dictionaries'
+import { Bot, CheckCircle2, Database, MessageSquareText, MessagesSquare, Mic2, SlidersHorizontal } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import type { ReactNode } from 'react'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -11,6 +13,9 @@ interface Props {
 
 export default async function OverviewPage({ params }: Props) {
   const { tenantId } = await params
+  const locale = await getLocale()
+  const dictionary = await getDictionary(locale)
+  const copy = dictionary.overview
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -18,9 +23,21 @@ export default async function OverviewPage({ params }: Props) {
 
   const admin = createAdminClient()
 
-  const [{ data: theatre }, { data: recentConversations }, { count: totalConversations }, { data: topics }] =
-    await Promise.all([
-      admin.from('theatres').select('name').eq('id', tenantId).single(),
+  const [
+    { data: theatre },
+    { data: recentConversations },
+    { count: totalConversations },
+    { count: totalMessages },
+    { data: topics },
+    { count: knowledgeItems },
+    { count: knowledgeSources },
+    { count: voiceConversations },
+  ] = await Promise.all([
+      admin
+        .from('theatres')
+        .select('name, n8n_webhook_url, scrape_urls, widget_config, fallback_email, fallback_phone, voice_enabled, voice_phone_number, voice_id, elevenlabs_agent_id, onboarding_completed')
+        .eq('id', tenantId)
+        .single(),
       admin
         .from('conversations')
         .select('id, session_id, started_at, message_count, metadata')
@@ -32,54 +49,167 @@ export default async function OverviewPage({ params }: Props) {
         .select('*', { count: 'exact', head: true })
         .eq('theatre_id', tenantId),
       admin
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('theatre_id', tenantId),
+      admin
         .from('conversation_topics')
-        .select('topic, user_message')
+        .select('topic, user_message, created_at')
         .eq('theatre_id', tenantId)
         .not('topic', 'is', null)
+        .order('created_at', { ascending: false })
         .limit(500),
+      admin
+        .from('knowledge_items')
+        .select('*', { count: 'exact', head: true })
+        .eq('theatre_id', tenantId)
+        .eq('active', true),
+      admin
+        .from('knowledge_sources')
+        .select('*', { count: 'exact', head: true })
+        .eq('theatre_id', tenantId),
+      admin
+        .from('voice_conversations')
+        .select('*', { count: 'exact', head: true })
+        .eq('theatre_id', tenantId),
     ])
   const topTopics = getTopTopics(topics ?? [], 5)
+  const latestTopics = (topics ?? [])
+    .filter((item) => item.user_message)
+    .slice(0, 4)
+  const checklist = buildChecklist({
+    tenantId,
+    labels: copy.checklist,
+    hasWebhook: Boolean(theatre?.n8n_webhook_url),
+    hasScrapeUrls: Array.isArray(theatre?.scrape_urls) && theatre.scrape_urls.length > 0,
+    hasFallbackContact: Boolean(theatre?.fallback_email || theatre?.fallback_phone),
+    knowledgeItems: knowledgeItems ?? 0,
+    voiceReady: Boolean(theatre?.voice_enabled && theatre?.voice_phone_number && (theatre.voice_id || theatre.elevenlabs_agent_id)),
+  })
 
   return (
     <main className="page-shell">
       <header className="page-header">
-       
+        <p className="eyebrow">{copy.section}</p>
         <h1>{theatre?.name ?? 'Dashboard'}</h1>
-        <p className="muted">Panel de control Talía</p>
+        <p className="muted">{copy.description}</p>
       </header>
 
       <div className="kpi-row">
-        <StatCard label="Total conversaciones" value={totalConversations ?? 0} />
+        <StatCard label={copy.kpis.conversations} value={totalConversations ?? 0} />
+        <StatCard label={copy.kpis.messages} value={totalMessages ?? 0} />
+        <StatCard label={copy.kpis.faqs} value={knowledgeItems ?? 0} />
+        <StatCard label={copy.kpis.voiceCalls} value={voiceConversations ?? 0} />
+      </div>
+
+      <section className="card stack">
+        <div className="section-title-row">
+          <div>
+            <p className="eyebrow">{copy.modules.section}</p>
+            <h2>{copy.modules.title}</h2>
+          </div>
+          <Link className="link-accent link-with-icon" href={`/${tenantId}/settings`}>
+            <SlidersHorizontal aria-hidden="true" size={14} strokeWidth={2} />
+            {copy.modules.configure}
+          </Link>
+        </div>
+
+        <div className="overview-grid">
+          <ModuleStatusCard
+            icon={<Bot size={18} />}
+            title={copy.modules.chatbot}
+            status={dictionary.common.active}
+            tone="active"
+            description={theatre?.n8n_webhook_url ? copy.modules.chatbotReady : copy.modules.chatbotPending}
+          />
+          <ModuleStatusCard
+            icon={<Mic2 size={18} />}
+            title={copy.modules.voice}
+            status={theatre?.voice_enabled ? dictionary.common.active : copy.modules.pending}
+            tone={theatre?.voice_enabled ? 'active' : 'soon'}
+            description={theatre?.voice_enabled ? copy.modules.voiceReady : copy.modules.voicePending}
+          />
+          <ModuleStatusCard
+            icon={<MessageSquareText size={18} />}
+            title={copy.modules.future}
+            status={dictionary.common.soon}
+            tone="soon"
+            description={copy.modules.futureDescription}
+          />
+        </div>
+      </section>
+
+      <div className="overview-two-column">
+        <section className="card stack">
+          <div className="section-title-row">
+            <div>
+              <p className="eyebrow">{copy.checklist.section}</p>
+              <h2>{copy.checklist.title}</h2>
+            </div>
+            <CheckCircle2 className="section-icon" size={20} strokeWidth={2} aria-hidden="true" />
+          </div>
+          <div className="checklist">
+            {checklist.map((item) => (
+              <ChecklistItem key={item.label} {...item} />
+            ))}
+          </div>
+        </section>
+
+        <section className="card stack">
+          <div className="section-title-row">
+            <div>
+              <p className="eyebrow">{copy.knowledge.section}</p>
+              <h2>{copy.knowledge.title}</h2>
+            </div>
+            <Database className="section-icon" size={20} strokeWidth={2} aria-hidden="true" />
+          </div>
+          <p className="muted">
+            {knowledgeItems
+              ? copy.knowledge.summary(knowledgeItems, knowledgeSources ?? 0)
+              : copy.knowledge.empty}
+          </p>
+          <Link className="button-outline button-fit" href={`/${tenantId}/settings`}>
+            {copy.knowledge.action}
+          </Link>
+        </section>
       </div>
 
       <section className="card stack">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem' }}>
-          <h2>Temas más preguntados</h2>
-          <Link className="link-accent" href={`/${tenantId}/analytics`}>Ver analytics</Link>
+          <h2>{copy.topics.title}</h2>
+          <Link className="link-accent" href={`/${tenantId}/analytics`}>{copy.topics.action}</Link>
         </div>
         {topTopics.length === 0 ? (
-          <p className="muted">Aún no hay temas clasificados.</p>
+          <p className="muted">{copy.topics.empty}</p>
         ) : (
           <div className="stack">
             {topTopics.map((item) => (
-              <TopicBar key={item.topic} topic={item.topic} count={item.count} max={topTopics[0].count} />
+              <TopicBar key={item.topic} topic={getTopicLabel(dictionary, item.topic)} count={item.count} max={topTopics[0].count} />
             ))}
           </div>
         )}
       </section>
 
       <section className="card stack">
-      <h2>Últimas conversaciones</h2>
+      <div className="section-title-row">
+        <h2>{copy.conversations.title}</h2>
+        <Link className="link-accent" href={`/${tenantId}/conversations`}>{copy.conversations.action}</Link>
+      </div>
       {recentConversations?.length === 0 ? (
-        <p className="muted">Sin conversaciones aún. Configura el nodo HTTP Request en n8n para empezar a recibir datos.</p>
+        <EmptyState
+          title={copy.conversations.emptyTitle}
+          description={copy.conversations.emptyDescription}
+          href={`/${tenantId}/settings`}
+          action={copy.conversations.emptyAction}
+        />
       ) : (
         <table className="data-table">
           <thead>
             <tr>
-              <th>Session ID</th>
-              <th>Email</th>
-              <th>Inicio</th>
-              <th>Mensajes</th>
+              <th>{dictionary.conversations.table.session}</th>
+              <th>{dictionary.conversations.table.email}</th>
+              <th>{dictionary.conversations.table.started}</th>
+              <th>{dictionary.conversations.table.messages}</th>
               <th></th>
             </tr>
           </thead>
@@ -93,7 +223,7 @@ export default async function OverviewPage({ params }: Props) {
                 <td style={{ textAlign: 'right' }}>
                   <Link className="link-accent link-with-icon" href={`/${tenantId}/conversations/${c.id}`}>
                     <MessagesSquare aria-hidden="true" size={14} strokeWidth={2} />
-                    Ver mensajes
+                    {dictionary.conversations.viewMessages}
                   </Link>
                 </td>
               </tr>
@@ -101,6 +231,22 @@ export default async function OverviewPage({ params }: Props) {
           </tbody>
         </table>
       )}
+      </section>
+
+      <section className="card stack">
+        <h2>{copy.intents.title}</h2>
+        {latestTopics.length === 0 ? (
+          <p className="muted">{copy.intents.empty}</p>
+        ) : (
+          <div className="intent-list">
+            {latestTopics.map((item, index) => (
+              <div className="intent-item" key={`${item.created_at}-${index}`}>
+                <span className="channel-badge channel-badge-chat">{getTopicLabel(dictionary, classifyConversationTopic(item.topic ?? undefined, item.user_message ?? undefined))}</span>
+                <p>{item.user_message}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   )
@@ -150,4 +296,82 @@ function StatCard({ label, value }: { label: string; value: number }) {
       <p className="kpi-value">{value}</p>
     </div>
   )
+}
+
+function ModuleStatusCard({
+  icon,
+  title,
+  status,
+  tone,
+  description,
+}: {
+  icon: ReactNode
+  title: string
+  status: string
+  tone: 'active' | 'soon'
+  description: string
+}) {
+  return (
+    <div className="module-status-card">
+      <div className="module-status-header">
+        <span className="module-status-icon" aria-hidden="true">{icon}</span>
+        <span className={`status-pill status-pill-${tone}`}>{status}</span>
+      </div>
+      <h3>{title}</h3>
+      <p className="muted">{description}</p>
+    </div>
+  )
+}
+
+function ChecklistItem({ label, done, href }: { label: string; done: boolean; href: string }) {
+  return (
+    <Link className={`checklist-item ${done ? 'checklist-item-done' : ''}`} href={href}>
+      <span className="checklist-dot" aria-hidden="true">
+        {done ? <CheckCircle2 size={14} strokeWidth={2.4} /> : null}
+      </span>
+      {label}
+    </Link>
+  )
+}
+
+function EmptyState({ title, description, href, action }: { title: string; description: string; href: string; action: string }) {
+  return (
+    <div className="empty-state">
+      <h3>{title}</h3>
+      <p className="muted">{description}</p>
+      <Link className="button-outline button-fit" href={href}>{action}</Link>
+    </div>
+  )
+}
+
+function buildChecklist({
+  tenantId,
+  labels,
+  hasWebhook,
+  hasScrapeUrls,
+  hasFallbackContact,
+  knowledgeItems,
+  voiceReady,
+}: {
+  tenantId: string
+  labels: {
+    webhook: string
+    scrapeUrls: string
+    knowledge: string
+    fallback: string
+    voice: string
+  }
+  hasWebhook: boolean
+  hasScrapeUrls: boolean
+  hasFallbackContact: boolean
+  knowledgeItems: number
+  voiceReady: boolean
+}) {
+  return [
+    { label: labels.webhook, done: hasWebhook, href: `/${tenantId}/settings` },
+    { label: labels.scrapeUrls, done: hasScrapeUrls, href: `/${tenantId}/settings` },
+    { label: labels.knowledge, done: knowledgeItems > 0, href: `/${tenantId}/settings` },
+    { label: labels.fallback, done: hasFallbackContact, href: `/${tenantId}/settings` },
+    { label: labels.voice, done: voiceReady, href: `/${tenantId}/voice/settings` },
+  ]
 }
