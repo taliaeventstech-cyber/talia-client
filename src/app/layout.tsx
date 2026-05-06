@@ -25,6 +25,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://agora.talia.events"),
   title: "Talía",
   description: "AI attention platform for cultural organizations",
+  icons: {
+    icon: "/talia-miniatura.png",
+    apple: "/talia-miniatura.png",
+  },
   openGraph: {
     title: "Talía",
     description: "AI attention platform for cultural organizations",
