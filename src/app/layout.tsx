@@ -22,8 +22,30 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://agora.talia.events"),
   title: "Talía",
   description: "AI attention platform for cultural organizations",
+  openGraph: {
+    title: "Talía",
+    description: "AI attention platform for cultural organizations",
+    url: "/",
+    siteName: "Talía",
+    images: [
+      {
+        url: "/talia-miniatura.png",
+        width: 1846,
+        height: 2304,
+        alt: "Talía",
+      },
+    ],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Talía",
+    description: "AI attention platform for cultural organizations",
+    images: ["/talia-miniatura.png"],
+  },
 };
 
 export default async function RootLayout({
