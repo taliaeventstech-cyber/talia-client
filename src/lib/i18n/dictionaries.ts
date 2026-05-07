@@ -32,7 +32,7 @@ const es = {
   auth: {
     login: {
       title: 'TALIA',
-      description: 'Accede a tu dashboard',
+      description: 'Accede al ágora',
       emailPlaceholder: 'tu@email.com',
       passwordPlaceholder: 'Contraseña',
       submit: 'Entrar',
