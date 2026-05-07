@@ -23,13 +23,18 @@ export async function getTenantAccess(tenantId: string): Promise<TenantAccess> {
   if (!user) redirect('/login')
 
   const admin = createAdminClient()
-  const [{ data: membership }, { data: modules }, { data: platformAdmin }] = await Promise.all([
+  const [{ data: membership }, { data: profile }, { data: modules }, { data: platformAdmin }] = await Promise.all([
     admin
       .from('users')
       .select('role')
       .eq('id', user.id)
       .eq('theatre_id', tenantId)
-      .single(),
+      .maybeSingle(),
+    admin
+      .from('profiles')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .maybeSingle(),
     admin
       .from('tenant_modules')
       .select('module_key, status')
@@ -41,13 +46,25 @@ export async function getTenantAccess(tenantId: string): Promise<TenantAccess> {
       .maybeSingle(),
   ])
 
-  if (!membership && !platformAdmin) redirect('/login')
+  const { data: venueMembership } = profile
+    ? await admin
+      .from('venue_memberships')
+      .select('role')
+      .eq('profile_id', profile.id)
+      .eq('theatre_id', tenantId)
+      .is('revoked_at', null)
+      .maybeSingle()
+    : { data: null }
+
+  if (!membership && !venueMembership && !platformAdmin) redirect('/login')
+
+  const role = membership?.role ?? venueMembership?.role ?? 'owner'
 
   return {
     userId: user.id,
-    role: membership?.role ?? 'owner',
+    role,
     modules: Object.fromEntries((modules ?? []).map((module) => [module.module_key, module.status])),
-    source: membership ? 'tenant' : 'platform',
+    source: membership || venueMembership ? 'tenant' : 'platform',
     platformRole: platformAdmin?.role,
   } as TenantAccess
 }

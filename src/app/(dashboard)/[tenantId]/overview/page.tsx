@@ -1,11 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireTenantPermission } from '@/lib/auth/tenant-access'
-import { hasTenantPermission } from '@/lib/auth/permissions'
+import { hasTenantPermission, isTenantModuleEnabled } from '@/lib/auth/permissions'
 import { classifyConversationTopic } from '@/lib/analytics/topics'
 import { getDictionary, getLocale, getTopicLabel } from '@/lib/i18n/dictionaries'
 import { getActiveSubscription, getTenantUsageForPeriod } from '@/lib/usage/service'
-import { Bot, CheckCircle2, Database, MessageSquareText, MessagesSquare, Mic2, SlidersHorizontal } from 'lucide-react'
+import { Bot, CheckCircle2, Database, MessageSquareText, MessagesSquare, Mic2, Plus, SlidersHorizontal } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
@@ -20,6 +20,10 @@ export default async function OverviewPage({ params }: Props) {
   const dictionary = await getDictionary(locale)
   const copy = dictionary.overview
   const access = await requireTenantPermission(tenantId, 'view_overview')
+  const hasVoiceModule = isTenantModuleEnabled(access.modules.voice)
+  const hasEmailModule = isTenantModuleEnabled(access.modules.email)
+  const hasInstagramModule = isTenantModuleEnabled(access.modules.instagram)
+  const hasFutureAttentionModule = hasEmailModule || hasInstagramModule
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -41,7 +45,7 @@ export default async function OverviewPage({ params }: Props) {
   ] = await Promise.all([
       admin
         .from('theatres')
-        .select('name, n8n_webhook_url, scrape_urls, widget_config, fallback_email, fallback_phone, voice_enabled, voice_phone_number, voice_id, elevenlabs_agent_id, onboarding_completed')
+        .select('name, n8n_webhook_url, scrape_urls, widget_config, system_prompt, fallback_email, fallback_phone, voice_enabled, voice_phone_number, voice_id, elevenlabs_agent_id, onboarding_completed')
         .eq('id', tenantId)
         .single(),
       admin
@@ -86,9 +90,7 @@ export default async function OverviewPage({ params }: Props) {
   const usage = usageResult.ok ? usageResult.usage : null
   const chatLimit = subscription?.included_chat_conversations ?? 0
   const chatUsed = usage?.conversations ?? 0
-  const chatRemaining = chatLimit > 0 ? Math.max(0, chatLimit - chatUsed) : null
-  const chatUsagePercent = chatLimit > 0 ? Math.min(100, Math.round((chatUsed / chatLimit) * 100)) : 0
-
+  const chatUsagePercent = chatLimit > 0 ? Math.min(100, Math.round((chatUsed / chatLimit) * 100)) : null
   const topTopics = getTopTopics(topics ?? [], 5)
   const latestTopics = (topics ?? [])
     .filter((item) => item.user_message)
@@ -97,66 +99,47 @@ export default async function OverviewPage({ params }: Props) {
     tenantId,
     labels: copy.checklist,
     hasWebhook: Boolean(theatre?.n8n_webhook_url),
+    hasSystemPrompt: Boolean(theatre?.system_prompt?.trim()),
     hasScrapeUrls: Array.isArray(theatre?.scrape_urls) && theatre.scrape_urls.length > 0,
     hasFallbackContact: Boolean(theatre?.fallback_email || theatre?.fallback_phone),
     knowledgeItems: knowledgeItems ?? 0,
+    includeVoice: hasVoiceModule,
     voiceReady: Boolean(theatre?.voice_enabled && theatre?.voice_phone_number && (theatre.voice_id || theatre.elevenlabs_agent_id)),
   })
 
   return (
     <main className="page-shell">
       <header className="page-header">
-        <p className="eyebrow">{copy.section}</p>
-        <h1>{theatre?.name ?? 'Dashboard'}</h1>
-        <p className="muted">{copy.description}</p>
-      </header>
-
-      <div className="kpi-row">
-        <StatCard label={copy.kpis.conversations} value={totalConversations ?? 0} />
-        <StatCard label={copy.kpis.messages} value={totalMessages ?? 0} />
-        <StatCard label={copy.kpis.faqs} value={knowledgeItems ?? 0} />
-        <StatCard label={copy.kpis.voiceCalls} value={voiceConversations ?? 0} />
-      </div>
-
-      <section className="card stack">
-        <div className="section-title-row">
-          <div>
-            <p className="eyebrow">{copy.usage.section}</p>
-            <h2>{copy.usage.title}</h2>
-            <p className="muted">{copy.usage.description}</p>
-          </div>
-          <Link className="link-accent" href={`/${tenantId}/account`}>
-            {copy.usage.upgrade}
-          </Link>
+        <div>
+          <p className="eyebrow">{copy.section}</p>
+          <h1>{theatre?.name ?? 'Dashboard'}</h1>
+          <p className="muted">{copy.description}</p>
         </div>
-
-        <div className="usage-plan-grid">
-          <div className="usage-meter-card">
-            <div className="section-title-row">
-              <div>
-                <p className="eyebrow">{copy.usage.chatbot}</p>
-                <strong className="usage-value">
-                  {chatLimit > 0 ? `${chatUsed} / ${chatLimit}` : copy.usage.unlimited}
-                </strong>
-              </div>
-              {chatLimit > 0 ? <span className="status-pill status-pill-active">{chatUsagePercent}%</span> : null}
+        <div className="overview-summary-card" aria-label={copy.section}>
+          <div className="plan-usage-compact">
+            <div>
+              <span className="mini-stat-label">{copy.usage.title}</span>
+              <strong className="plan-usage-value">
+                {chatLimit > 0 ? `${chatUsed}/${chatLimit}` : copy.usage.unlimited}
+              </strong>
             </div>
-            <div className="progress-track progress-track-large">
+            {chatUsagePercent === null ? null : (
+              <span className="plan-usage-percent">{chatUsagePercent}%</span>
+            )}
+          </div>
+          {chatUsagePercent === null ? null : (
+            <div className="progress-track plan-usage-track" aria-hidden="true">
               <div className="progress-fill" style={{ width: `${chatUsagePercent}%` }} />
             </div>
-            <div className="usage-meta-row">
-              <span>{chatUsed} {copy.usage.used}</span>
-              <span>{chatRemaining ?? copy.usage.unlimited} {chatRemaining === null ? '' : copy.usage.remaining}</span>
-            </div>
-          </div>
-
-          <div className="usage-meter-card">
-            <p className="eyebrow">{copy.usage.estimatedCost}</p>
-            <strong className="usage-value">{formatCurrency(usage?.estimatedCostCents ?? 0)}</strong>
-            <p className="muted">{subscription?.plan ?? theatre?.name ?? ''}</p>
+          )}
+          <div className="summary-metric-row">
+            <SummaryMetric label={copy.kpis.conversations} value={totalConversations ?? 0} />
+            <SummaryMetric label={copy.kpis.messages} value={totalMessages ?? 0} />
+            <SummaryMetric label={copy.kpis.faqs} value={knowledgeItems ?? 0} />
+            {hasVoiceModule ? <SummaryMetric label={copy.kpis.voiceCalls} value={voiceConversations ?? 0} /> : null}
           </div>
         </div>
-      </section>
+      </header>
 
       <section className="card stack">
         <div className="section-title-row">
@@ -180,20 +163,24 @@ export default async function OverviewPage({ params }: Props) {
             tone="active"
             description={theatre?.n8n_webhook_url ? copy.modules.chatbotReady : copy.modules.chatbotPending}
           />
-          <ModuleStatusCard
-            icon={<Mic2 size={18} />}
-            title={copy.modules.voice}
-            status={theatre?.voice_enabled ? dictionary.common.active : copy.modules.pending}
-            tone={theatre?.voice_enabled ? 'active' : 'soon'}
-            description={theatre?.voice_enabled ? copy.modules.voiceReady : copy.modules.voicePending}
-          />
-          <ModuleStatusCard
-            icon={<MessageSquareText size={18} />}
-            title={copy.modules.future}
-            status={dictionary.common.soon}
-            tone="soon"
-            description={copy.modules.futureDescription}
-          />
+          {hasVoiceModule ? (
+            <ModuleStatusCard
+              icon={<Mic2 size={18} />}
+              title={copy.modules.voice}
+              status={theatre?.voice_enabled ? dictionary.common.active : copy.modules.pending}
+              tone={theatre?.voice_enabled ? 'active' : 'soon'}
+              description={theatre?.voice_enabled ? copy.modules.voiceReady : copy.modules.voicePending}
+            />
+          ) : null}
+          {hasFutureAttentionModule ? (
+            <ModuleStatusCard
+              icon={<MessageSquareText size={18} />}
+              title={copy.modules.future}
+              status={dictionary.common.soon}
+              tone="soon"
+              description={copy.modules.futureDescription}
+            />
+          ) : null}
         </div>
       </section>
 
@@ -213,7 +200,7 @@ export default async function OverviewPage({ params }: Props) {
           </div>
         </section>
 
-        <section className="card stack">
+        <section className="card knowledge-card">
           <div className="section-title-row">
             <div>
               <p className="eyebrow">{copy.knowledge.section}</p>
@@ -221,12 +208,21 @@ export default async function OverviewPage({ params }: Props) {
             </div>
             <Database className="section-icon" size={20} strokeWidth={2} aria-hidden="true" />
           </div>
-          <p className="muted">
-            {knowledgeItems
-              ? copy.knowledge.summary(knowledgeItems, knowledgeSources ?? 0)
-              : copy.knowledge.empty}
-          </p>
-          <Link className="button-outline button-fit" href={`/${tenantId}/settings`}>
+          <div className="knowledge-card-body">
+            <p className="muted">
+              {knowledgeItems
+                ? copy.knowledge.summary(knowledgeItems, knowledgeSources ?? 0)
+                : copy.knowledge.empty}
+            </p>
+            {knowledgeItems ? (
+              <div className="knowledge-mini-stats" aria-label={copy.knowledge.section}>
+                <span><strong>{knowledgeItems}</strong>{copy.kpis.faqs}</span>
+                <span><strong>{knowledgeSources ?? 0}</strong>{copy.knowledge.section}</span>
+              </div>
+            ) : null}
+          </div>
+          <Link className="button-outline button-fit link-with-icon" href={`/${tenantId}/settings`}>
+            <Plus aria-hidden="true" size={14} strokeWidth={2.2} />
             {copy.knowledge.action}
           </Link>
         </section>
@@ -347,20 +343,13 @@ function TopicBar({ topic, count, max }: { topic: string; count: number; max: nu
   )
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function SummaryMetric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="kpi-card">
-      <p className="kpi-label">{label}</p>
-      <p className="kpi-value">{value}</p>
+    <div className="summary-metric">
+      <span className="summary-metric-value">{value}</span>
+      <span className="summary-metric-label">{label}</span>
     </div>
   )
-}
-
-function formatCurrency(cents: number) {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR',
-  }).format(cents / 100)
 }
 
 function ModuleStatusCard({
@@ -413,30 +402,41 @@ function buildChecklist({
   tenantId,
   labels,
   hasWebhook,
+  hasSystemPrompt,
   hasScrapeUrls,
   hasFallbackContact,
   knowledgeItems,
+  includeVoice,
   voiceReady,
 }: {
   tenantId: string
   labels: {
     webhook: string
+    prompt: string
     scrapeUrls: string
     knowledge: string
     fallback: string
     voice: string
   }
   hasWebhook: boolean
+  hasSystemPrompt: boolean
   hasScrapeUrls: boolean
   hasFallbackContact: boolean
   knowledgeItems: number
+  includeVoice: boolean
   voiceReady: boolean
 }) {
-  return [
+  const items = [
     { label: labels.webhook, done: hasWebhook, href: `/${tenantId}/settings` },
+    { label: labels.prompt, done: hasSystemPrompt, href: `/${tenantId}/settings` },
     { label: labels.scrapeUrls, done: hasScrapeUrls, href: `/${tenantId}/settings` },
     { label: labels.knowledge, done: knowledgeItems > 0, href: `/${tenantId}/settings` },
     { label: labels.fallback, done: hasFallbackContact, href: `/${tenantId}/settings` },
-    { label: labels.voice, done: voiceReady, href: `/${tenantId}/voice/settings` },
   ]
+
+  if (includeVoice) {
+    items.push({ label: labels.voice, done: voiceReady, href: `/${tenantId}/voice/settings` })
+  }
+
+  return items
 }

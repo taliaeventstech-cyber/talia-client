@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
   const tokenHash = hashInviteToken(inviteToken)
   const { data: invite, error: inviteError } = await admin
     .from('signup_invites')
-    .select('id, theatre_id, email, role, expires_at, accepted_at, revoked_at')
+    .select('id, account_id, theatre_id, email, role, permissions, invited_by, expires_at, accepted_at, revoked_at')
     .eq('token_hash', tokenHash)
     .maybeSingle()
 
@@ -83,6 +83,77 @@ export async function POST(request: NextRequest) {
   if (memberError) {
     return NextResponse.json({ error: memberError.message }, { status: 400 })
   }
+
+  const { data: profile, error: profileError } = await admin
+    .from('profiles')
+    .upsert(
+      {
+        auth_user_id: userId,
+        email,
+        status: 'active',
+      },
+      { onConflict: 'auth_user_id' }
+    )
+    .select('id')
+    .single()
+
+  if (profileError || !profile) {
+    return NextResponse.json(
+      { error: profileError?.message ?? 'No se pudo crear el perfil de acceso.' },
+      { status: 400 }
+    )
+  }
+
+  const accountRole = invite.role === 'owner' ? 'owner' : invite.role === 'admin' ? 'admin' : 'viewer'
+  const permissions = Array.isArray(invite.permissions) ? invite.permissions : []
+
+  const { error: accountMembershipError } = await admin
+    .from('account_memberships')
+    .upsert(
+      {
+        account_id: invite.account_id,
+        profile_id: profile.id,
+        role: accountRole,
+        permissions,
+        invited_by: invite.invited_by,
+        revoked_at: null,
+      },
+      { onConflict: 'account_id,profile_id' }
+    )
+
+  if (accountMembershipError) {
+    return NextResponse.json({ error: accountMembershipError.message }, { status: 400 })
+  }
+
+  const { error: venueMembershipError } = await admin
+    .from('venue_memberships')
+    .upsert(
+      {
+        theatre_id: invite.theatre_id,
+        profile_id: profile.id,
+        role: invite.role,
+        permissions,
+        invited_by: invite.invited_by,
+        revoked_at: null,
+      },
+      { onConflict: 'theatre_id,profile_id' }
+    )
+
+  if (venueMembershipError) {
+    return NextResponse.json({ error: venueMembershipError.message }, { status: 400 })
+  }
+
+  await admin
+    .from('audit_events')
+    .insert({
+      account_id: invite.account_id,
+      theatre_id: invite.theatre_id,
+      actor_user_id: invite.invited_by,
+      action: 'signup_invite.accepted',
+      target_type: 'profile',
+      target_id: profile.id,
+      metadata: { email, role: invite.role },
+    })
 
   await admin
     .from('signup_invites')

@@ -36,9 +36,26 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
     primaryColor: input.primaryColor || '#000000',
   } satisfies Json
 
+  const { data: account, error: accountError } = await admin
+    .from('accounts')
+    .insert({
+      name: input.theatreName,
+      slug,
+      billing_email: input.fallbackEmail || input.userEmail,
+      plan: 'essential',
+      status: 'active',
+    })
+    .select('id')
+    .single()
+
+  if (accountError || !account) {
+    return { ok: false as const, error: accountError?.message ?? 'Could not create account' }
+  }
+
   const { data: theatre, error: theatreError } = await admin
     .from('theatres')
     .insert({
+      account_id: account.id,
       name: input.theatreName,
       slug,
       entity_type: input.entityType,
@@ -72,6 +89,35 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
 
   if (userError) {
     return { ok: false as const, error: userError.message }
+  }
+
+  const { data: profile } = await admin
+    .from('profiles')
+    .upsert({
+      auth_user_id: input.userId,
+      email: input.userEmail.toLowerCase(),
+      status: 'active',
+    }, { onConflict: 'auth_user_id' })
+    .select('id')
+    .single()
+
+  if (profile) {
+    await Promise.all([
+      admin
+        .from('account_memberships')
+        .upsert({
+          account_id: account.id,
+          profile_id: profile.id,
+          role: 'admin',
+        }, { onConflict: 'account_id,profile_id' }),
+      admin
+        .from('venue_memberships')
+        .upsert({
+          theatre_id: theatre.id,
+          profile_id: profile.id,
+          role: 'admin',
+        }, { onConflict: 'theatre_id,profile_id' }),
+    ])
   }
 
   return { ok: true as const, tenantId: theatre.id }

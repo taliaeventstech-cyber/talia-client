@@ -21,9 +21,20 @@ export async function createSignupInvite(
   const tokenHash = hashInviteToken(token)
   const email = input.email.trim().toLowerCase()
 
+  const { data: theatre } = await admin
+    .from('theatres')
+    .select('account_id')
+    .eq('id', input.theatreId)
+    .single()
+
+  if (!theatre?.account_id) {
+    return { ok: false as const, error: 'The venue is not linked to an account' }
+  }
+
   const { data, error } = await admin
     .from('signup_invites')
     .insert({
+      account_id: theatre.account_id,
       theatre_id: input.theatreId,
       email,
       role: input.role,

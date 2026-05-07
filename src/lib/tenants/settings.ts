@@ -5,22 +5,33 @@ type AdminClient = ReturnType<typeof createAdminClient>
 
 export type TenantSettingsInput = {
   plan: 'esencial' | 'profesional' | 'pro'
-  systemPrompt?: string
+  systemPrompt?: string | null
   fallbackEmail?: string
   fallbackPhone?: string
   widgetConfig: Json
 }
 
 export async function updateTenantSettings(admin: AdminClient, tenantId: string, input: TenantSettingsInput) {
+  const updateData: {
+    plan: TenantSettingsInput['plan']
+    fallback_email: string | null
+    fallback_phone: string | null
+    widget_config: Json
+    system_prompt?: string | null
+  } = {
+    plan: input.plan,
+    fallback_email: input.fallbackEmail || null,
+    fallback_phone: input.fallbackPhone || null,
+    widget_config: input.widgetConfig,
+  }
+
+  if (input.systemPrompt !== undefined) {
+    updateData.system_prompt = input.systemPrompt || null
+  }
+
   const { error } = await admin
     .from('theatres')
-    .update({
-      plan: input.plan,
-      system_prompt: input.systemPrompt || null,
-      fallback_email: input.fallbackEmail || null,
-      fallback_phone: input.fallbackPhone || null,
-      widget_config: input.widgetConfig,
-    })
+    .update(updateData)
     .eq('id', tenantId)
 
   if (error) {

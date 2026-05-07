@@ -12,7 +12,6 @@ type SettingsFormLabels = {
   fallbackPhone: string
   autoOpen: string
   delay: string
-  basePrompt: string
   saving: string
   save: string
 }
@@ -108,16 +107,6 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels }: Settin
             />
           </label>
         </div>
-      </section>
-
-      <section className="card stack">
-        <h2>{labels.basePrompt}</h2>
-        <textarea
-          name="system_prompt"
-          defaultValue={theatre.system_prompt ?? ''}
-          rows={12}
-          className="mono"
-        />
       </section>
 
       <button className="button-primary" type="submit" disabled={pending} style={{ opacity: pending ? 0.7 : 1 }}>

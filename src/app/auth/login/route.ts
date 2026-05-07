@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { getPostAuthRedirectPath } from '@/lib/auth/post-auth-redirect'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -19,21 +21,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Email o contraseña incorrectos' }, { status: 401 })
   }
 
-  const { data: member } = await supabase
-    .from('users')
-    .select('theatre_id')
-    .eq('id', data.user.id)
-    .maybeSingle()
-
-  if (member) {
-    return NextResponse.json({ redirectTo: `/${member.theatre_id}/overview` })
-  }
-
-  const { data: platformAdmin } = await supabase
-    .from('platform_admins')
-    .select('role')
-    .eq('user_id', data.user.id)
-    .maybeSingle()
-
-  return NextResponse.json({ redirectTo: platformAdmin ? '/backstage' : '/onboarding' })
+  const admin = createAdminClient()
+  const redirectTo = await getPostAuthRedirectPath(admin, data.user.id)
+  return NextResponse.json({ redirectTo })
 }

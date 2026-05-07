@@ -37,7 +37,7 @@ export default async function DashboardLayout({ children, params }: Props) {
             className="dashboard-logo"
             priority
           />
-          <span className="dashboard-brand-name">Agora</span>
+          <span className="dashboard-brand-name">Àgora</span>
         </div>
         <DashboardNav
           tenantId={tenantId}
@@ -61,7 +61,14 @@ export default async function DashboardLayout({ children, params }: Props) {
           }}
         />
         <div className="dashboard-sidebar-footer">
-          <LanguageToggle locale={locale} dictionary={dictionary} />
+          <LanguageToggle
+            locale={locale}
+            labels={{
+              label: dictionary.language.label,
+              es: dictionary.language.es,
+              ca: dictionary.language.ca,
+            }}
+          />
           <ThemeToggle />
         </div>
       </aside>

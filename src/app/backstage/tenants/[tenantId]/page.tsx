@@ -41,7 +41,7 @@ export default async function BackstageClientPage({ params }: Props) {
       <header className="page-header">
         <p className="eyebrow">Cliente</p>
         <h2>{client.name}</h2>
-        <p className="muted mono">{client.slug}</p>
+        <p className="muted mono">{client.id}</p>
       </header>
 
       <div className="internal-nav">

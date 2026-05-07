@@ -232,6 +232,56 @@ textarea {
   backdrop-filter: blur(18px);
 }
 
+.venue-selector-card {
+  max-width: 720px;
+}
+
+.venue-selector-list {
+  display: grid;
+  gap: 10px;
+}
+
+.venue-selector-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-surface-2) 45%, transparent);
+  color: var(--color-text-primary);
+  text-decoration: none;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+
+.venue-selector-item:hover {
+  border-color: color-mix(in srgb, var(--color-brand) 44%, transparent);
+  background: color-mix(in srgb, var(--color-surface-2) 72%, transparent);
+  transform: translateY(-1px);
+}
+
+.venue-selector-item span:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.venue-selector-item strong,
+.venue-selector-item small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.venue-selector-item small {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
 .auth-spline-background {
   position: absolute;
   inset: -8%;
@@ -672,6 +722,13 @@ textarea {
   transform: rotate(180deg);
 }
 
+.collapsible-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
 .button-primary,
 .button-outline {
   border-radius: 6px;
@@ -711,6 +768,15 @@ textarea {
   background: var(--color-surface-2);
 }
 
+.button-danger {
+  border-color: color-mix(in srgb, var(--color-error) 45%, var(--color-border));
+  color: var(--color-error);
+}
+
+.button-danger:hover {
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+}
+
 .icon-button {
   display: inline-grid;
   width: 34px;
@@ -728,6 +794,12 @@ textarea {
   color: var(--color-brand);
 }
 
+.icon-button-danger:hover {
+  border-color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+  color: var(--color-error);
+}
+
 .table-actions-heading {
   text-align: right;
 }
@@ -736,6 +808,10 @@ textarea {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.table-actions form {
+  display: inline-flex;
 }
 
 .theme-toggle,
@@ -779,6 +855,10 @@ textarea {
   transform: translateX(100%);
 }
 
+.language-toggle-ca::before {
+  transform: translateX(100%);
+}
+
 .theme-toggle-option,
 .language-toggle-option {
   display: grid;
@@ -796,6 +876,10 @@ textarea {
   color: inherit;
   cursor: pointer;
   font: 500 11px var(--font-mono);
+}
+
+.language-toggle-option:disabled {
+  cursor: default;
 }
 
 .theme-toggle-option-active,
@@ -1168,8 +1252,18 @@ textarea {
 }
 
 .page-header {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .eyebrow {
@@ -1197,9 +1291,99 @@ textarea {
   gap: 16px;
 }
 
+.overview-summary-card {
+  display: grid;
+  gap: 12px;
+  width: min(420px, 42vw);
+  padding: 14px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+}
+
+.plan-usage-compact {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.plan-usage-value {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-text-primary);
+  font-family: var(--font-mono), "JetBrains Mono", monospace;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.plan-usage-percent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 28px;
+  border: 0.5px solid color-mix(in srgb, var(--color-accent) 45%, transparent);
+  border-radius: 999px;
+  color: var(--color-accent);
+  font-family: var(--font-mono), "JetBrains Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.plan-usage-track {
+  height: 6px;
+}
+
+.mini-stat-label {
+  overflow: hidden;
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.summary-metric-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.summary-metric {
+  min-width: 0;
+  padding-top: 10px;
+  border-top: 0.5px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+}
+
+.summary-metric-value {
+  display: block;
+  color: var(--color-text-primary);
+  font-family: var(--font-mono), "JetBrains Mono", monospace;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.summary-metric-label {
+  display: block;
+  overflow: hidden;
+  margin-top: 6px;
+  color: var(--color-text-tertiary);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .overview-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
 }
 
@@ -1208,6 +1392,43 @@ textarea {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
   gap: 16px;
+}
+
+.knowledge-card {
+  display: grid;
+  min-height: 100%;
+  align-content: space-between;
+  gap: 24px;
+}
+
+.knowledge-card-body {
+  display: grid;
+  gap: 14px;
+}
+
+.knowledge-mini-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.knowledge-mini-stats span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 7px 9px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.knowledge-mini-stats strong {
+  color: var(--color-text-primary);
+  font-family: var(--font-mono), "JetBrains Mono", monospace;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .usage-plan-grid {
@@ -1725,6 +1946,18 @@ textarea {
   .dashboard-main {
     padding: 24px 16px;
     overflow: visible;
+  }
+
+  .page-header {
+    display: grid;
+  }
+
+  .overview-summary-card {
+    width: 100%;
+  }
+
+  .summary-metric-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .kpi-row,

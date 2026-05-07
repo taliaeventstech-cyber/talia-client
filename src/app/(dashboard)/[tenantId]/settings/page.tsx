@@ -90,7 +90,13 @@ export default async function SettingsPage({ params, searchParams }: Props) {
       ) : null}
 
       {activeTab === 'knowledge' && theatre ? (
-        <KnowledgeForm tenantId={tenantId} items={knowledgeItems ?? []} scrapeUrls={scrapeUrls} labels={dictionary.settings.knowledge} />
+        <KnowledgeForm
+          tenantId={tenantId}
+          items={knowledgeItems ?? []}
+          scrapeUrls={scrapeUrls}
+          systemPrompt={theatre.system_prompt}
+          labels={dictionary.settings.knowledge}
+        />
       ) : null}
 
       {activeTab === 'preview' ? (

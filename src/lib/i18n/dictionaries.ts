@@ -103,6 +103,7 @@ const es = {
       section: 'Checklist',
       title: 'Configuración esencial',
       webhook: 'Conectar webhook del chatbot',
+      prompt: 'Definir prompt del bot',
       scrapeUrls: 'Añadir URLs de scraping',
       knowledge: 'Cargar FAQs o fuentes deterministas',
       fallback: 'Definir contacto fallback',
@@ -113,7 +114,7 @@ const es = {
       title: 'Base de conocimiento',
       summary: (items: number, sources: number) => `${items} respuestas activas y ${sources} fuentes configuradas.`,
       empty: 'Aún no hay FAQs activas. Cargar una base de conocimiento hará que TALIA responda con más precisión.',
-      action: 'Gestionar fuentes',
+      action: 'Añadir fuente',
     },
     topics: {
       title: 'Temas más preguntados',
@@ -165,6 +166,11 @@ const es = {
       cultural_center: 'Centro cultural',
       other: 'Entidad cultural',
     },
+  },
+  agora: {
+    section: 'Àgora',
+    title: 'Elige un centro',
+    description: 'Tu cuenta tiene acceso a varios centros. Selecciona el espacio de trabajo que quieres abrir.',
   },
   analytics: {
     section: 'Chatbot web',
@@ -226,6 +232,9 @@ const es = {
       save: 'Guardar configuración',
     },
     knowledge: {
+      basePrompt: 'Prompt base',
+      basePromptHelp: 'Instrucción principal que define cómo debe responder TALIA. Tiene prioridad sobre las fuentes y URLs.',
+      savePrompt: 'Guardar prompt',
       officialAnswers: 'Respuestas oficiales',
       officialAnswersHelp: 'Si una pregunta coincide con una respuesta oficial, TALIA responde con esta información antes de consultar la web o el agente externo.',
       visitorQuestion: 'Pregunta del visitante',
@@ -449,6 +458,7 @@ const ca: Dictionary = {
       section: 'Checklist',
       title: 'Configuració essencial',
       webhook: 'Connectar el webhook del chatbot',
+      prompt: 'Definir el prompt del bot',
       scrapeUrls: 'Afegir URLs de scraping',
       knowledge: 'Carregar FAQs o fonts deterministes',
       fallback: 'Definir contacte fallback',
@@ -459,7 +469,7 @@ const ca: Dictionary = {
       title: 'Base de coneixement',
       summary: (items: number, sources: number) => `${items} respostes actives i ${sources} fonts configurades.`,
       empty: 'Encara no hi ha FAQs actives. Carregar una base de coneixement farà que TALIA respongui amb més precisió.',
-      action: 'Gestionar fonts',
+      action: 'Afegir font',
     },
     topics: {
       title: 'Temes més preguntats',
@@ -511,6 +521,11 @@ const ca: Dictionary = {
       cultural_center: 'Centre cultural',
       other: 'Entitat cultural',
     },
+  },
+  agora: {
+    section: 'Àgora',
+    title: 'Tria un centre',
+    description: 'El teu compte té accés a diversos centres. Selecciona l’espai de treball que vols obrir.',
   },
   analytics: {
     section: 'Chatbot web',
@@ -572,6 +587,9 @@ const ca: Dictionary = {
       save: 'Desar configuració',
     },
     knowledge: {
+      basePrompt: 'Prompt base',
+      basePromptHelp: 'Instrucció principal que defineix com ha de respondre TALIA. Té prioritat sobre les fonts i URLs.',
+      savePrompt: 'Desar prompt',
       officialAnswers: 'Respostes oficials',
       officialAnswersHelp: 'Si una pregunta coincideix amb una resposta oficial, TALIA respon amb aquesta informació abans de consultar el web o l’agent extern.',
       visitorQuestion: 'Pregunta del visitant',

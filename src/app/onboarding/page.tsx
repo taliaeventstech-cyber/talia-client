@@ -1,4 +1,6 @@
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { getPostAuthRedirectPath } from '@/lib/auth/post-auth-redirect'
 import { redirect } from 'next/navigation'
 import { OnboardingForm } from './onboarding-form'
 
@@ -8,13 +10,9 @@ export default async function OnboardingPage() {
 
   if (!user) redirect('/login')
 
-  const { data: member } = await supabase
-    .from('users')
-    .select('theatre_id')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (member) redirect(`/${member.theatre_id}/overview`)
+  const admin = createAdminClient()
+  const postAuthRedirectPath = await getPostAuthRedirectPath(admin, user.id)
+  if (postAuthRedirectPath !== '/onboarding') redirect(postAuthRedirectPath)
 
   if (process.env.ENABLE_SELF_SERVE_ONBOARDING !== 'true') {
     return (

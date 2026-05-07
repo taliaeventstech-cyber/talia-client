@@ -20,7 +20,7 @@ export function CreateInviteForm({ tenantId }: { tenantId: string }) {
       <div className="section-title-row">
         <div>
           <p className="eyebrow">Nueva invitación</p>
-          <h2>Invitar admin cliente</h2>
+          <h2>Invitar usuario del cliente</h2>
         </div>
       </div>
 
@@ -45,11 +45,11 @@ export function CreateInviteForm({ tenantId }: { tenantId: string }) {
         <label className="field">
           Rol
           <select name="role" defaultValue="owner">
-            <option value="owner">Owner</option>
-            <option value="admin">Admin</option>
-            <option value="operator">Operador</option>
-            <option value="analyst">Analista</option>
-            <option value="viewer">Lectura</option>
+            <option value="owner">Owner cliente</option>
+            <option value="admin">Admin del centro</option>
+            <option value="operator">Operador de atención</option>
+            <option value="analyst">Analista data</option>
+            <option value="viewer">Solo lectura</option>
           </select>
         </label>
       </div>

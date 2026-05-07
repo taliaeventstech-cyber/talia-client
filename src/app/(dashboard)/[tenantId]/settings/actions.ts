@@ -21,9 +21,12 @@ const settingsSchema = z.object({
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'El color debe estar en formato hexadecimal'),
   fallbackEmail: z.string().trim().email('El email no es válido').optional().or(z.literal('')),
   fallbackPhone: z.string().trim().max(40).optional(),
-  systemPrompt: z.string().trim().max(8000).optional(),
   autoOpen: z.boolean(),
   autoOpenDelay: z.coerce.number().int().min(0).max(60),
+})
+
+const systemPromptSchema = z.object({
+  systemPrompt: z.string().trim().max(8000, 'El prompt no puede superar los 8000 caracteres').optional(),
 })
 
 const scrapeUrlsSchema = z.array(z.string().trim().url('Todas las URLs deben ser válidas')).max(4)
@@ -59,7 +62,6 @@ export async function updateTenantSettings(
     primaryColor: formData.get('primary_color'),
     fallbackEmail: String(formData.get('fallback_email') ?? '').trim(),
     fallbackPhone: String(formData.get('fallback_phone') ?? '').trim(),
-    systemPrompt: String(formData.get('system_prompt') ?? '').trim(),
     autoOpen: formData.get('auto_open') === 'on',
     autoOpenDelay: formData.get('auto_open_delay') ?? 3,
   })
@@ -71,7 +73,6 @@ export async function updateTenantSettings(
   const { data } = parsed
   const updated = await updateTenantSettingsRecord(admin, tenantId, {
     plan: data.plan,
-    systemPrompt: data.systemPrompt,
     fallbackEmail: data.fallbackEmail,
     fallbackPhone: data.fallbackPhone,
     widgetConfig: {
@@ -89,6 +90,40 @@ export async function updateTenantSettings(
 
   revalidatePath(`/${tenantId}/settings`)
   return { ok: true, message: 'Configuración guardada correctamente.' }
+}
+
+export async function updateSystemPrompt(
+  tenantId: string,
+  _previousState: SettingsFormState,
+  formData: FormData
+): Promise<SettingsFormState> {
+  await requireTenantPermission(tenantId, 'manage_knowledge', 'chatbot')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const admin = createAdminClient()
+  const isAdmin = await assertTenantAdmin(admin, user.id, tenantId)
+  if (!isAdmin) return { ok: false, message: 'No tienes permisos para editar esta configuración.' }
+
+  const parsed = systemPromptSchema.safeParse({
+    systemPrompt: String(formData.get('system_prompt') ?? '').trim(),
+  })
+
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? 'El prompt no es válido.' }
+  }
+
+  const { error } = await admin
+    .from('theatres')
+    .update({ system_prompt: parsed.data.systemPrompt || null })
+    .eq('id', tenantId)
+
+  if (error) return { ok: false, message: `No se pudo guardar: ${error.message}` }
+
+  revalidatePath(`/${tenantId}/settings`)
+  revalidatePath(`/${tenantId}/overview`)
+  return { ok: true, message: 'Prompt guardado correctamente.' }
 }
 
 export async function updateScrapeUrls(

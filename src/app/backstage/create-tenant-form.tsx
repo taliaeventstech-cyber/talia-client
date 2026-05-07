@@ -32,6 +32,14 @@ export function CreateTenantForm() {
               </Link>
             </>
           ) : null}
+          {state.accountId ? (
+            <>
+              {' · '}
+              <Link className="link-accent" href={`/backstage/accounts/${state.accountId}`}>
+                Ver account
+              </Link>
+            </>
+          ) : null}
         </p>
       ) : null}
 

@@ -55,6 +55,132 @@ export type Database = {
           },
         ]
       }
+      accounts: {
+        Row: {
+          billing_email: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          name: string
+          plan: string
+          slug: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          billing_email?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          name: string
+          plan?: string
+          slug: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          billing_email?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          name?: string
+          plan?: string
+          slug?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      account_memberships: {
+        Row: {
+          account_id: string
+          created_at: string
+          id: string
+          invited_by: string | null
+          permissions: Json
+          profile_id: string
+          revoked_at: string | null
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          permissions?: Json
+          profile_id: string
+          revoked_at?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          permissions?: Json
+          profile_id?: string
+          revoked_at?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_memberships_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_memberships_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_events: {
+        Row: {
+          account_id: string | null
+          action: string
+          actor_profile_id: string | null
+          actor_user_id: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          target_id: string | null
+          target_type: string
+          theatre_id: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          action: string
+          actor_profile_id?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          target_id?: string | null
+          target_type: string
+          theatre_id?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          action?: string
+          actor_profile_id?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          target_id?: string | null
+          target_type?: string
+          theatre_id?: string | null
+        }
+        Relationships: []
+      }
       conversations: {
         Row: {
           ended_at: string | null
@@ -304,15 +430,56 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          auth_user_id: string
+          avatar_url: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          metadata: Json
+          phone: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          auth_user_id: string
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id?: string
+          metadata?: Json
+          phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          auth_user_id?: string
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          metadata?: Json
+          phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       signup_invites: {
         Row: {
           accepted_at: string | null
           accepted_by: string | null
+          account_id: string
           created_at: string
           email: string
           expires_at: string
           id: string
           invited_by: string | null
+          permissions: Json
           revoked_at: string | null
           role: Database["public"]["Enums"]["user_role"]
           theatre_id: string
@@ -322,11 +489,13 @@ export type Database = {
         Insert: {
           accepted_at?: string | null
           accepted_by?: string | null
+          account_id: string
           created_at?: string
           email: string
           expires_at?: string
           id?: string
           invited_by?: string | null
+          permissions?: Json
           revoked_at?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           theatre_id: string
@@ -336,11 +505,13 @@ export type Database = {
         Update: {
           accepted_at?: string | null
           accepted_by?: string | null
+          account_id?: string
           created_at?: string
           email?: string
           expires_at?: string
           id?: string
           invited_by?: string | null
+          permissions?: Json
           revoked_at?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           theatre_id?: string
@@ -348,6 +519,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "signup_invites_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "signup_invites_theatre_id_fkey"
             columns: ["theatre_id"]
@@ -583,6 +761,7 @@ export type Database = {
       }
       theatres: {
         Row: {
+          account_id: string
           created_at: string
           elevenlabs_agent_id: string | null
           entity_type: string
@@ -613,6 +792,7 @@ export type Database = {
           widget_config: Json
         }
         Insert: {
+          account_id: string
           created_at?: string
           elevenlabs_agent_id?: string | null
           entity_type?: string
@@ -643,6 +823,7 @@ export type Database = {
           widget_config?: Json
         }
         Update: {
+          account_id?: string
           created_at?: string
           elevenlabs_agent_id?: string | null
           entity_type?: string
@@ -672,7 +853,66 @@ export type Database = {
           webhook_secret?: string | null
           widget_config?: Json
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "theatres_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venue_memberships: {
+        Row: {
+          created_at: string
+          id: string
+          invited_by: string | null
+          permissions: Json
+          profile_id: string
+          revoked_at: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          theatre_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          permissions?: Json
+          profile_id: string
+          revoked_at?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          theatre_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          permissions?: Json
+          profile_id?: string
+          revoked_at?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          theatre_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_memberships_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_memberships_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       voice_conversations: {
         Row: {

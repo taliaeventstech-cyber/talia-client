@@ -55,9 +55,26 @@ async function getDefaultTheatreId() {
 
   if (theatre) return theatre.id
 
+  const { data: account, error: accountError } = await admin
+    .from('accounts')
+    .insert({
+      name: 'Teatro Demo',
+      slug: 'teatro-demo',
+      plan: 'essential',
+      status: 'active',
+    })
+    .select('id')
+    .single()
+
+  if (accountError || !account) {
+    console.error('Failed to create default account', accountError)
+    return FALLBACK_THEATRE_ID
+  }
+
   const { data: created, error } = await admin
     .from('theatres')
     .insert({
+      account_id: account.id,
       id: FALLBACK_THEATRE_ID,
       name: 'Teatro Demo',
       slug: 'teatro-demo',
