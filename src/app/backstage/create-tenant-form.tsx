@@ -65,7 +65,11 @@ export function CreateTenantForm() {
         </label>
         <label className="field">
           Plan
-          <input name="plan" defaultValue="esencial" required />
+          <select name="plan" defaultValue="essential" required>
+            <option value="essential">Esencial</option>
+            <option value="professional">Profesional</option>
+            <option value="enterprise">Enterprise</option>
+          </select>
         </label>
       </div>
 

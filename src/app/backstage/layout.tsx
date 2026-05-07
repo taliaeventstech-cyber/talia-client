@@ -1,5 +1,4 @@
 import { requirePlatformAdmin } from '@/lib/platform/auth'
-import Link from 'next/link'
 
 export default async function BackstageLayout({ children }: { children: React.ReactNode }) {
   await requirePlatformAdmin()
@@ -9,11 +8,10 @@ export default async function BackstageLayout({ children }: { children: React.Re
       <section className="auth-card internal-card stack">
         <header className="internal-header">
           <div>
-            <p className="section-label">Talía backstage</p>
+            <p className="section-label">TALIA</p>
             <h1>Backstage</h1>
           </div>
           <nav className="internal-nav" aria-label="Backstage">
-            <Link className="link-accent" href="/backstage">Clientes</Link>
             <form action="/auth/logout" method="post">
               <button className="button-outline" type="submit">
                 Cerrar sesión

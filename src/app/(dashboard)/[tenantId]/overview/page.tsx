@@ -4,6 +4,7 @@ import { requireTenantPermission } from '@/lib/auth/tenant-access'
 import { hasTenantPermission } from '@/lib/auth/permissions'
 import { classifyConversationTopic } from '@/lib/analytics/topics'
 import { getDictionary, getLocale, getTopicLabel } from '@/lib/i18n/dictionaries'
+import { getActiveSubscription, getTenantUsageForPeriod } from '@/lib/usage/service'
 import { Bot, CheckCircle2, Database, MessageSquareText, MessagesSquare, Mic2, SlidersHorizontal } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
@@ -35,6 +36,8 @@ export default async function OverviewPage({ params }: Props) {
     { count: knowledgeItems },
     { count: knowledgeSources },
     { count: voiceConversations },
+    subscriptionResult,
+    usageResult,
   ] = await Promise.all([
       admin
         .from('theatres')
@@ -75,7 +78,17 @@ export default async function OverviewPage({ params }: Props) {
         .from('voice_conversations')
         .select('*', { count: 'exact', head: true })
         .eq('theatre_id', tenantId),
+      getActiveSubscription(admin, tenantId),
+      getTenantUsageForPeriod(admin, tenantId),
     ])
+
+  const subscription = subscriptionResult.ok ? subscriptionResult.subscription : null
+  const usage = usageResult.ok ? usageResult.usage : null
+  const chatLimit = subscription?.included_chat_conversations ?? 0
+  const chatUsed = usage?.conversations ?? 0
+  const chatRemaining = chatLimit > 0 ? Math.max(0, chatLimit - chatUsed) : null
+  const chatUsagePercent = chatLimit > 0 ? Math.min(100, Math.round((chatUsed / chatLimit) * 100)) : 0
+
   const topTopics = getTopTopics(topics ?? [], 5)
   const latestTopics = (topics ?? [])
     .filter((item) => item.user_message)
@@ -104,6 +117,46 @@ export default async function OverviewPage({ params }: Props) {
         <StatCard label={copy.kpis.faqs} value={knowledgeItems ?? 0} />
         <StatCard label={copy.kpis.voiceCalls} value={voiceConversations ?? 0} />
       </div>
+
+      <section className="card stack">
+        <div className="section-title-row">
+          <div>
+            <p className="eyebrow">{copy.usage.section}</p>
+            <h2>{copy.usage.title}</h2>
+            <p className="muted">{copy.usage.description}</p>
+          </div>
+          <Link className="link-accent" href={`/${tenantId}/account`}>
+            {copy.usage.upgrade}
+          </Link>
+        </div>
+
+        <div className="usage-plan-grid">
+          <div className="usage-meter-card">
+            <div className="section-title-row">
+              <div>
+                <p className="eyebrow">{copy.usage.chatbot}</p>
+                <strong className="usage-value">
+                  {chatLimit > 0 ? `${chatUsed} / ${chatLimit}` : copy.usage.unlimited}
+                </strong>
+              </div>
+              {chatLimit > 0 ? <span className="status-pill status-pill-active">{chatUsagePercent}%</span> : null}
+            </div>
+            <div className="progress-track progress-track-large">
+              <div className="progress-fill" style={{ width: `${chatUsagePercent}%` }} />
+            </div>
+            <div className="usage-meta-row">
+              <span>{chatUsed} {copy.usage.used}</span>
+              <span>{chatRemaining ?? copy.usage.unlimited} {chatRemaining === null ? '' : copy.usage.remaining}</span>
+            </div>
+          </div>
+
+          <div className="usage-meter-card">
+            <p className="eyebrow">{copy.usage.estimatedCost}</p>
+            <strong className="usage-value">{formatCurrency(usage?.estimatedCostCents ?? 0)}</strong>
+            <p className="muted">{subscription?.plan ?? theatre?.name ?? ''}</p>
+          </div>
+        </div>
+      </section>
 
       <section className="card stack">
         <div className="section-title-row">
@@ -301,6 +354,13 @@ function StatCard({ label, value }: { label: string; value: number }) {
       <p className="kpi-value">{value}</p>
     </div>
   )
+}
+
+function formatCurrency(cents: number) {
+  return new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR',
+  }).format(cents / 100)
 }
 
 function ModuleStatusCard({

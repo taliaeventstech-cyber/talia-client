@@ -401,6 +401,186 @@ export type Database = {
           },
         ]
       }
+      tenant_module_entitlements: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          limits: Json
+          metadata: Json
+          module_key: string
+          theatre_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          limits?: Json
+          metadata?: Json
+          module_key: string
+          theatre_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          limits?: Json
+          metadata?: Json
+          module_key?: string
+          theatre_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_module_entitlements_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_subscriptions: {
+        Row: {
+          billing_period_end: string
+          billing_period_start: string
+          created_at: string
+          hard_limit_behavior: string
+          hard_limit_enabled: boolean
+          id: string
+          included_chat_conversations: number
+          included_email_conversations: number
+          included_voice_minutes: number
+          metadata: Json
+          overage_price_chat_cents: number
+          overage_price_email_cents: number
+          overage_price_voice_minute_cents: number
+          plan: string
+          status: string
+          theatre_id: string
+          updated_at: string
+        }
+        Insert: {
+          billing_period_end?: string
+          billing_period_start?: string
+          created_at?: string
+          hard_limit_behavior?: string
+          hard_limit_enabled?: boolean
+          id?: string
+          included_chat_conversations?: number
+          included_email_conversations?: number
+          included_voice_minutes?: number
+          metadata?: Json
+          overage_price_chat_cents?: number
+          overage_price_email_cents?: number
+          overage_price_voice_minute_cents?: number
+          plan?: string
+          status?: string
+          theatre_id: string
+          updated_at?: string
+        }
+        Update: {
+          billing_period_end?: string
+          billing_period_start?: string
+          created_at?: string
+          hard_limit_behavior?: string
+          hard_limit_enabled?: boolean
+          id?: string
+          included_chat_conversations?: number
+          included_email_conversations?: number
+          included_voice_minutes?: number
+          metadata?: Json
+          overage_price_chat_cents?: number
+          overage_price_email_cents?: number
+          overage_price_voice_minute_cents?: number
+          plan?: string
+          status?: string
+          theatre_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_subscriptions_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_usage_daily: {
+        Row: {
+          ai_calls: number
+          channel: string
+          conversations: number
+          created_at: string
+          date: string
+          estimated_cost_cents: number
+          fallbacks: number
+          id: string
+          input_tokens: number
+          limit_exceeded_events: number
+          messages: number
+          module_key: string
+          output_tokens: number
+          resolutions: number
+          theatre_id: string
+          tool_calls: number
+          updated_at: string
+          voice_minutes: number
+        }
+        Insert: {
+          ai_calls?: number
+          channel: string
+          conversations?: number
+          created_at?: string
+          date: string
+          estimated_cost_cents?: number
+          fallbacks?: number
+          id?: string
+          input_tokens?: number
+          limit_exceeded_events?: number
+          messages?: number
+          module_key: string
+          output_tokens?: number
+          resolutions?: number
+          theatre_id: string
+          tool_calls?: number
+          updated_at?: string
+          voice_minutes?: number
+        }
+        Update: {
+          ai_calls?: number
+          channel?: string
+          conversations?: number
+          created_at?: string
+          date?: string
+          estimated_cost_cents?: number
+          fallbacks?: number
+          id?: string
+          input_tokens?: number
+          limit_exceeded_events?: number
+          messages?: number
+          module_key?: string
+          output_tokens?: number
+          resolutions?: number
+          theatre_id?: string
+          tool_calls?: number
+          updated_at?: string
+          voice_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_usage_daily_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       theatres: {
         Row: {
           created_at: string
@@ -540,6 +720,75 @@ export type Database = {
             columns: ["theatre_id"]
             isOneToOne: false
             referencedRelation: "theatres"
+          referencedColumns: ["id"]
+          },
+        ]
+      }
+      usage_events: {
+        Row: {
+          channel: string
+          cost_estimate_cents: number
+          created_at: string
+          event_type: string
+          id: string
+          idempotency_key: string | null
+          input_tokens: number
+          metadata: Json
+          module_key: string
+          occurred_at: string
+          output_tokens: number
+          quantity: number
+          subscription_id: string | null
+          theatre_id: string
+          unit: string
+        }
+        Insert: {
+          channel: string
+          cost_estimate_cents?: number
+          created_at?: string
+          event_type: string
+          id?: string
+          idempotency_key?: string | null
+          input_tokens?: number
+          metadata?: Json
+          module_key: string
+          occurred_at?: string
+          output_tokens?: number
+          quantity?: number
+          subscription_id?: string | null
+          theatre_id: string
+          unit: string
+        }
+        Update: {
+          channel?: string
+          cost_estimate_cents?: number
+          created_at?: string
+          event_type?: string
+          id?: string
+          idempotency_key?: string | null
+          input_tokens?: number
+          metadata?: Json
+          module_key?: string
+          occurred_at?: string
+          output_tokens?: number
+          quantity?: number
+          subscription_id?: string | null
+          theatre_id?: string
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_events_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usage_events_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
             referencedColumns: ["id"]
           },
         ]
@@ -584,6 +833,20 @@ export type Database = {
       current_theatre_id: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      increment_tenant_usage_daily: {
+        Args: {
+          p_channel: string
+          p_cost_estimate_cents: number
+          p_date: string
+          p_event_type: string
+          p_input_tokens: number
+          p_module_key: string
+          p_output_tokens: number
+          p_quantity: number
+          p_theatre_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

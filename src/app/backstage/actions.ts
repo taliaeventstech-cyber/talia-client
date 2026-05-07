@@ -2,6 +2,7 @@
 
 import { requirePlatformAdmin } from '@/lib/platform/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getActiveSubscription } from '@/lib/usage/service'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -17,12 +18,38 @@ export type UpdateTenantState = {
 }
 
 const moduleKeys = ['chatbot', 'data', 'voice', 'email', 'whatsapp', 'instagram', 'marketing'] as const
+const planDefaults = {
+  essential: {
+    includedChatConversations: 1000,
+    includedEmailConversations: 0,
+    includedVoiceMinutes: 0,
+    overagePriceChatCents: 10,
+    overagePriceEmailCents: 12,
+    overagePriceVoiceMinuteCents: 35,
+  },
+  professional: {
+    includedChatConversations: 4000,
+    includedEmailConversations: 500,
+    includedVoiceMinutes: 0,
+    overagePriceChatCents: 8,
+    overagePriceEmailCents: 10,
+    overagePriceVoiceMinuteCents: 35,
+  },
+  enterprise: {
+    includedChatConversations: 12000,
+    includedEmailConversations: 2000,
+    includedVoiceMinutes: 120,
+    overagePriceChatCents: 6,
+    overagePriceEmailCents: 8,
+    overagePriceVoiceMinuteCents: 35,
+  },
+} as const
 
 const createTenantSchema = z.object({
   name: z.string().trim().min(2, 'El nombre debe tener al menos 2 caracteres.'),
   entityType: z.enum(['theatre', 'museum', 'cinema', 'auditorium', 'festival', 'cultural_center', 'other']),
   primaryLanguage: z.enum(['ca', 'es', 'en']),
-  plan: z.string().trim().min(2, 'Indica el plan contratado.'),
+  plan: z.enum(['essential', 'professional', 'enterprise']),
   websiteUrl: z.string().trim().url('La web debe ser una URL válida.').optional().or(z.literal('')),
   fallbackEmail: z.string().trim().email('El email de contacto no es válido.').optional().or(z.literal('')),
   fallbackPhone: z.string().trim().optional(),
@@ -72,7 +99,7 @@ export async function createTenantAction(
     name: formData.get('name'),
     entityType: formData.get('entity_type') || 'theatre',
     primaryLanguage: formData.get('primary_language') || 'es',
-    plan: formData.get('plan') || 'esencial',
+    plan: formData.get('plan') || 'essential',
     websiteUrl: formData.get('website_url') || '',
     fallbackEmail: formData.get('fallback_email') || '',
     fallbackPhone: formData.get('fallback_phone') || '',
@@ -138,6 +165,11 @@ export async function createTenantAction(
     }
   }
 
+  await Promise.all([
+    syncCurrentSubscription(admin, tenant.id, parsed.data.plan),
+    syncModuleEntitlements(admin, tenant.id, selectedModules),
+  ])
+
   revalidatePath('/backstage')
 
   return {
@@ -159,7 +191,7 @@ export async function updateTenantAction(
     name: formData.get('name'),
     entityType: formData.get('entity_type') || 'theatre',
     primaryLanguage: formData.get('primary_language') || 'es',
-    plan: formData.get('plan') || 'esencial',
+    plan: formData.get('plan') || 'essential',
     websiteUrl: formData.get('website_url') || '',
     fallbackEmail: formData.get('fallback_email') || '',
     fallbackPhone: formData.get('fallback_phone') || '',
@@ -218,9 +250,61 @@ export async function updateTenantAction(
     }
   }
 
+  await Promise.all([
+    syncCurrentSubscription(admin, data.tenantId, data.plan),
+    syncModuleEntitlements(admin, data.tenantId, selectedModules),
+  ])
+
   revalidatePath('/backstage')
   revalidatePath(`/backstage/tenants/${data.tenantId}`)
   revalidatePath(`/${data.tenantId}/overview`)
 
   return { ok: true, message: 'Cliente actualizado correctamente.' }
+}
+
+async function syncModuleEntitlements(
+  admin: ReturnType<typeof createAdminClient>,
+  tenantId: string,
+  selectedModules: Set<(typeof moduleKeys)[number]>,
+) {
+  const rows = moduleKeys.map((moduleKey) => ({
+    theatre_id: tenantId,
+    module_key: moduleKey,
+    enabled: selectedModules.has(moduleKey),
+    limits: getDefaultModuleLimits(moduleKey),
+  }))
+
+  await admin
+    .from('tenant_module_entitlements')
+    .upsert(rows, { onConflict: 'theatre_id,module_key' })
+}
+
+function getDefaultModuleLimits(moduleKey: (typeof moduleKeys)[number]) {
+  if (moduleKey === 'chatbot') return { monthly_conversations: 1000 }
+  if (moduleKey === 'email') return { monthly_conversations: 0 }
+  if (moduleKey === 'voice') return { monthly_minutes: 0 }
+  return {}
+}
+
+async function syncCurrentSubscription(
+  admin: ReturnType<typeof createAdminClient>,
+  tenantId: string,
+  plan: keyof typeof planDefaults,
+) {
+  const subscription = await getActiveSubscription(admin, tenantId)
+  if (!subscription.ok) return
+
+  const defaults = planDefaults[plan]
+  await admin
+    .from('tenant_subscriptions')
+    .update({
+      plan,
+      included_chat_conversations: defaults.includedChatConversations,
+      included_email_conversations: defaults.includedEmailConversations,
+      included_voice_minutes: defaults.includedVoiceMinutes,
+      overage_price_chat_cents: defaults.overagePriceChatCents,
+      overage_price_email_cents: defaults.overagePriceEmailCents,
+      overage_price_voice_minute_cents: defaults.overagePriceVoiceMinuteCents,
+    })
+    .eq('id', subscription.subscription.id)
 }

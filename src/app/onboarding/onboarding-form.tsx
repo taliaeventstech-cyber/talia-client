@@ -65,6 +65,7 @@ export function OnboardingForm({ email }: { email: string }) {
   })
 
   const initialMessage = useMemo(() => getInitialMessage(values.primaryLanguage, values.entityType), [values.primaryLanguage, values.entityType])
+  const websiteUrlError = getWebsiteUrlError(values.websiteUrl)
   const canContinue = isStepValid(step, values)
   const currentStep = STEPS[step]
 
@@ -145,7 +146,14 @@ export function OnboardingForm({ email }: { email: string }) {
                 onChange={(event) => update('websiteUrl', event.target.value)}
                 type="url"
                 placeholder="https://www.tnc.cat"
+                aria-invalid={Boolean(websiteUrlError)}
+                aria-describedby={websiteUrlError ? 'website-url-error' : undefined}
               />
+              {websiteUrlError ? (
+                <span className="field-error" id="website-url-error">{websiteUrlError}</span>
+              ) : (
+                <span className="field-hint">Opcional, pero si la añades debe incluir https://</span>
+              )}
             </label>
 
             <label className="field">
@@ -257,10 +265,32 @@ export function OnboardingForm({ email }: { email: string }) {
 
 function isStepValid(step: number, values: FormValues) {
   if (step === 1) {
-    return values.theatreName.trim().length >= 2 && values.fallbackEmail.trim().length > 3
+    return (
+      values.theatreName.trim().length >= 2
+      && values.fallbackEmail.trim().length > 3
+      && !getWebsiteUrlError(values.websiteUrl)
+    )
   }
   if (step === 2) return values.goals.length > 0
   return true
+}
+
+function getWebsiteUrlError(value: string) {
+  const url = value.trim()
+  if (!url) return ''
+
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      return 'La web debe empezar por https:// o http://'
+    }
+    if (!parsed.hostname.includes('.')) {
+      return 'Introduce un dominio válido, por ejemplo https://www.tnc.cat'
+    }
+    return ''
+  } catch {
+    return 'Introduce una URL válida, por ejemplo https://www.tnc.cat'
+  }
 }
 
 function getInitialMessage(language: Language, entityType: EntityType) {

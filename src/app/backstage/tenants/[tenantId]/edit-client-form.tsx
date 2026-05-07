@@ -79,7 +79,11 @@ export function EditClientForm({ client, modules }: { client: Client; modules: M
         </label>
         <label className="field">
           Plan
-          <input name="plan" required defaultValue={client.plan} />
+          <select name="plan" required defaultValue={normalizePlan(client.plan)}>
+            <option value="essential">Esencial</option>
+            <option value="professional">Profesional</option>
+            <option value="enterprise">Enterprise</option>
+          </select>
         </label>
       </div>
 
@@ -120,4 +124,11 @@ export function EditClientForm({ client, modules }: { client: Client; modules: M
       </button>
     </form>
   )
+}
+
+function normalizePlan(plan: string) {
+  const value = plan.toLowerCase()
+  if (value === 'professional' || value === 'profesional') return 'professional'
+  if (value === 'enterprise' || value === 'empresa') return 'enterprise'
+  return 'essential'
 }
