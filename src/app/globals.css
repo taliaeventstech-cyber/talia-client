@@ -171,6 +171,109 @@ textarea {
   padding: 32px;
 }
 
+.auth-marketing-shell {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(0, 229, 200, 0.16), transparent 28rem),
+    radial-gradient(circle at 82% 22%, rgba(201, 168, 76, 0.15), transparent 24rem),
+    radial-gradient(circle at 50% 92%, rgba(107, 15, 43, 0.42), transparent 34rem),
+    linear-gradient(135deg, #111126 0%, #1a1a2e 48%, #111827 100%);
+}
+
+.auth-marketing-shell::before,
+.auth-marketing-shell::after {
+  content: "";
+  position: absolute;
+  inset: auto;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.auth-marketing-shell::before {
+  width: 64vmax;
+  height: 64vmax;
+  left: -18vmax;
+  top: -24vmax;
+  border-radius: 50%;
+  background:
+    conic-gradient(
+      from 120deg,
+      rgba(0, 229, 200, 0),
+      rgba(0, 229, 200, 0.26),
+      rgba(201, 168, 76, 0.22),
+      rgba(107, 15, 43, 0.16),
+      rgba(0, 229, 200, 0)
+    );
+  filter: blur(44px);
+  opacity: 0.74;
+  animation: auth-orbit 18s ease-in-out infinite alternate;
+}
+
+.auth-marketing-shell::after {
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(245, 242, 236, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 242, 236, 0.035) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(circle at center, black, transparent 72%);
+  opacity: 0.42;
+  animation: auth-grid 24s linear infinite;
+}
+
+.auth-marketing-shell .auth-card {
+  position: relative;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(37, 37, 66, 0.86), rgba(37, 37, 66, 0.72));
+  border-color: rgba(245, 242, 236, 0.14);
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(18px);
+}
+
+.auth-spline-background {
+  position: absolute;
+  inset: -8%;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.52;
+  filter: saturate(1.12) contrast(1.04);
+}
+
+.auth-spline-viewer {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes auth-orbit {
+  from {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+
+  to {
+    transform: translate3d(16vmax, 10vmax, 0) rotate(32deg) scale(1.08);
+  }
+}
+
+@keyframes auth-grid {
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: 72px 72px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-marketing-shell::before,
+  .auth-marketing-shell::after {
+    animation: none;
+  }
+}
+
 .auth-logo {
   display: block;
   width: 132px;

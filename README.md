@@ -366,6 +366,10 @@ INTERNAL_API_KEY=
 
 # App
 NEXT_PUBLIC_APP_URL=https://talia.app
+
+# Optional Spline scene for login/signup animated background.
+# Keep empty to use the CSS-only fallback.
+NEXT_PUBLIC_AUTH_SPLINE_SCENE_URL=
 ```
 
 The generic n8n workflow keeps `N8N_BLOCK_ENV_ACCESS_IN_NODE=true` compatible. It does not use
