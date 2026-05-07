@@ -200,6 +200,10 @@ as $$
   where profile_id = public.current_profile_id()
     and revoked_at is null
   union
+  select id
+  from public.theatres
+  where account_id in (select public.current_account_ids())
+  union
   select theatre_id
   from public.users
   where id = auth.uid();

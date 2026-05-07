@@ -27,6 +27,18 @@ export default async function AgoraPage() {
   if (venues.length === 0) redirect('/onboarding')
   if (venues.length === 1) redirect(`/${venues[0].id}/overview`)
 
+  const venuesByAccount = new Map<string, typeof venues>()
+  venues.forEach((venue) => {
+    const current = venuesByAccount.get(venue.accountId) ?? []
+    current.push(venue)
+    venuesByAccount.set(venue.accountId, current)
+  })
+
+  if (venuesByAccount.size === 1) {
+    const accountId = venues[0]?.accountId
+    if (accountId) redirect(`/accounts/${accountId}`)
+  }
+
   return (
     <main className="auth-shell auth-marketing-shell">
       <section className="auth-card venue-selector-card stack">
@@ -37,14 +49,14 @@ export default async function AgoraPage() {
         </div>
 
         <div className="venue-selector-list">
-          {venues.map((venue) => (
-            <Link key={venue.id} className="venue-selector-item" href={`/${venue.id}/overview`}>
+          {Array.from(venuesByAccount.entries()).map(([accountId, accountVenues]) => (
+            <Link key={accountId} className="venue-selector-item" href={`/accounts/${accountId}`}>
               <span>
-                <strong>{venue.name}</strong>
-                <small>{venue.accountName}</small>
+                <strong>{accountVenues[0]?.accountName ?? 'Account'}</strong>
+                <small>{accountVenues.length} venues</small>
               </span>
               <span className="status-pill status-pill-active">
-                {dictionary.account.roles[venue.role] ?? venue.role}
+                {dictionary.common.active}
               </span>
             </Link>
           ))}

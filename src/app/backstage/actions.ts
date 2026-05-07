@@ -1,6 +1,7 @@
 'use server'
 
 import { requirePlatformAdmin } from '@/lib/platform/auth'
+import { createSignupInvite } from '@/lib/platform/invites'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getActiveSubscription } from '@/lib/usage/service'
 import { revalidatePath } from 'next/cache'
@@ -17,6 +18,12 @@ export type CreateTenantState = {
 export type UpdateTenantState = {
   ok: boolean
   message: string
+}
+
+export type CreateAccountInviteState = {
+  ok: boolean
+  message: string
+  inviteUrl?: string
 }
 
 const moduleKeys = ['chatbot', 'data', 'voice', 'email', 'whatsapp', 'instagram', 'marketing'] as const
@@ -58,12 +65,29 @@ const createTenantSchema = z.object({
   modules: z.array(z.enum(moduleKeys)).default(['chatbot', 'data']),
 })
 
-const createVenueSchema = createTenantSchema.omit({ plan: true }).extend({
+const createAccountSchema = z.object({
+  name: z.string().trim().min(2, 'El nombre debe tener al menos 2 caracteres.'),
+  billingEmail: z.string().trim().email('El email de facturación no es válido.').optional().or(z.literal('')),
+})
+
+const createVenueSchema = createTenantSchema.extend({
   accountId: z.string().uuid(),
 })
 
 const deleteAccountSchema = z.object({
   accountId: z.string().uuid(),
+})
+
+const deleteInviteSchema = z.object({
+  accountId: z.string().uuid(),
+  inviteId: z.string().uuid(),
+})
+
+const createAccountInviteSchema = z.object({
+  accountId: z.string().uuid(),
+  theatreId: z.string().uuid().optional().or(z.literal('')),
+  email: z.string().trim().email('El email no es válido.'),
+  role: z.enum(['owner', 'admin', 'operator', 'analyst', 'viewer']),
 })
 
 const updateTenantSchema = createTenantSchema.extend({
@@ -98,6 +122,24 @@ async function getAvailableSlug(admin: ReturnType<typeof createAdminClient>, nam
   return `${base}-${Date.now()}`
 }
 
+async function getAvailableAccountSlug(admin: ReturnType<typeof createAdminClient>, name: string) {
+  const base = slugify(name) || 'account'
+  let candidate = base
+
+  for (let index = 2; index < 100; index += 1) {
+    const { data } = await admin
+      .from('accounts')
+      .select('id')
+      .eq('slug', candidate)
+      .maybeSingle()
+
+    if (!data) return candidate
+    candidate = `${base}-${index}`
+  }
+
+  return `${base}-${Date.now()}`
+}
+
 function getDefaultN8nWebhookUrl() {
   return process.env.DEFAULT_N8N_WEBHOOK_URL || null
 }
@@ -106,7 +148,7 @@ async function createVenueForAccount(
   admin: ReturnType<typeof createAdminClient>,
   input: {
     accountId: string
-    accountPlan: 'essential' | 'professional' | 'enterprise'
+    plan: 'essential' | 'professional' | 'enterprise'
     name: string
     entityType: 'theatre' | 'museum' | 'cinema' | 'auditorium' | 'festival' | 'cultural_center' | 'other'
     primaryLanguage: 'ca' | 'es' | 'en'
@@ -127,7 +169,7 @@ async function createVenueForAccount(
       slug,
       entity_type: input.entityType,
       primary_language: input.primaryLanguage,
-      plan: input.accountPlan,
+      plan: input.plan,
       website_url: input.websiteUrl || null,
       fallback_email: input.fallbackEmail || null,
       fallback_phone: input.fallbackPhone || null,
@@ -148,7 +190,7 @@ async function createVenueForAccount(
     .single()
 
   if (tenantError || !tenant) {
-    return { ok: false as const, message: tenantError?.message ?? 'No se ha podido crear el centro.' }
+    return { ok: false as const, message: tenantError?.message ?? 'No se ha podido crear la venue.' }
   }
 
   const selectedModules = new Set(input.modules)
@@ -167,17 +209,17 @@ async function createVenueForAccount(
   if (modulesError) {
     return {
       ok: false as const,
-      message: `Centro creado, pero no se pudieron crear los módulos: ${modulesError.message}`,
+      message: `Venue creada, pero no se pudieron crear los módulos: ${modulesError.message}`,
       tenantId: tenant.id,
     }
   }
 
   await Promise.all([
-    syncCurrentSubscription(admin, tenant.id, input.accountPlan),
+    syncCurrentSubscription(admin, tenant.id, input.plan),
     syncModuleEntitlements(admin, tenant.id, selectedModules),
   ])
 
-  return { ok: true as const, message: 'Centro creado correctamente.', tenantId: tenant.id }
+  return { ok: true as const, message: 'Venue creada correctamente.', tenantId: tenant.id }
 }
 
 export async function createTenantAction(
@@ -186,16 +228,9 @@ export async function createTenantAction(
 ): Promise<CreateTenantState> {
   await requirePlatformAdmin()
 
-  const modules = formData.getAll('modules').filter((value): value is string => typeof value === 'string')
-  const parsed = createTenantSchema.safeParse({
+  const parsed = createAccountSchema.safeParse({
     name: formData.get('name'),
-    entityType: formData.get('entity_type') || 'theatre',
-    primaryLanguage: formData.get('primary_language') || 'es',
-    plan: formData.get('plan') || 'essential',
-    websiteUrl: formData.get('website_url') || '',
-    fallbackEmail: formData.get('fallback_email') || '',
-    fallbackPhone: formData.get('fallback_phone') || '',
-    modules: modules.length ? modules : ['chatbot', 'data'],
+    billingEmail: formData.get('billing_email') || '',
   })
 
   if (!parsed.success) {
@@ -203,15 +238,14 @@ export async function createTenantAction(
   }
 
   const admin = createAdminClient()
-  const slug = await getAvailableSlug(admin, parsed.data.name)
+  const slug = await getAvailableAccountSlug(admin, parsed.data.name)
 
   const { data: account, error: accountError } = await admin
     .from('accounts')
     .insert({
       name: parsed.data.name,
       slug,
-      billing_email: parsed.data.fallbackEmail || null,
-      plan: parsed.data.plan,
+      billing_email: parsed.data.billingEmail || null,
       status: 'active',
     })
     .select('id')
@@ -221,26 +255,11 @@ export async function createTenantAction(
     return { ok: false, message: accountError?.message ?? 'No se ha podido crear la cuenta del cliente.' }
   }
 
-  const venue = await createVenueForAccount(admin, {
-    accountId: account.id,
-    accountPlan: parsed.data.plan,
-    name: parsed.data.name,
-    entityType: parsed.data.entityType,
-    primaryLanguage: parsed.data.primaryLanguage,
-    websiteUrl: parsed.data.websiteUrl,
-    fallbackEmail: parsed.data.fallbackEmail,
-    fallbackPhone: parsed.data.fallbackPhone,
-    modules: parsed.data.modules,
-  })
-
-  if (!venue.ok) return { ok: false, message: venue.message, tenantId: venue.tenantId, accountId: account.id }
-
   revalidatePath('/backstage')
 
   return {
     ok: true,
-    message: 'Cliente creado. Ya puedes generar una invitación.',
-    tenantId: venue.tenantId,
+    message: 'Cliente creado. Ahora añade la primera venue para configurar TALÍA.',
     accountId: account.id,
   }
 }
@@ -257,6 +276,7 @@ export async function createVenueAction(
     name: formData.get('name'),
     entityType: formData.get('entity_type') || 'theatre',
     primaryLanguage: formData.get('primary_language') || 'es',
+    plan: formData.get('plan') || 'essential',
     websiteUrl: formData.get('website_url') || '',
     fallbackEmail: formData.get('fallback_email') || '',
     fallbackPhone: formData.get('fallback_phone') || '',
@@ -270,7 +290,7 @@ export async function createVenueAction(
   const admin = createAdminClient()
   const { data: account, error: accountError } = await admin
     .from('accounts')
-    .select('id, plan')
+    .select('id')
     .eq('id', parsed.data.accountId)
     .single()
 
@@ -278,13 +298,9 @@ export async function createVenueAction(
     return { ok: false, message: accountError?.message ?? 'No se ha encontrado la cuenta.' }
   }
 
-  const accountPlan = account.plan === 'professional' || account.plan === 'enterprise'
-    ? account.plan
-    : 'essential'
-
   const venue = await createVenueForAccount(admin, {
     accountId: account.id,
-    accountPlan,
+    plan: parsed.data.plan,
     name: parsed.data.name,
     entityType: parsed.data.entityType,
     primaryLanguage: parsed.data.primaryLanguage,
@@ -301,7 +317,7 @@ export async function createVenueAction(
 
   return {
     ok: true,
-    message: 'Centro creado correctamente.',
+    message: 'Venue creada correctamente.',
     tenantId: venue.tenantId,
     accountId: account.id,
   }
@@ -330,6 +346,87 @@ export async function deleteAccountAction(formData: FormData) {
 
   revalidatePath('/backstage')
   redirect('/backstage')
+}
+
+export async function deleteInviteAction(formData: FormData) {
+  await requirePlatformAdmin()
+
+  const parsed = deleteInviteSchema.safeParse({
+    accountId: formData.get('account_id'),
+    inviteId: formData.get('invite_id'),
+  })
+
+  if (!parsed.success) {
+    throw new Error('Invitación no válida.')
+  }
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('signup_invites')
+    .delete()
+    .eq('id', parsed.data.inviteId)
+    .eq('account_id', parsed.data.accountId)
+
+  if (error) {
+    throw new Error(`No se pudo borrar la invitación: ${error.message}`)
+  }
+
+  revalidatePath('/backstage')
+  revalidatePath(`/backstage/accounts/${parsed.data.accountId}`)
+}
+
+export async function createAccountInviteAction(
+  _previousState: CreateAccountInviteState,
+  formData: FormData
+): Promise<CreateAccountInviteState> {
+  const platformAdmin = await requirePlatformAdmin()
+  const parsed = createAccountInviteSchema.safeParse({
+    accountId: formData.get('account_id'),
+    theatreId: formData.get('theatre_id'),
+    email: formData.get('email'),
+    role: formData.get('role') || 'admin',
+  })
+
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? 'Datos no válidos.' }
+  }
+
+  const admin = createAdminClient()
+  const theatreId = parsed.data.theatreId || undefined
+  const { data: theatre, error: theatreError } = theatreId
+    ? await admin
+      .from('theatres')
+      .select('id')
+      .eq('id', theatreId)
+      .eq('account_id', parsed.data.accountId)
+      .maybeSingle()
+    : { data: null, error: null }
+
+  if (theatreId && (theatreError || !theatre)) {
+    return { ok: false, message: theatreError?.message ?? 'La venue no pertenece a este account.' }
+  }
+
+  const invite = await createSignupInvite(admin, {
+    accountId: parsed.data.accountId,
+    theatreId,
+    email: parsed.data.email,
+    role: parsed.data.role,
+    invitedBy: platformAdmin.user.id,
+  })
+
+  if (!invite.ok) {
+    return { ok: false, message: invite.error }
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'http://localhost:3000'
+  revalidatePath('/backstage')
+  revalidatePath(`/backstage/accounts/${parsed.data.accountId}`)
+
+  return {
+    ok: true,
+    message: 'Invitación creada. Copia este enlace ahora; el token no se guarda en claro.',
+    inviteUrl: `${appUrl}/signup?invite=${invite.token}`,
+  }
 }
 
 export async function updateTenantAction(

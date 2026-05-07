@@ -28,14 +28,36 @@ export async function getUserVenueAccess(admin: AdminClient, userId: string) {
     .maybeSingle()
 
   if (profile) {
-    const { data: venueMemberships } = await admin
-      .from('venue_memberships')
-      .select('theatre_id, role')
-      .eq('profile_id', profile.id)
-      .is('revoked_at', null)
+    const [{ data: venueMemberships }, { data: accountMemberships }] = await Promise.all([
+      admin
+        .from('venue_memberships')
+        .select('theatre_id, role')
+        .eq('profile_id', profile.id)
+        .is('revoked_at', null),
+      admin
+        .from('account_memberships')
+        .select('account_id, role')
+        .eq('profile_id', profile.id)
+        .is('revoked_at', null),
+    ])
 
     ;(venueMemberships ?? []).forEach((membership) => {
       venueRoles.set(membership.theatre_id, membership.role)
+    })
+
+    const accountIds = (accountMemberships ?? []).map((membership) => membership.account_id)
+    const { data: accountVenues } = accountIds.length
+      ? await admin
+        .from('theatres')
+        .select('id, account_id')
+        .in('account_id', accountIds)
+      : { data: [] }
+
+    ;(accountVenues ?? []).forEach((venue) => {
+      if (venueRoles.has(venue.id)) return
+
+      const accountMembership = (accountMemberships ?? []).find((membership) => membership.account_id === venue.account_id)
+      venueRoles.set(venue.id, mapAccountRoleToVenueRole(accountMembership?.role))
     })
   }
 
@@ -51,6 +73,12 @@ export async function getUserVenueAccess(admin: AdminClient, userId: string) {
   })
 
   return hydrateVenueAccess(admin, Array.from(venueRoles.entries()).map(([theatreId, role]) => ({ theatreId, role })))
+}
+
+function mapAccountRoleToVenueRole(role: string | null | undefined): TenantRole {
+  if (role === 'owner') return 'owner'
+  if (role === 'admin') return 'admin'
+  return 'viewer'
 }
 
 async function hydrateVenueAccess(admin: AdminClient, venueRoles: VenueRole[]) {

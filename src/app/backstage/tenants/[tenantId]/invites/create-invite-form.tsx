@@ -46,7 +46,7 @@ export function CreateInviteForm({ tenantId }: { tenantId: string }) {
           Rol
           <select name="role" defaultValue="owner">
             <option value="owner">Owner cliente</option>
-            <option value="admin">Admin del centro</option>
+            <option value="admin">Admin de la venue</option>
             <option value="operator">Operador de atención</option>
             <option value="analyst">Analista data</option>
             <option value="viewer">Solo lectura</option>

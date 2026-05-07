@@ -14,7 +14,10 @@ export async function getPostAuthRedirectPath(admin: AdminClient, userId: string
   ])
 
   if (platformAdmin) return '/backstage'
+  const accountIds = Array.from(new Set(venues.map((venue) => venue.accountId)))
+
   if (venues.length === 1) return `/${venues[0].id}/overview`
+  if (accountIds.length === 1 && accountIds[0]) return `/accounts/${accountIds[0]}`
   if (venues.length > 1) return '/agora'
 
   return '/onboarding'

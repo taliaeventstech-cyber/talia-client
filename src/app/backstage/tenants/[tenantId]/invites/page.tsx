@@ -29,9 +29,7 @@ export default async function BackstageClientInvitesPage({ params }: Props) {
     <div className="stack">
       <Link className="back-link" href="/backstage">Volver a clientes</Link>
       <header className="page-header">
-        <p className="eyebrow">Invitaciones</p>
         <h2>{tenant.name}</h2>
-        <p className="muted mono">{tenant.slug}</p>
         <Link className="link-accent" href={`/${tenant.id}/overview`}>
           Ver perfil del cliente
         </Link>

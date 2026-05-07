@@ -45,7 +45,7 @@ export default async function BackstageClientPage({ params }: Props) {
       </header>
 
       <div className="internal-nav">
-        <IconAction href={`/${client.id}/overview`} label="Ver dashboard">
+        <IconAction href={`/${client.id}/overview`} label="Ver dashboard" newTab>
           <LayoutDashboard aria-hidden="true" size={16} strokeWidth={2} />
         </IconAction>
         <IconAction href={`/backstage/tenants/${client.id}/invites`} label="Gestionar invitaciones">
@@ -94,10 +94,10 @@ function formatCurrency(cents: number) {
   }).format(cents / 100)
 }
 
-function IconAction({ href, label, children }: { href: string; label: string; children: React.ReactNode }) {
+function IconAction({ href, label, children, newTab = false }: { href: string; label: string; children: React.ReactNode; newTab?: boolean }) {
   return (
     <span className="tooltip-wrap">
-      <Link className="icon-button" href={href} aria-label={label}>
+      <Link className="icon-button" href={href} aria-label={label} target={newTab ? '_blank' : undefined} rel={newTab ? 'noopener noreferrer' : undefined}>
         {children}
       </Link>
       <span className="tooltip-tip">{label}</span>

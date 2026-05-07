@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getAuthCallbackUrl } from '@/lib/auth/callback-url'
 import { hashInviteToken } from '@/lib/auth/invite-token'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -46,20 +45,26 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const supabase = await createClient()
-  const { data, error } = await supabase.auth.signUp({
+  const { data, error } = await admin.auth.admin.createUser({
     email,
     password,
-    options: {
-      emailRedirectTo: getAuthCallbackUrl(request),
-    },
+    email_confirm: true,
   })
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 })
+    const alreadyExists = error.message.toLowerCase().includes('already') || error.message.toLowerCase().includes('registered')
+
+    return NextResponse.json(
+      {
+        error: alreadyExists
+          ? 'Este email ya existe. Entra con login o pide a Talía que te reenvíe el acceso.'
+          : error.message,
+      },
+      { status: 400 }
+    )
   }
 
-  const userId = data.user?.id ?? data.session?.user.id
+  const userId = data.user?.id
 
   if (!userId) {
     return NextResponse.json(
@@ -68,20 +73,22 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { error: memberError } = await admin
-    .from('users')
-    .upsert(
-      {
-        id: userId,
-        theatre_id: invite.theatre_id,
-        email,
-        role: invite.role,
-      },
-      { onConflict: 'id' }
-    )
+  if (invite.theatre_id) {
+    const { error: memberError } = await admin
+      .from('users')
+      .upsert(
+        {
+          id: userId,
+          theatre_id: invite.theatre_id,
+          email,
+          role: invite.role,
+        },
+        { onConflict: 'id' }
+      )
 
-  if (memberError) {
-    return NextResponse.json({ error: memberError.message }, { status: 400 })
+    if (memberError) {
+      return NextResponse.json({ error: memberError.message }, { status: 400 })
+    }
   }
 
   const { data: profile, error: profileError } = await admin
@@ -125,22 +132,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: accountMembershipError.message }, { status: 400 })
   }
 
-  const { error: venueMembershipError } = await admin
-    .from('venue_memberships')
-    .upsert(
-      {
-        theatre_id: invite.theatre_id,
-        profile_id: profile.id,
-        role: invite.role,
-        permissions,
-        invited_by: invite.invited_by,
-        revoked_at: null,
-      },
-      { onConflict: 'theatre_id,profile_id' }
-    )
+  if (invite.theatre_id) {
+    const { error: venueMembershipError } = await admin
+      .from('venue_memberships')
+      .upsert(
+        {
+          theatre_id: invite.theatre_id,
+          profile_id: profile.id,
+          role: invite.role,
+          permissions,
+          invited_by: invite.invited_by,
+          revoked_at: null,
+        },
+        { onConflict: 'theatre_id,profile_id' }
+      )
 
-  if (venueMembershipError) {
-    return NextResponse.json({ error: venueMembershipError.message }, { status: 400 })
+    if (venueMembershipError) {
+      return NextResponse.json({ error: venueMembershipError.message }, { status: 400 })
+    }
   }
 
   await admin
@@ -164,12 +173,15 @@ export async function POST(request: NextRequest) {
     .eq('id', invite.id)
     .is('accepted_at', null)
 
-  if (data.session?.user) {
-    return NextResponse.json({ redirectTo: `/${invite.theatre_id}/overview` })
+  const supabase = await createClient()
+  const { data: sessionData } = await supabase.auth.signInWithPassword({ email, password })
+
+  if (sessionData.session?.user) {
+    return NextResponse.json({ redirectTo: `/accounts/${invite.account_id}` })
   }
 
   return NextResponse.json({
-    status: 'confirmation_required',
-    message: 'Te hemos enviado un email de confirmación. Revisa tu bandeja de entrada antes de continuar.',
+    redirectTo: '/login',
+    message: 'Cuenta creada. Entra con tu email y contraseña.',
   })
 }

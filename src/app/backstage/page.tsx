@@ -1,9 +1,9 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentBillingPeriod } from '@/lib/usage/service'
-import { Building2, Edit3, LayoutDashboard, MailPlus } from 'lucide-react'
+import { Building2, LayoutDashboard } from 'lucide-react'
 import Link from 'next/link'
+import { AccountRowActions } from './account-row-actions'
 import { CreateTenantForm } from './create-tenant-form'
-import { DeleteAccountButton } from './delete-account-button'
 
 export default async function BackstageHomePage() {
   const admin = createAdminClient()
@@ -63,19 +63,19 @@ export default async function BackstageHomePage() {
     <div className="stack">
       <CreateTenantForm />
 
-      <div className="section-title-row">
-        <div>
-          <p className="eyebrow">Accounts</p>
-          <h2>Cuentas cliente</h2>
-        </div>
+      
+      <div className="backstage-tabs" role="tablist" aria-label="Secciones de backstage">
+        <button className="backstage-tab backstage-tab-active" type="button" role="tab" aria-selected="true">
+          Clientes
+        </button>
       </div>
 
       <table className="data-table">
         <thead>
           <tr>
             <th>Account</th>
-            <th>Plan</th>
-            <th>Centros</th>
+            <th>Planes venue</th>
+            <th>Venues</th>
             <th>Uso chatbot</th>
             <th>Invitaciones</th>
             <th>Creado</th>
@@ -103,6 +103,12 @@ export default async function BackstageHomePage() {
               ? `${usage.conversations} / ${included}`
               : `${usage.conversations}`
             const firstVenue = accountVenues[0]
+            const dashboardHref = accountVenues.length === 1 && firstVenue
+              ? `/${firstVenue.id}/overview`
+              : `/accounts/${account.id}`
+            const dashboardLabel = accountVenues.length === 1 ? 'Ver dashboard' : 'Ver dashboard account'
+            const venuePlans = Array.from(new Set(accountVenues.map((venue) => venue.plan).filter(Boolean)))
+            const venuePlansLabel = venuePlans.length ? venuePlans.join(', ') : 'Sin venues'
 
             return (
               <tr key={account.id}>
@@ -110,7 +116,7 @@ export default async function BackstageHomePage() {
                   <strong>{account.name}</strong>
                   <p className="muted mono">{account.id}</p>
                 </td>
-                <td>{account.plan}</td>
+                <td>{venuePlansLabel}</td>
                 <td>{accountVenues.length}</td>
                 <td>
                   {usageLabel}
@@ -120,25 +126,15 @@ export default async function BackstageHomePage() {
                 <td>{new Date(account.created_at).toLocaleDateString('es-ES')}</td>
                 <td>
                   <div className="table-actions">
-                    <IconAction href={`/backstage/accounts/${account.id}`} label="Ver cuenta">
-                      <Building2 aria-hidden="true" size={16} strokeWidth={2} />
-                    </IconAction>
-                    {firstVenue ? (
-                      <IconAction href={`/${firstVenue.id}/overview`} label="Ver dashboard">
+                    {accountVenues.length > 0 ? (
+                      <IconAction href={dashboardHref} label={dashboardLabel} newTab>
                         <LayoutDashboard aria-hidden="true" size={16} strokeWidth={2} />
                       </IconAction>
                     ) : null}
-                    {firstVenue ? (
-                      <IconAction href={`/backstage/tenants/${firstVenue.id}`} label="Editar primer centro">
-                        <Edit3 aria-hidden="true" size={16} strokeWidth={2} />
-                      </IconAction>
-                    ) : null}
-                    {firstVenue ? (
-                      <IconAction href={`/backstage/tenants/${firstVenue.id}/invites`} label="Gestionar invitaciones">
-                        <MailPlus aria-hidden="true" size={16} strokeWidth={2} />
-                      </IconAction>
-                    ) : null}
-                    <DeleteAccountButton accountId={account.id} accountName={account.name} iconOnly />
+                    <IconAction href={`/backstage/accounts/${account.id}`} label="Ver cuenta">
+                      <Building2 aria-hidden="true" size={16} strokeWidth={2} />
+                    </IconAction>
+                    <AccountRowActions accountId={account.id} accountName={account.name} firstVenueId={firstVenue?.id} />
                   </div>
                 </td>
               </tr>
@@ -153,55 +149,6 @@ export default async function BackstageHomePage() {
           ) : null}
         </tbody>
       </table>
-
-      <div className="section-title-row">
-        <div>
-          <p className="eyebrow">Centros</p>
-          <h2>Últimos centros</h2>
-        </div>
-      </div>
-
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Centro</th>
-            <th>Account</th>
-            <th>Plan</th>
-            <th>Creado</th>
-            <th className="table-actions-heading">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(tenants ?? []).slice(0, 10).map((tenant) => {
-            const account = (accounts ?? []).find((item) => item.id === tenant.account_id)
-
-            return (
-              <tr key={tenant.id}>
-                <td>
-                  <strong>{tenant.name}</strong>
-                  <p className="muted mono">{tenant.id}</p>
-                </td>
-                <td>{account?.name ?? '—'}</td>
-                <td>{tenant.plan}</td>
-                <td>{new Date(tenant.created_at).toLocaleDateString('es-ES')}</td>
-                <td>
-                  <div className="table-actions">
-                    <IconAction href={`/${tenant.id}/overview`} label="Ver dashboard">
-                      <LayoutDashboard aria-hidden="true" size={16} strokeWidth={2} />
-                    </IconAction>
-                    <IconAction href={`/backstage/tenants/${tenant.id}`} label="Editar centro">
-                      <Edit3 aria-hidden="true" size={16} strokeWidth={2} />
-                    </IconAction>
-                    <IconAction href={`/backstage/tenants/${tenant.id}/invites`} label="Gestionar invitaciones">
-                      <MailPlus aria-hidden="true" size={16} strokeWidth={2} />
-                    </IconAction>
-                  </div>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
     </div>
   )
 }
@@ -213,10 +160,10 @@ function formatCurrency(cents: number) {
   }).format(cents / 100)
 }
 
-function IconAction({ href, label, children }: { href: string; label: string; children: React.ReactNode }) {
+function IconAction({ href, label, children, newTab = false }: { href: string; label: string; children: React.ReactNode; newTab?: boolean }) {
   return (
     <span className="tooltip-wrap tooltip-wrap-right">
-      <Link className="icon-button" href={href} aria-label={label}>
+      <Link className="icon-button" href={href} aria-label={label} target={newTab ? '_blank' : undefined} rel={newTab ? 'noopener noreferrer' : undefined}>
         {children}
       </Link>
       <span className="tooltip-tip">{label}</span>
