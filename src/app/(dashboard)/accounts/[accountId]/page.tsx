@@ -112,6 +112,11 @@ export default async function AccountDashboardPage({ params }: Props) {
         <div className="account-header-meta">
           <div className="account-header-meta-actions">
             <span className="status-pill status-pill-active">{account?.status ?? 'active'}</span>
+            <form action="/auth/logout" method="post">
+              <button className="button-outline" type="submit">
+                Cerrar sesión
+              </button>
+            </form>
           </div>
           <div className="account-header-facts">
             <div>

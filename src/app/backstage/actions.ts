@@ -92,6 +92,12 @@ const createAccountInviteSchema = z.object({
 
 const updateTenantSchema = createTenantSchema.extend({
   tenantId: z.string().uuid(),
+  voicePhoneNumber: z.string().trim().max(20).optional(),
+  voicePhoneProvider: z.enum(['elevenlabs', 'twilio', 'external']),
+  voicePhoneMode: z.enum(['talia_number', 'client_forwarding', 'portability']),
+  voicePublicPhoneNumber: z.string().trim().max(20).optional(),
+  voiceForwardingNotes: z.string().trim().max(2000).optional(),
+  voiceOperationalStatus: z.enum(['draft', 'provisioning', 'active', 'paused', 'error']),
 })
 
 function slugify(value: string) {
@@ -445,6 +451,12 @@ export async function updateTenantAction(
     websiteUrl: formData.get('website_url') || '',
     fallbackEmail: formData.get('fallback_email') || '',
     fallbackPhone: formData.get('fallback_phone') || '',
+    voicePhoneNumber: String(formData.get('voice_phone_number') ?? '').trim() || undefined,
+    voicePhoneProvider: formData.get('voice_phone_provider') || 'elevenlabs',
+    voicePhoneMode: formData.get('voice_phone_mode') || 'talia_number',
+    voicePublicPhoneNumber: String(formData.get('voice_public_phone_number') ?? '').trim() || undefined,
+    voiceForwardingNotes: String(formData.get('voice_forwarding_notes') ?? '').trim() || undefined,
+    voiceOperationalStatus: formData.get('voice_operational_status') || 'draft',
     modules,
   })
 
@@ -491,6 +503,12 @@ export async function updateTenantAction(
       fallback_phone: data.fallbackPhone || null,
       voice_enabled: selectedModules.has('voice'),
       voice_language: data.primaryLanguage,
+      voice_phone_number: data.voicePhoneNumber || null,
+      voice_phone_provider: data.voicePhoneProvider,
+      voice_phone_mode: data.voicePhoneMode,
+      voice_public_phone_number: data.voicePublicPhoneNumber || null,
+      voice_forwarding_notes: data.voiceForwardingNotes || null,
+      voice_operational_status: data.voiceOperationalStatus,
     })
     .eq('id', data.tenantId)
 

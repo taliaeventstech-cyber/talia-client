@@ -18,7 +18,6 @@ export type VoiceSettingsState = {
 const voiceSettingsSchema = z.object({
   voiceEnabled: z.boolean(),
   elevenLabsAgentId: z.string().trim().max(200).optional(),
-  voicePhoneNumber: z.string().trim().max(20).optional(),
   voiceId: z.string().trim().max(200).optional(),
   voiceLanguage: z.enum(['ca', 'es', 'en']),
   voiceTone: z.enum(['warm', 'professional', 'neutral']),
@@ -44,7 +43,6 @@ export async function updateVoiceSettings(
   const parsed = voiceSettingsSchema.safeParse({
     voiceEnabled: formData.get('voice_enabled') === 'on',
     elevenLabsAgentId: String(formData.get('elevenlabs_agent_id') ?? '').trim() || undefined,
-    voicePhoneNumber: String(formData.get('voice_phone_number') ?? '').trim() || undefined,
     voiceId: String(formData.get('voice_id') ?? '').trim() || undefined,
     voiceLanguage: formData.get('voice_language') || 'ca',
     voiceTone: formData.get('voice_tone') || 'warm',
@@ -96,7 +94,6 @@ export async function updateVoiceSettings(
     .update({
       voice_enabled: data.voiceEnabled,
       elevenlabs_agent_id: data.elevenLabsAgentId || null,
-      voice_phone_number: data.voicePhoneNumber || null,
       voice_id: data.voiceId || null,
       voice_language: data.voiceLanguage,
       voice_tone: data.voiceTone,

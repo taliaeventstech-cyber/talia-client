@@ -10,7 +10,6 @@ type VoiceSettingsFormProps = {
   current: {
     voiceEnabled: boolean
     elevenLabsAgentId: string | null
-    voicePhoneNumber: string | null
     voiceId: string | null
     voiceLanguage: string
     voiceTone: string
@@ -33,8 +32,6 @@ type VoiceSettingsFormProps = {
     deterministic: string
     creative: string
     telephony: string
-    phoneNumber: string
-    phoneHint: string
     defaultLanguage: string
     maxTurns: string
     maxTurnsHint: string
@@ -181,18 +178,6 @@ export function VoiceSettingsForm({ tenantId, current, labels }: VoiceSettingsFo
       <section className="card stack">
         <h2>{labels.telephony}</h2>
         <div className="form-grid">
-          <label className="field">
-            {labels.phoneNumber}
-            <input
-              name="voice_phone_number"
-              defaultValue={current.voicePhoneNumber ?? ''}
-              placeholder="+34931234567"
-            />
-            <span className="field-hint">
-              {labels.phoneHint}
-            </span>
-          </label>
-
           <label className="field">
             {labels.defaultLanguage}
             <select name="voice_language" defaultValue={current.voiceLanguage}>

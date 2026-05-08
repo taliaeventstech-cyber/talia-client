@@ -784,7 +784,12 @@ export type Database = {
           voice_id: string | null
           voice_language: string
           voice_max_turns: number
+          voice_forwarding_notes: string | null
+          voice_operational_status: string
+          voice_phone_mode: string
           voice_phone_number: string | null
+          voice_phone_provider: string
+          voice_public_phone_number: string | null
           voice_system_prompt: string | null
           voice_temperature: number
           voice_tone: string
@@ -815,7 +820,12 @@ export type Database = {
           voice_id?: string | null
           voice_language?: string
           voice_max_turns?: number
+          voice_forwarding_notes?: string | null
+          voice_operational_status?: string
+          voice_phone_mode?: string
           voice_phone_number?: string | null
+          voice_phone_provider?: string
+          voice_public_phone_number?: string | null
           voice_system_prompt?: string | null
           voice_temperature?: number
           voice_tone?: string
@@ -846,7 +856,12 @@ export type Database = {
           voice_id?: string | null
           voice_language?: string
           voice_max_turns?: number
+          voice_forwarding_notes?: string | null
+          voice_operational_status?: string
+          voice_phone_mode?: string
           voice_phone_number?: string | null
+          voice_phone_provider?: string
+          voice_public_phone_number?: string | null
           voice_system_prompt?: string | null
           voice_temperature?: number
           voice_tone?: string

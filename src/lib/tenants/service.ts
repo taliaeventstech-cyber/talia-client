@@ -130,6 +130,11 @@ export type TenantVoiceConfig = {
   elevenLabsAgentId: string | null
   voiceEnabled: boolean
   voicePhoneNumber: string | null
+  voicePhoneProvider: string
+  voicePhoneMode: string
+  voicePublicPhoneNumber: string | null
+  voiceForwardingNotes: string | null
+  voiceOperationalStatus: string
   voiceId: string | null
   voiceLanguage: string
   voiceTone: string
@@ -146,7 +151,7 @@ export async function getTenantVoiceConfig(admin: AdminClient, tenantId: string)
   const [theatreResult, knowledgeResult] = await Promise.all([
     admin
       .from('theatres')
-      .select('id, name, fallback_email, fallback_phone, elevenlabs_agent_id, voice_enabled, voice_phone_number, voice_id, voice_language, voice_tone, voice_temperature, voice_system_prompt, voice_max_turns')
+      .select('id, name, fallback_email, fallback_phone, elevenlabs_agent_id, voice_enabled, voice_phone_number, voice_phone_provider, voice_phone_mode, voice_public_phone_number, voice_forwarding_notes, voice_operational_status, voice_id, voice_language, voice_tone, voice_temperature, voice_system_prompt, voice_max_turns')
       .eq('id', tenantId)
       .single(),
     admin
@@ -179,6 +184,11 @@ export async function getTenantVoiceConfig(admin: AdminClient, tenantId: string)
       elevenLabsAgentId: data.elevenlabs_agent_id,
       voiceEnabled: data.voice_enabled,
       voicePhoneNumber: data.voice_phone_number,
+      voicePhoneProvider: data.voice_phone_provider,
+      voicePhoneMode: data.voice_phone_mode,
+      voicePublicPhoneNumber: data.voice_public_phone_number,
+      voiceForwardingNotes: data.voice_forwarding_notes,
+      voiceOperationalStatus: data.voice_operational_status,
       voiceId: data.voice_id,
       voiceLanguage: data.voice_language,
       voiceTone: data.voice_tone,

@@ -66,7 +66,6 @@ export default async function VoiceSettingsPage({ params }: Props) {
         current={{
           voiceEnabled: config.voiceEnabled,
           elevenLabsAgentId: config.elevenLabsAgentId,
-          voicePhoneNumber: config.voicePhoneNumber,
           voiceId: config.voiceId,
           voiceLanguage: config.voiceLanguage,
           voiceTone: config.voiceTone,

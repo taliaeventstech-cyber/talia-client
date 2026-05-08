@@ -14,6 +14,12 @@ type Client = {
   website_url: string | null
   fallback_email: string | null
   fallback_phone: string | null
+  voice_phone_number: string | null
+  voice_phone_provider: string
+  voice_phone_mode: string
+  voice_public_phone_number: string | null
+  voice_forwarding_notes: string | null
+  voice_operational_status: string
 }
 
 type Module = {
@@ -118,6 +124,67 @@ export function EditClientForm({ client, modules }: { client: Client; modules: M
           </label>
         ))}
       </fieldset>
+
+      <section className="stack">
+        <div>
+          <p className="eyebrow">Agente de voz</p>
+          <h2>Telefonía operativa</h2>
+          <p className="muted">
+            Configuración interna de TALIA para provisión, desvíos, portabilidad y soporte.
+          </p>
+        </div>
+
+        <div className="form-row">
+          <label className="field">
+            Número TALIA asignado
+            <input name="voice_phone_number" defaultValue={client.voice_phone_number ?? ''} placeholder="+34931234567" />
+          </label>
+          <label className="field">
+            Número público del cliente
+            <input name="voice_public_phone_number" defaultValue={client.voice_public_phone_number ?? ''} placeholder="+34900123456" />
+          </label>
+        </div>
+
+        <div className="form-row">
+          <label className="field">
+            Proveedor telefónico
+            <select name="voice_phone_provider" defaultValue={client.voice_phone_provider}>
+              <option value="elevenlabs">ElevenLabs Phone Numbers</option>
+              <option value="twilio">Twilio</option>
+              <option value="external">Externo / cliente</option>
+            </select>
+          </label>
+          <label className="field">
+            Modo de número
+            <select name="voice_phone_mode" defaultValue={client.voice_phone_mode}>
+              <option value="talia_number">Número gestionado por TALIA</option>
+              <option value="client_forwarding">Desvío desde número del cliente</option>
+              <option value="portability">Portabilidad</option>
+            </select>
+          </label>
+        </div>
+
+        <label className="field">
+          Estado operativo
+          <select name="voice_operational_status" defaultValue={client.voice_operational_status}>
+            <option value="draft">Borrador</option>
+            <option value="provisioning">Provisionando</option>
+            <option value="active">Activo</option>
+            <option value="paused">Pausado</option>
+            <option value="error">Error</option>
+          </select>
+        </label>
+
+        <label className="field">
+          Notas internas de desvío y operación
+          <textarea
+            name="voice_forwarding_notes"
+            defaultValue={client.voice_forwarding_notes ?? ''}
+            rows={4}
+            placeholder="Ej. El cliente desvía su número público al número TALIA fuera de horario."
+          />
+        </label>
+      </section>
 
       <button className="button-primary button-fit" type="submit" disabled={pending}>
         {pending ? 'Guardando...' : 'Guardar cambios'}
