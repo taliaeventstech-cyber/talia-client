@@ -70,8 +70,23 @@ export default async function BackstageAccountPage({ params, searchParams }: Pro
 
   if (!account) notFound()
 
+  const venueIds = (venues ?? []).map((venue) => venue.id)
+  const { data: modules } = venueIds.length
+    ? await admin
+      .from('tenant_modules')
+      .select('theatre_id, module_key, status')
+      .in('theatre_id', venueIds)
+      .in('status', ['trial', 'active'])
+    : { data: [] }
+
   const subscriptionByTenant = new Map((subscriptions ?? []).map((subscription) => [subscription.theatre_id, subscription]))
   const venueById = new Map((venues ?? []).map((venue) => [venue.id, venue]))
+  const modulesByTenant = new Map<string, string[]>()
+  ;(modules ?? []).forEach((module) => {
+    const current = modulesByTenant.get(module.theatre_id) ?? []
+    current.push(module.module_key)
+    modulesByTenant.set(module.theatre_id, current)
+  })
   const usageByTenant = new Map<string, { conversations: number; estimatedCostCents: number }>()
   ;(usageRows ?? []).forEach((row) => {
     const current = usageByTenant.get(row.theatre_id) ?? { conversations: 0, estimatedCostCents: 0 }
@@ -80,19 +95,6 @@ export default async function BackstageAccountPage({ params, searchParams }: Pro
     usageByTenant.set(row.theatre_id, current)
   })
 
-  const totals = (venues ?? []).reduce(
-    (acc, venue) => {
-      const usage = usageByTenant.get(venue.id) ?? { conversations: 0, estimatedCostCents: 0 }
-      const subscription = subscriptionByTenant.get(venue.id)
-      acc.conversations += usage.conversations
-      acc.estimatedCostCents += usage.estimatedCostCents
-      acc.included += subscription?.included_chat_conversations ?? 0
-      return acc
-    },
-    { conversations: 0, estimatedCostCents: 0, included: 0 }
-  )
-  const venuePlans = Array.from(new Set((venues ?? []).map((venue) => venue.plan).filter(Boolean)))
-  const venuePlansLabel = venuePlans.length ? venuePlans.join(', ') : 'Sin venues'
   const pendingInvites = (invites ?? []).filter((invite) => getInviteStatus(invite).label === 'Pendiente').length
   const acceptedInvites = (invites ?? []).filter((invite) => getInviteStatus(invite).label === 'Aceptada').length
 
@@ -312,17 +314,62 @@ export default async function BackstageAccountPage({ params, searchParams }: Pro
                 <p className="eyebrow">Plan y módulos</p>
                 <h2>Configuración por venue</h2>
                 <p className="muted">
-                  Cada venue puede tener plan, módulos y límites propios dentro del mismo account.
+                  Cada venue mantiene su propio plan, módulos y límites. No se agregan planes a nivel account.
                 </p>
               </div>
-              <span className="status-pill status-pill-active">{venuePlansLabel}</span>
             </div>
-            <div className="overview-grid">
-              <DetailBlock label="Planes activos" value={venuePlansLabel} />
-              <DetailBlock label="Venues activas" value={String(venues?.length ?? 0)} />
-              <DetailBlock label="Conversaciones incluidas" value={String(totals.included)} />
-              <DetailBlock label="Uso actual chatbot" value={String(totals.conversations)} />
-            </div>
+            {(venues ?? []).length ? (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Venue</th>
+                    <th>Plan</th>
+                    <th>Módulos activos</th>
+                    <th>Límite chatbot</th>
+                    <th>Uso actual</th>
+                    <th className="table-actions-heading">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(venues ?? []).map((venue) => {
+                    const subscription = subscriptionByTenant.get(venue.id)
+                    const usage = usageByTenant.get(venue.id) ?? { conversations: 0, estimatedCostCents: 0 }
+                    const activeModules = modulesByTenant.get(venue.id) ?? []
+                    const included = subscription?.included_chat_conversations ?? 0
+
+                    return (
+                      <tr key={venue.id}>
+                        <td>
+                          <strong>{venue.name}</strong>
+                          <p className="muted mono">{venue.id}</p>
+                        </td>
+                        <td>{formatPlan(subscription?.plan ?? venue.plan)}</td>
+                        <td>
+                          <div className="module-pill-list">
+                            {activeModules.length ? activeModules.map((moduleKey) => (
+                              <span className="module-pill" key={`${venue.id}-${moduleKey}`}>
+                                {formatModule(moduleKey)}
+                              </span>
+                            )) : <span className="muted">Sin módulos activos</span>}
+                          </div>
+                        </td>
+                        <td>{included > 0 ? `${included} conversaciones/mes` : 'Sin límite configurado'}</td>
+                        <td>{included > 0 ? `${usage.conversations} / ${included}` : usage.conversations}</td>
+                        <td>
+                          <div className="table-actions">
+                            <IconAction href={`/backstage/tenants/${venue.id}`} label="Editar plan y módulos">
+                              <Edit3 aria-hidden="true" size={16} strokeWidth={2} />
+                            </IconAction>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <p className="muted">Añade una venue para configurar su plan y módulos.</p>
+            )}
           </section>
         )}
         activity={(
@@ -365,6 +412,31 @@ function formatRole(role: string) {
   }
 
   return labels[role] ?? role
+}
+
+function formatPlan(plan: string | null | undefined) {
+  const labels: Record<string, string> = {
+    essential: 'Esencial',
+    professional: 'Profesional',
+    enterprise: 'Enterprise',
+    custom: 'Custom',
+  }
+
+  return labels[plan ?? ''] ?? plan ?? 'Sin plan'
+}
+
+function formatModule(moduleKey: string) {
+  const labels: Record<string, string> = {
+    chatbot: 'Chatbot',
+    data: 'Data',
+    voice: 'Voz',
+    email: 'Email',
+    whatsapp: 'WhatsApp',
+    instagram: 'Instagram',
+    marketing: 'Marketing',
+  }
+
+  return labels[moduleKey] ?? moduleKey
 }
 
 function DetailBlock({ label, value }: { label: string; value: string }) {
