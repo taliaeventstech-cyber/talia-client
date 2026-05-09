@@ -38,20 +38,21 @@ export default async function BackstageClientPage({ params }: Props) {
     <div className="stack">
       <Link className="back-link" href="/backstage">Volver a clientes</Link>
 
-      <header className="page-header">
-        <p className="eyebrow">Cliente</p>
-        <h2>{client.name}</h2>
-        <p className="muted mono">{client.id}</p>
+      <header className="page-header backstage-venue-header">
+        <div>
+          <p className="eyebrow">Venue</p>
+          <h2>{client.name}</h2>
+          <p className="muted mono">{client.id}</p>
+        </div>
+        <div className="header-actions">
+          <IconAction href={`/${client.id}/overview`} label="Ver dashboard" newTab>
+            <LayoutDashboard aria-hidden="true" size={16} strokeWidth={2} />
+          </IconAction>
+          <IconAction href={`/backstage/tenants/${client.id}/invites`} label="Gestionar invitaciones">
+            <MailPlus aria-hidden="true" size={16} strokeWidth={2} />
+          </IconAction>
+        </div>
       </header>
-
-      <div className="internal-nav">
-        <IconAction href={`/${client.id}/overview`} label="Ver dashboard" newTab>
-          <LayoutDashboard aria-hidden="true" size={16} strokeWidth={2} />
-        </IconAction>
-        <IconAction href={`/backstage/tenants/${client.id}/invites`} label="Gestionar invitaciones">
-          <MailPlus aria-hidden="true" size={16} strokeWidth={2} />
-        </IconAction>
-      </div>
 
       <section className="card stack">
         <div className="section-title-row">

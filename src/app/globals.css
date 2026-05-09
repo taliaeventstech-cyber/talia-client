@@ -363,6 +363,19 @@ textarea {
   gap: 12px;
 }
 
+.backstage-venue-header {
+  align-items: center;
+  border: 0.5px solid var(--color-border);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--color-surface) 82%, transparent), color-mix(in srgb, var(--color-surface-2) 82%, transparent));
+  padding: 20px;
+}
+
+.backstage-venue-header h2 {
+  margin-top: 4px;
+}
+
 .auth-shell .button-primary {
   color: #1a1a2e;
 }
@@ -578,6 +591,93 @@ textarea {
 
 .module-checkbox-grid input:disabled {
   cursor: not-allowed;
+}
+
+.settings-collapse {
+  overflow: hidden;
+  border: 0.5px solid var(--color-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-surface-2) 42%, transparent);
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.settings-collapse-open {
+  border-color: color-mix(in srgb, var(--color-gold) 34%, var(--color-border));
+  background: color-mix(in srgb, var(--color-surface-2) 62%, transparent);
+  box-shadow: 0 18px 48px color-mix(in srgb, #000000 10%, transparent);
+}
+
+.settings-collapse-trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 16px;
+  text-align: left;
+}
+
+.settings-collapse-trigger > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.settings-collapse-trigger strong {
+  color: var(--color-text-primary);
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.settings-collapse-icon {
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+  transition:
+    color 180ms ease,
+    transform 220ms ease;
+}
+
+.settings-collapse-open .settings-collapse-icon {
+  color: var(--color-gold);
+  transform: rotate(180deg);
+}
+
+.settings-collapse-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 260ms ease,
+    opacity 180ms ease;
+}
+
+.settings-collapse-open .settings-collapse-body {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.settings-collapse-content {
+  display: grid;
+  min-height: 0;
+  gap: 16px;
+  overflow: hidden;
+  padding: 0 16px;
+  transform: translateY(-4px);
+  transition:
+    padding 260ms ease,
+    transform 260ms ease;
+}
+
+.settings-collapse-open .settings-collapse-content {
+  padding: 0 16px 16px;
+  transform: translateY(0);
 }
 
 .field {
