@@ -50,9 +50,11 @@ export function DashboardNav({
   const canViewAnalytics = hasTenantPermission(role, 'view_analytics')
   const canManageChatbot = hasTenantPermission(role, 'manage_chatbot')
   const canManageVoice = hasTenantPermission(role, 'manage_voice')
+  const canManageEmail = hasTenantPermission(role, 'manage_email')
   const showChatbot = chatbotEnabled && (canViewConversations || canManageChatbot || (dataEnabled && canViewAnalytics))
   const showVoice = voiceEnabled && canManageVoice
-  const showAttention = showChatbot || showVoice || emailEnabled || whatsappEnabled
+  const showEmail = emailEnabled && canManageEmail
+  const showAttention = showChatbot || showVoice || showEmail || whatsappEnabled
   const showMarketing = marketingEnabled
 
   return (
@@ -126,12 +128,21 @@ export function DashboardNav({
             </div>
           ) : null}
 
-          {emailEnabled ? (
-            <div className="nav-channel nav-channel-disabled" aria-disabled="true">
+          {showEmail ? (
+            <div className="nav-channel">
               <div className="nav-channel-title">
                 <Mail size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
                 <span>{labels.emailAgent}</span>
-                <span className="nav-channel-status">{labels.soon}</span>
+                <span className="nav-channel-status">{labels.active}</span>
+              </div>
+              <div className="nav-subnav">
+                <Link
+                  className={`nav-link nav-link-nested ${active(`/${tenantId}/email`) ? 'nav-link-active' : ''}`}
+                  href={`/${tenantId}/email`}
+                >
+                  <Mail size={14} strokeWidth={2} aria-hidden="true" />
+                  {labels.settings}
+                </Link>
               </div>
             </div>
           ) : null}

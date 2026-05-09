@@ -91,6 +91,233 @@ export type Database = {
         }
         Relationships: []
       }
+      email_connections: {
+        Row: {
+          created_at: string
+          draft_mode: string
+          error_message: string | null
+          id: string
+          last_synced_at: string | null
+          mailbox_email: string
+          metadata: Json
+          oauth_metadata: Json
+          provider: string
+          status: string
+          sync_cursor: string | null
+          sync_mode: string
+          theatre_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          draft_mode?: string
+          error_message?: string | null
+          id?: string
+          last_synced_at?: string | null
+          mailbox_email: string
+          metadata?: Json
+          oauth_metadata?: Json
+          provider?: string
+          status?: string
+          sync_cursor?: string | null
+          sync_mode?: string
+          theatre_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          draft_mode?: string
+          error_message?: string | null
+          id?: string
+          last_synced_at?: string | null
+          mailbox_email?: string
+          metadata?: Json
+          oauth_metadata?: Json
+          provider?: string
+          status?: string
+          sync_cursor?: string | null
+          sync_mode?: string
+          theatre_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_connections_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_drafts: {
+        Row: {
+          approved_at: string | null
+          connection_id: string
+          created_at: string
+          error_message: string | null
+          generated_body_html: string | null
+          generated_body_text: string | null
+          generated_subject: string | null
+          id: string
+          metadata: Json
+          provider_draft_id: string | null
+          reviewed_by_profile_id: string | null
+          sent_at: string | null
+          status: string
+          theatre_id: string
+          thread_id: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          connection_id: string
+          created_at?: string
+          error_message?: string | null
+          generated_body_html?: string | null
+          generated_body_text?: string | null
+          generated_subject?: string | null
+          id?: string
+          metadata?: Json
+          provider_draft_id?: string | null
+          reviewed_by_profile_id?: string | null
+          sent_at?: string | null
+          status?: string
+          theatre_id: string
+          thread_id: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          connection_id?: string
+          created_at?: string
+          error_message?: string | null
+          generated_body_html?: string | null
+          generated_body_text?: string | null
+          generated_subject?: string | null
+          id?: string
+          metadata?: Json
+          provider_draft_id?: string | null
+          reviewed_by_profile_id?: string | null
+          sent_at?: string | null
+          status?: string
+          theatre_id?: string
+          thread_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      email_messages: {
+        Row: {
+          body_html: string | null
+          body_text: string | null
+          cc_emails: Json
+          connection_id: string
+          created_at: string
+          direction: string
+          from_email: string | null
+          from_name: string | null
+          id: string
+          metadata: Json
+          provider_message_id: string
+          received_at: string | null
+          sent_at: string | null
+          theatre_id: string
+          thread_id: string
+          to_emails: Json
+        }
+        Insert: {
+          body_html?: string | null
+          body_text?: string | null
+          cc_emails?: Json
+          connection_id: string
+          created_at?: string
+          direction: string
+          from_email?: string | null
+          from_name?: string | null
+          id?: string
+          metadata?: Json
+          provider_message_id: string
+          received_at?: string | null
+          sent_at?: string | null
+          theatre_id: string
+          thread_id: string
+          to_emails?: Json
+        }
+        Update: {
+          body_html?: string | null
+          body_text?: string | null
+          cc_emails?: Json
+          connection_id?: string
+          created_at?: string
+          direction?: string
+          from_email?: string | null
+          from_name?: string | null
+          id?: string
+          metadata?: Json
+          provider_message_id?: string
+          received_at?: string | null
+          sent_at?: string | null
+          theatre_id?: string
+          thread_id?: string
+          to_emails?: Json
+        }
+        Relationships: []
+      }
+      email_threads: {
+        Row: {
+          assigned_profile_id: string | null
+          connection_id: string
+          created_at: string
+          id: string
+          last_message_at: string | null
+          metadata: Json
+          priority: string
+          provider_thread_id: string
+          sender_email: string | null
+          sender_name: string | null
+          status: string
+          subject: string | null
+          theatre_id: string
+          topic: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_profile_id?: string | null
+          connection_id: string
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          metadata?: Json
+          priority?: string
+          provider_thread_id: string
+          sender_email?: string | null
+          sender_name?: string | null
+          status?: string
+          subject?: string | null
+          theatre_id: string
+          topic?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_profile_id?: string | null
+          connection_id?: string
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          metadata?: Json
+          priority?: string
+          provider_thread_id?: string
+          sender_email?: string | null
+          sender_name?: string | null
+          status?: string
+          subject?: string | null
+          theatre_id?: string
+          topic?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       account_memberships: {
         Row: {
           account_id: string
