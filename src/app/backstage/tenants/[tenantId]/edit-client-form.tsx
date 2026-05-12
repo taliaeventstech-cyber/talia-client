@@ -28,6 +28,16 @@ type Module = {
   status: string
 }
 
+type EmailConnection = {
+  id: string
+  provider: string
+  mailbox_email: string
+  status: string
+  sync_mode: string
+  draft_mode: string
+  error_message: string | null
+}
+
 const editableModules = [
   { key: 'chatbot', label: 'Chatbot', locked: true },
   { key: 'data', label: 'Data', locked: true },
@@ -38,7 +48,15 @@ const editableModules = [
   { key: 'marketing', label: 'Marketing' },
 ]
 
-export function EditClientForm({ client, modules }: { client: Client; modules: Module[] }) {
+export function EditClientForm({
+  client,
+  modules,
+  emailConnection,
+}: {
+  client: Client
+  modules: Module[]
+  emailConnection: EmailConnection | null
+}) {
   const [state, action, pending] = useActionState(updateTenantAction, initialState)
   const activeModules = new Set(
     modules
@@ -46,10 +64,12 @@ export function EditClientForm({ client, modules }: { client: Client; modules: M
       .map((module) => module.module_key)
   )
   const [voiceEnabled, setVoiceEnabled] = useState(activeModules.has('voice'))
+  const [emailEnabled, setEmailEnabled] = useState(activeModules.has('email'))
   const [openSections, setOpenSections] = useState({
     basic: true,
     modules: true,
     voice: activeModules.has('voice'),
+    email: activeModules.has('email'),
   })
 
   function toggleSection(section: keyof typeof openSections) {
@@ -145,12 +165,23 @@ export function EditClientForm({ client, modules }: { client: Client; modules: M
                 value={module.key}
                 defaultChecked={module.locked || activeModules.has(module.key)}
                 disabled={module.locked}
-                onChange={module.key === 'voice' ? (event) => {
-                  setVoiceEnabled(event.currentTarget.checked)
-                  if (event.currentTarget.checked) {
-                    setOpenSections((current) => ({ ...current, voice: true }))
-                  }
-                } : undefined}
+                onChange={
+                  module.key === 'voice'
+                    ? (event) => {
+                      setVoiceEnabled(event.currentTarget.checked)
+                      if (event.currentTarget.checked) {
+                        setOpenSections((current) => ({ ...current, voice: true }))
+                      }
+                    }
+                    : module.key === 'email'
+                      ? (event) => {
+                        setEmailEnabled(event.currentTarget.checked)
+                        if (event.currentTarget.checked) {
+                          setOpenSections((current) => ({ ...current, email: true }))
+                        }
+                      }
+                      : undefined
+                }
               />
               {module.label}
             </label>
@@ -170,6 +201,20 @@ export function EditClientForm({ client, modules }: { client: Client; modules: M
         </CollapsibleSection>
       ) : (
         <HiddenVoiceOperationsFields client={client} />
+      )}
+
+      {emailEnabled ? (
+        <CollapsibleSection
+          title="Buzón y borradores"
+          eyebrow="Agente de email"
+          description="Configuración interna para conectar Gmail/Outlook y crear borradores supervisados."
+          open={openSections.email}
+          onToggle={() => toggleSection('email')}
+        >
+          <EmailOperationsFields client={client} connection={emailConnection} />
+        </CollapsibleSection>
+      ) : (
+        <HiddenEmailOperationsFields connection={emailConnection} />
       )}
 
       <button className="button-primary button-fit" type="submit" disabled={pending}>
@@ -279,6 +324,81 @@ function HiddenVoiceOperationsFields({ client }: { client: Client }) {
       <input type="hidden" name="voice_phone_mode" value={client.voice_phone_mode} />
       <input type="hidden" name="voice_operational_status" value={client.voice_operational_status} />
       <input type="hidden" name="voice_forwarding_notes" value={client.voice_forwarding_notes ?? ''} />
+    </>
+  )
+}
+
+function EmailOperationsFields({ client, connection }: { client: Client; connection: EmailConnection | null }) {
+  return (
+    <>
+      <div className="form-row">
+        <label className="field">
+          Buzón a conectar
+          <input
+            name="email_mailbox_email"
+            type="email"
+            required
+            defaultValue={connection?.mailbox_email ?? client.fallback_email ?? ''}
+            placeholder="info@teatro.com"
+          />
+        </label>
+        <label className="field">
+          Proveedor
+          <select name="email_provider" defaultValue={connection?.provider ?? 'google'}>
+            <option value="google">Google Workspace / Gmail</option>
+            <option value="microsoft">Microsoft 365 / Outlook</option>
+            <option value="imap">IMAP</option>
+            <option value="forwarding">Forwarding TALIA</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="form-row">
+        <label className="field">
+          Estado de conexión
+          <select name="email_status" defaultValue={connection?.status ?? 'draft'}>
+            <option value="draft">Borrador</option>
+            <option value="connected">Conectado</option>
+            <option value="syncing">Sincronizando</option>
+            <option value="error">Error</option>
+            <option value="revoked">Revocado</option>
+            <option value="disabled">Desactivado</option>
+          </select>
+        </label>
+        <label className="field">
+          Modo de borrador
+          <select name="email_draft_mode" defaultValue={connection?.draft_mode ?? 'provider_drafts'}>
+            <option value="provider_drafts">Crear borradores en el buzón</option>
+            <option value="agora_review">Revisión primero en Àgora</option>
+            <option value="disabled">Sin borradores</option>
+          </select>
+        </label>
+      </div>
+
+      <label className="field">
+        Modo de sincronización
+        <select name="email_sync_mode" defaultValue={connection?.sync_mode ?? 'polling'}>
+          <option value="polling">Polling incremental</option>
+          <option value="webhook">Webhook provider</option>
+          <option value="manual">Manual</option>
+        </select>
+      </label>
+
+      {connection?.error_message ? (
+        <p className="notice notice-error">{connection.error_message}</p>
+      ) : null}
+    </>
+  )
+}
+
+function HiddenEmailOperationsFields({ connection }: { connection: EmailConnection | null }) {
+  return (
+    <>
+      <input type="hidden" name="email_mailbox_email" value={connection?.mailbox_email ?? ''} />
+      <input type="hidden" name="email_provider" value={connection?.provider ?? 'google'} />
+      <input type="hidden" name="email_status" value="disabled" />
+      <input type="hidden" name="email_draft_mode" value={connection?.draft_mode ?? 'provider_drafts'} />
+      <input type="hidden" name="email_sync_mode" value={connection?.sync_mode ?? 'polling'} />
     </>
   )
 }

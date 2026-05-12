@@ -98,6 +98,11 @@ const updateTenantSchema = createTenantSchema.extend({
   voicePublicPhoneNumber: z.string().trim().max(20).optional(),
   voiceForwardingNotes: z.string().trim().max(2000).optional(),
   voiceOperationalStatus: z.enum(['draft', 'provisioning', 'active', 'paused', 'error']),
+  emailMailboxEmail: z.string().trim().email('El buzón de email no es válido.').optional().or(z.literal('')),
+  emailProvider: z.enum(['google', 'microsoft', 'imap', 'forwarding']),
+  emailStatus: z.enum(['draft', 'connected', 'syncing', 'error', 'revoked', 'disabled']),
+  emailDraftMode: z.enum(['provider_drafts', 'agora_review', 'disabled']),
+  emailSyncMode: z.enum(['polling', 'webhook', 'manual']),
 })
 
 function slugify(value: string) {
@@ -223,6 +228,14 @@ async function createVenueForAccount(
   await Promise.all([
     syncCurrentSubscription(admin, tenant.id, input.plan),
     syncModuleEntitlements(admin, tenant.id, selectedModules),
+    syncEmailConnection(admin, tenant.id, {
+      enabled: selectedModules.has('email'),
+      mailboxEmail: input.fallbackEmail,
+      provider: 'google',
+      status: 'draft',
+      draftMode: 'provider_drafts',
+      syncMode: 'polling',
+    }),
   ])
 
   return { ok: true as const, message: 'Venue creada correctamente.', tenantId: tenant.id }
@@ -457,6 +470,11 @@ export async function updateTenantAction(
     voicePublicPhoneNumber: String(formData.get('voice_public_phone_number') ?? '').trim() || undefined,
     voiceForwardingNotes: String(formData.get('voice_forwarding_notes') ?? '').trim() || undefined,
     voiceOperationalStatus: formData.get('voice_operational_status') || 'draft',
+    emailMailboxEmail: formData.get('email_mailbox_email') || '',
+    emailProvider: formData.get('email_provider') || 'google',
+    emailStatus: formData.get('email_status') || 'draft',
+    emailDraftMode: formData.get('email_draft_mode') || 'provider_drafts',
+    emailSyncMode: formData.get('email_sync_mode') || 'polling',
     modules,
   })
 
@@ -542,6 +560,14 @@ export async function updateTenantAction(
   await Promise.all([
     syncCurrentSubscription(admin, data.tenantId, data.plan),
     syncModuleEntitlements(admin, data.tenantId, selectedModules),
+    syncEmailConnection(admin, data.tenantId, {
+      enabled: selectedModules.has('email'),
+      mailboxEmail: data.emailMailboxEmail,
+      provider: data.emailProvider,
+      status: data.emailStatus,
+      draftMode: data.emailDraftMode,
+      syncMode: data.emailSyncMode,
+    }),
   ])
 
   revalidatePath('/backstage')
@@ -566,6 +592,68 @@ async function syncModuleEntitlements(
   await admin
     .from('tenant_module_entitlements')
     .upsert(rows, { onConflict: 'theatre_id,module_key' })
+}
+
+async function syncEmailConnection(
+  admin: ReturnType<typeof createAdminClient>,
+  tenantId: string,
+  input: {
+    enabled: boolean
+    mailboxEmail?: string
+    provider: 'google' | 'microsoft' | 'imap' | 'forwarding'
+    status: 'draft' | 'connected' | 'syncing' | 'error' | 'revoked' | 'disabled'
+    draftMode: 'provider_drafts' | 'agora_review' | 'disabled'
+    syncMode: 'polling' | 'webhook' | 'manual'
+  },
+) {
+  const { data: existingConnections } = await admin
+    .from('email_connections')
+    .select('id, mailbox_email')
+    .eq('theatre_id', tenantId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  const existing = existingConnections?.[0] ?? null
+
+  if (!input.enabled) {
+    if (!existing) return
+
+    await admin
+      .from('email_connections')
+      .update({
+        status: 'disabled',
+        error_message: null,
+      })
+      .eq('id', existing.id)
+
+    return
+  }
+
+  const mailboxEmail = input.mailboxEmail?.trim().toLowerCase()
+  if (!mailboxEmail) return
+
+  const payload = {
+    theatre_id: tenantId,
+    mailbox_email: mailboxEmail,
+    provider: input.provider,
+    status: input.status,
+    draft_mode: input.draftMode,
+    sync_mode: input.syncMode,
+    error_message: input.status === 'error' ? 'Revisar conexión OAuth o permisos del buzón.' : null,
+  }
+
+  if (existing) {
+    await admin
+      .from('email_connections')
+      .update(payload)
+      .eq('id', existing.id)
+
+    return
+  }
+
+  await admin
+    .from('email_connections')
+    .insert(payload)
 }
 
 function getDefaultModuleLimits(moduleKey: (typeof moduleKeys)[number]) {

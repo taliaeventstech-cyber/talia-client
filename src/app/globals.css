@@ -1642,6 +1642,86 @@ textarea {
   font-size: 13px;
 }
 
+.email-setup-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.35fr);
+  align-items: center;
+  gap: 18px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--color-ia) 11%, transparent), transparent 52%),
+    var(--color-surface);
+}
+
+.email-setup-hero-ready {
+  border-color: color-mix(in srgb, var(--color-ia) 32%, var(--color-card-border));
+}
+
+.email-setup-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.email-setup-action {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+  text-align: right;
+}
+
+.email-setup-action .button-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.email-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.email-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.email-flow-step {
+  display: grid;
+  align-content: flex-start;
+  gap: 14px;
+  min-height: 160px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 10px;
+  padding: 16px;
+  background: var(--color-surface-2);
+  transition: border-color 180ms ease, transform 180ms ease, background 180ms ease;
+}
+
+.email-flow-step:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-brand) 48%, var(--color-border));
+}
+
+.email-flow-step strong {
+  display: block;
+  color: var(--color-text-primary);
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.email-flow-step p {
+  margin-top: 8px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.email-flow-step-done {
+  border-color: color-mix(in srgb, var(--color-ia) 36%, var(--color-border));
+  background: color-mix(in srgb, var(--color-ia-bg) 52%, var(--color-surface-2));
+}
+
 .card,
 .kpi-card {
   background: var(--color-surface);
@@ -2398,6 +2478,9 @@ textarea {
   .account-summary-strip,
   .access-summary-grid,
   .usage-plan-grid,
+  .email-setup-hero,
+  .email-status-grid,
+  .email-flow-grid,
   .overview-two-column,
   .account-grid,
   .two-column-grid,
@@ -2409,5 +2492,14 @@ textarea {
 
   .guided-panel {
     grid-template-columns: 1fr;
+  }
+
+  .email-setup-copy {
+    display: grid;
+  }
+
+  .email-setup-action {
+    justify-items: start;
+    text-align: left;
   }
 }

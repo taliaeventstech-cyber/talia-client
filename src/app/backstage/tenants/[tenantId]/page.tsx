@@ -12,7 +12,7 @@ interface Props {
 export default async function BackstageClientPage({ params }: Props) {
   const { tenantId } = await params
   const admin = createAdminClient()
-  const [{ data: client }, { data: modules }, subscriptionResult, usageResult] = await Promise.all([
+  const [{ data: client }, { data: modules }, { data: emailConnections }, subscriptionResult, usageResult] = await Promise.all([
     admin
       .from('theatres')
       .select('id, name, slug, entity_type, primary_language, plan, website_url, fallback_email, fallback_phone, voice_phone_number, voice_phone_provider, voice_phone_mode, voice_public_phone_number, voice_forwarding_notes, voice_operational_status')
@@ -22,6 +22,12 @@ export default async function BackstageClientPage({ params }: Props) {
       .from('tenant_modules')
       .select('module_key, status')
       .eq('theatre_id', tenantId),
+    admin
+      .from('email_connections')
+      .select('id, provider, mailbox_email, status, sync_mode, draft_mode, error_message')
+      .eq('theatre_id', tenantId)
+      .order('created_at', { ascending: false })
+      .limit(1),
     getActiveSubscription(admin, tenantId),
     getTenantUsageForPeriod(admin, tenantId),
   ])
@@ -83,7 +89,7 @@ export default async function BackstageClientPage({ params }: Props) {
         </div>
       </section>
 
-      <EditClientForm client={client} modules={modules ?? []} />
+      <EditClientForm client={client} modules={modules ?? []} emailConnection={emailConnections?.[0] ?? null} />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { requireTenantPermission } from '@/lib/auth/tenant-access'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { AlertTriangle, Bot, CheckCircle2, Inbox, Mail, PencilLine } from 'lucide-react'
+import { AlertTriangle, Bot, CheckCircle2, Clock3, Inbox, Mail, PencilLine, Send, ShieldCheck } from 'lucide-react'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -41,6 +41,8 @@ export default async function EmailAgentPage({ params }: Props) {
   const providerDrafts = draftCounts.get('created_in_provider') ?? 0
   const waitingHuman = threadCounts.get('waiting_human') ?? 0
   const activeMailbox = connection?.mailbox_email ?? theatre?.fallback_email ?? 'Sin buzón conectado'
+  const isConnected = connection?.status === 'connected' || connection?.status === 'syncing'
+  const isError = connection?.status === 'error'
 
   return (
     <main className="page-shell">
@@ -50,35 +52,46 @@ export default async function EmailAgentPage({ params }: Props) {
           <h1>{theatre?.name ?? 'Email'}</h1>
           <p className="muted">Borradores supervisados desde el buzón real del cliente.</p>
         </div>
-        <span className={`status-pill ${connection?.status === 'connected' ? 'status-pill-active' : 'status-pill-soon'}`}>
+        <span className={`status-pill ${getConnectionStatusClass(connection?.status)}`}>
           {formatConnectionStatus(connection?.status)}
         </span>
       </header>
 
-      <section className="card stack">
-        <div className="section-title-row">
+      <section className={`card email-setup-hero ${isConnected ? 'email-setup-hero-ready' : ''}`}>
+        <div className="email-setup-copy">
+          <span className="detail-icon">
+            <Mail size={17} strokeWidth={2} aria-hidden="true" />
+          </span>
           <div>
-            <p className="eyebrow">Conexión</p>
-            <h2>Buzón conectado</h2>
+            <p className="eyebrow">Conexión del buzón</p>
+            <h2>{isConnected ? 'Buzón listo para trabajar con borradores' : 'Conecta el buzón del equipo de atención'}</h2>
             <p className="muted">
-              La primera versión trabajará en modo Gmail/Google Workspace: TALIA crea borradores reales y el equipo los envía desde su buzón.
+              TALIA leerá los emails autorizados, generará respuestas con la base de conocimiento y las dejará como borradores para revisión humana.
             </p>
           </div>
-          <Mail className="section-icon" size={20} strokeWidth={2} aria-hidden="true" />
         </div>
 
-        <div className="overview-grid">
-          <DetailCard label="Buzón" value={activeMailbox} />
-          <DetailCard label="Proveedor" value={formatProvider(connection?.provider)} />
-          <DetailCard label="Modo de borrador" value={formatDraftMode(connection?.draft_mode)} />
-          <DetailCard label="Sincronización" value={formatSync(connection?.sync_mode, connection?.last_synced_at)} />
-        </div>
-
-        {connection?.error_message ? (
-          <p className="notice notice-error">
-            {connection.error_message}
+        <div className="email-setup-action">
+          <button className="button-primary" type="button" disabled>
+            {isConnected ? 'Reconectar buzón' : 'Conectar Gmail'}
+          </button>
+          <p className="muted">
+            OAuth de Google pendiente de activar. La conexión operativa se prepara desde Backstage.
           </p>
-        ) : null}
+        </div>
+      </section>
+
+      {isError || connection?.error_message ? (
+        <p className="notice notice-error">
+          {connection?.error_message ?? 'Hay un error en la conexión del buzón. Revisa permisos o credenciales.'}
+        </p>
+      ) : null}
+
+      <section className="email-status-grid">
+        <DetailCard label="Buzón" value={activeMailbox} />
+        <DetailCard label="Proveedor" value={formatProvider(connection?.provider)} />
+        <DetailCard label="Modo de borrador" value={formatDraftMode(connection?.draft_mode)} />
+        <DetailCard label="Sincronización" value={formatSync(connection?.sync_mode, connection?.last_synced_at)} />
       </section>
 
       <section className="overview-grid">
@@ -91,17 +104,48 @@ export default async function EmailAgentPage({ params }: Props) {
       <section className="card stack">
         <div className="section-title-row">
           <div>
-            <p className="eyebrow">Roadmap MVP</p>
-            <h2>Modo mailbox-first</h2>
+            <p className="eyebrow">Funcionamiento</p>
+            <h2>Borradores supervisados</h2>
+            <p className="muted">El agente de email está diseñado para trabajar dentro del buzón real del cliente.</p>
           </div>
           <Bot className="section-icon" size={20} strokeWidth={2} aria-hidden="true" />
         </div>
+        <div className="email-flow-grid">
+          <FlowStep
+            icon={<Inbox size={17} />}
+            title="1. Entra un email"
+            description="TALIA detecta nuevas consultas del buzón conectado."
+            done={Boolean(connection)}
+          />
+          <FlowStep
+            icon={<PencilLine size={17} />}
+            title="2. TALIA prepara respuesta"
+            description="Usa FAQs, fuentes y reglas de la venue para generar un borrador."
+            done={Boolean(connection) && generatedDrafts + providerDrafts > 0}
+          />
+          <FlowStep
+            icon={<Send size={17} />}
+            title="3. El equipo envía"
+            description="El humano revisa y envía desde Gmail/Outlook. TALIA no auto-envía en el MVP."
+            done={threadCounts.get('sent') ? true : false}
+          />
+        </div>
+      </section>
+
+      <section className="card stack">
+        <div className="section-title-row">
+          <div>
+            <p className="eyebrow">Preparación</p>
+            <h2>Checklist técnico</h2>
+          </div>
+          <ShieldCheck className="section-icon" size={20} strokeWidth={2} aria-hidden="true" />
+        </div>
         <div className="checklist">
-          <ChecklistItem done={Boolean(connection)} label="Conectar buzón Gmail/Google Workspace por OAuth" />
-          <ChecklistItem done={false} label="Sincronizar threads nuevos con cursor incremental" />
-          <ChecklistItem done={false} label="Generar borrador con base de conocimiento de la venue" />
-          <ChecklistItem done={false} label="Crear draft real en Gmail dentro del thread original" />
-          <ChecklistItem done={false} label="Registrar uso, tema e historial de revisión" />
+          <ChecklistItem done={Boolean(connection)} label="Configurar buzón desde Backstage" />
+          <ChecklistItem done={isConnected} label="Conectar Gmail/Google Workspace por OAuth" />
+          <ChecklistItem done={Boolean(connection?.last_synced_at)} label="Sincronizar threads nuevos con cursor incremental" />
+          <ChecklistItem done={generatedDrafts + providerDrafts > 0} label="Crear primer borrador real en el buzón" />
+          <ChecklistItem done={threadCounts.get('resolved') ? true : false} label="Registrar resolución y tema de la conversación" />
         </div>
       </section>
 
@@ -137,9 +181,15 @@ export default async function EmailAgentPage({ params }: Props) {
             </tbody>
           </table>
         ) : (
-          <p className="muted">
-            Aún no hay emails sincronizados. El siguiente paso técnico es conectar OAuth de Gmail y crear el primer sync polling.
-          </p>
+          <div className="empty-state">
+            <Clock3 size={18} aria-hidden="true" />
+            <div>
+              <strong>Aún no hay emails sincronizados</strong>
+              <p className="muted">
+                Cuando se active OAuth, aquí aparecerán los últimos hilos procesados y sus borradores asociados.
+              </p>
+            </div>
+          </div>
         )}
       </section>
     </main>
@@ -151,6 +201,13 @@ function countByStatus(items: { status: string }[]) {
     map.set(item.status, (map.get(item.status) ?? 0) + 1)
     return map
   }, new Map<string, number>())
+}
+
+function getConnectionStatusClass(status?: string) {
+  if (status === 'connected' || status === 'syncing') return 'status-pill-active'
+  if (status === 'error' || status === 'revoked') return 'status-pill-danger'
+  if (status === 'disabled') return 'status-pill-muted'
+  return 'status-pill-soon'
 }
 
 function formatConnectionStatus(status?: string) {
@@ -224,6 +281,28 @@ function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: stri
       <div>
         <p className="kpi-label">{label}</p>
         <strong className="kpi-value">{value}</strong>
+      </div>
+    </div>
+  )
+}
+
+function FlowStep({
+  icon,
+  title,
+  description,
+  done,
+}: {
+  icon: React.ReactNode
+  title: string
+  description: string
+  done: boolean
+}) {
+  return (
+    <div className={`email-flow-step ${done ? 'email-flow-step-done' : ''}`}>
+      <span className="detail-icon" aria-hidden="true">{icon}</span>
+      <div>
+        <strong>{title}</strong>
+        <p>{description}</p>
       </div>
     </div>
   )
