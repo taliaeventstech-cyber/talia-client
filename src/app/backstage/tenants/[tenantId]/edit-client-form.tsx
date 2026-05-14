@@ -36,6 +36,7 @@ type EmailConnection = {
   sync_mode: string
   draft_mode: string
   error_message: string | null
+  metadata: unknown
 }
 
 const editableModules = [
@@ -329,6 +330,8 @@ function HiddenVoiceOperationsFields({ client }: { client: Client }) {
 }
 
 function EmailOperationsFields({ client, connection }: { client: Client; connection: EmailConnection | null }) {
+  const metadata = getEmailMetadata(connection?.metadata)
+
   return (
     <>
       <div className="form-row">
@@ -384,6 +387,93 @@ function EmailOperationsFields({ client, connection }: { client: Client; connect
         </select>
       </label>
 
+      <div className="form-row">
+        <label className="field">
+          Ventana de lectura
+          <select name="email_sync_window_days" defaultValue={String(metadata.syncWindowDays)}>
+            <option value="1">Últimas 24 horas</option>
+            <option value="7">Últimos 7 días</option>
+            <option value="14">Últimos 14 días</option>
+            <option value="30">Últimos 30 días</option>
+          </select>
+        </label>
+        <label className="field">
+          Frecuencia automática
+          <select name="email_sync_frequency_minutes" defaultValue={String(metadata.syncFrequencyMinutes)}>
+            <option value="15">Cada 15 minutos</option>
+            <option value="30">Cada 30 minutos</option>
+            <option value="60">Cada hora</option>
+            <option value="240">Cada 4 horas</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="form-row">
+        <label className="field">
+          Límite por sincronización
+          <select name="email_sync_limit" defaultValue={String(metadata.syncLimit)}>
+            <option value="10">10 emails</option>
+            <option value="25">25 emails</option>
+            <option value="50">50 emails</option>
+          </select>
+        </label>
+      </div>
+
+      <label className="checkbox-row">
+        <input
+          type="checkbox"
+          value="on"
+          name="email_auto_process_after_sync"
+          defaultChecked={metadata.autoProcessAfterSync}
+        />
+        Procesar automáticamente después de sincronizar
+      </label>
+
+      <label className="checkbox-row">
+        <input
+          type="checkbox"
+          value="on"
+          name="email_exclude_automated"
+          defaultChecked={metadata.excludeAutomated}
+        />
+        Ignorar newsletters, rebotes y respuestas automáticas
+      </label>
+
+      <div className="form-row">
+        <label className="field">
+          Remitentes bloqueados
+          <textarea
+            name="email_blocked_senders"
+            defaultValue={metadata.blockedSenders.join('\n')}
+            rows={3}
+            placeholder="newsletter@proveedor.com&#10;marketing@dominio.com"
+          />
+          <span className="field-hint">Uno por línea. También puedes usar dominios en el campo siguiente.</span>
+        </label>
+        <label className="field">
+          Dominios bloqueados
+          <textarea
+            name="email_blocked_domains"
+            defaultValue={metadata.blockedDomains.join('\n')}
+            rows={3}
+            placeholder="proveedor.com&#10;mailchimp.com"
+          />
+          <span className="field-hint">Uno por línea, sin @. Se ignorarán antes de llamar al agente.</span>
+        </label>
+      </div>
+
+      <label className="field">
+        Query Gmail avanzada
+        <input
+          name="email_gmail_sync_query"
+          defaultValue={metadata.gmailSyncQuery}
+          placeholder="in:inbox newer_than:14d"
+        />
+        <span className="field-hint">
+          Solo Backstage. Si se deja vacío, TALIA genera una query segura con la ventana seleccionada.
+        </span>
+      </label>
+
       {connection?.error_message ? (
         <p className="notice notice-error">{connection.error_message}</p>
       ) : null}
@@ -399,8 +489,46 @@ function HiddenEmailOperationsFields({ connection }: { connection: EmailConnecti
       <input type="hidden" name="email_status" value="disabled" />
       <input type="hidden" name="email_draft_mode" value={connection?.draft_mode ?? 'provider_drafts'} />
       <input type="hidden" name="email_sync_mode" value={connection?.sync_mode ?? 'polling'} />
+      <input type="hidden" name="email_sync_window_days" value="14" />
+      <input type="hidden" name="email_sync_frequency_minutes" value="15" />
+      <input type="hidden" name="email_sync_limit" value="10" />
+      <input type="hidden" name="email_gmail_sync_query" value="" />
+      <input type="hidden" name="email_blocked_senders" value="" />
+      <input type="hidden" name="email_blocked_domains" value="" />
     </>
   )
+}
+
+function getEmailMetadata(value: unknown) {
+  const record = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
+  const syncWindowDays = typeof record.gmail_sync_window_days === 'number'
+    ? record.gmail_sync_window_days
+    : 14
+  const syncLimit = typeof record.gmail_sync_limit === 'number'
+    ? record.gmail_sync_limit
+    : 10
+  const syncFrequencyMinutes = typeof record.sync_frequency_minutes === 'number'
+    ? record.sync_frequency_minutes
+    : 15
+
+  return {
+    syncWindowDays: [1, 7, 14, 30].includes(syncWindowDays) ? syncWindowDays : 14,
+    syncLimit: [10, 25, 50].includes(syncLimit) ? syncLimit : 10,
+    syncFrequencyMinutes: [15, 30, 60, 240].includes(syncFrequencyMinutes) ? syncFrequencyMinutes : 15,
+    autoProcessAfterSync: record.auto_process_after_sync === true,
+    excludeAutomated: record.exclude_automated !== false,
+    blockedSenders: getStringList(record.blocked_senders),
+    blockedDomains: getStringList(record.blocked_domains),
+    gmailSyncQuery: typeof record.gmail_sync_query === 'string' ? record.gmail_sync_query : '',
+  }
+}
+
+function getStringList(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : []
 }
 
 function normalizePlan(plan: string) {

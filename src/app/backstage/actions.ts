@@ -4,6 +4,7 @@ import { requirePlatformAdmin } from '@/lib/platform/auth'
 import { createSignupInvite } from '@/lib/platform/invites'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getActiveSubscription } from '@/lib/usage/service'
+import type { Json } from '@/types/database.types'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
@@ -103,6 +104,20 @@ const updateTenantSchema = createTenantSchema.extend({
   emailStatus: z.enum(['draft', 'connected', 'syncing', 'error', 'revoked', 'disabled']),
   emailDraftMode: z.enum(['provider_drafts', 'agora_review', 'disabled']),
   emailSyncMode: z.enum(['polling', 'webhook', 'manual']),
+  emailSyncWindowDays: z.coerce.number().int().refine((value) => [1, 7, 14, 30].includes(value), {
+    message: 'La ventana de lectura de email no es válida.',
+  }),
+  emailSyncFrequencyMinutes: z.coerce.number().int().refine((value) => [15, 30, 60, 240].includes(value), {
+    message: 'La frecuencia automática de email no es válida.',
+  }),
+  emailSyncLimit: z.coerce.number().int().refine((value) => [10, 25, 50].includes(value), {
+    message: 'El límite de sincronización de email no es válido.',
+  }),
+  emailAutoProcessAfterSync: z.boolean().default(false),
+  emailExcludeAutomated: z.boolean().default(true),
+  emailBlockedSenders: z.string().trim().max(2000).optional(),
+  emailBlockedDomains: z.string().trim().max(2000).optional(),
+  emailGmailSyncQuery: z.string().trim().max(240, 'La query avanzada de Gmail es demasiado larga.').optional(),
 })
 
 function slugify(value: string) {
@@ -475,6 +490,14 @@ export async function updateTenantAction(
     emailStatus: formData.get('email_status') || 'draft',
     emailDraftMode: formData.get('email_draft_mode') || 'provider_drafts',
     emailSyncMode: formData.get('email_sync_mode') || 'polling',
+    emailSyncWindowDays: formData.get('email_sync_window_days') || '14',
+    emailSyncFrequencyMinutes: formData.get('email_sync_frequency_minutes') || '15',
+    emailSyncLimit: formData.get('email_sync_limit') || '10',
+    emailAutoProcessAfterSync: formData.get('email_auto_process_after_sync') === 'on',
+    emailExcludeAutomated: formData.get('email_exclude_automated') === 'on',
+    emailBlockedSenders: formData.get('email_blocked_senders') || '',
+    emailBlockedDomains: formData.get('email_blocked_domains') || '',
+    emailGmailSyncQuery: formData.get('email_gmail_sync_query') || '',
     modules,
   })
 
@@ -567,6 +590,14 @@ export async function updateTenantAction(
       status: data.emailStatus,
       draftMode: data.emailDraftMode,
       syncMode: data.emailSyncMode,
+      syncWindowDays: data.emailSyncWindowDays,
+      syncFrequencyMinutes: data.emailSyncFrequencyMinutes,
+      syncLimit: data.emailSyncLimit,
+      autoProcessAfterSync: data.emailAutoProcessAfterSync,
+      excludeAutomated: data.emailExcludeAutomated,
+      blockedSenders: parseEmailRuleList(data.emailBlockedSenders),
+      blockedDomains: parseEmailRuleList(data.emailBlockedDomains),
+      gmailSyncQuery: data.emailGmailSyncQuery,
     }),
   ])
 
@@ -604,11 +635,19 @@ async function syncEmailConnection(
     status: 'draft' | 'connected' | 'syncing' | 'error' | 'revoked' | 'disabled'
     draftMode: 'provider_drafts' | 'agora_review' | 'disabled'
     syncMode: 'polling' | 'webhook' | 'manual'
+    syncWindowDays?: number
+    syncFrequencyMinutes?: number
+    syncLimit?: number
+    autoProcessAfterSync?: boolean
+    excludeAutomated?: boolean
+    blockedSenders?: string[]
+    blockedDomains?: string[]
+    gmailSyncQuery?: string
   },
 ) {
   const { data: existingConnections } = await admin
     .from('email_connections')
-    .select('id, mailbox_email')
+    .select('id, mailbox_email, metadata')
     .eq('theatre_id', tenantId)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -631,6 +670,7 @@ async function syncEmailConnection(
 
   const mailboxEmail = input.mailboxEmail?.trim().toLowerCase()
   if (!mailboxEmail) return
+  const metadata = buildEmailConnectionMetadata(existing?.metadata, input)
 
   const payload = {
     theatre_id: tenantId,
@@ -640,6 +680,7 @@ async function syncEmailConnection(
     draft_mode: input.draftMode,
     sync_mode: input.syncMode,
     error_message: input.status === 'error' ? 'Revisar conexión OAuth o permisos del buzón.' : null,
+    metadata,
   }
 
   if (existing) {
@@ -654,6 +695,56 @@ async function syncEmailConnection(
   await admin
     .from('email_connections')
     .insert(payload)
+}
+
+function buildEmailConnectionMetadata(
+  current: Json | undefined,
+  input: {
+    syncWindowDays?: number
+    syncFrequencyMinutes?: number
+    syncLimit?: number
+    autoProcessAfterSync?: boolean
+    excludeAutomated?: boolean
+    blockedSenders?: string[]
+    blockedDomains?: string[]
+    gmailSyncQuery?: string
+  },
+) {
+  const currentRecord = current && typeof current === 'object' && !Array.isArray(current)
+    ? current as Record<string, Json | undefined>
+    : {}
+  const syncWindowDays = input.syncWindowDays && [1, 7, 14, 30].includes(input.syncWindowDays)
+    ? input.syncWindowDays
+    : 14
+  const syncLimit = input.syncLimit && [10, 25, 50].includes(input.syncLimit)
+    ? input.syncLimit
+    : 10
+  const syncFrequencyMinutes = input.syncFrequencyMinutes && [15, 30, 60, 240].includes(input.syncFrequencyMinutes)
+    ? input.syncFrequencyMinutes
+    : 15
+  const advancedQuery = input.gmailSyncQuery?.trim()
+
+  return {
+    ...currentRecord,
+    gmail_sync_window_days: syncWindowDays,
+    sync_frequency_minutes: syncFrequencyMinutes,
+    gmail_sync_limit: syncLimit,
+    auto_process_after_sync: input.autoProcessAfterSync === true,
+    exclude_automated: input.excludeAutomated !== false,
+    blocked_senders: input.blockedSenders ?? [],
+    blocked_domains: input.blockedDomains ?? [],
+    gmail_sync_query: advancedQuery || null,
+  } satisfies Json
+}
+
+function parseEmailRuleList(value: string | undefined) {
+  if (!value) return []
+
+  return value
+    .split(/[\n,;]/)
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean)
+    .slice(0, 50)
 }
 
 function getDefaultModuleLimits(moduleKey: (typeof moduleKeys)[number]) {

@@ -76,6 +76,8 @@ Gmail / Outlook
 
 No hay auto-send.
 
+El procesamiento manual en Àgora es explícito: el usuario selecciona uno o varios threads y pulsa `Procesar seleccionados`. La acción `Borrar seleccionados` elimina los threads locales y sus mensajes/drafts en TALIA, pero no borra emails del buzón Gmail/Outlook.
+
 ### Fase 2 — Outlook/Microsoft 365
 
 Se replica el patrón con Microsoft Graph:
@@ -126,6 +128,7 @@ El cliente ve:
 El cliente ve:
 
 - estado de conexión,
+- threads sincronizados con selección manual,
 - emails procesados,
 - drafts generados,
 - pendientes de revisión,
@@ -143,10 +146,42 @@ TALIA gestiona:
 - scopes,
 - estado OAuth,
 - modo de sincronización,
+- frecuencia automática,
 - modo de draft,
+- reglas de exclusión,
 - límites del plan,
 - errores,
 - soporte y desconexión.
+
+---
+
+## Automatización MVP
+
+En Vercel Hobby no usamos Vercel Cron para email porque los schedules frecuentes no son viables. El scheduler recomendado es n8n.
+
+Workflow importable:
+
+```txt
+n8n-workflows/TALIA-Email-Sync-Cron-Workflow.json
+```
+
+Flujo:
+
+```txt
+Schedule Trigger cada 15 min
+  -> GET https://<TALIA_BASE_URL>/api/cron/email/sync
+     Authorization: Bearer <CRON_SECRET>
+```
+
+Variables/credenciales:
+
+- En TALIA/Vercel: `CRON_SECRET`.
+- En n8n: `TALIA_BASE_URL`.
+- En n8n: credencial HTTP Header Auth:
+  - Header name: `Authorization`.
+  - Header value: `Bearer <CRON_SECRET>`.
+
+El endpoint revisa conexiones Gmail activas con `sync_mode = polling`. Cada venue decide si toca sincronizar según `email_connections.metadata.sync_frequency_minutes`.
 
 ---
 

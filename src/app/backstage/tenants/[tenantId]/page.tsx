@@ -24,7 +24,7 @@ export default async function BackstageClientPage({ params }: Props) {
       .eq('theatre_id', tenantId),
     admin
       .from('email_connections')
-      .select('id, provider, mailbox_email, status, sync_mode, draft_mode, error_message')
+      .select('id, provider, mailbox_email, status, sync_mode, draft_mode, error_message, metadata')
       .eq('theatre_id', tenantId)
       .order('created_at', { ascending: false })
       .limit(1),

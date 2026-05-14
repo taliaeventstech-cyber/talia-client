@@ -1,0 +1,155 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=https://iodize-reappoint-parsnip.ngrok-free.dev/api/internal/tenants/{{ $json.body?.tenant_id || $json.tenant_id }}/email-config",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "88fa4101-4e14-408b-8fd8-bff728b538c3",
+      "name": "Fetch TALIA email config",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        208,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "O7x8K5saTet68LSX",
+          "name": "talia_header_auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "talia-email-agent-draft",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d1da0578-7256-4e5c-836d-5de203976443",
+      "name": "Email draft request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        0
+      ],
+      "webhookId": "talia-email-agent-draft"
+    },
+    {
+      "parameters": {
+        "jsCode": "const requestBody = $('Email draft request').first().json.body || {};\nconst inboundText = String(requestBody.body_text || requestBody.bodyText || '').toLowerCase();\nconst subjectText = String(requestBody.subject || '').toLowerCase();\nconst fullText = `${subjectText}\\n${inboundText}`;\n\nfunction extractModelText(value) {\n  if (typeof value === 'string') return value;\n\n  if (Array.isArray(value)) {\n    for (const item of value) {\n      const extracted = extractModelText(item);\n      if (extracted) return extracted;\n    }\n    return '';\n  }\n\n  if (!value || typeof value !== 'object') return '';\n\n  if (typeof value.text === 'string') return value.text;\n  if (typeof value.output_text === 'string') return value.output_text;\n  if (typeof value.content === 'string') return value.content;\n\n  if (Array.isArray(value.content)) {\n    return extractModelText(value.content);\n  }\n\n  if (Array.isArray(value.output)) {\n    return extractModelText(value.output);\n  }\n\n  if (value.message) return extractModelText(value.message);\n  if (value.response) return extractModelText(value.response);\n\n  return '';\n}\n\nconst nonActionablePattern = /(newsletter|unsubscribe|no[- ]?reply|noreply|mailer-daemon|delivery status notification|undelivered mail|out of office|fuera de la oficina|resposta autom[aà]tica|respuesta autom[aá]tica)/i;\nconst actionablePattern = /(\\?|\\bhorari|\\bhorarios|\\bhoraire|\\bopening hours|\\bentrad|\\bticket|\\bprecio|\\bpreu|\\bprice|\\bdescompte|\\bdescuento|\\bdiscount|\\bgrupo|\\bgrup|\\bgroup|\\baccessibil|\\bubicaci|\\bdirecci|\\bprogramaci|\\bcartelera|\\bagenda|\\bvisita|\\bcontact|\\bdevoluci|\\brefund|\\bvoldria|\\bqueria|\\bquisiera|\\bcan you|\\bcould you|\\bhi ha|\\bhay|\\bteniu|\\bten[eé]is)/i;\nconst isNonActionable = nonActionablePattern.test(fullText) && !actionablePattern.test(fullText);\nconst isActionable = actionablePattern.test(fullText) || inboundText.trim().length > 20;\n\nconst raw = extractModelText($json) || '';\nlet parsed;\n\ntry {\n  parsed = typeof raw === 'string'\n    ? JSON.parse(raw.replace(/^```json\\s*/i, '').replace(/```$/i, '').trim())\n    : raw;\n} catch (error) {\n  parsed = {\n    should_reply: true,\n    subject: null,\n    body_text: String(raw || '').trim() || 'No he podido generar una respuesta fiable. Por favor, revisa este email manualmente.',\n    body_html: null,\n    topic: 'otro',\n    priority: 'normal',\n    confidence: 0,\n    escalation_reason: 'invalid_model_json'\n  };\n}\n\nlet shouldReply = Boolean(parsed.should_reply || parsed.shouldReply);\nif (isActionable && !isNonActionable) shouldReply = true;\nif (isNonActionable) shouldReply = false;\n\nconst topic = parsed.topic || parsed.category || (fullText.match(/horari|horarios/) ? 'horarios' : 'otro');\nconst fallbackBody = 'Hola, gracias por contactar. Hemos recibido tu consulta y te dejamos este borrador para revisión del equipo de atención. Si necesitas una respuesta más precisa, revisa la información del cliente antes de enviar.';\n\nreturn [{\n  json: {\n    should_reply: shouldReply,\n    subject: parsed.subject || (requestBody.subject ? `Re: ${requestBody.subject}` : null),\n    body_text: parsed.body_text || parsed.bodyText || (shouldReply ? fallbackBody : null),\n    body_html: parsed.body_html || parsed.bodyHtml || null,\n    topic,\n    priority: ['low', 'normal', 'high', 'urgent'].includes(parsed.priority) ? parsed.priority : 'normal',\n    confidence: typeof parsed.confidence === 'number' ? parsed.confidence : null,\n    escalation_reason: parsed.escalation_reason || parsed.escalationReason || null\n  }\n}];\n"
+      },
+      "id": "ab36a2a4-c741-4f86-890e-e99150b62e2d",
+      "name": "Normalize TALIA response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        736,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "df642440-1632-4498-95c5-9bbdcfdfe612",
+      "name": "Return draft to TALIA",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1008,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Eres TALIA, un agente de atención por email para organizaciones culturales.\n\nOBJETIVO\nGenerar un borrador de respuesta para que un humano lo revise y lo envíe desde su buzón. Nunca digas que has comprado, reservado, modificado o cancelado nada. Si la petición requiere acción humana, deriva claramente.\n\nREGLA DE DECISIÓN CRÍTICA\n- Si el email contiene una pregunta, una duda o una petición de información, should_reply SIEMPRE debe ser true.\n- Si pregunta por horarios, entradas, precios, descuentos, grupos, accesibilidad, ubicación, programación, visitas, contacto o devoluciones, should_reply SIEMPRE debe ser true.\n- Si no puedes responder con certeza, should_reply sigue siendo true y el body_text debe derivar al contacto humano.\n- should_reply solo puede ser false si el email es claramente spam, newsletter, notificación automática, confirmación sin pregunta, rebote de correo o mensaje sin ninguna petición.\n\nREGLAS DE REDACCIÓN\n- Responde en el mismo idioma del email entrante.\n- No inventes precios, horarios, disponibilidad, políticas ni datos no presentes en el contexto.\n- Si falta información, escribe un borrador útil derivando al email/teléfono de contacto.\n- Devuelve SOLO JSON válido, sin markdown.\n\nEJEMPLOS\nEmail: \"Hola, voldria saber quins horaris teniu aquest cap de setmana i si hi ha descomptes per a grups.\"\nRespuesta: should_reply true, topic \"horarios\", priority \"normal\".\n\nEmail: \"Newsletter mensual de proveedor externo\"\nRespuesta: should_reply false.\n\nPAYLOAD EMAIL\n{{ JSON.stringify($('Email draft request').item.json.body) }}\n\nCONFIG TALIA\n{{ JSON.stringify($json) }}\n\nFORMATO DE RESPUESTA OBLIGATORIO\n{\n  \"should_reply\": true,\n  \"subject\": \"Re: asunto\",\n  \"body_text\": \"texto del borrador\",\n  \"body_html\": null,\n  \"topic\": \"entradas|horarios|ubicacion|accesibilidad|programacion|grupos|devoluciones|otro\",\n  \"priority\": \"low|normal|high|urgent\",\n  \"confidence\": 0.0,\n  \"escalation_reason\": null\n}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "6450be10-d931-4ce8-b9b3-9c7b5642cc37",
+      "name": "Generate draft JSON",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        448,
+        0
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "LbYtvfKRZXLbUbpe",
+          "name": "openai-ricardo@fourdevs.dev-taliapikey"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Fetch TALIA email config": {
+      "main": [
+        [
+          {
+            "node": "Generate draft JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email draft request": {
+      "main": [
+        [
+          {
+            "node": "Fetch TALIA email config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize TALIA response": {
+      "main": [
+        [
+          {
+            "node": "Return draft to TALIA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate draft JSON": {
+      "main": [
+        [
+          {
+            "node": "Normalize TALIA response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c3b165db06fe9db9635cf66ae191c40cdbb240739dcc05ec43d12b100dc1d13b"
+  }
+}

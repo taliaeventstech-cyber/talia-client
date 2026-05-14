@@ -16,12 +16,106 @@ TALIA no envía emails automáticamente al principio. Genera borradores, los dej
 
 1. Cliente conecta buzón desde Àgora o TALIA lo configura desde Backstage.
 2. TALIA lee emails entrantes autorizados.
-3. TALIA detecta si debe responder.
-4. TALIA consulta knowledge base de la venue.
-5. TALIA genera respuesta.
-6. TALIA crea borrador en Gmail/Outlook.
-7. Humano revisa y envía desde su buzón.
-8. TALIA registra estado, tema, intención y uso.
+3. TALIA aplica reglas locales de elegibilidad para ignorar newsletters, rebotes, no-reply o remitentes bloqueados sin llamar al agente.
+4. TALIA llama al workflow/agente IA para clasificar los casos candidatos y generar respuesta si aplica.
+5. TALIA consulta knowledge base de la venue.
+6. TALIA genera respuesta.
+7. TALIA crea borrador en Gmail/Outlook.
+8. Humano revisa y envía desde su buzón.
+9. TALIA registra estado, tema, intención, razón de clasificación y uso.
+
+## Workflow Técnico MVP
+
+La API de TALIA mantiene el contrato estable. n8n solo actúa como adapter temporal para clasificación/generación.
+
+```txt
+Gmail / Workspace
+  -> TALIA sync guarda email_threads + email_messages
+  -> POST /api/internal/email/process
+  -> EmailAgentProvider
+  -> N8nEmailAgentProvider ahora
+  -> TaliaEmailAgentProvider futuro
+  -> email_drafts + Gmail draft + usage_events
+```
+
+Reglas:
+
+- El navegador y el cliente nunca llaman directamente a n8n.
+- n8n no escribe directamente en Supabase.
+- n8n no crea borradores directamente en Gmail.
+- TALIA persiste threads, mensajes, drafts y uso.
+- TALIA crea el borrador real en Gmail/Outlook cuando `draft_mode = provider_drafts`.
+- El provider debe devolver un contrato simple: `shouldReply`, `subject`, `bodyText/bodyHtml`, `topic`, `priority`, `confidence`.
+- El workflow puede devolver también `should_process` y `classification_reason`; si `should_process` es `false`, TALIA lo interpreta como `shouldReply = false`.
+
+Payload TALIA -> n8n:
+
+```json
+{
+  "agent_type": "email",
+  "tenant_id": "uuid",
+  "connection_id": "uuid",
+  "thread_id": "uuid",
+  "message_id": "uuid",
+  "mailbox_email": "info@cliente.com",
+  "subject": "Consulta sobre entradas",
+  "sender_email": "persona@example.com",
+  "sender_name": "Persona",
+  "body_text": "Hola, queria saber horarios...",
+  "fallback_email": "info@cliente.com",
+  "fallback_phone": "933000000",
+  "relevant_knowledge": []
+}
+```
+
+Respuesta n8n -> TALIA:
+
+```json
+{
+  "should_process": true,
+  "should_reply": true,
+  "classification_reason": "visitor_question",
+  "subject": "Re: Consulta sobre entradas",
+  "body_text": "Hola...",
+  "body_html": "<p>Hola...</p>",
+  "topic": "entradas",
+  "priority": "normal",
+  "confidence": 0.86,
+  "escalation_reason": null
+}
+```
+
+Endpoints internos:
+
+- `GET /api/internal/tenants/:tenantId/email-config`: contexto estable para workflows.
+- `POST /api/internal/email/sync`: sincroniza Gmail por polling y guarda `email_threads` + `email_messages`.
+- `POST /api/internal/email/process`: procesa el último mensaje inbound o uno concreto por `thread_id`/`message_id`.
+
+Resultado esperado:
+
+- Si no debe responder: thread `ignored`.
+- Si se genera solo para revisión interna: draft `generated`.
+- Si se crea en el buzón del cliente: draft `created_in_provider` con `provider_draft_id`.
+- Si falla Gmail/Outlook: draft `error` y detalle en `error_message`.
+
+Env temporal:
+
+- `DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL`: webhook n8n para generación de borradores.
+- `INTERNAL_API_KEY`: protege endpoints internos en producción.
+- `CRON_SECRET`: protege `/api/cron/email/sync` cuando lo invoca un scheduler externo como n8n.
+
+Workflow n8n:
+
+- Blueprint importable: `n8n-workflows/TALIA-Generic-Email-Agent-Draft-Workflow.json`.
+- Blueprint de cron importable: `n8n-workflows/TALIA-Email-Sync-Cron-Workflow.json`.
+- Variables de entorno en n8n:
+  - `TALIA_BASE_URL`, por ejemplo `https://talia-client.vercel.app`;
+  - `TALIA_INTERNAL_API_KEY`, mismo valor que `INTERNAL_API_KEY` en TALIA.
+- Para el workflow de cron, crear una credencial HTTP Header Auth con:
+  - Name: `Authorization`;
+  - Value: `Bearer <CRON_SECRET>`.
+- Al importar, sustituir la credencial OpenAI `REPLACE_WITH_OPENAI_CREDENTIAL_ID`.
+- El webhook público del workflow se guarda en TALIA como `DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL` o en `email_connections.metadata.n8n_email_agent_webhook_url` si se quiere override por venue.
 
 ## Providers
 
@@ -34,6 +128,57 @@ Siguiente:
 - Microsoft Graph para Outlook/Exchange.
 
 Evitar IMAP/SMTP como primera opción salvo necesidad, porque complica permisos, seguridad y trazabilidad.
+
+## OAuth Google
+
+La conexión de Gmail se inicia desde Àgora y vuelve a `/api/email/google/callback`.
+
+Variables necesarias:
+
+- `GOOGLE_CLIENT_ID`;
+- `GOOGLE_CLIENT_SECRET`;
+- `NEXT_PUBLIC_APP_URL`;
+- `EMAIL_TOKEN_ENCRYPTION_KEY`;
+- `EMAIL_OAUTH_STATE_SECRET`.
+
+Scopes MVP:
+
+- `https://www.googleapis.com/auth/gmail.readonly`;
+- `https://www.googleapis.com/auth/gmail.compose`.
+
+`gmail.readonly` permite leer los emails autorizados. `gmail.compose` permite crear borradores sin conceder permisos de envío automático. Los refresh/access tokens se guardan cifrados dentro de `email_connections.oauth_metadata.encrypted_tokens`.
+
+Creación de borradores:
+
+- TALIA renueva el access token con el refresh token cifrado.
+- TALIA llama a Gmail `users.drafts.create`.
+- El borrador queda visible en la carpeta de borradores del buzón conectado.
+- TALIA guarda el `provider_draft_id` para trazar el borrador local con el draft real del proveedor.
+
+Desconexión:
+
+- Àgora permite desconectar Gmail.
+- TALIA intenta revocar el refresh/access token en Google.
+- La conexión queda como `revoked`.
+- Se limpian `oauth_metadata`, `sync_cursor` y `last_synced_at`.
+
+Persistencia operativa:
+
+- La conexión debe funcionar sin usuarios conectados a Àgora.
+- El refresh token cifrado permite renovar access tokens desde workers/server jobs.
+- Si Google revoca permisos o falla el refresh, `email_connections.status` pasa a `error` o `revoked` y se pide reconexión.
+- La sincronización de fin de semana debe ejecutarse desde un worker/cron, no desde el navegador.
+- El MVP usa polling contra Gmail `messages.list` + `messages.get` para importar los últimos mensajes de `in:inbox newer_than:14d`.
+- La ingesta es idempotente por `unique(connection_id, provider_message_id)`, así que el cron puede ejecutarse repetidamente sin duplicar emails.
+- Backstage puede ajustar por conexión:
+  - `gmail_sync_window_days`: 1, 7, 14 o 30;
+  - `sync_frequency_minutes`: 15, 30, 60 o 240;
+  - `gmail_sync_limit`: 10, 25 o 50;
+  - `gmail_sync_query`: query avanzada de Gmail para overrides internos;
+  - `auto_process_after_sync`: encadena procesamiento de emails importados después de sincronizar;
+  - `exclude_automated`: ignora newsletters, rebotes, no-reply y respuestas automáticas antes de llamar al agente;
+  - `blocked_senders` y `blocked_domains`: reglas internas para ignorar emails por remitente.
+- El cron de producción recomendado para Vercel Hobby vive en n8n: schedule cada 15 minutos contra `/api/cron/email/sync`. Cada conexión decide si toca sincronizar según `sync_frequency_minutes`.
 
 ## Modelo de Datos
 

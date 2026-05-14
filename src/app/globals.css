@@ -695,6 +695,21 @@ textarea {
   line-height: 1.45;
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.checkbox-row input {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
 .field-error {
   color: var(--color-error);
   font-size: 12px;
@@ -1644,29 +1659,87 @@ textarea {
 
 .email-setup-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.35fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 18px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--color-ia) 11%, transparent), transparent 52%),
-    var(--color-surface);
+  gap: 24px;
+  padding: 18px;
+  background: var(--color-surface);
 }
 
 .email-setup-hero-ready {
-  border-color: color-mix(in srgb, var(--color-ia) 32%, var(--color-card-border));
+  border-color: color-mix(in srgb, var(--color-ia) 26%, var(--color-card-border));
 }
 
 .email-setup-copy {
   display: flex;
-  align-items: flex-start;
-  gap: 14px;
+  align-items: center;
+  min-width: 0;
+  gap: 12px;
+}
+
+.email-setup-content {
+  min-width: 0;
+}
+
+.email-setup-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.email-setup-content h2 {
+  overflow-wrap: anywhere;
+  margin-top: 6px;
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.email-setup-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.email-setup-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 7px 10px;
 }
 
 .email-setup-action {
-  display: grid;
-  justify-items: end;
-  gap: 10px;
-  text-align: right;
+  min-width: 0;
+}
+
+.email-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: 520px;
+}
+
+.email-action-buttons form {
+  display: contents;
+}
+
+.email-action-buttons .button-primary,
+.email-action-buttons .button-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  gap: 7px;
+  white-space: nowrap;
 }
 
 .email-setup-action .button-primary:disabled {
@@ -1720,6 +1793,114 @@ textarea {
 .email-flow-step-done {
   border-color: color-mix(in srgb, var(--color-ia) 36%, var(--color-border));
   background: color-mix(in srgb, var(--color-ia-bg) 52%, var(--color-surface-2));
+}
+
+.email-draft-list {
+  display: grid;
+  gap: 10px;
+}
+
+.email-draft-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.34fr);
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-2);
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.email-draft-item:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-brand) 42%, var(--color-border));
+  background: color-mix(in srgb, var(--color-surface-2) 82%, var(--color-ia-bg));
+}
+
+.email-draft-main {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 12px;
+}
+
+.email-draft-main strong {
+  display: block;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 15px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.email-draft-main p {
+  margin-top: 4px;
+}
+
+.email-draft-meta {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+  min-width: 0;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  text-align: right;
+}
+
+.email-draft-meta code {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--color-brand);
+  font-family: var(--font-mono), "JetBrains Mono", monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.email-error-text {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--color-danger);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.email-thread-selection {
+  display: grid;
+  gap: 12px;
+}
+
+.email-thread-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.email-thread-toolbar .button-primary,
+.email-thread-toolbar .button-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.email-thread-table {
+  table-layout: fixed;
+}
+
+.email-thread-table th:nth-child(2),
+.email-thread-table td:nth-child(2) {
+  width: 34%;
+}
+
+.email-select-cell {
+  width: 52px;
+}
+
+.email-select-cell input {
+  width: 16px;
+  height: 16px;
 }
 
 .card,
@@ -2495,11 +2676,15 @@ textarea {
   }
 
   .email-setup-copy {
-    display: grid;
+    display: flex;
+    align-items: flex-start;
   }
 
   .email-setup-action {
-    justify-items: start;
-    text-align: left;
+    width: 100%;
+  }
+
+  .email-action-buttons {
+    justify-content: flex-start;
   }
 }

@@ -1,0 +1,169 @@
+{
+  "name": "TALIA - Email Sync Cron",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "0d97160f-0c43-4b04-a36e-1ee1087fd84d",
+      "name": "Every 15 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ ($env.TALIA_BASE_URL || 'https://REPLACE_WITH_TALIA_DOMAIN').replace(/\\/$/, '') + '/api/cron/email/sync' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "25"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "id": "6fb5d8ce-38d5-4d24-8df7-e041e6faf17f",
+      "name": "Run TALIA email sync",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        256,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_TALIA_CRON_BEARER_CREDENTIAL_ID",
+          "name": "talia_cron_bearer_auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8f50de3c-1660-4e72-87d2-c579b2dd80b1",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 300,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8ccf6425-3909-4fc7-9eef-d997f085439c",
+      "name": "Sync failed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        512,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $('Run TALIA email sync').first().json;\nthrow new Error(`TALIA email sync cron failed with ${response.statusCode}: ${JSON.stringify(response.body)}`);\n"
+      },
+      "id": "fe1f7f0c-6b57-45d3-9b7b-43f96b6fb28e",
+      "name": "Raise sync error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $('Run TALIA email sync').first().json;\nconst body = response.body || {};\nreturn [{\n  json: {\n    ok: true,\n    status_code: response.statusCode,\n    checked: body.checked ?? 0,\n    synced: body.synced ?? 0,\n    failed: body.failed ?? 0,\n    imported: body.imported ?? 0,\n    processed: body.processed ?? 0,\n    ran_at: new Date().toISOString()\n  }\n}];\n"
+      },
+      "id": "5ca18446-86f0-48e0-96c3-8804bcc8d823",
+      "name": "Normalize sync summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        112
+      ]
+    }
+  ],
+  "connections": {
+    "Every 15 minutes": {
+      "main": [
+        [
+          {
+            "node": "Run TALIA email sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run TALIA email sync": {
+      "main": [
+        [
+          {
+            "node": "Sync failed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync failed?": {
+      "main": [
+        [
+          {
+            "node": "Raise sync error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Normalize sync summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
