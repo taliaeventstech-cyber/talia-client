@@ -1,5 +1,6 @@
 'use client'
 
+import { ActionToast } from '@/components/ui/action-toast'
 import { useActionState } from 'react'
 import { updateTenantSettings, type SettingsFormState } from './actions'
 
@@ -43,14 +44,7 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels }: Settin
 
   return (
     <form action={formAction} className="stack">
-      {state.message ? (
-        <p
-          role="status"
-          className={`notice ${state.ok ? 'notice-success' : 'notice-error'}`}
-        >
-          {state.message}
-        </p>
-      ) : null}
+      <ActionToast state={state} />
 
       <section className="card stack">
         <h2>{labels.chatbot}</h2>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Mail, MessageCircle, MessageSquare, Network, SlidersHorizontal, Megaphone } from 'lucide-react'
+import { Inbox, LayoutDashboard, Mail, MessageCircle, MessageSquare, Network, SlidersHorizontal, Megaphone } from 'lucide-react'
 import {
   hasTenantPermission,
   isTenantModuleEnabled,
@@ -17,6 +17,7 @@ type DashboardNavLabels = {
   webChatbot: string
   voiceAgent: string
   emailAgent: string
+  inbox: string
   whatsapp: string
   marketing: string
   campaigns: string
@@ -140,8 +141,8 @@ export function DashboardNav({
                   className={`nav-link nav-link-nested ${active(`/${tenantId}/email`) ? 'nav-link-active' : ''}`}
                   href={`/${tenantId}/email`}
                 >
-                  <Mail size={14} strokeWidth={2} aria-hidden="true" />
-                  {labels.settings}
+                  <Inbox size={14} strokeWidth={2} aria-hidden="true" />
+                  {labels.inbox}
                 </Link>
               </div>
             </div>

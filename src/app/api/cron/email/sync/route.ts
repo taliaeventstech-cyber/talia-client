@@ -31,6 +31,8 @@ export async function GET(request: NextRequest) {
     synced: results.filter((result) => result.ok).length,
     failed: results.filter((result) => !result.ok).length,
     imported: results.reduce((sum, result) => sum + (result.ok ? result.imported : 0), 0),
+    skipped: results.reduce((sum, result) => sum + (result.ok ? result.skipped : 0), 0),
+    inspected: results.reduce((sum, result) => sum + (result.ok ? result.inspected : 0), 0),
     processed: results.reduce((sum, result) => sum + (result.ok ? result.processed : 0), 0),
     results,
   })

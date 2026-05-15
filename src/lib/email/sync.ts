@@ -1,10 +1,6 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/types/database.types'
-import {
-  encryptOAuthTokens,
-  decryptOAuthTokens,
-  refreshGoogleAccessToken,
-} from './google-oauth'
+import { getFreshGoogleAccessToken } from './google-tokens'
 import {
   getGmailMessage,
   listGmailInboxMessages,
@@ -13,6 +9,9 @@ import {
 } from './gmail'
 
 type AdminClient = ReturnType<typeof createAdminClient>
+const GMAIL_LIST_PAGE_SIZE = 50
+const GMAIL_MAX_INSPECTED_PER_SYNC = 500
+const DEFAULT_GMAIL_SYNC_LIMIT = 100
 
 export type SyncGmailInput = {
   tenantId: string
@@ -46,16 +45,25 @@ export async function syncGmailMessages(admin: AdminClient, input: SyncGmailInpu
       id: connection.id,
       oauth_metadata: connection.oauth_metadata,
     })
-    const listed = await listGmailInboxMessages(accessToken, {
-      maxResults: input.maxResults ?? syncConfig.limit,
+    const messageRefs = await listGmailMessagesForSync(accessToken, {
       query: input.query ?? syncConfig.query,
+      maxMessages: input.maxResults ?? syncConfig.limit,
     })
-    const messageRefs = listed.messages ?? []
     const newestMessageId = messageRefs[0]?.id ?? null
+    const existingMessageIds = await getExistingProviderMessageIds(
+      admin,
+      connection.id,
+      messageRefs.map((messageRef) => messageRef.id),
+    )
     let imported = 0
     let skipped = 0
 
     for (const messageRef of messageRefs.reverse()) {
+      if (existingMessageIds.has(messageRef.id)) {
+        skipped += 1
+        continue
+      }
+
       const gmailMessage = await getGmailMessage(accessToken, messageRef.id)
       const parsed = parseGmailMessage(gmailMessage)
 
@@ -102,7 +110,31 @@ export async function syncGmailMessages(admin: AdminClient, input: SyncGmailInpu
   }
 }
 
-function getEmailSyncConfig(metadata: Json) {
+async function listGmailMessagesForSync(
+  accessToken: string,
+  input: { query: string; maxMessages: number },
+) {
+  const messages: Array<{ id: string; threadId?: string }> = []
+  let pageToken: string | undefined
+
+  do {
+    const remaining = Math.min(input.maxMessages, GMAIL_MAX_INSPECTED_PER_SYNC) - messages.length
+    if (remaining <= 0) break
+
+    const listed = await listGmailInboxMessages(accessToken, {
+      maxResults: Math.min(GMAIL_LIST_PAGE_SIZE, remaining),
+      query: input.query,
+      pageToken,
+    })
+
+    messages.push(...(listed.messages ?? []))
+    pageToken = listed.nextPageToken
+  } while (pageToken)
+
+  return messages
+}
+
+export function getEmailSyncConfig(metadata: Json) {
   const record = getJsonRecord(metadata)
   const configuredWindow = typeof record.gmail_sync_window_days === 'number'
     ? record.gmail_sync_window_days
@@ -110,8 +142,10 @@ function getEmailSyncConfig(metadata: Json) {
   const windowDays = [1, 7, 14, 30].includes(configuredWindow) ? configuredWindow : 14
   const configuredLimit = typeof record.gmail_sync_limit === 'number'
     ? record.gmail_sync_limit
-    : 10
-  const limit = [10, 25, 50].includes(configuredLimit) ? configuredLimit : 10
+    : DEFAULT_GMAIL_SYNC_LIMIT
+  const limit = [10, 25, 50, 100, 250, 500].includes(configuredLimit)
+    ? configuredLimit
+    : DEFAULT_GMAIL_SYNC_LIMIT
   const configuredQuery = typeof record.gmail_sync_query === 'string'
     ? record.gmail_sync_query.trim()
     : ''
@@ -121,6 +155,24 @@ function getEmailSyncConfig(metadata: Json) {
     query: configuredQuery || `in:inbox newer_than:${windowDays}d`,
     autoProcessAfterSync: record.auto_process_after_sync === true,
   }
+}
+
+async function getExistingProviderMessageIds(
+  admin: AdminClient,
+  connectionId: string,
+  messageIds: string[],
+) {
+  if (messageIds.length === 0) return new Set<string>()
+
+  const { data, error } = await admin
+    .from('email_messages')
+    .select('provider_message_id')
+    .eq('connection_id', connectionId)
+    .in('provider_message_id', messageIds)
+
+  if (error) throw error
+
+  return new Set((data ?? []).map((message) => message.provider_message_id))
 }
 
 async function persistGmailMessage(
@@ -233,50 +285,6 @@ async function upsertGmailThread(
 
   if (insertError || !createdThread) throw insertError ?? new Error('Failed to create email thread')
   return createdThread
-}
-
-async function getFreshGoogleAccessToken(
-  admin: AdminClient,
-  connection: {
-    id: string
-    oauth_metadata: Json
-  },
-) {
-  const oauthMetadata = getJsonRecord(connection.oauth_metadata)
-  const tokens = decryptOAuthTokens(oauthMetadata.encrypted_tokens)
-
-  if (!tokens.refresh_token) {
-    return tokens.access_token
-  }
-
-  const refreshedTokens = await refreshGoogleAccessToken(tokens.refresh_token)
-  const mergedTokens = {
-    ...tokens,
-    ...refreshedTokens,
-    refresh_token: refreshedTokens.refresh_token ?? tokens.refresh_token,
-  }
-  const expiresAt = refreshedTokens.expires_in
-    ? new Date(Date.now() + refreshedTokens.expires_in * 1000).toISOString()
-    : typeof oauthMetadata.expires_at === 'string'
-      ? oauthMetadata.expires_at
-      : null
-
-  await admin
-    .from('email_connections')
-    .update({
-      oauth_metadata: {
-        ...oauthMetadata,
-        encrypted_tokens: encryptOAuthTokens(mergedTokens),
-        expires_at: expiresAt,
-        token_type: mergedTokens.token_type ?? null,
-        last_refreshed_at: new Date().toISOString(),
-      } satisfies Json,
-      status: 'connected',
-      error_message: null,
-    })
-    .eq('id', connection.id)
-
-  return mergedTokens.access_token
 }
 
 function getJsonRecord(value: Json) {

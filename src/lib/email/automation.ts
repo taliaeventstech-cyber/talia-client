@@ -55,6 +55,8 @@ export async function syncAndMaybeProcessEmail(admin: AdminClient, tenantId: str
 }
 
 export async function listDueEmailSyncTenants(admin: AdminClient, input: { limit?: number } = {}) {
+  const resultLimit = input.limit ?? 25
+  const candidateLimit = Math.min(Math.max(resultLimit * 4, 100), 500)
   const { data, error } = await admin
     .from('email_connections')
     .select('theatre_id, last_synced_at, metadata')
@@ -62,7 +64,7 @@ export async function listDueEmailSyncTenants(admin: AdminClient, input: { limit
     .eq('sync_mode', 'polling')
     .in('status', ['connected', 'syncing'])
     .order('last_synced_at', { ascending: true, nullsFirst: true })
-    .limit(input.limit ?? 25)
+    .limit(candidateLimit)
 
   if (error) {
     return { ok: false as const, error: error.message }
@@ -70,13 +72,20 @@ export async function listDueEmailSyncTenants(admin: AdminClient, input: { limit
 
   const now = Date.now()
   const tenantIds = (data ?? [])
+    .filter((connection) => isCronEnabled(connection.metadata))
     .filter((connection) => isDueForSync(connection.last_synced_at, connection.metadata, now))
     .map((connection) => connection.theatre_id)
+    .slice(0, resultLimit)
 
   return { ok: true as const, tenantIds }
 }
 
-function isDueForSync(lastSyncedAt: string | null, metadata: Json, now: number) {
+export function isCronEnabled(metadata: Json) {
+  const record = getJsonRecord(metadata)
+  return record.cron_enabled !== false
+}
+
+export function isDueForSync(lastSyncedAt: string | null, metadata: Json, now: number) {
   if (!lastSyncedAt) return true
 
   const lastSyncTime = new Date(lastSyncedAt).getTime()
@@ -86,12 +95,16 @@ function isDueForSync(lastSyncedAt: string | null, metadata: Json, now: number) 
 }
 
 function getSyncFrequencyMinutes(metadata: Json) {
-  const record = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
-    ? metadata as Record<string, Json | undefined>
-    : {}
+  const record = getJsonRecord(metadata)
   const value = typeof record.sync_frequency_minutes === 'number'
     ? record.sync_frequency_minutes
     : 15
 
   return [15, 30, 60, 240].includes(value) ? value : 15
+}
+
+function getJsonRecord(value: Json) {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, Json | undefined>
+    : {}
 }

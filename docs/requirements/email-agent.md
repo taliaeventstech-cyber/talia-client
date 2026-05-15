@@ -108,6 +108,11 @@ Workflow n8n:
 
 - Blueprint importable: `n8n-workflows/TALIA-Generic-Email-Agent-Draft-Workflow.json`.
 - Blueprint de cron importable: `n8n-workflows/TALIA-Email-Sync-Cron-Workflow.json`.
+- El workflow de generación usa dos agentes:
+  - `Email classifier agent`: clasifica intención, tema, prioridad, confianza y si debe generarse respuesta.
+  - `Email draft agent`: solo se ejecuta si el clasificador decide `should_process = true` y `should_reply = true`; prepara el borrador para revisión humana.
+- Entre ambos agentes hay una normalización con reglas deterministas para evitar que newsletters, rebotes, no-reply y automatismos acaben generando drafts.
+- Si el clasificador decide que no hay que generar borrador, el workflow devuelve solo metadatos de clasificación y TALIA marca el thread como ignorado/no accionable.
 - Variables de entorno en n8n:
   - `TALIA_BASE_URL`, por ejemplo `https://talia-client.vercel.app`;
   - `TALIA_INTERNAL_API_KEY`, mismo valor que `INTERNAL_API_KEY` en TALIA.
@@ -173,7 +178,8 @@ Persistencia operativa:
 - Backstage puede ajustar por conexión:
   - `gmail_sync_window_days`: 1, 7, 14 o 30;
   - `sync_frequency_minutes`: 15, 30, 60 o 240;
-  - `gmail_sync_limit`: 10, 25 o 50;
+  - `gmail_sync_limit`: 10, 25, 50, 100, 250 o 500;
+  - `cron_enabled`: permite pausar el cron automático por conexión sin desconectar el buzón ni impedir sincronizaciones manuales;
   - `gmail_sync_query`: query avanzada de Gmail para overrides internos;
   - `auto_process_after_sync`: encadena procesamiento de emails importados después de sincronizar;
   - `exclude_automated`: ignora newsletters, rebotes, no-reply y respuestas automáticas antes de llamar al agente;

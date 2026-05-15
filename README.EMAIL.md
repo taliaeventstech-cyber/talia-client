@@ -78,6 +78,11 @@ No hay auto-send.
 
 El procesamiento manual en Àgora es explícito: el usuario selecciona uno o varios threads y pulsa `Procesar seleccionados`. La acción `Borrar seleccionados` elimina los threads locales y sus mensajes/drafts en TALIA, pero no borra emails del buzón Gmail/Outlook.
 
+Los drafts tienen dos acciones:
+
+- `Borrar Àgora`: elimina solo el registro local `email_drafts`.
+- `Borrar Gmail`: elimina el draft real del proveedor y después elimina el registro local. En Gmail usa `users.drafts.delete` con el scope `gmail.compose`.
+
 ### Fase 2 — Outlook/Microsoft 365
 
 Se replica el patrón con Microsoft Graph:
@@ -181,7 +186,9 @@ Variables/credenciales:
   - Header name: `Authorization`.
   - Header value: `Bearer <CRON_SECRET>`.
 
-El endpoint revisa conexiones Gmail activas con `sync_mode = polling`. Cada venue decide si toca sincronizar según `email_connections.metadata.sync_frequency_minutes`.
+El endpoint revisa conexiones Gmail activas con `sync_mode = polling` y `email_connections.metadata.cron_enabled != false`. Cada venue decide si toca sincronizar según `email_connections.metadata.sync_frequency_minutes`.
+
+La sync inspecciona como máximo `email_connections.metadata.gmail_sync_limit` mensajes recientes de Gmail por pasada, con `100` como valor por defecto. Primero consulta qué ids ya existen en `email_messages` y solo descarga el detalle completo de los mensajes nuevos; si una venue recibe más emails que ese máximo entre dos pasadas, hay que subir el límite desde Backstage o usar una estrategia incremental con Gmail History API.
 
 ---
 

@@ -3,6 +3,8 @@
 import { requireTenantPermission } from '@/lib/auth/tenant-access'
 import { syncAndMaybeProcessEmail } from '@/lib/email/automation'
 import { processEmailMessage } from '@/lib/email/service'
+import { deleteGmailDraft } from '@/lib/email/gmail'
+import { getFreshGoogleAccessToken } from '@/lib/email/google-tokens'
 import { decryptOAuthTokens, revokeGoogleOAuthToken } from '@/lib/email/google-oauth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
@@ -91,6 +93,137 @@ export async function deleteSelectedEmailThreadsAction(tenantId: string, formDat
   redirect(`/${tenantId}/email?email_deleted=${threads.length}`)
 }
 
+export async function deleteEmailDraftAction(tenantId: string, draftId: string) {
+  await requireTenantPermission(tenantId, 'manage_email', 'email')
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('email_drafts')
+    .delete()
+    .eq('theatre_id', tenantId)
+    .eq('id', draftId)
+
+  if (error) {
+    redirect(`/${tenantId}/email?email_draft_delete_error=${encodeURIComponent(error.message)}`)
+  }
+
+  revalidatePath(`/${tenantId}/email`)
+  redirect(`/${tenantId}/email?email_draft_deleted=local`)
+}
+
+export async function deleteProviderEmailDraftAction(tenantId: string, draftId: string) {
+  await requireTenantPermission(tenantId, 'manage_email', 'email')
+
+  const admin = createAdminClient()
+  const { data: draft, error } = await admin
+    .from('email_drafts')
+    .select('id, connection_id, provider_draft_id, email_connections!inner(id, provider, oauth_metadata)')
+    .eq('theatre_id', tenantId)
+    .eq('id', draftId)
+    .maybeSingle()
+
+  const connection = Array.isArray(draft?.email_connections)
+    ? draft?.email_connections[0]
+    : draft?.email_connections
+
+  if (error || !draft || !connection) {
+    redirect(`/${tenantId}/email?email_draft_delete_error=${encodeURIComponent(error?.message ?? 'No se ha encontrado el draft')}`)
+  }
+
+  if (!draft.provider_draft_id || connection.provider !== 'google') {
+    redirect(`/${tenantId}/email?email_draft_delete_error=${encodeURIComponent('Este draft no tiene borrador Gmail asociado')}`)
+  }
+
+  try {
+    const accessToken = await getFreshGoogleAccessToken(admin, {
+      id: connection.id,
+      oauth_metadata: connection.oauth_metadata,
+    })
+    await deleteGmailDraft(accessToken, draft.provider_draft_id)
+  } catch (deleteError) {
+    const message = deleteError instanceof Error ? deleteError.message : 'No se ha podido eliminar el draft en Gmail'
+    redirect(`/${tenantId}/email?email_draft_delete_error=${encodeURIComponent(message)}`)
+  }
+
+  const { error: localDeleteError } = await admin
+    .from('email_drafts')
+    .delete()
+    .eq('theatre_id', tenantId)
+    .eq('id', draft.id)
+
+  if (localDeleteError) {
+    redirect(`/${tenantId}/email?email_draft_delete_error=${encodeURIComponent(localDeleteError.message)}`)
+  }
+
+  revalidatePath(`/${tenantId}/email`)
+  redirect(`/${tenantId}/email?email_draft_deleted=provider`)
+}
+
+export async function deleteSelectedEmailDraftsAction(tenantId: string, formData: FormData) {
+  await requireTenantPermission(tenantId, 'manage_email', 'email')
+
+  const singleDraftId = formData.get('single_draft_id')
+  const draftIds = typeof singleDraftId === 'string' && singleDraftId
+    ? [singleDraftId]
+    : getSelectedDraftIds(formData)
+  if (!draftIds.length) {
+    redirect(`/${tenantId}/email?email_draft_delete_error=${encodeURIComponent('Selecciona al menos un draft')}`)
+  }
+
+  const shouldDeleteProviderDrafts = formData.get('draft_delete_scope') === 'provider'
+  const admin = createAdminClient()
+  const { data: drafts, error: fetchError } = await admin
+    .from('email_drafts')
+    .select('id, provider_draft_id, email_connections!inner(id, provider, oauth_metadata)')
+    .eq('theatre_id', tenantId)
+    .in('id', draftIds)
+
+  if (fetchError || !drafts?.length) {
+    redirect(`/${tenantId}/email?email_draft_delete_error=${encodeURIComponent(fetchError?.message ?? 'No se han encontrado drafts válidos')}`)
+  }
+
+  let providerDeleted = 0
+  let providerFailed = 0
+  const accessTokens = new Map<string, string>()
+
+  if (shouldDeleteProviderDrafts) {
+    for (const draft of drafts) {
+      const connection = Array.isArray(draft.email_connections)
+        ? draft.email_connections[0]
+        : draft.email_connections
+
+      if (!draft.provider_draft_id || !connection || connection.provider !== 'google') continue
+
+      try {
+        const cachedToken = accessTokens.get(connection.id)
+        const accessToken = cachedToken ?? await getFreshGoogleAccessToken(admin, {
+          id: connection.id,
+          oauth_metadata: connection.oauth_metadata,
+        })
+
+        accessTokens.set(connection.id, accessToken)
+        await deleteGmailDraft(accessToken, draft.provider_draft_id)
+        providerDeleted += 1
+      } catch {
+        providerFailed += 1
+      }
+    }
+  }
+
+  const { error: localDeleteError } = await admin
+    .from('email_drafts')
+    .delete()
+    .eq('theatre_id', tenantId)
+    .in('id', drafts.map((draft) => draft.id))
+
+  if (localDeleteError) {
+    redirect(`/${tenantId}/email?email_draft_delete_error=${encodeURIComponent(localDeleteError.message)}`)
+  }
+
+  revalidatePath(`/${tenantId}/email`)
+  redirect(`/${tenantId}/email?email_drafts_deleted=${drafts.length}&email_provider_drafts_deleted=${providerDeleted}&email_provider_drafts_failed=${providerFailed}`)
+}
+
 export async function disconnectGoogleEmailAction(tenantId: string) {
   await requireTenantPermission(tenantId, 'manage_email', 'email')
 
@@ -156,5 +289,11 @@ async function revokeConnectionToken(oauthMetadata: unknown) {
 function getSelectedThreadIds(formData: FormData) {
   return formData
     .getAll('thread_ids')
+    .filter((value): value is string => typeof value === 'string' && Boolean(value))
+}
+
+function getSelectedDraftIds(formData: FormData) {
+  return formData
+    .getAll('draft_ids')
     .filter((value): value is string => typeof value === 'string' && Boolean(value))
 }

@@ -108,7 +108,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const response = $('Run TALIA email sync').first().json;\nconst body = response.body || {};\nreturn [{\n  json: {\n    ok: true,\n    status_code: response.statusCode,\n    checked: body.checked ?? 0,\n    synced: body.synced ?? 0,\n    failed: body.failed ?? 0,\n    imported: body.imported ?? 0,\n    processed: body.processed ?? 0,\n    ran_at: new Date().toISOString()\n  }\n}];\n"
+        "jsCode": "const response = $('Run TALIA email sync').first().json;\nconst body = response.body || {};\nreturn [{\n  json: {\n    ok: true,\n    status_code: response.statusCode,\n    checked: body.checked ?? 0,\n    synced: body.synced ?? 0,\n    failed: body.failed ?? 0,\n    inspected: body.inspected ?? 0,\n    imported: body.imported ?? 0,\n    skipped: body.skipped ?? 0,\n    processed: body.processed ?? 0,\n    ran_at: new Date().toISOString()\n  }\n}];\n"
       },
       "id": "5ca18446-86f0-48e0-96c3-8804bcc8d823",
       "name": "Normalize sync summary",

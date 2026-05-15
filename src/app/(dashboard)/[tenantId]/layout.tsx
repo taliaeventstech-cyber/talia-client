@@ -50,6 +50,7 @@ export default async function DashboardLayout({ children, params }: Props) {
             webChatbot: dictionary.nav.webChatbot,
             voiceAgent: dictionary.nav.voiceAgent,
             emailAgent: dictionary.nav.emailAgent,
+            inbox: dictionary.nav.inbox,
             whatsapp: dictionary.nav.whatsapp,
             marketing: dictionary.nav.marketing,
             campaigns: dictionary.nav.campaigns,

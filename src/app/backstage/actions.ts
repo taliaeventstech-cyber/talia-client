@@ -110,9 +110,10 @@ const updateTenantSchema = createTenantSchema.extend({
   emailSyncFrequencyMinutes: z.coerce.number().int().refine((value) => [15, 30, 60, 240].includes(value), {
     message: 'La frecuencia automática de email no es válida.',
   }),
-  emailSyncLimit: z.coerce.number().int().refine((value) => [10, 25, 50].includes(value), {
+  emailSyncLimit: z.coerce.number().int().refine((value) => [10, 25, 50, 100, 250, 500].includes(value), {
     message: 'El límite de sincronización de email no es válido.',
   }),
+  emailCronEnabled: z.boolean().default(true),
   emailAutoProcessAfterSync: z.boolean().default(false),
   emailExcludeAutomated: z.boolean().default(true),
   emailBlockedSenders: z.string().trim().max(2000).optional(),
@@ -492,7 +493,8 @@ export async function updateTenantAction(
     emailSyncMode: formData.get('email_sync_mode') || 'polling',
     emailSyncWindowDays: formData.get('email_sync_window_days') || '14',
     emailSyncFrequencyMinutes: formData.get('email_sync_frequency_minutes') || '15',
-    emailSyncLimit: formData.get('email_sync_limit') || '10',
+    emailSyncLimit: formData.get('email_sync_limit') || '100',
+    emailCronEnabled: formData.get('email_cron_enabled') === 'on',
     emailAutoProcessAfterSync: formData.get('email_auto_process_after_sync') === 'on',
     emailExcludeAutomated: formData.get('email_exclude_automated') === 'on',
     emailBlockedSenders: formData.get('email_blocked_senders') || '',
@@ -593,6 +595,7 @@ export async function updateTenantAction(
       syncWindowDays: data.emailSyncWindowDays,
       syncFrequencyMinutes: data.emailSyncFrequencyMinutes,
       syncLimit: data.emailSyncLimit,
+      cronEnabled: data.emailCronEnabled,
       autoProcessAfterSync: data.emailAutoProcessAfterSync,
       excludeAutomated: data.emailExcludeAutomated,
       blockedSenders: parseEmailRuleList(data.emailBlockedSenders),
@@ -638,6 +641,7 @@ async function syncEmailConnection(
     syncWindowDays?: number
     syncFrequencyMinutes?: number
     syncLimit?: number
+    cronEnabled?: boolean
     autoProcessAfterSync?: boolean
     excludeAutomated?: boolean
     blockedSenders?: string[]
@@ -703,6 +707,7 @@ function buildEmailConnectionMetadata(
     syncWindowDays?: number
     syncFrequencyMinutes?: number
     syncLimit?: number
+    cronEnabled?: boolean
     autoProcessAfterSync?: boolean
     excludeAutomated?: boolean
     blockedSenders?: string[]
@@ -716,9 +721,9 @@ function buildEmailConnectionMetadata(
   const syncWindowDays = input.syncWindowDays && [1, 7, 14, 30].includes(input.syncWindowDays)
     ? input.syncWindowDays
     : 14
-  const syncLimit = input.syncLimit && [10, 25, 50].includes(input.syncLimit)
+  const syncLimit = input.syncLimit && [10, 25, 50, 100, 250, 500].includes(input.syncLimit)
     ? input.syncLimit
-    : 10
+    : 100
   const syncFrequencyMinutes = input.syncFrequencyMinutes && [15, 30, 60, 240].includes(input.syncFrequencyMinutes)
     ? input.syncFrequencyMinutes
     : 15
@@ -729,6 +734,7 @@ function buildEmailConnectionMetadata(
     gmail_sync_window_days: syncWindowDays,
     sync_frequency_minutes: syncFrequencyMinutes,
     gmail_sync_limit: syncLimit,
+    cron_enabled: input.cronEnabled !== false,
     auto_process_after_sync: input.autoProcessAfterSync === true,
     exclude_automated: input.excludeAutomated !== false,
     blocked_senders: input.blockedSenders ?? [],

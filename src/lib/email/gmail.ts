@@ -90,13 +90,27 @@ export async function createGmailDraft(accessToken: string, input: CreateGmailDr
   return response.json() as Promise<GmailDraftResponse>
 }
 
+export async function deleteGmailDraft(accessToken: string, draftId: string) {
+  const response = await fetch(`${GMAIL_DRAFTS_ENDPOINT}/${encodeURIComponent(draftId)}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Gmail draft deletion failed: ${await response.text()}`)
+  }
+}
+
 export async function listGmailInboxMessages(
   accessToken: string,
-  input: { maxResults?: number; query?: string } = {},
+  input: { maxResults?: number; query?: string; pageToken?: string } = {},
 ) {
   const url = new URL(GMAIL_MESSAGES_ENDPOINT)
   url.searchParams.set('maxResults', String(input.maxResults ?? 10))
   url.searchParams.set('q', input.query ?? 'in:inbox newer_than:14d')
+  if (input.pageToken) url.searchParams.set('pageToken', input.pageToken)
 
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },

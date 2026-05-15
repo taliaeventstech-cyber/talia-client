@@ -1,12 +1,20 @@
 import { requireTenantPermission } from '@/lib/auth/tenant-access'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { AlertTriangle, Clock3, Inbox, Mail, PencilLine, RefreshCw, Sparkles, Trash2 } from 'lucide-react'
+import { QueryToastNotice } from '@/components/ui/query-toast-notice'
+import { SelectAllCheckbox } from '@/components/ui/select-all-checkbox'
+import { AlertTriangle, ChevronLeft, ChevronRight, Clock3, ExternalLink, Inbox, Mail, PencilLine, RefreshCw } from 'lucide-react'
+import { Suspense } from 'react'
 import {
+  deleteSelectedEmailDraftsAction,
   deleteSelectedEmailThreadsAction,
   disconnectGoogleEmailAction,
   processSelectedEmailThreadsAction,
   syncLatestEmailAction,
 } from './actions'
+import { DraftDeleteChoiceButton } from './draft-delete-choice-button'
+import { ProcessEmailSubmitButton } from './process-email-submit-button'
+import { SelectedDeleteSubmitButton } from './selected-delete-submit-button'
+import { ThreadPageSizeSelect } from './thread-page-size-select'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -24,6 +32,13 @@ interface Props {
     email_selected_failed?: string
     email_deleted?: string
     email_delete_error?: string
+    email_draft_deleted?: string
+    email_drafts_deleted?: string
+    email_provider_drafts_deleted?: string
+    email_provider_drafts_failed?: string
+    email_draft_delete_error?: string
+    thread_page?: string
+    thread_limit?: string
   }>
 }
 
@@ -33,7 +48,15 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
   await requireTenantPermission(tenantId, 'manage_email', 'email')
 
   const admin = createAdminClient()
-  const [{ data: theatre }, { data: connections }, { data: threads }, { data: drafts }, { data: latestDrafts }] = await Promise.all([
+  const threadPagination = getThreadPagination(query)
+  const [
+    { data: theatre },
+    { data: connections },
+    { count: threadTotalCount },
+    { count: waitingHumanCount },
+    { data: drafts },
+    { data: latestDrafts },
+  ] = await Promise.all([
     admin
       .from('theatres')
       .select('name, fallback_email')
@@ -46,10 +69,13 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
       .order('created_at', { ascending: false }),
     admin
       .from('email_threads')
-      .select('id, status, priority, subject, sender_email, topic, last_message_at')
+      .select('id', { count: 'exact', head: true })
+      .eq('theatre_id', tenantId),
+    admin
+      .from('email_threads')
+      .select('id', { count: 'exact', head: true })
       .eq('theatre_id', tenantId)
-      .order('last_message_at', { ascending: false, nullsFirst: false })
-      .limit(10),
+      .eq('status', 'waiting_human'),
     admin
       .from('email_drafts')
       .select('id, status')
@@ -77,13 +103,25 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
       .order('updated_at', { ascending: false })
       .limit(8),
   ])
+  const threadTotal = threadTotalCount ?? 0
+  const threadPageCount = Math.max(1, Math.ceil(threadTotal / threadPagination.limit))
+  const threadPage = Math.min(threadPagination.page, threadPageCount)
+  const threadFrom = (threadPage - 1) * threadPagination.limit
+  const threadTo = threadFrom + threadPagination.limit - 1
+  const { data: threads } = await admin
+    .from('email_threads')
+    .select('id, status, priority, subject, sender_email, topic, last_message_at')
+    .eq('theatre_id', tenantId)
+    .order('last_message_at', { ascending: false, nullsFirst: false })
+    .range(threadFrom, threadTo)
 
   const connection = connections?.[0] ?? null
-  const threadCounts = countByStatus(threads ?? [])
   const draftCounts = countByStatus(drafts ?? [])
   const generatedDrafts = draftCounts.get('generated') ?? 0
   const providerDrafts = draftCounts.get('created_in_provider') ?? 0
-  const waitingHuman = threadCounts.get('waiting_human') ?? 0
+  const waitingHuman = waitingHumanCount ?? 0
+  const threadRangeStart = threadTotal === 0 ? 0 : threadFrom + 1
+  const threadRangeEnd = Math.min(threadFrom + (threads?.length ?? 0), threadTotal)
   const activeMailbox = connection?.mailbox_email ?? theatre?.fallback_email ?? 'Sin buzón conectado'
   const isConnected = connection?.status === 'connected' || connection?.status === 'syncing'
   const isError = connection?.status === 'error'
@@ -97,17 +135,40 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
   })
   const syncSuccessMessage = getSyncSuccessMessage(query.email_synced, query.email_auto_processed)
   const deleteSuccessMessage = getDeleteSuccessMessage(query.email_deleted)
+  const draftDeleteSuccessMessage = getDraftDeleteSuccessMessage(
+    query.email_draft_deleted,
+    {
+      deleted: query.email_drafts_deleted,
+      providerDeleted: query.email_provider_drafts_deleted,
+      providerFailed: query.email_provider_drafts_failed,
+    },
+  )
   const oauthErrorMessage = getOAuthErrorMessage(query.email_error)
   const processErrorMessage = query.email_process_error
   const syncErrorMessage = query.email_sync_error
   const deleteErrorMessage = query.email_delete_error
+  const draftDeleteErrorMessage = query.email_draft_delete_error
+  const successToast = hasOAuthSuccess
+    ? 'Buzón conectado correctamente.'
+    : hasDisconnectSuccess
+      ? 'Buzón desconectado correctamente.'
+      : selectedProcessMessage ?? syncSuccessMessage ?? deleteSuccessMessage ?? draftDeleteSuccessMessage ?? processSuccessMessage
+  const errorToast = oauthErrorMessage
+    ?? (processErrorMessage ? `No se ha podido procesar el email: ${processErrorMessage}` : null)
+    ?? (syncErrorMessage ? `No se ha podido sincronizar Gmail: ${syncErrorMessage}` : null)
+    ?? (deleteErrorMessage ? `No se han podido borrar los threads: ${deleteErrorMessage}` : null)
+    ?? (draftDeleteErrorMessage ? `No se ha podido borrar el draft: ${draftDeleteErrorMessage}` : null)
   const disconnectAction = disconnectGoogleEmailAction.bind(null, tenantId)
   const processSelectedAction = processSelectedEmailThreadsAction.bind(null, tenantId)
   const deleteSelectedAction = deleteSelectedEmailThreadsAction.bind(null, tenantId)
+  const deleteSelectedDraftsAction = deleteSelectedEmailDraftsAction.bind(null, tenantId)
   const syncAction = syncLatestEmailAction.bind(null, tenantId)
 
   return (
     <main className="page-shell">
+      {successToast ? <QueryToastNotice message={successToast} tone="success" clearParamPrefix="email_" /> : null}
+      {errorToast ? <QueryToastNotice message={errorToast} tone="error" clearParamPrefix="email_" /> : null}
+
       <header className="page-header">
         <div>
           <p className="section-label">Agente de email</p>
@@ -163,50 +224,6 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
         </div>
       </section>
 
-      {hasOAuthSuccess ? (
-        <p className="notice notice-success">
-          Buzón conectado correctamente. El siguiente paso será activar la sincronización incremental y la creación de borradores.
-        </p>
-      ) : null}
-
-      {hasDisconnectSuccess ? (
-        <p className="notice notice-success">
-          Buzón desconectado correctamente. TALIA ya no podrá sincronizar ni preparar borradores con esta autorización.
-        </p>
-      ) : null}
-
-      {processSuccessMessage ? (
-        <p className="notice notice-success">{processSuccessMessage}</p>
-      ) : null}
-
-      {selectedProcessMessage ? (
-        <p className="notice notice-success">{selectedProcessMessage}</p>
-      ) : null}
-
-      {syncSuccessMessage ? (
-        <p className="notice notice-success">{syncSuccessMessage}</p>
-      ) : null}
-
-      {deleteSuccessMessage ? (
-        <p className="notice notice-success">{deleteSuccessMessage}</p>
-      ) : null}
-
-      {oauthErrorMessage ? (
-        <p className="notice notice-error">{oauthErrorMessage}</p>
-      ) : null}
-
-      {processErrorMessage ? (
-        <p className="notice notice-error">No se ha podido procesar el email: {processErrorMessage}</p>
-      ) : null}
-
-      {syncErrorMessage ? (
-        <p className="notice notice-error">No se ha podido sincronizar Gmail: {syncErrorMessage}</p>
-      ) : null}
-
-      {deleteErrorMessage ? (
-        <p className="notice notice-error">No se han podido borrar los threads: {deleteErrorMessage}</p>
-      ) : null}
-
       {isError || connection?.error_message ? (
         <p className="notice notice-error">
           {connection?.error_message ?? 'Hay un error en la conexión del buzón. Revisa permisos o credenciales.'}
@@ -215,47 +232,46 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
 
       <section className="email-status-grid">
         <DetailCard label="Proveedor" value={formatProvider(connection?.provider)} />
-        <DetailCard label="Procesados" value={String(threads?.length ?? 0)} />
-        <DetailCard label="Drafts Gmail" value={String(providerDrafts)} />
-        <DetailCard label="Pendientes" value={String(waitingHuman)} />
+        <DetailCard label="Procesados" value={String(threadTotal)} />
+        <DetailCard label="En Gmail" value={String(providerDrafts)} />
+        <DetailCard label="Requiere revisión" value={String(waitingHuman)} />
       </section>
 
       <section className="overview-grid">
-        <MetricCard icon={<Inbox size={18} />} label="Threads recientes" value={threads?.length ?? 0} />
-        <MetricCard icon={<PencilLine size={18} />} label="Drafts generados" value={generatedDrafts + providerDrafts} />
+        <MetricCard icon={<Inbox size={18} />} label="Emails en bandeja" value={threadTotal} />
+        <MetricCard icon={<PencilLine size={18} />} label="Respuestas preparadas" value={generatedDrafts + providerDrafts} />
         <MetricCard icon={<Mail size={18} />} label="En Gmail" value={providerDrafts} />
-        <MetricCard icon={<AlertTriangle size={18} />} label="Pendientes humano" value={waitingHuman} />
+        <MetricCard icon={<AlertTriangle size={18} />} label="Requiere revisión" value={waitingHuman} />
       </section>
 
       <section className="card stack">
         <div className="section-title-row">
           <div>
-            <p className="eyebrow">Threads</p>
+            <p className="eyebrow">Bandeja</p>
             <h2>Emails sincronizados</h2>
           </div>
+          <Suspense fallback={<PageSizeSelectFallback value={threadPagination.limit} />}>
+            <ThreadPageSizeSelect value={threadPagination.limit} />
+          </Suspense>
         </div>
 
         {(threads ?? []).length ? (
           <form className="email-thread-selection" action={processSelectedAction}>
             <div className="email-thread-toolbar">
-              <button className="button-primary button-fit" type="submit" formAction={processSelectedAction}>
-                <Sparkles size={15} strokeWidth={2} aria-hidden="true" />
-                Procesar seleccionados
-              </button>
-              <button className="button-outline button-danger button-fit" type="submit" formAction={deleteSelectedAction}>
-                <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
-                Borrar seleccionados
-              </button>
+              <ProcessEmailSubmitButton />
+              <SelectedDeleteSubmitButton formAction={deleteSelectedAction} targetName="thread_ids" />
+              <span className="table-page-count table-page-count-top">Página {threadPage} de {threadPageCount}</span>
             </div>
 
             <table className="data-table email-thread-table">
               <thead>
                 <tr>
-                  <th className="email-select-cell">Sel.</th>
+                  <th className="email-select-cell">
+                    <SelectAllCheckbox label="Seleccionar todos los threads visibles" targetName="thread_ids" />
+                  </th>
                   <th>Asunto</th>
                   <th>Remitente</th>
                   <th>Estado</th>
-                  <th>Prioridad</th>
                   <th>Tema</th>
                 </tr>
               </thead>
@@ -273,12 +289,19 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
                     <td>{thread.subject ?? 'Sin asunto'}</td>
                     <td>{thread.sender_email ?? '-'}</td>
                     <td><span className="status-pill status-pill-muted">{formatThreadStatus(thread.status)}</span></td>
-                    <td>{formatPriority(thread.priority)}</td>
                     <td>{formatTopic(thread.topic)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            <TablePagination
+              hrefForPage={(page) => getThreadPageHref(tenantId, { page, limit: threadPagination.limit })}
+              page={threadPage}
+              pageCount={threadPageCount}
+              rangeEnd={threadRangeEnd}
+              rangeStart={threadRangeStart}
+              total={threadTotal}
+            />
           </form>
         ) : (
           <div className="empty-state">
@@ -296,13 +319,31 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
       <section className="card stack">
         <div className="section-title-row">
           <div>
-            <p className="eyebrow">Borradores</p>
-            <h2>Últimos drafts creados</h2>
+            <p className="eyebrow">Respuestas</p>
+            <h2>Últimas respuestas preparadas</h2>
           </div>
+          {connection?.mailbox_email ? (
+            <a className="button-outline button-fit" href={getGmailDraftsUrl(connection.mailbox_email)} target="_blank" rel="noopener noreferrer">
+              <ExternalLink size={15} strokeWidth={2} aria-hidden="true" />
+              Abrir Gmail
+            </a>
+          ) : null}
         </div>
 
         {(latestDrafts ?? []).length ? (
-          <div className="email-draft-list">
+          <form className="email-draft-selection" action={deleteSelectedDraftsAction}>
+            <div className="email-thread-toolbar">
+              <label className="bulk-select-row">
+                <SelectAllCheckbox label="Seleccionar todas las respuestas visibles" targetName="draft_ids" />
+                Seleccionar todo
+              </label>
+              <DraftDeleteChoiceButton
+                label="Borrar"
+                requireSelectionName="draft_ids"
+              />
+            </div>
+
+            <div className="email-draft-list">
             {(latestDrafts ?? []).map((draft) => {
               const thread = Array.isArray(draft.email_threads)
                 ? draft.email_threads[0]
@@ -311,9 +352,18 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
               return (
                 <article className="email-draft-item" key={draft.id}>
                   <div className="email-draft-main">
-                    <span className={`status-pill ${getDraftStatusClass(draft.status)}`}>
-                      {formatDraftStatus(draft.status)}
-                    </span>
+                    <input
+                      aria-label={`Seleccionar respuesta ${draft.generated_subject ?? thread?.subject ?? 'sin asunto'}`}
+                      className="email-draft-checkbox"
+                      name="draft_ids"
+                      type="checkbox"
+                      value={draft.id}
+                    />
+                    {draft.status === 'created_in_provider' ? null : (
+                      <span className={`status-pill ${getDraftStatusClass(draft.status)}`}>
+                        {formatDraftStatus(draft.status)}
+                      </span>
+                    )}
                     <div>
                       <strong>{draft.generated_subject ?? thread?.subject ?? 'Sin asunto'}</strong>
                       <p className="muted">
@@ -323,29 +373,111 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
                   </div>
                   <div className="email-draft-meta">
                     <span>{formatDateTime(draft.updated_at ?? draft.created_at)}</span>
-                    {draft.provider_draft_id ? (
-                      <code>{draft.provider_draft_id}</code>
-                    ) : draft.error_message ? (
+                    {draft.error_message ? (
                       <span className="email-error-text">{draft.error_message}</span>
-                    ) : (
-                      <span>Sin draft proveedor</span>
-                    )}
+                    ) : null}
+                    <div className="email-draft-actions">
+                      <DraftDeleteChoiceButton
+                        buttonClassName="button-outline button-fit"
+                        draftId={draft.id}
+                        label="Borrar"
+                      />
+                    </div>
                   </div>
                 </article>
               )
             })}
-          </div>
+            </div>
+          </form>
         ) : (
           <div className="empty-state">
             <PencilLine size={18} aria-hidden="true" />
             <div>
-              <strong>Aún no hay borradores</strong>
-              <p className="muted">Cuando proceses emails, los drafts generados aparecerán aquí con su estado.</p>
+              <strong>Aún no hay respuestas preparadas</strong>
+              <p className="muted">Cuando proceses emails, las respuestas preparadas aparecerán aquí con su estado.</p>
             </div>
           </div>
         )}
       </section>
     </main>
+  )
+}
+
+function getThreadPagination(query: { thread_page?: string; thread_limit?: string }) {
+  const parsedPage = Number(query.thread_page ?? 1)
+  const parsedLimit = Number(query.thread_limit ?? 15)
+  const limit = [15, 25, 50].includes(parsedLimit) ? parsedLimit : 15
+  const page = Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1
+
+  return { page, limit }
+}
+
+function getThreadPageHref(tenantId: string, input: { page: number; limit: number }) {
+  const params = new URLSearchParams()
+  params.set('thread_page', String(input.page))
+  params.set('thread_limit', String(input.limit))
+
+  return `/${tenantId}/email?${params.toString()}`
+}
+
+function PageSizeSelectFallback({ value }: { value: number }) {
+  return (
+    <label className="table-page-size">
+      <span>Por página</span>
+      <span className="table-page-size-select">
+        <select aria-label="Emails por página" defaultValue={value}>
+          <option value="15">15</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+        </select>
+      </span>
+    </label>
+  )
+}
+
+function TablePagination({
+  hrefForPage,
+  page,
+  pageCount,
+  rangeEnd,
+  rangeStart,
+  total,
+}: {
+  hrefForPage: (page: number) => string
+  page: number
+  pageCount: number
+  rangeEnd: number
+  rangeStart: number
+  total: number
+}) {
+  if (total === 0) return null
+
+  return (
+    <nav className="table-pagination" aria-label="Paginación de emails sincronizados">
+      <p>
+        {rangeStart}-{rangeEnd} de {total}
+      </p>
+      <div className="table-pagination-actions">
+        {page > 1 ? (
+          <a className="pagination-icon-button" href={hrefForPage(page - 1)} aria-label="Página anterior">
+            <ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />
+          </a>
+        ) : (
+          <span className="pagination-icon-button button-disabled" aria-label="Página anterior">
+            <ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />
+          </span>
+        )}
+        {page < pageCount ? (
+          <a className="pagination-icon-button" href={hrefForPage(page + 1)} aria-label="Página siguiente">
+            <ChevronRight size={16} strokeWidth={2} aria-hidden="true" />
+          </a>
+        ) : (
+          <span className="pagination-icon-button button-disabled" aria-label="Página siguiente">
+            <ChevronRight size={16} strokeWidth={2} aria-hidden="true" />
+          </span>
+        )}
+      </div>
+    </nav>
   )
 }
 
@@ -398,10 +530,10 @@ function getOAuthErrorMessage(error?: string) {
 
 function getProcessSuccessMessage(action?: string) {
   if (action === 'provider_draft_created') {
-    return 'Email procesado. TALIA ha creado un borrador real en Gmail.'
+    return 'Email procesado. TALIA ha preparado la respuesta en Gmail.'
   }
   if (action === 'draft_generated') {
-    return 'Email procesado. TALIA ha guardado el borrador para revisión.'
+    return 'Email procesado. TALIA ha guardado la respuesta para revisión.'
   }
   if (action === 'ignored') {
     return 'Email procesado. TALIA lo ha marcado como no accionable.'
@@ -416,8 +548,8 @@ function getSelectedProcessMessage(input: { processed?: string; ignored?: string
   const failed = Number(input.failed ?? 0)
   const parts = []
 
-  if (processed > 0) parts.push(`${processed} ${processed === 1 ? 'draft generado' : 'drafts generados'}`)
-  if (ignored > 0) parts.push(`${ignored} ${ignored === 1 ? 'thread ignorado' : 'threads ignorados'}`)
+  if (processed > 0) parts.push(`${processed} ${processed === 1 ? 'respuesta preparada' : 'respuestas preparadas'}`)
+  if (ignored > 0) parts.push(`${ignored} ${ignored === 1 ? 'thread no accionable' : 'threads no accionables'}`)
   if (failed > 0) parts.push(`${failed} ${failed === 1 ? 'fallo' : 'fallos'}`)
 
   return parts.length ? `Procesamiento completado: ${parts.join(', ')}.` : 'No se ha procesado ningún thread.'
@@ -444,6 +576,34 @@ function getDeleteSuccessMessage(deleted?: string) {
   return `Se han borrado ${count} threads y sus mensajes.`
 }
 
+function getDraftDeleteSuccessMessage(
+  mode?: string,
+  bulk?: { deleted?: string; providerDeleted?: string; providerFailed?: string },
+) {
+  if (bulk?.deleted !== undefined) {
+    const deleted = Number(bulk.deleted)
+    const providerDeleted = Number(bulk.providerDeleted ?? 0)
+    const providerFailed = Number(bulk.providerFailed ?? 0)
+    const deletedText = Number.isNaN(deleted)
+      ? 'Respuestas eliminadas de Àgora.'
+      : deleted === 1
+        ? 'Se ha eliminado 1 respuesta de Àgora.'
+        : `Se han eliminado ${deleted} respuestas de Àgora.`
+    const providerText = providerDeleted > 0
+      ? ` ${providerDeleted === 1 ? 'También se ha borrado 1 respuesta en Gmail.' : `También se han borrado ${providerDeleted} respuestas en Gmail.`}`
+      : ''
+    const failedText = providerFailed > 0
+      ? ` ${providerFailed === 1 ? '1 respuesta no se ha podido borrar en Gmail.' : `${providerFailed} respuestas no se han podido borrar en Gmail.`}`
+      : ''
+
+    return `${deletedText}${providerText}${failedText}`
+  }
+
+  if (mode === 'provider') return 'Respuesta eliminada de Gmail y de Àgora.'
+  if (mode === 'local') return 'Respuesta eliminada de Àgora.'
+  return null
+}
+
 function formatProvider(provider?: string) {
   if (provider === 'google') return 'Google Workspace'
   if (provider === 'microsoft') return 'Microsoft 365'
@@ -453,9 +613,9 @@ function formatProvider(provider?: string) {
 }
 
 function formatDraftMode(mode?: string) {
-  if (mode === 'provider_drafts') return 'Borradores en buzón'
+  if (mode === 'provider_drafts') return 'Respuestas en Gmail'
   if (mode === 'agora_review') return 'Revisión en Àgora'
-  if (mode === 'disabled') return 'Sin borradores'
+  if (mode === 'disabled') return 'Sin respuestas'
   return 'Pendiente'
 }
 
@@ -465,15 +625,19 @@ function formatSync(mode?: string, lastSyncedAt?: string | null) {
   return `${label} · ${new Date(lastSyncedAt).toLocaleString('es-ES')}`
 }
 
+function getGmailDraftsUrl(mailboxEmail: string) {
+  return `https://mail.google.com/mail/u/${encodeURIComponent(mailboxEmail)}/#drafts`
+}
+
 function formatThreadStatus(status: string) {
   const labels: Record<string, string> = {
-    new: 'Nuevo',
-    drafted: 'Borrador',
-    waiting_human: 'Revisión',
+    new: 'Sin procesar',
+    drafted: 'Respuesta preparada',
+    waiting_human: 'Requiere revisión',
     sent: 'Enviado',
-    resolved: 'Resuelto',
+    resolved: 'Cerrado',
     escalated: 'Escalado',
-    ignored: 'Ignorado',
+    ignored: 'No accionable',
   }
 
   return labels[status] ?? status
@@ -498,17 +662,6 @@ function getDraftStatusClass(status: string) {
   if (status === 'error' || status === 'discarded') return 'status-pill-danger'
   if (status === 'generated') return 'status-pill-soon'
   return 'status-pill-muted'
-}
-
-function formatPriority(priority: string) {
-  const labels: Record<string, string> = {
-    low: 'Baja',
-    normal: 'Normal',
-    high: 'Alta',
-    urgent: 'Urgente',
-  }
-
-  return labels[priority] ?? priority
 }
 
 function formatTopic(topic?: string | null) {

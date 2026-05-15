@@ -2,6 +2,7 @@
 
 import { ChevronDown } from 'lucide-react'
 import { useActionState, useState } from 'react'
+import { ActionToast } from '@/components/ui/action-toast'
 import { updateTenantAction, type UpdateTenantState } from '../../actions'
 
 const initialState: UpdateTenantState = { ok: false, message: '' }
@@ -79,13 +80,9 @@ export function EditClientForm({
 
   return (
     <form action={action} className="card stack">
-      <input type="hidden" name="tenant_id" value={client.id} />
+      <ActionToast state={state} />
 
-      {state.message ? (
-        <p className={`notice ${state.ok ? 'notice-success' : 'notice-error'}`}>
-          {state.message}
-        </p>
-      ) : null}
+      <input type="hidden" name="tenant_id" value={client.id} />
 
       <CollapsibleSection
         title="Datos de la venue"
@@ -410,14 +407,27 @@ function EmailOperationsFields({ client, connection }: { client: Client; connect
 
       <div className="form-row">
         <label className="field">
-          Límite por sincronización
+          Máximo a inspeccionar por sync
           <select name="email_sync_limit" defaultValue={String(metadata.syncLimit)}>
             <option value="10">10 emails</option>
             <option value="25">25 emails</option>
             <option value="50">50 emails</option>
+            <option value="100">100 emails</option>
+            <option value="250">250 emails</option>
+            <option value="500">500 emails</option>
           </select>
         </label>
       </div>
+
+      <label className="checkbox-row">
+        <input
+          type="checkbox"
+          value="on"
+          name="email_cron_enabled"
+          defaultChecked={metadata.cronEnabled}
+        />
+        Activar cron automático de email
+      </label>
 
       <label className="checkbox-row">
         <input
@@ -491,7 +501,8 @@ function HiddenEmailOperationsFields({ connection }: { connection: EmailConnecti
       <input type="hidden" name="email_sync_mode" value={connection?.sync_mode ?? 'polling'} />
       <input type="hidden" name="email_sync_window_days" value="14" />
       <input type="hidden" name="email_sync_frequency_minutes" value="15" />
-      <input type="hidden" name="email_sync_limit" value="10" />
+      <input type="hidden" name="email_sync_limit" value="100" />
+      <input type="hidden" name="email_cron_enabled" value="" />
       <input type="hidden" name="email_gmail_sync_query" value="" />
       <input type="hidden" name="email_blocked_senders" value="" />
       <input type="hidden" name="email_blocked_domains" value="" />
@@ -508,15 +519,16 @@ function getEmailMetadata(value: unknown) {
     : 14
   const syncLimit = typeof record.gmail_sync_limit === 'number'
     ? record.gmail_sync_limit
-    : 10
+    : 100
   const syncFrequencyMinutes = typeof record.sync_frequency_minutes === 'number'
     ? record.sync_frequency_minutes
     : 15
 
   return {
     syncWindowDays: [1, 7, 14, 30].includes(syncWindowDays) ? syncWindowDays : 14,
-    syncLimit: [10, 25, 50].includes(syncLimit) ? syncLimit : 10,
+    syncLimit: [10, 25, 50, 100, 250, 500].includes(syncLimit) ? syncLimit : 100,
     syncFrequencyMinutes: [15, 30, 60, 240].includes(syncFrequencyMinutes) ? syncFrequencyMinutes : 15,
+    cronEnabled: record.cron_enabled !== false,
     autoProcessAfterSync: record.auto_process_after_sync === true,
     excludeAutomated: record.exclude_automated !== false,
     blockedSenders: getStringList(record.blocked_senders),
