@@ -107,12 +107,23 @@ Env temporal:
 Workflow n8n:
 
 - Blueprint importable: `n8n-workflows/TALIA-Generic-Email-Agent-Draft-Workflow.json`.
+- Blueprints desacoplados recomendados:
+  - `n8n-workflows/TALIA-Email-Classifier-Workflow.json`;
+  - `n8n-workflows/TALIA-Email-Drafter-Workflow.json`.
 - Blueprint de cron importable: `n8n-workflows/TALIA-Email-Sync-Cron-Workflow.json`.
-- El workflow de generación usa dos agentes:
+- TALIA orquesta dos agentes separados:
   - `Email classifier agent`: clasifica intención, tema, prioridad, confianza y si debe generarse respuesta.
-  - `Email draft agent`: solo se ejecuta si el clasificador decide `should_process = true` y `should_reply = true`; prepara el borrador para revisión humana.
-- Entre ambos agentes hay una normalización con reglas deterministas para evitar que newsletters, rebotes, no-reply y automatismos acaben generando drafts.
+  - `Email drafter agent`: solo se ejecuta si TALIA decide que aplica según clasificación, configuración, permisos y modo de draft.
+- La orquestación vive en TALIA, no dentro de n8n. Esto permite clasificar sin redactar, reintentar drafts sin reclasificar, medir costes separados y desacoplar el backend más adelante.
+- Antes de llamar al clasificador IA, TALIA aplica reglas deterministas para evitar que newsletters, rebotes, no-reply y automatismos acaben generando drafts.
 - Si el clasificador decide que no hay que generar borrador, el workflow devuelve solo metadatos de clasificación y TALIA marca el thread como ignorado/no accionable.
+- La base de conocimiento se mantiene compartida con el chatbot (`knowledge_items`). TALIA envía al workflow los matches relevantes para ese email en `relevant_knowledge`.
+- Las reglas propias del canal email viven en `email_connections.metadata.email_agent_settings`:
+  - `tone`: tono del borrador;
+  - `draft_style`: longitud/densidad de la respuesta;
+  - `signature`: cierre preferido;
+  - `human_review_topics`: temas sensibles que requieren revisión;
+  - `classification_rules`: reglas adicionales para el clasificador.
 - Variables de entorno en n8n:
   - `TALIA_BASE_URL`, por ejemplo `https://talia-client.vercel.app`;
   - `TALIA_INTERNAL_API_KEY`, mismo valor que `INTERNAL_API_KEY` en TALIA.
@@ -120,7 +131,14 @@ Workflow n8n:
   - Name: `Authorization`;
   - Value: `Bearer <CRON_SECRET>`.
 - Al importar, sustituir la credencial OpenAI `REPLACE_WITH_OPENAI_CREDENTIAL_ID`.
-- El webhook público del workflow se guarda en TALIA como `DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL` o en `email_connections.metadata.n8n_email_agent_webhook_url` si se quiere override por venue.
+- Webhooks soportados por TALIA:
+  - `DEFAULT_N8N_EMAIL_CLASSIFIER_WEBHOOK_URL`;
+  - `DEFAULT_N8N_EMAIL_DRAFTER_WEBHOOK_URL`;
+  - `DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL` queda como fallback legado.
+- Overrides por venue:
+  - `email_connections.metadata.n8n_email_classifier_webhook_url`;
+  - `email_connections.metadata.n8n_email_drafter_webhook_url`;
+  - `email_connections.metadata.n8n_email_agent_webhook_url` queda como fallback legado.
 
 ## Providers
 
@@ -183,7 +201,8 @@ Persistencia operativa:
   - `gmail_sync_query`: query avanzada de Gmail para overrides internos;
   - `auto_process_after_sync`: encadena procesamiento de emails importados después de sincronizar;
   - `exclude_automated`: ignora newsletters, rebotes, no-reply y respuestas automáticas antes de llamar al agente;
-  - `blocked_senders` y `blocked_domains`: reglas internas para ignorar emails por remitente.
+  - `blocked_senders` y `blocked_domains`: reglas internas para ignorar emails por remitente;
+  - `email_agent_settings`: configuración específica del canal email sin duplicar la base de conocimiento.
 - El cron de producción recomendado para Vercel Hobby vive en n8n: schedule cada 15 minutos contra `/api/cron/email/sync`. Cada conexión decide si toca sincronizar según `sync_frequency_minutes`.
 
 ## Modelo de Datos

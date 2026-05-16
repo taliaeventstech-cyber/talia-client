@@ -38,13 +38,22 @@ export async function POST(
     return corsJson({ error: tenant.error }, { status: 404 })
   }
 
-  const limit = await checkTenantLimit(admin, {
-    tenantId,
-    channel: 'chatbot',
-    projectedQuantity: 1,
-  })
+  const { data: existingConversation } = await admin
+    .from('conversations')
+    .select('id')
+    .eq('theatre_id', tenantId)
+    .eq('session_id', sessionId)
+    .maybeSingle()
+  const isNewConversation = !existingConversation
+  const limit = isNewConversation
+    ? await checkTenantLimit(admin, {
+      tenantId,
+      channel: 'chatbot',
+      projectedQuantity: 1,
+    })
+    : null
 
-  if (limit.ok && !limit.allowed) {
+  if (limit?.ok && !limit.allowed) {
     await recordUsageEvent(admin, {
       tenantId,
       moduleKey: 'chatbot',

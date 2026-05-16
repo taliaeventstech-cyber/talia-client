@@ -23,9 +23,6 @@ const settingsSchema = z.object({
   fallbackPhone: z.string().trim().max(40).optional(),
   autoOpen: z.boolean(),
   autoOpenDelay: z.coerce.number().int().min(0).max(60),
-})
-
-const systemPromptSchema = z.object({
   systemPrompt: z.string().trim().max(8000, 'El prompt no puede superar los 8000 caracteres').optional(),
 })
 
@@ -64,6 +61,7 @@ export async function updateTenantSettings(
     fallbackPhone: String(formData.get('fallback_phone') ?? '').trim(),
     autoOpen: formData.get('auto_open') === 'on',
     autoOpenDelay: formData.get('auto_open_delay') ?? 3,
+    systemPrompt: String(formData.get('system_prompt') ?? '').trim(),
   })
 
   if (!parsed.success) {
@@ -73,6 +71,7 @@ export async function updateTenantSettings(
   const { data } = parsed
   const updated = await updateTenantSettingsRecord(admin, tenantId, {
     plan: data.plan,
+    systemPrompt: data.systemPrompt,
     fallbackEmail: data.fallbackEmail,
     fallbackPhone: data.fallbackPhone,
     widgetConfig: {
@@ -89,41 +88,8 @@ export async function updateTenantSettings(
   }
 
   revalidatePath(`/${tenantId}/settings`)
-  return { ok: true, message: 'Configuración guardada correctamente.' }
-}
-
-export async function updateSystemPrompt(
-  tenantId: string,
-  _previousState: SettingsFormState,
-  formData: FormData
-): Promise<SettingsFormState> {
-  await requireTenantPermission(tenantId, 'manage_knowledge', 'chatbot')
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const admin = createAdminClient()
-  const isAdmin = await assertTenantAdmin(admin, user.id, tenantId)
-  if (!isAdmin) return { ok: false, message: 'No tienes permisos para editar esta configuración.' }
-
-  const parsed = systemPromptSchema.safeParse({
-    systemPrompt: String(formData.get('system_prompt') ?? '').trim(),
-  })
-
-  if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? 'El prompt no es válido.' }
-  }
-
-  const { error } = await admin
-    .from('theatres')
-    .update({ system_prompt: parsed.data.systemPrompt || null })
-    .eq('id', tenantId)
-
-  if (error) return { ok: false, message: `No se pudo guardar: ${error.message}` }
-
-  revalidatePath(`/${tenantId}/settings`)
   revalidatePath(`/${tenantId}/overview`)
-  return { ok: true, message: 'Prompt guardado correctamente.' }
+  return { ok: true, message: 'Configuración guardada correctamente.' }
 }
 
 export async function updateScrapeUrls(
@@ -131,7 +97,7 @@ export async function updateScrapeUrls(
   _previousState: SettingsFormState,
   formData: FormData
 ): Promise<SettingsFormState> {
-  await requireTenantPermission(tenantId, 'manage_chatbot', 'chatbot')
+  await requireTenantPermission(tenantId, 'manage_knowledge', 'data')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -156,7 +122,8 @@ export async function updateScrapeUrls(
 
   if (error) return { ok: false, message: `No se pudo guardar: ${error.message}` }
 
-  revalidatePath(`/${tenantId}/settings`)
+  revalidatePath(`/${tenantId}/knowledge`)
+  revalidatePath(`/${tenantId}/overview`)
   return { ok: true, message: 'URLs guardadas correctamente.' }
 }
 
@@ -165,7 +132,7 @@ export async function createKnowledgeItem(
   _previousState: SettingsFormState,
   formData: FormData
 ): Promise<SettingsFormState> {
-  await requireTenantPermission(tenantId, 'manage_knowledge', 'chatbot')
+  await requireTenantPermission(tenantId, 'manage_knowledge', 'data')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -212,7 +179,8 @@ export async function createKnowledgeItem(
     return { ok: false, message: `No se pudo guardar la FAQ: ${error.message}` }
   }
 
-  revalidatePath(`/${tenantId}/settings`)
+  revalidatePath(`/${tenantId}/knowledge`)
+  revalidatePath(`/${tenantId}/overview`)
   return { ok: true, message: 'FAQ añadida correctamente.' }
 }
 
@@ -228,7 +196,7 @@ export async function uploadKnowledgeExcel(
   _previousState: ExcelUploadState,
   formData: FormData
 ): Promise<ExcelUploadState> {
-  await requireTenantPermission(tenantId, 'manage_knowledge', 'chatbot')
+  await requireTenantPermission(tenantId, 'manage_knowledge', 'data')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -335,7 +303,8 @@ export async function uploadKnowledgeExcel(
 
   if (error) return { ok: false, message: `Error al guardar: ${error.message}` }
 
-  revalidatePath(`/${tenantId}/settings`)
+  revalidatePath(`/${tenantId}/knowledge`)
+  revalidatePath(`/${tenantId}/overview`)
   return {
     ok: true,
     count: items.length,
@@ -352,7 +321,7 @@ export async function updateKnowledgeItem(
   _previousState: SettingsFormState,
   formData: FormData
 ): Promise<SettingsFormState> {
-  await requireTenantPermission(tenantId, 'manage_knowledge', 'chatbot')
+  await requireTenantPermission(tenantId, 'manage_knowledge', 'data')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -388,7 +357,8 @@ export async function updateKnowledgeItem(
 
   if (error) return { ok: false, message: `No se pudo guardar: ${error.message}` }
 
-  revalidatePath(`/${tenantId}/settings`)
+  revalidatePath(`/${tenantId}/knowledge`)
+  revalidatePath(`/${tenantId}/overview`)
   return { ok: true, message: 'FAQ actualizada.' }
 }
 
@@ -396,7 +366,7 @@ export async function deleteKnowledgeItem(
   tenantId: string,
   itemId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  await requireTenantPermission(tenantId, 'manage_knowledge', 'chatbot')
+  await requireTenantPermission(tenantId, 'manage_knowledge', 'data')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -413,7 +383,8 @@ export async function deleteKnowledgeItem(
 
   if (error) return { ok: false, error: error.message }
 
-  revalidatePath(`/${tenantId}/settings`)
+  revalidatePath(`/${tenantId}/knowledge`)
+  revalidatePath(`/${tenantId}/overview`)
   return { ok: true }
 }
 

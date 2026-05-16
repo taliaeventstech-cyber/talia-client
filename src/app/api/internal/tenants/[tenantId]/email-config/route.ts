@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getEmailAgentSettings } from '@/lib/email/settings'
 import { getTenantRuntimeChatConfig } from '@/lib/tenants/service'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -42,6 +43,7 @@ export async function GET(
     fallback_phone: configResult.config.fallbackPhone,
     topic_categories: configResult.config.topicCategories,
     knowledge_items: configResult.config.knowledgeItems,
+    email_agent_settings: getEmailAgentSettings(connection?.metadata),
     connection,
   })
 }

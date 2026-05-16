@@ -5,7 +5,7 @@ import { hasTenantPermission, isTenantModuleEnabled } from '@/lib/auth/permissio
 import { classifyConversationTopic } from '@/lib/analytics/topics'
 import { getDictionary, getLocale, getTopicLabel } from '@/lib/i18n/dictionaries'
 import { getActiveSubscription, getTenantUsageForPeriod } from '@/lib/usage/service'
-import { Bot, CheckCircle2, Database, MessageSquareText, MessagesSquare, Mic2, Plus, SlidersHorizontal } from 'lucide-react'
+import { Bot, CheckCircle2, Database, Mail, MessagesSquare, Mic2, Plus, SlidersHorizontal } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
@@ -23,7 +23,6 @@ export default async function OverviewPage({ params }: Props) {
   const hasVoiceModule = isTenantModuleEnabled(access.modules.voice)
   const hasEmailModule = isTenantModuleEnabled(access.modules.email)
   const hasInstagramModule = isTenantModuleEnabled(access.modules.instagram)
-  const hasFutureAttentionModule = hasEmailModule || hasInstagramModule
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -40,6 +39,10 @@ export default async function OverviewPage({ params }: Props) {
     { count: knowledgeItems },
     { count: knowledgeSources },
     { count: voiceConversations },
+    { data: emailConnections },
+    { count: emailThreads },
+    { count: emailWaitingHuman },
+    { data: emailDrafts },
     subscriptionResult,
     usageResult,
   ] = await Promise.all([
@@ -82,6 +85,33 @@ export default async function OverviewPage({ params }: Props) {
         .from('voice_conversations')
         .select('*', { count: 'exact', head: true })
         .eq('theatre_id', tenantId),
+      hasEmailModule
+        ? admin
+          .from('email_connections')
+          .select('mailbox_email, status, draft_mode, sync_mode, last_synced_at')
+          .eq('theatre_id', tenantId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+        : Promise.resolve({ data: [] }),
+      hasEmailModule
+        ? admin
+          .from('email_threads')
+          .select('id', { count: 'exact', head: true })
+          .eq('theatre_id', tenantId)
+        : Promise.resolve({ count: 0 }),
+      hasEmailModule
+        ? admin
+          .from('email_threads')
+          .select('id', { count: 'exact', head: true })
+          .eq('theatre_id', tenantId)
+          .eq('status', 'waiting_human')
+        : Promise.resolve({ count: 0 }),
+      hasEmailModule
+        ? admin
+          .from('email_drafts')
+          .select('id, status')
+          .eq('theatre_id', tenantId)
+        : Promise.resolve({ data: [] }),
       getActiveSubscription(admin, tenantId),
       getTenantUsageForPeriod(admin, tenantId),
     ])
@@ -95,6 +125,12 @@ export default async function OverviewPage({ params }: Props) {
   const latestTopics = (topics ?? [])
     .filter((item) => item.user_message)
     .slice(0, 4)
+  const emailConnection = emailConnections?.[0] ?? null
+  const isEmailConnected = emailConnection?.status === 'connected' || emailConnection?.status === 'syncing'
+  const emailDraftsPrepared = (emailDrafts ?? []).filter((draft) => draft.status === 'generated' || draft.status === 'created_in_provider').length
+  const canConfigureModules = hasTenantPermission(access.role, 'manage_chatbot')
+    || hasTenantPermission(access.role, 'manage_knowledge')
+    || (hasEmailModule && hasTenantPermission(access.role, 'manage_email'))
   const checklist = buildChecklist({
     tenantId,
     labels: copy.checklist,
@@ -147,38 +183,92 @@ export default async function OverviewPage({ params }: Props) {
             <p className="eyebrow">{copy.modules.section}</p>
             <h2>{copy.modules.title}</h2>
           </div>
-          {hasTenantPermission(access.role, 'manage_chatbot') ? (
-            <Link className="link-accent link-with-icon" href={`/${tenantId}/settings`}>
-              <SlidersHorizontal aria-hidden="true" size={14} strokeWidth={2} />
-              {copy.modules.configure}
-            </Link>
+          {canConfigureModules ? (
+            <details className="row-action-menu module-config-menu">
+              <summary className="link-accent link-with-icon">
+                <SlidersHorizontal aria-hidden="true" size={14} strokeWidth={2} />
+                {copy.modules.configure}
+              </summary>
+              <div className="row-action-menu-content">
+                {hasTenantPermission(access.role, 'manage_chatbot') ? (
+                  <Link className="row-action-menu-item" href={`/${tenantId}/settings`}>
+                    <Bot aria-hidden="true" size={14} strokeWidth={2} />
+                    Chatbot
+                  </Link>
+                ) : null}
+                {hasTenantPermission(access.role, 'manage_knowledge') ? (
+                  <Link className="row-action-menu-item" href={`/${tenantId}/knowledge`}>
+                    <Database aria-hidden="true" size={14} strokeWidth={2} />
+                    Conocimiento
+                  </Link>
+                ) : null}
+                {hasEmailModule && hasTenantPermission(access.role, 'manage_email') ? (
+                  <Link className="row-action-menu-item" href={`/${tenantId}/email`}>
+                    <Mail aria-hidden="true" size={14} strokeWidth={2} />
+                    Email
+                  </Link>
+                ) : null}
+              </div>
+            </details>
           ) : null}
         </div>
 
-        <div className="overview-grid">
+        <div className="module-orbit-grid">
           <ModuleStatusCard
-            icon={<Bot size={18} />}
+            href={`/${tenantId}/settings`}
+            icon={<Bot size={22} />}
+            label="Chatbot"
             title={copy.modules.chatbot}
             status={dictionary.common.active}
             tone="active"
             description={theatre?.n8n_webhook_url ? copy.modules.chatbotReady : copy.modules.chatbotPending}
-          />
+          >
+            <div className="module-mini-stats">
+              <span><strong>{totalConversations ?? 0}</strong>Conversaciones</span>
+              <span><strong>{knowledgeItems ?? 0}</strong>FAQs</span>
+            </div>
+          </ModuleStatusCard>
           {hasVoiceModule ? (
             <ModuleStatusCard
-              icon={<Mic2 size={18} />}
+              href={`/${tenantId}/overview`}
+              icon={<Mic2 size={22} />}
+              label="Voz"
               title={copy.modules.voice}
               status={theatre?.voice_enabled ? dictionary.common.active : copy.modules.pending}
               tone={theatre?.voice_enabled ? 'active' : 'soon'}
               description={theatre?.voice_enabled ? copy.modules.voiceReady : copy.modules.voicePending}
-            />
+            >
+            <div className="module-mini-stats">
+              <span><strong>{voiceConversations ?? 0}</strong>Llamadas</span>
+            </div>
+            </ModuleStatusCard>
           ) : null}
-          {hasFutureAttentionModule ? (
+          {hasEmailModule ? (
             <ModuleStatusCard
-              icon={<MessageSquareText size={18} />}
-              title={copy.modules.future}
+              href={`/${tenantId}/email`}
+              icon={<Mail size={22} />}
+              label="Email"
+              title={copy.modules.email}
+              status={isEmailConnected ? dictionary.common.active : copy.modules.pending}
+              tone={isEmailConnected ? 'active' : 'soon'}
+              description={isEmailConnected ? copy.modules.emailReady : copy.modules.emailPending}
+            >
+              <div className="module-mini-stats">
+                <span><strong>{emailThreads ?? 0}</strong>Bandeja</span>
+                <span><strong>{emailDraftsPrepared}</strong>Respuestas</span>
+                <span><strong>{emailWaitingHuman ?? 0}</strong>Revisión</span>
+              </div>
+            </ModuleStatusCard>
+          ) : null}
+          {hasInstagramModule ? (
+            <ModuleStatusCard
+              href={`/${tenantId}/overview`}
+              icon={<MessagesSquare size={22} />}
+              label="Instagram"
+              title={copy.modules.instagram}
               status={dictionary.common.soon}
               tone="soon"
-              description={copy.modules.futureDescription}
+              description={copy.modules.instagramPending}
             />
           ) : null}
         </div>
@@ -221,7 +311,7 @@ export default async function OverviewPage({ params }: Props) {
               </div>
             ) : null}
           </div>
-          <Link className="button-outline button-fit link-with-icon" href={`/${tenantId}/settings`}>
+          <Link className="button-outline button-fit link-with-icon" href={`/${tenantId}/knowledge`}>
             <Plus aria-hidden="true" size={14} strokeWidth={2.2} />
             {copy.knowledge.action}
           </Link>
@@ -353,27 +443,38 @@ function SummaryMetric({ label, value }: { label: string; value: number }) {
 }
 
 function ModuleStatusCard({
+  href,
   icon,
+  label,
   title,
   status,
   tone,
   description,
+  children,
 }: {
+  href: string
   icon: ReactNode
+  label: string
   title: string
   status: string
   tone: 'active' | 'soon'
   description: string
+  children?: ReactNode
 }) {
   return (
-    <div className="module-status-card">
-      <div className="module-status-header">
-        <span className="module-status-icon" aria-hidden="true">{icon}</span>
-        <span className={`status-pill status-pill-${tone}`}>{status}</span>
-      </div>
-      <h3>{title}</h3>
-      <p className="muted">{description}</p>
-    </div>
+    <Link className="module-status-tile" href={href} aria-label={`${title}: ${status}`}>
+      <span className={`module-status-icon module-status-icon-${tone}`} aria-hidden="true">{icon}</span>
+      <span className="module-status-label">{label}</span>
+      <span className="module-status-popover" aria-hidden="true">
+        <span className="module-status-header">
+          <span className="module-status-popover-icon">{icon}</span>
+          <span className={`status-pill status-pill-${tone}`}>{status}</span>
+        </span>
+        <strong>{title}</strong>
+        <span className="muted">{description}</span>
+        {children}
+      </span>
+    </Link>
   )
 }
 

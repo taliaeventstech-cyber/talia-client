@@ -2,7 +2,7 @@
 
 import { ChevronDown, Info, Trash2 } from 'lucide-react'
 import { useActionState, useState, useTransition, useEffect, useRef } from 'react'
-import { createKnowledgeItem, uploadKnowledgeExcel, updateScrapeUrls, updateKnowledgeItem, deleteKnowledgeItem, updateSystemPrompt, type SettingsFormState, type ExcelUploadState } from './actions'
+import { createKnowledgeItem, uploadKnowledgeExcel, updateScrapeUrls, updateKnowledgeItem, deleteKnowledgeItem, type SettingsFormState, type ExcelUploadState } from './actions'
 
 type KnowledgeItem = {
   id: string
@@ -17,11 +17,7 @@ type KnowledgeFormProps = {
   tenantId: string
   items: KnowledgeItem[]
   scrapeUrls: string[]
-  systemPrompt: string | null
   labels: {
-    basePrompt: string
-    basePromptHelp: string
-    savePrompt: string
     officialAnswers: string
     officialAnswersHelp: string
     visitorQuestion: string
@@ -82,8 +78,7 @@ const excelInitialState: ExcelUploadState = {
   message: '',
 }
 
-export function KnowledgeForm({ tenantId, items, scrapeUrls, systemPrompt, labels }: KnowledgeFormProps) {
-  const [promptState, promptFormAction, promptPending] = useActionState(updateSystemPrompt.bind(null, tenantId), initialState)
+export function KnowledgeForm({ tenantId, items, scrapeUrls, labels }: KnowledgeFormProps) {
   const [isFaqOpen, setIsFaqOpen] = useState(true)
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [isUrlsOpen, setIsUrlsOpen] = useState(false)
@@ -94,34 +89,6 @@ export function KnowledgeForm({ tenantId, items, scrapeUrls, systemPrompt, label
 
   return (
     <>
-      <section className="card stack">
-        <div className="section-title-row">
-          <div>
-            <h2>{labels.basePrompt}</h2>
-            <p className="muted">{labels.basePromptHelp}</p>
-          </div>
-        </div>
-
-        <form action={promptFormAction} className="stack">
-          {promptState.message ? (
-            <p role="status" className={`notice ${promptState.ok ? 'notice-success' : 'notice-error'}`}>
-              {promptState.message}
-            </p>
-          ) : null}
-
-          <textarea
-            name="system_prompt"
-            defaultValue={systemPrompt ?? ''}
-            rows={10}
-            className="mono"
-          />
-
-          <button className="button-primary button-fit" type="submit" disabled={promptPending} style={{ opacity: promptPending ? 0.7 : 1 }}>
-            {promptPending ? labels.saving : labels.savePrompt}
-          </button>
-        </form>
-      </section>
-
       <section className="card stack">
         <button
           type="button"

@@ -35,9 +35,12 @@ export async function syncAndMaybeProcessEmail(admin: AdminClient, tenantId: str
   }
 
   let processed = 0
-  if (result.autoProcessAfterSync && result.imported > 0) {
+  if (result.autoClassifyAfterSync && result.imported > 0) {
     for (let index = 0; index < result.imported; index += 1) {
-      const processResult = await processEmailMessage(admin, { tenantId })
+      const processResult = await processEmailMessage(admin, {
+        tenantId,
+        createDraft: result.autoDraftAfterSync,
+      })
       if (!processResult.ok) break
       processed += 1
     }

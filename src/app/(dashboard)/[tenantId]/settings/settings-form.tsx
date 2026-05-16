@@ -13,6 +13,8 @@ type SettingsFormLabels = {
   fallbackPhone: string
   autoOpen: string
   delay: string
+  channelPrompt: string
+  channelPromptHint: string
   saving: string
   save: string
 }
@@ -101,6 +103,18 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels }: Settin
             />
           </label>
         </div>
+      </section>
+
+      <section className="card stack">
+        <h2>{labels.channelPrompt}</h2>
+        <p className="muted">{labels.channelPromptHint}</p>
+        <textarea
+          name="system_prompt"
+          defaultValue={theatre.system_prompt ?? ''}
+          rows={8}
+          className="mono"
+          placeholder="Instrucciones específicas para el chatbot web."
+        />
       </section>
 
       <button className="button-primary" type="submit" disabled={pending} style={{ opacity: pending ? 0.7 : 1 }}>

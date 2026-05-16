@@ -97,6 +97,17 @@ export async function deleteEmailDraftAction(tenantId: string, draftId: string) 
   await requireTenantPermission(tenantId, 'manage_email', 'email')
 
   const admin = createAdminClient()
+  const { data: drafts, error: fetchError } = await admin
+    .from('email_drafts')
+    .select('id, thread_id')
+    .eq('theatre_id', tenantId)
+    .eq('id', draftId)
+    .limit(1)
+
+  if (fetchError || !drafts?.length) {
+    redirect(`/${tenantId}/email?email_draft_delete_error=${encodeURIComponent(fetchError?.message ?? 'No se ha encontrado el draft')}`)
+  }
+
   const { error } = await admin
     .from('email_drafts')
     .delete()
@@ -107,6 +118,7 @@ export async function deleteEmailDraftAction(tenantId: string, draftId: string) 
     redirect(`/${tenantId}/email?email_draft_delete_error=${encodeURIComponent(error.message)}`)
   }
 
+  await resetThreadsWithoutDrafts(admin, tenantId, drafts.map((draft) => draft.thread_id).filter(Boolean))
   revalidatePath(`/${tenantId}/email`)
   redirect(`/${tenantId}/email?email_draft_deleted=local`)
 }
@@ -117,7 +129,7 @@ export async function deleteProviderEmailDraftAction(tenantId: string, draftId: 
   const admin = createAdminClient()
   const { data: draft, error } = await admin
     .from('email_drafts')
-    .select('id, connection_id, provider_draft_id, email_connections!inner(id, provider, oauth_metadata)')
+    .select('id, connection_id, thread_id, provider_draft_id, email_connections!inner(id, provider, oauth_metadata)')
     .eq('theatre_id', tenantId)
     .eq('id', draftId)
     .maybeSingle()
@@ -155,6 +167,7 @@ export async function deleteProviderEmailDraftAction(tenantId: string, draftId: 
     redirect(`/${tenantId}/email?email_draft_delete_error=${encodeURIComponent(localDeleteError.message)}`)
   }
 
+  await resetThreadsWithoutDrafts(admin, tenantId, draft.thread_id ? [draft.thread_id] : [])
   revalidatePath(`/${tenantId}/email`)
   redirect(`/${tenantId}/email?email_draft_deleted=provider`)
 }
@@ -174,7 +187,7 @@ export async function deleteSelectedEmailDraftsAction(tenantId: string, formData
   const admin = createAdminClient()
   const { data: drafts, error: fetchError } = await admin
     .from('email_drafts')
-    .select('id, provider_draft_id, email_connections!inner(id, provider, oauth_metadata)')
+    .select('id, thread_id, provider_draft_id, email_connections!inner(id, provider, oauth_metadata)')
     .eq('theatre_id', tenantId)
     .in('id', draftIds)
 
@@ -220,6 +233,7 @@ export async function deleteSelectedEmailDraftsAction(tenantId: string, formData
     redirect(`/${tenantId}/email?email_draft_delete_error=${encodeURIComponent(localDeleteError.message)}`)
   }
 
+  await resetThreadsWithoutDrafts(admin, tenantId, drafts.map((draft) => draft.thread_id).filter(Boolean))
   revalidatePath(`/${tenantId}/email`)
   redirect(`/${tenantId}/email?email_drafts_deleted=${drafts.length}&email_provider_drafts_deleted=${providerDeleted}&email_provider_drafts_failed=${providerFailed}`)
 }
@@ -296,4 +310,30 @@ function getSelectedDraftIds(formData: FormData) {
   return formData
     .getAll('draft_ids')
     .filter((value): value is string => typeof value === 'string' && Boolean(value))
+}
+
+async function resetThreadsWithoutDrafts(
+  admin: ReturnType<typeof createAdminClient>,
+  tenantId: string,
+  threadIds: (string | null)[],
+) {
+  const uniqueThreadIds = Array.from(new Set(threadIds.filter((threadId): threadId is string => Boolean(threadId))))
+  if (!uniqueThreadIds.length) return
+
+  const { data: remainingDrafts } = await admin
+    .from('email_drafts')
+    .select('thread_id')
+    .eq('theatre_id', tenantId)
+    .in('thread_id', uniqueThreadIds)
+
+  const threadsWithDrafts = new Set((remainingDrafts ?? []).map((draft) => draft.thread_id).filter(Boolean))
+  const threadsWithoutDrafts = uniqueThreadIds.filter((threadId) => !threadsWithDrafts.has(threadId))
+  if (!threadsWithoutDrafts.length) return
+
+  await admin
+    .from('email_threads')
+    .update({ status: 'new' })
+    .eq('theatre_id', tenantId)
+    .eq('status', 'drafted')
+    .in('id', threadsWithoutDrafts)
 }

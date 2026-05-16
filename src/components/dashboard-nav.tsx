@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Inbox, LayoutDashboard, Mail, MessageCircle, MessageSquare, Network, SlidersHorizontal, Megaphone } from 'lucide-react'
+import { Bot, Database, Inbox, LayoutDashboard, Mail, MessageCircle, MessageSquare, Network, SlidersHorizontal, Megaphone } from 'lucide-react'
 import {
   hasTenantPermission,
   isTenantModuleEnabled,
@@ -19,6 +19,8 @@ type DashboardNavLabels = {
   emailAgent: string
   inbox: string
   whatsapp: string
+  intelligence: string
+  knowledge: string
   marketing: string
   campaigns: string
   active: string
@@ -41,6 +43,7 @@ export function DashboardNav({
 }) {
   const pathname = usePathname()
   const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
+  const activeExact = (href: string) => pathname === href
   const chatbotEnabled = isTenantModuleEnabled(modules.chatbot)
   const dataEnabled = isTenantModuleEnabled(modules.data)
   const voiceEnabled = isTenantModuleEnabled(modules.voice)
@@ -50,9 +53,11 @@ export function DashboardNav({
   const canViewConversations = hasTenantPermission(role, 'view_conversations')
   const canViewAnalytics = hasTenantPermission(role, 'view_analytics')
   const canManageChatbot = hasTenantPermission(role, 'manage_chatbot')
+  const canManageKnowledge = hasTenantPermission(role, 'manage_knowledge')
   const canManageVoice = hasTenantPermission(role, 'manage_voice')
   const canManageEmail = hasTenantPermission(role, 'manage_email')
   const showChatbot = chatbotEnabled && (canViewConversations || canManageChatbot || (dataEnabled && canViewAnalytics))
+  const showKnowledge = dataEnabled && canManageKnowledge
   const showVoice = voiceEnabled && canManageVoice
   const showEmail = emailEnabled && canManageEmail
   const showAttention = showChatbot || showVoice || showEmail || whatsappEnabled
@@ -77,7 +82,10 @@ export function DashboardNav({
           {showChatbot ? (
             <div className="nav-channel">
               <div className="nav-channel-title">
-                <span>{labels.webChatbot}</span>
+                <span className="nav-channel-title-main">
+                  <Bot size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
+                  <span>{labels.webChatbot}</span>
+                </span>
                 <span className="nav-channel-status">{labels.active}</span>
               </div>
               <div className="nav-subnav">
@@ -138,11 +146,18 @@ export function DashboardNav({
               </div>
               <div className="nav-subnav">
                 <Link
-                  className={`nav-link nav-link-nested ${active(`/${tenantId}/email`) ? 'nav-link-active' : ''}`}
+                  className={`nav-link nav-link-nested ${activeExact(`/${tenantId}/email`) ? 'nav-link-active' : ''}`}
                   href={`/${tenantId}/email`}
                 >
                   <Inbox size={14} strokeWidth={2} aria-hidden="true" />
                   {labels.inbox}
+                </Link>
+                <Link
+                  className={`nav-link nav-link-nested ${active(`/${tenantId}/email/analysis`) ? 'nav-link-active' : ''}`}
+                  href={`/${tenantId}/email/analysis`}
+                >
+                  <Network size={14} strokeWidth={2} aria-hidden="true" />
+                  {labels.analysis}
                 </Link>
               </div>
             </div>
@@ -157,6 +172,19 @@ export function DashboardNav({
               </div>
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {showKnowledge ? (
+        <div className="nav-section">
+          <p className="nav-section-label">{labels.intelligence}</p>
+          <Link
+            className={`nav-link ${active(`/${tenantId}/knowledge`) ? 'nav-link-active' : ''}`}
+            href={`/${tenantId}/knowledge`}
+          >
+            <Database size={14} strokeWidth={2} aria-hidden="true" />
+            {labels.knowledge}
+          </Link>
         </div>
       ) : null}
 

@@ -52,6 +52,8 @@ export default async function DashboardLayout({ children, params }: Props) {
             emailAgent: dictionary.nav.emailAgent,
             inbox: dictionary.nav.inbox,
             whatsapp: dictionary.nav.whatsapp,
+            intelligence: dictionary.nav.intelligence,
+            knowledge: dictionary.nav.knowledge,
             marketing: dictionary.nav.marketing,
             campaigns: dictionary.nav.campaigns,
             active: dictionary.common.active,

@@ -62,7 +62,7 @@ export default async function BackstageAccountPage({ params, searchParams }: Pro
       .gt('billing_period_end', period.startDate),
     admin
       .from('tenant_usage_daily')
-      .select('theatre_id, conversations, estimated_cost_cents')
+      .select('theatre_id, conversations, input_tokens, output_tokens, estimated_cost_cents')
       .gte('date', period.startDate)
       .lt('date', period.endDate)
       .eq('channel', 'chatbot'),
@@ -87,10 +87,12 @@ export default async function BackstageAccountPage({ params, searchParams }: Pro
     current.push(module.module_key)
     modulesByTenant.set(module.theatre_id, current)
   })
-  const usageByTenant = new Map<string, { conversations: number; estimatedCostCents: number }>()
+  const usageByTenant = new Map<string, { conversations: number; inputTokens: number; outputTokens: number; estimatedCostCents: number }>()
   ;(usageRows ?? []).forEach((row) => {
-    const current = usageByTenant.get(row.theatre_id) ?? { conversations: 0, estimatedCostCents: 0 }
+    const current = usageByTenant.get(row.theatre_id) ?? { conversations: 0, inputTokens: 0, outputTokens: 0, estimatedCostCents: 0 }
     current.conversations += row.conversations
+    current.inputTokens += row.input_tokens
+    current.outputTokens += row.output_tokens
     current.estimatedCostCents += row.estimated_cost_cents
     usageByTenant.set(row.theatre_id, current)
   })
@@ -139,7 +141,7 @@ export default async function BackstageAccountPage({ params, searchParams }: Pro
                 </thead>
                 <tbody>
                   {(venues ?? []).map((venue) => {
-                    const usage = usageByTenant.get(venue.id) ?? { conversations: 0, estimatedCostCents: 0 }
+                    const usage = usageByTenant.get(venue.id) ?? { conversations: 0, inputTokens: 0, outputTokens: 0, estimatedCostCents: 0 }
                     const subscription = subscriptionByTenant.get(venue.id)
                     const included = subscription?.included_chat_conversations ?? 0
 
@@ -154,7 +156,7 @@ export default async function BackstageAccountPage({ params, searchParams }: Pro
                         <td>{venue.primary_language}</td>
                         <td>
                           {included > 0 ? `${usage.conversations} / ${included}` : usage.conversations}
-                          <p className="muted">{formatCurrency(usage.estimatedCostCents)}</p>
+                          <p className="muted">{formatCurrency(usage.estimatedCostCents)} · {formatTokens(usage.inputTokens + usage.outputTokens)} tokens</p>
                         </td>
                         <td>
                           <div className="table-actions">
@@ -333,7 +335,7 @@ export default async function BackstageAccountPage({ params, searchParams }: Pro
                 <tbody>
                   {(venues ?? []).map((venue) => {
                     const subscription = subscriptionByTenant.get(venue.id)
-                    const usage = usageByTenant.get(venue.id) ?? { conversations: 0, estimatedCostCents: 0 }
+                    const usage = usageByTenant.get(venue.id) ?? { conversations: 0, inputTokens: 0, outputTokens: 0, estimatedCostCents: 0 }
                     const activeModules = modulesByTenant.get(venue.id) ?? []
                     const included = subscription?.included_chat_conversations ?? 0
 
@@ -354,7 +356,10 @@ export default async function BackstageAccountPage({ params, searchParams }: Pro
                           </div>
                         </td>
                         <td>{included > 0 ? `${included} conversaciones/mes` : 'Sin límite configurado'}</td>
-                        <td>{included > 0 ? `${usage.conversations} / ${included}` : usage.conversations}</td>
+                        <td>
+                          {included > 0 ? `${usage.conversations} / ${included}` : usage.conversations}
+                          <p className="muted">{formatTokens(usage.inputTokens + usage.outputTokens)} tokens</p>
+                        </td>
                         <td>
                           <div className="table-actions">
                             <IconAction href={`/backstage/tenants/${venue.id}`} label="Editar plan y módulos">
@@ -453,6 +458,10 @@ function formatCurrency(cents: number) {
     style: 'currency',
     currency: 'EUR',
   }).format(cents / 100)
+}
+
+function formatTokens(tokens: number) {
+  return new Intl.NumberFormat('es-ES', { notation: 'compact', maximumFractionDigits: 1 }).format(tokens)
 }
 
 function IconAction({ href, label, children, newTab = false }: { href: string; label: string; children: React.ReactNode; newTab?: boolean }) {

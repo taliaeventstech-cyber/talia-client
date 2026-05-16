@@ -6,11 +6,13 @@ import {
   recordUsageEvent,
 } from '@/lib/usage/service'
 import type { Json } from '@/types/database.types'
-import type { EmailAgentProvider } from './agent-provider'
+import type { EmailAgentClassification, EmailAgentClassifierProvider, EmailAgentDrafterProvider } from './agent-provider'
+import { applyEmailClassificationSafeguards } from './classification-safeguards'
 import { classifyEmailMessage } from './classifier'
 import { createGmailDraft } from './gmail'
 import { getFreshGoogleAccessToken } from './google-tokens'
-import { N8nEmailAgentProvider } from './n8n'
+import { N8nEmailClassifierProvider, N8nEmailDrafterProvider } from './n8n'
+import { getEmailAgentSettings } from './settings'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -18,6 +20,7 @@ export type ProcessEmailInput = {
   tenantId: string
   threadId?: string
   messageId?: string
+  createDraft?: boolean
 }
 
 export async function processEmailMessage(admin: AdminClient, input: ProcessEmailInput) {
@@ -32,10 +35,6 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
 
   if (!connection) {
     return { ok: false as const, error: 'No connected email mailbox for this tenant' }
-  }
-
-  if (connection.draft_mode === 'disabled') {
-    return { ok: false as const, error: 'Email draft generation is disabled for this tenant' }
   }
 
   const messageQuery = admin
@@ -86,7 +85,7 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
   const thread = Array.isArray(message.email_threads)
     ? message.email_threads[0]
     : message.email_threads
-  const classification = classifyEmailMessage({
+  const rulesClassification = classifyEmailMessage({
     subject: thread?.subject ?? null,
     senderEmail: message.from_email ?? thread?.sender_email ?? null,
     bodyText,
@@ -94,14 +93,14 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
     connectionMetadata: connection.metadata,
   })
 
-  if (!classification.shouldProcess) {
+  if (!rulesClassification.shouldProcess) {
     await admin
       .from('email_threads')
       .update({
         status: 'ignored',
         metadata: {
           source: 'email_classifier',
-          classification,
+          classification: rulesClassification,
         } satisfies Json,
       })
       .eq('id', message.thread_id)
@@ -122,10 +121,8 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
     searchTenantKnowledge(admin, input.tenantId, bodyText),
   ])
 
-  const provider = getEmailAgentProvider(connection.metadata)
-  if (!provider.ok) return provider
-
-  const result = await provider.provider.generateDraft({
+  const agentSettings = getEmailAgentSettings(connection.metadata)
+  const agentInput = {
     tenantId: input.tenantId,
     connectionId: connection.id,
     threadId: message.thread_id,
@@ -137,12 +134,68 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
     bodyText,
     fallbackEmail: theatre?.fallback_email ?? null,
     fallbackPhone: theatre?.fallback_phone ?? null,
+    agentSettings,
     knowledgeHints: knowledgeMatches.slice(0, 5).map((match) => ({
       question: match.question,
       answer: match.answer,
       category: match.category,
       priority: match.priority,
     })),
+  }
+
+  const classifierProvider = getEmailClassifierProvider(connection.metadata)
+  if (!classifierProvider.ok) return classifierProvider
+
+  const classificationResult = await classifierProvider.provider.classify(agentInput)
+  if (!classificationResult.ok) {
+    await admin
+      .from('email_threads')
+      .update({
+        status: 'escalated',
+        metadata: {
+          email_classifier_error: classificationResult.error,
+          email_classifier_details: classificationResult.details ?? null,
+          classification: rulesClassification,
+        } satisfies Json,
+      })
+      .eq('id', message.thread_id)
+
+    return classificationResult
+  }
+
+  const agentClassification = applyEmailClassificationSafeguards({
+    subject: thread?.subject ?? null,
+    bodyText,
+    rulesClassification,
+    agentClassification: classificationResult.classification,
+  })
+  const combinedClassification = mergeClassifications(rulesClassification, agentClassification)
+  await admin
+    .from('email_threads')
+    .update({
+      status: getClassifiedThreadStatus(agentClassification),
+      topic: agentClassification.topic ?? 'otro',
+      priority: agentClassification.priority,
+      metadata: buildClassificationMetadata(agentClassification, rulesClassification, knowledgeMatches.length),
+    })
+    .eq('id', message.thread_id)
+
+  if (!agentClassification.shouldProcess || !agentClassification.shouldReply || input.createDraft === false || connection.draft_mode === 'disabled') {
+    return {
+      ok: true as const,
+      action: agentClassification.shouldReply && (input.createDraft === false || connection.draft_mode === 'disabled')
+        ? 'classified' as const
+        : 'ignored' as const,
+      threadId: message.thread_id,
+    }
+  }
+
+  const drafterProvider = getEmailDrafterProvider(connection.metadata)
+  if (!drafterProvider.ok) return drafterProvider
+
+  const result = await drafterProvider.provider.generateDraft({
+    ...agentInput,
+    classification: agentClassification,
   })
 
   if (!result.ok) {
@@ -153,6 +206,7 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
         metadata: {
           email_agent_error: result.error,
           email_agent_details: result.details ?? null,
+          classification: buildThreadClassificationRecord(combinedClassification),
         },
       })
       .eq('id', message.thread_id)
@@ -161,14 +215,16 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
   }
 
   const draft = result.draft
+  const finalTopic = draft.topic ?? agentClassification.topic ?? 'otro'
+  const finalPriority = draft.priority === 'normal' ? agentClassification.priority : draft.priority
   if (!draft.shouldReply) {
     await admin
       .from('email_threads')
       .update({
         status: 'ignored',
-        topic: draft.topic ?? 'otro',
-        priority: draft.priority,
-        metadata: buildDraftMetadata(draft, classification),
+        topic: finalTopic,
+        priority: finalPriority,
+        metadata: buildDraftMetadata(draft, combinedClassification, knowledgeMatches.length),
       })
       .eq('id', message.thread_id)
 
@@ -179,7 +235,7 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
     }
   }
 
-  const draftMetadata = buildDraftMetadata(draft, classification)
+  const draftMetadata = buildDraftMetadata(draft, combinedClassification, knowledgeMatches.length)
   const { data: createdDraft, error: draftError } = await admin
     .from('email_drafts')
     .insert({
@@ -208,14 +264,12 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
       .from('email_threads')
       .update({
         status: 'drafted',
-        topic: draft.topic ?? 'otro',
-        priority: draft.priority,
+        topic: finalTopic,
+        priority: finalPriority,
         metadata: {
           source: 'email_agent',
-          classification: {
-            ...classification,
-            agent_reason: draft.classificationReason,
-          },
+          knowledge_match_count: knowledgeMatches.length,
+          classification: buildThreadClassificationRecord(combinedClassification, draft.classificationReason),
         } satisfies Json,
       })
       .eq('id', message.thread_id),
@@ -386,25 +440,59 @@ async function createProviderDraft(
   }
 }
 
-function getEmailAgentProvider(metadata: Json) {
+function getEmailClassifierProvider(metadata: Json) {
   const metadataRecord = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
     ? metadata as Record<string, Json | undefined>
     : {}
-  const webhookFromMetadata = typeof metadataRecord.n8n_email_agent_webhook_url === 'string'
+  const webhookFromMetadata = typeof metadataRecord.n8n_email_classifier_webhook_url === 'string'
+    ? metadataRecord.n8n_email_classifier_webhook_url
+    : null
+  const legacyWebhook = typeof metadataRecord.n8n_email_agent_webhook_url === 'string'
     ? metadataRecord.n8n_email_agent_webhook_url
     : null
-  const webhookUrl = webhookFromMetadata ?? process.env.DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL
+  const webhookUrl = webhookFromMetadata
+    ?? process.env.DEFAULT_N8N_EMAIL_CLASSIFIER_WEBHOOK_URL
+    ?? legacyWebhook
+    ?? process.env.DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL
 
   if (!webhookUrl) {
     return {
       ok: false as const,
-      error: 'Email agent webhook is not configured',
+      error: 'Email classifier webhook is not configured',
     }
   }
 
   return {
     ok: true as const,
-    provider: new N8nEmailAgentProvider(webhookUrl) satisfies EmailAgentProvider,
+    provider: new N8nEmailClassifierProvider(webhookUrl) satisfies EmailAgentClassifierProvider,
+  }
+}
+
+function getEmailDrafterProvider(metadata: Json) {
+  const metadataRecord = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+    ? metadata as Record<string, Json | undefined>
+    : {}
+  const webhookFromMetadata = typeof metadataRecord.n8n_email_drafter_webhook_url === 'string'
+    ? metadataRecord.n8n_email_drafter_webhook_url
+    : null
+  const legacyWebhook = typeof metadataRecord.n8n_email_agent_webhook_url === 'string'
+    ? metadataRecord.n8n_email_agent_webhook_url
+    : null
+  const webhookUrl = webhookFromMetadata
+    ?? process.env.DEFAULT_N8N_EMAIL_DRAFTER_WEBHOOK_URL
+    ?? legacyWebhook
+    ?? process.env.DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL
+
+  if (!webhookUrl) {
+    return {
+      ok: false as const,
+      error: 'Email drafter webhook is not configured',
+    }
+  }
+
+  return {
+    ok: true as const,
+    provider: new N8nEmailDrafterProvider(webhookUrl) satisfies EmailAgentDrafterProvider,
   }
 }
 
@@ -418,19 +506,83 @@ function buildDraftMetadata(draft: {
   escalationReason: string | null
   classificationReason: string | null
   raw?: unknown
-}, classification?: ReturnType<typeof classifyEmailMessage>) {
+}, classification?: CombinedEmailClassification, knowledgeMatchCount = 0) {
   return {
     source: 'email_agent',
     provider: 'n8n',
     confidence: draft.confidence,
     escalation_reason: draft.escalationReason,
-    classification: classification
-      ? {
-        ...classification,
-        agent_reason: draft.classificationReason,
-      }
-      : null,
+    knowledge_match_count: knowledgeMatchCount,
+    classification: classification ? buildThreadClassificationRecord(classification, draft.classificationReason) : null,
     raw_response: (draft.raw ?? null) as Json,
+  } satisfies Json
+}
+
+type CombinedEmailClassification = ReturnType<typeof classifyEmailMessage> & {
+  shouldReply: boolean
+  needsHumanReview: boolean
+  topic: string | null
+  priority: EmailAgentClassification['priority']
+  escalationReason: string | null
+  agentConfidence: number | null
+  agentReason: string | null
+  rawAgentResponse?: unknown
+}
+
+function mergeClassifications(
+  rulesClassification: ReturnType<typeof classifyEmailMessage>,
+  agentClassification: EmailAgentClassification,
+): CombinedEmailClassification {
+  return {
+    ...rulesClassification,
+    shouldProcess: rulesClassification.shouldProcess && agentClassification.shouldProcess,
+    confidence: rulesClassification.confidence,
+    shouldReply: agentClassification.shouldReply,
+    needsHumanReview: agentClassification.needsHumanReview,
+    topic: agentClassification.topic,
+    priority: agentClassification.priority,
+    escalationReason: agentClassification.escalationReason,
+    agentConfidence: agentClassification.confidence,
+    agentReason: agentClassification.classificationReason,
+    rawAgentResponse: agentClassification.raw,
+  }
+}
+
+function getClassifiedThreadStatus(classification: EmailAgentClassification) {
+  if (classification.needsHumanReview) return 'waiting_human'
+  if (!classification.shouldProcess || !classification.shouldReply) return 'ignored'
+  return 'new'
+}
+
+function buildClassificationMetadata(
+  agentClassification: EmailAgentClassification,
+  rulesClassification: ReturnType<typeof classifyEmailMessage>,
+  knowledgeMatchCount: number,
+) {
+  return {
+    source: 'email_classifier',
+    provider: 'n8n',
+    confidence: agentClassification.confidence,
+    escalation_reason: agentClassification.escalationReason,
+    knowledge_match_count: knowledgeMatchCount,
+    classification: buildThreadClassificationRecord(mergeClassifications(rulesClassification, agentClassification)),
+    raw_response: (agentClassification.raw ?? null) as Json,
+  } satisfies Json
+}
+
+function buildThreadClassificationRecord(classification: CombinedEmailClassification, draftReason?: string | null) {
+  return {
+    shouldProcess: classification.shouldProcess,
+    shouldReply: classification.shouldReply,
+    needsHumanReview: classification.needsHumanReview,
+    reason: classification.reason,
+    source: classification.source,
+    confidence: classification.confidence,
+    topic: classification.topic,
+    priority: classification.priority,
+    escalationReason: classification.escalationReason,
+    agent_confidence: classification.agentConfidence,
+    agent_reason: draftReason ?? classification.agentReason,
   } satisfies Json
 }
 

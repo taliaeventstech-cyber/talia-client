@@ -2,7 +2,8 @@ import { requireTenantPermission } from '@/lib/auth/tenant-access'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { QueryToastNotice } from '@/components/ui/query-toast-notice'
 import { SelectAllCheckbox } from '@/components/ui/select-all-checkbox'
-import { AlertTriangle, ChevronLeft, ChevronRight, Clock3, ExternalLink, Inbox, Mail, PencilLine, RefreshCw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock3, ExternalLink, Mail, PencilLine, RefreshCw } from 'lucide-react'
+import Link from 'next/link'
 import { Suspense } from 'react'
 import {
   deleteSelectedEmailDraftsAction,
@@ -39,8 +40,17 @@ interface Props {
     email_draft_delete_error?: string
     thread_page?: string
     thread_limit?: string
+    thread_status?: string
   }>
 }
+
+const threadStatusFilters = [
+  { value: 'all', label: 'Todos' },
+  { value: 'new', label: 'Sin procesar' },
+  { value: 'drafted', label: 'Respuesta preparada' },
+  { value: 'waiting_human', label: 'Requiere revisión' },
+  { value: 'ignored', label: 'No accionable' },
+] as const
 
 export default async function EmailAgentPage({ params, searchParams }: Props) {
   const { tenantId } = await params
@@ -49,11 +59,12 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
 
   const admin = createAdminClient()
   const threadPagination = getThreadPagination(query)
+  const activeThreadStatus = getThreadStatusFilter(query.thread_status)
   const [
     { data: theatre },
     { data: connections },
     { count: threadTotalCount },
-    { count: waitingHumanCount },
+    { data: threadStatusRows },
     { data: drafts },
     { data: latestDrafts },
   ] = await Promise.all([
@@ -73,12 +84,11 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
       .eq('theatre_id', tenantId),
     admin
       .from('email_threads')
-      .select('id', { count: 'exact', head: true })
-      .eq('theatre_id', tenantId)
-      .eq('status', 'waiting_human'),
+      .select('id, status')
+      .eq('theatre_id', tenantId),
     admin
       .from('email_drafts')
-      .select('id, status')
+      .select('id, status, thread_id')
       .eq('theatre_id', tenantId),
     admin
       .from('email_drafts')
@@ -104,24 +114,35 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
       .limit(8),
   ])
   const threadTotal = threadTotalCount ?? 0
-  const threadPageCount = Math.max(1, Math.ceil(threadTotal / threadPagination.limit))
+  const draftedThreadIds = new Set((drafts ?? []).map((draft) => draft.thread_id).filter(Boolean))
+  const threadStatusCounts = countDisplayThreadStatuses(threadStatusRows ?? [], draftedThreadIds)
+  const filteredThreadCount = activeThreadStatus === 'all'
+    ? threadTotal
+    : threadStatusCounts.get(activeThreadStatus) ?? 0
+  const threadPageCount = Math.max(1, Math.ceil(filteredThreadCount / threadPagination.limit))
   const threadPage = Math.min(threadPagination.page, threadPageCount)
   const threadFrom = (threadPage - 1) * threadPagination.limit
   const threadTo = threadFrom + threadPagination.limit - 1
-  const { data: threads } = await admin
+  let threadsQuery = admin
     .from('email_threads')
-    .select('id, status, priority, subject, sender_email, topic, last_message_at')
+    .select('id, status, priority, subject, sender_email, topic, last_message_at, metadata')
     .eq('theatre_id', tenantId)
     .order('last_message_at', { ascending: false, nullsFirst: false })
     .range(threadFrom, threadTo)
 
+  if (activeThreadStatus === 'drafted') {
+    const draftedIds = Array.from(draftedThreadIds)
+    threadsQuery = draftedIds.length
+      ? threadsQuery.eq('status', 'drafted').in('id', draftedIds)
+      : threadsQuery.eq('id', '00000000-0000-0000-0000-000000000000')
+  } else if (activeThreadStatus !== 'all') {
+    threadsQuery = threadsQuery.eq('status', activeThreadStatus)
+  }
+
+  const { data: threads } = await threadsQuery
+  const visibleThreadsWithDrafts = draftedThreadIds
+
   const connection = connections?.[0] ?? null
-  const draftCounts = countByStatus(drafts ?? [])
-  const generatedDrafts = draftCounts.get('generated') ?? 0
-  const providerDrafts = draftCounts.get('created_in_provider') ?? 0
-  const waitingHuman = waitingHumanCount ?? 0
-  const threadRangeStart = threadTotal === 0 ? 0 : threadFrom + 1
-  const threadRangeEnd = Math.min(threadFrom + (threads?.length ?? 0), threadTotal)
   const activeMailbox = connection?.mailbox_email ?? theatre?.fallback_email ?? 'Sin buzón conectado'
   const isConnected = connection?.status === 'connected' || connection?.status === 'syncing'
   const isError = connection?.status === 'error'
@@ -172,35 +193,44 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
       <header className="page-header">
         <div>
           <p className="section-label">Agente de email</p>
-          <h1>{theatre?.name ?? 'Email'}</h1>
-        </div>
-        <span className={`status-pill ${getConnectionStatusClass(connection?.status)}`}>
-          {formatConnectionStatus(connection?.status)}
-        </span>
-      </header>
-
-      <section className={`card email-setup-hero ${isConnected ? 'email-setup-hero-ready' : ''}`}>
-        <div className="email-setup-copy">
-          <span className="detail-icon">
-            <Mail size={17} strokeWidth={2} aria-hidden="true" />
-          </span>
-          <div className="email-setup-content">
-            <div className="email-setup-title-row">
-              <p className="eyebrow">Conexión del buzón</p>
-              <span className={`status-pill ${getConnectionStatusClass(connection?.status)}`}>
-                {formatConnectionStatus(connection?.status)}
+          <div className="page-title-row">
+            <h1>{theatre?.name ?? 'Email'}</h1>
+            <span className={`status-pill ${getConnectionStatusClass(connection?.status)}`}>
+              {formatConnectionStatus(connection?.status)}
+            </span>
+            <div className="email-header-mailbox">
+              <span className="detail-icon" aria-hidden="true">
+                <Mail size={16} strokeWidth={2} />
               </span>
-            </div>
-            <h2>{activeMailbox}</h2>
-            <div className="email-setup-meta" aria-label="Configuración de email">
-              <span>{formatProvider(connection?.provider)}</span>
-              <span>{formatDraftMode(connection?.draft_mode)}</span>
-              <span>{formatSync(connection?.sync_mode, connection?.last_synced_at)}</span>
+              <div>
+                <strong>{activeMailbox}</strong>
+                <p>
+                  {formatProvider(connection?.provider)} · {formatDraftMode(connection?.draft_mode)} · {formatSync(connection?.sync_mode, connection?.last_synced_at)}
+                </p>
+              </div>
             </div>
           </div>
         </div>
+      </header>
 
-        <div className="email-setup-action">
+      {isError || connection?.error_message ? (
+        <p className="notice notice-error">
+          {connection?.error_message ?? 'Hay un error en la conexión del buzón. Revisa permisos o credenciales.'}
+        </p>
+      ) : null}
+
+      <section className="card stack">
+        <div className="section-title-row">
+          <div>
+            <p className="eyebrow">Bandeja</p>
+            <h2>Emails sincronizados</h2>
+          </div>
+          <Suspense fallback={<PageSizeSelectFallback value={threadPagination.limit} />}>
+            <ThreadPageSizeSelect value={threadPagination.limit} />
+          </Suspense>
+        </div>
+
+        <div className="email-action-strip">
           <div className="email-action-buttons">
             {isConnected ? (
               <form action={syncAction}>
@@ -222,45 +252,24 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
             ) : null}
           </div>
         </div>
-      </section>
 
-      {isError || connection?.error_message ? (
-        <p className="notice notice-error">
-          {connection?.error_message ?? 'Hay un error en la conexión del buzón. Revisa permisos o credenciales.'}
-        </p>
-      ) : null}
-
-      <section className="email-status-grid">
-        <DetailCard label="Proveedor" value={formatProvider(connection?.provider)} />
-        <DetailCard label="Procesados" value={String(threadTotal)} />
-        <DetailCard label="En Gmail" value={String(providerDrafts)} />
-        <DetailCard label="Requiere revisión" value={String(waitingHuman)} />
-      </section>
-
-      <section className="overview-grid">
-        <MetricCard icon={<Inbox size={18} />} label="Emails en bandeja" value={threadTotal} />
-        <MetricCard icon={<PencilLine size={18} />} label="Respuestas preparadas" value={generatedDrafts + providerDrafts} />
-        <MetricCard icon={<Mail size={18} />} label="En Gmail" value={providerDrafts} />
-        <MetricCard icon={<AlertTriangle size={18} />} label="Requiere revisión" value={waitingHuman} />
-      </section>
-
-      <section className="card stack">
-        <div className="section-title-row">
-          <div>
-            <p className="eyebrow">Bandeja</p>
-            <h2>Emails sincronizados</h2>
-          </div>
-          <Suspense fallback={<PageSizeSelectFallback value={threadPagination.limit} />}>
-            <ThreadPageSizeSelect value={threadPagination.limit} />
-          </Suspense>
-        </div>
+        <ThreadStatusFilters
+          activeStatus={activeThreadStatus}
+          counts={threadStatusCounts}
+          limit={threadPagination.limit}
+          tenantId={tenantId}
+          total={threadTotal}
+        />
 
         {(threads ?? []).length ? (
           <form className="email-thread-selection" action={processSelectedAction}>
             <div className="email-thread-toolbar">
-              <ProcessEmailSubmitButton />
-              <SelectedDeleteSubmitButton formAction={deleteSelectedAction} targetName="thread_ids" />
-              <span className="table-page-count table-page-count-top">Página {threadPage} de {threadPageCount}</span>
+              <div className="email-thread-toolbar-main">
+                <ProcessEmailSubmitButton />
+              </div>
+              <div className="email-thread-toolbar-aside">
+                <SelectedDeleteSubmitButton formAction={deleteSelectedAction} targetName="thread_ids" />
+              </div>
             </div>
 
             <table className="data-table email-thread-table">
@@ -286,21 +295,33 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
                         value={thread.id}
                       />
                     </td>
-                    <td>{thread.subject ?? 'Sin asunto'}</td>
-                    <td>{thread.sender_email ?? '-'}</td>
-                    <td><span className="status-pill status-pill-muted">{formatThreadStatus(thread.status)}</span></td>
-                    <td>{formatTopic(thread.topic)}</td>
+                    <td>
+                      <div className="email-thread-subject">
+                        <strong>{thread.subject ?? 'Sin asunto'}</strong>
+                        <span>{getThreadInsight(thread.metadata)}</span>
+                      </div>
+                    </td>
+                    <td><span className="email-thread-sender">{thread.sender_email ?? '-'}</span></td>
+                    <td>
+                      <span className={`status-pill ${getThreadStatusClass(getDisplayThreadStatus(thread.status, thread.id, visibleThreadsWithDrafts))}`}>
+                        {formatThreadStatus(getDisplayThreadStatus(thread.status, thread.id, visibleThreadsWithDrafts))}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="email-thread-topic">
+                        <span>{formatTopic(thread.topic)}</span>
+                        {hasKnowledgeMatches(thread.metadata) ? <span className="email-knowledge-pill">Conocimiento</span> : null}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
             <TablePagination
-              hrefForPage={(page) => getThreadPageHref(tenantId, { page, limit: threadPagination.limit })}
+              hrefForPage={(page) => getThreadPageHref(tenantId, { page, limit: threadPagination.limit, status: activeThreadStatus })}
               page={threadPage}
               pageCount={threadPageCount}
-              rangeEnd={threadRangeEnd}
-              rangeStart={threadRangeStart}
-              total={threadTotal}
+              total={filteredThreadCount}
             />
           </form>
         ) : (
@@ -333,14 +354,18 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
         {(latestDrafts ?? []).length ? (
           <form className="email-draft-selection" action={deleteSelectedDraftsAction}>
             <div className="email-thread-toolbar">
-              <label className="bulk-select-row">
-                <SelectAllCheckbox label="Seleccionar todas las respuestas visibles" targetName="draft_ids" />
-                Seleccionar todo
-              </label>
-              <DraftDeleteChoiceButton
-                label="Borrar"
-                requireSelectionName="draft_ids"
-              />
+              <div className="email-thread-toolbar-main">
+                <label className="bulk-select-row">
+                  <SelectAllCheckbox label="Seleccionar todas las respuestas visibles" targetName="draft_ids" />
+                  Seleccionar todo
+                </label>
+              </div>
+              <div className="email-thread-toolbar-aside">
+                <DraftDeleteChoiceButton
+                  label="Borrar"
+                  requireSelectionName="draft_ids"
+                />
+              </div>
             </div>
 
             <div className="email-draft-list">
@@ -376,13 +401,6 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
                     {draft.error_message ? (
                       <span className="email-error-text">{draft.error_message}</span>
                     ) : null}
-                    <div className="email-draft-actions">
-                      <DraftDeleteChoiceButton
-                        buttonClassName="button-outline button-fit"
-                        draftId={draft.id}
-                        label="Borrar"
-                      />
-                    </div>
                   </div>
                 </article>
               )
@@ -412,12 +430,62 @@ function getThreadPagination(query: { thread_page?: string; thread_limit?: strin
   return { page, limit }
 }
 
-function getThreadPageHref(tenantId: string, input: { page: number; limit: number }) {
+function getThreadStatusFilter(value?: string) {
+  return threadStatusFilters.some((filter) => filter.value === value) ? value as typeof threadStatusFilters[number]['value'] : 'all'
+}
+
+function getThreadPageHref(tenantId: string, input: { page: number; limit: number; status: string }) {
   const params = new URLSearchParams()
   params.set('thread_page', String(input.page))
   params.set('thread_limit', String(input.limit))
+  if (input.status !== 'all') params.set('thread_status', input.status)
 
   return `/${tenantId}/email?${params.toString()}`
+}
+
+function getThreadFilterHref(tenantId: string, input: { status: string; limit: number }) {
+  const params = new URLSearchParams()
+  params.set('thread_page', '1')
+  params.set('thread_limit', String(input.limit))
+  if (input.status !== 'all') params.set('thread_status', input.status)
+
+  return `/${tenantId}/email?${params.toString()}`
+}
+
+function ThreadStatusFilters({
+  activeStatus,
+  counts,
+  limit,
+  tenantId,
+  total,
+}: {
+  activeStatus: string
+  counts: Map<string, number>
+  limit: number
+  tenantId: string
+  total: number
+}) {
+  return (
+    <nav className="email-thread-filters" aria-label="Filtrar emails por estado">
+      {threadStatusFilters.map((filter) => {
+        const count = filter.value === 'all' ? total : counts.get(filter.value) ?? 0
+        const active = activeStatus === filter.value
+
+        return (
+          <Link
+            aria-current={active ? 'page' : undefined}
+            className={`email-thread-filter ${active ? 'email-thread-filter-active' : ''}`}
+            href={getThreadFilterHref(tenantId, { status: filter.value, limit })}
+            key={filter.value}
+            scroll={false}
+          >
+            <span>{filter.label}</span>
+            <strong>{count}</strong>
+          </Link>
+        )
+      })}
+    </nav>
+  )
 }
 
 function PageSizeSelectFallback({ value }: { value: number }) {
@@ -439,38 +507,32 @@ function TablePagination({
   hrefForPage,
   page,
   pageCount,
-  rangeEnd,
-  rangeStart,
   total,
 }: {
   hrefForPage: (page: number) => string
   page: number
   pageCount: number
-  rangeEnd: number
-  rangeStart: number
   total: number
 }) {
   if (total === 0) return null
 
   return (
     <nav className="table-pagination" aria-label="Paginación de emails sincronizados">
-      <p>
-        {rangeStart}-{rangeEnd} de {total}
-      </p>
+      <p>Página {page} de {pageCount}</p>
       <div className="table-pagination-actions">
         {page > 1 ? (
-          <a className="pagination-icon-button" href={hrefForPage(page - 1)} aria-label="Página anterior">
+          <Link className="pagination-icon-button" href={hrefForPage(page - 1)} aria-label="Página anterior" scroll={false}>
             <ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />
-          </a>
+          </Link>
         ) : (
           <span className="pagination-icon-button button-disabled" aria-label="Página anterior">
             <ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />
           </span>
         )}
         {page < pageCount ? (
-          <a className="pagination-icon-button" href={hrefForPage(page + 1)} aria-label="Página siguiente">
+          <Link className="pagination-icon-button" href={hrefForPage(page + 1)} aria-label="Página siguiente" scroll={false}>
             <ChevronRight size={16} strokeWidth={2} aria-hidden="true" />
-          </a>
+          </Link>
         ) : (
           <span className="pagination-icon-button button-disabled" aria-label="Página siguiente">
             <ChevronRight size={16} strokeWidth={2} aria-hidden="true" />
@@ -481,9 +543,10 @@ function TablePagination({
   )
 }
 
-function countByStatus(items: { status: string }[]) {
+function countDisplayThreadStatuses(items: { id: string; status: string }[], threadsWithDrafts: Set<string>) {
   return items.reduce((map, item) => {
-    map.set(item.status, (map.get(item.status) ?? 0) + 1)
+    const status = getDisplayThreadStatus(item.status, item.id, threadsWithDrafts)
+    map.set(status, (map.get(status) ?? 0) + 1)
     return map
   }, new Map<string, number>())
 }
@@ -643,6 +706,62 @@ function formatThreadStatus(status: string) {
   return labels[status] ?? status
 }
 
+function getDisplayThreadStatus(status: string, threadId: string, threadsWithDrafts: Set<string>) {
+  if (status === 'drafted' && !threadsWithDrafts.has(threadId)) return 'new'
+  return status
+}
+
+function getThreadStatusClass(status: string) {
+  if (status === 'drafted' || status === 'sent' || status === 'resolved') return 'status-pill-active'
+  if (status === 'waiting_human' || status === 'escalated') return 'status-pill-soon'
+  if (status === 'ignored') return 'status-pill-muted'
+  return 'status-pill-muted'
+}
+
+function getThreadInsight(metadata: unknown) {
+  const record = getRecord(metadata)
+  const classification = getRecord(record.classification)
+  const rawReason = typeof classification.agent_reason === 'string'
+    ? classification.agent_reason
+    : typeof classification.reason === 'string'
+      ? classification.reason
+      : typeof record.escalation_reason === 'string'
+        ? record.escalation_reason
+        : null
+
+  if (!rawReason) return 'Sin motivo de clasificación'
+  return formatClassificationReason(rawReason)
+}
+
+function hasKnowledgeMatches(metadata: unknown) {
+  const record = getRecord(metadata)
+  return typeof record.knowledge_match_count === 'number' && record.knowledge_match_count > 0
+}
+
+function formatClassificationReason(reason: string) {
+  const labels: Record<string, string> = {
+    candidate_for_agent: 'Candidato para agente',
+    visitor_question: 'Pregunta de visitante',
+    newsletter: 'Newsletter',
+    spam: 'Spam',
+    auto_reply: 'Respuesta automática',
+    bounce: 'Rebote de correo',
+    complaint: 'Queja',
+    group_request: 'Solicitud de grupo',
+    refund_request: 'Solicitud de devolución',
+    partnership_request: 'Partnership / colaboración',
+    missing_context: 'Falta contexto',
+    non_actionable: 'No accionable',
+    blocked_sender: 'Remitente bloqueado',
+    blocked_domain: 'Dominio bloqueado',
+    automated_email: 'Email automático',
+    empty_body: 'Sin contenido suficiente',
+    other: 'Otro motivo',
+  }
+
+  return labels[reason] ?? reason.replaceAll('_', ' ')
+}
+
 function formatDraftStatus(status: string) {
   const labels: Record<string, string> = {
     generated: 'Generado',
@@ -690,23 +809,8 @@ function formatDateTime(value: string | null) {
   })
 }
 
-function DetailCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="detail-block">
-      <p className="detail-label">{label}</p>
-      <p className="detail-value">{value}</p>
-    </div>
-  )
-}
-
-function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
-  return (
-    <div className="kpi-card stack">
-      <span className="detail-icon" aria-hidden="true">{icon}</span>
-      <div>
-        <p className="kpi-label">{label}</p>
-        <strong className="kpi-value">{value}</strong>
-      </div>
-    </div>
-  )
+function getRecord(value: unknown) {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
 }

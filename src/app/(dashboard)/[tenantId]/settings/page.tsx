@@ -2,7 +2,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireTenantPermission } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import Link from 'next/link'
-import { KnowledgeForm } from './knowledge-form'
 import { SettingsForm } from './settings-form'
 
 interface Props {
@@ -10,7 +9,7 @@ interface Props {
   searchParams: Promise<{ tab?: string }>
 }
 
-type Tab = 'general' | 'knowledge' | 'preview'
+type Tab = 'general' | 'preview'
 
 export default async function SettingsPage({ params, searchParams }: Props) {
   const { tenantId } = await params
@@ -19,35 +18,19 @@ export default async function SettingsPage({ params, searchParams }: Props) {
   await requireTenantPermission(tenantId, 'manage_chatbot', 'chatbot')
   const tabs = [
     { value: 'general', label: dictionary.settings.tabs.general },
-    { value: 'knowledge', label: dictionary.settings.tabs.knowledge },
     { value: 'preview', label: dictionary.settings.tabs.preview },
   ] satisfies { value: Tab; label: string }[]
   const activeTab: Tab = tabs.find((t) => t.value === tabParam)?.value ?? 'general'
 
   const admin = createAdminClient()
 
-  const [{ data: theatre }, { data: knowledgeItems }] = await Promise.all([
-    admin
-      .from('theatres')
-      .select('name, slug, plan, system_prompt, fallback_email, fallback_phone, scrape_urls, widget_config, n8n_webhook_url')
-      .eq('id', tenantId)
-      .single(),
-    activeTab === 'knowledge'
-      ? admin
-          .from('knowledge_items')
-          .select('id, question, answer, category, language, priority')
-          .eq('theatre_id', tenantId)
-          .eq('active', true)
-          .order('priority', { ascending: false })
-          .order('created_at', { ascending: false })
-          .limit(20)
-      : Promise.resolve({ data: [] }),
-  ])
+  const { data: theatre } = await admin
+    .from('theatres')
+    .select('name, slug, plan, system_prompt, fallback_email, fallback_phone, widget_config, n8n_webhook_url')
+    .eq('id', tenantId)
+    .single()
 
   const widgetConfig = getWidgetConfig(theatre?.widget_config)
-  const scrapeUrls = Array.isArray(theatre?.scrape_urls)
-    ? theatre.scrape_urls.filter((url): url is string => typeof url === 'string')
-    : []
 
   return (
     <main className="page-shell">
@@ -86,16 +69,6 @@ export default async function SettingsPage({ params, searchParams }: Props) {
             autoOpenDelay: widgetConfig.autoOpenDelay,
           }}
           labels={dictionary.settings.form}
-        />
-      ) : null}
-
-      {activeTab === 'knowledge' && theatre ? (
-        <KnowledgeForm
-          tenantId={tenantId}
-          items={knowledgeItems ?? []}
-          scrapeUrls={scrapeUrls}
-          systemPrompt={theatre.system_prompt}
-          labels={dictionary.settings.knowledge}
         />
       ) : null}
 

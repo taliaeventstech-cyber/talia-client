@@ -95,6 +95,8 @@ export async function syncGmailMessages(admin: AdminClient, input: SyncGmailInpu
       inspected: messageRefs.length,
       connectionId: connection.id,
       autoProcessAfterSync: syncConfig.autoProcessAfterSync,
+      autoClassifyAfterSync: syncConfig.autoClassifyAfterSync,
+      autoDraftAfterSync: syncConfig.autoDraftAfterSync,
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -154,6 +156,12 @@ export function getEmailSyncConfig(metadata: Json) {
     limit,
     query: configuredQuery || `in:inbox newer_than:${windowDays}d`,
     autoProcessAfterSync: record.auto_process_after_sync === true,
+    autoClassifyAfterSync: typeof record.auto_classify_after_sync === 'boolean'
+      ? record.auto_classify_after_sync
+      : record.auto_process_after_sync === true,
+    autoDraftAfterSync: typeof record.auto_draft_after_sync === 'boolean'
+      ? record.auto_draft_after_sync
+      : record.auto_process_after_sync === true,
   }
 }
 

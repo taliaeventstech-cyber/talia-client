@@ -29,7 +29,7 @@ export default async function BackstageHomePage() {
       .gt('billing_period_end', period.startDate),
     admin
       .from('tenant_usage_daily')
-      .select('theatre_id, conversations, estimated_cost_cents')
+      .select('theatre_id, conversations, input_tokens, output_tokens, estimated_cost_cents')
       .gte('date', period.startDate)
       .lt('date', period.endDate)
       .eq('channel', 'chatbot'),
@@ -51,10 +51,12 @@ export default async function BackstageHomePage() {
   })
 
   const subscriptionByTenant = new Map((subscriptions ?? []).map((subscription) => [subscription.theatre_id, subscription]))
-  const usageByTenant = new Map<string, { conversations: number; estimatedCostCents: number }>()
+  const usageByTenant = new Map<string, { conversations: number; inputTokens: number; outputTokens: number; estimatedCostCents: number }>()
   ;(usageRows ?? []).forEach((row) => {
-    const current = usageByTenant.get(row.theatre_id) ?? { conversations: 0, estimatedCostCents: 0 }
+    const current = usageByTenant.get(row.theatre_id) ?? { conversations: 0, inputTokens: 0, outputTokens: 0, estimatedCostCents: 0 }
     current.conversations += row.conversations
+    current.inputTokens += row.input_tokens
+    current.outputTokens += row.output_tokens
     current.estimatedCostCents += row.estimated_cost_cents
     usageByTenant.set(row.theatre_id, current)
   })
@@ -88,12 +90,14 @@ export default async function BackstageHomePage() {
             const counts = inviteCounts.get(account.id) ?? { pending: 0, accepted: 0 }
             const usage = accountVenues.reduce(
               (total, tenant) => {
-                const tenantUsage = usageByTenant.get(tenant.id) ?? { conversations: 0, estimatedCostCents: 0 }
+                const tenantUsage = usageByTenant.get(tenant.id) ?? { conversations: 0, inputTokens: 0, outputTokens: 0, estimatedCostCents: 0 }
                 total.conversations += tenantUsage.conversations
+                total.inputTokens += tenantUsage.inputTokens
+                total.outputTokens += tenantUsage.outputTokens
                 total.estimatedCostCents += tenantUsage.estimatedCostCents
                 return total
               },
-              { conversations: 0, estimatedCostCents: 0 }
+              { conversations: 0, inputTokens: 0, outputTokens: 0, estimatedCostCents: 0 }
             )
             const included = accountVenues.reduce((total, tenant) => {
               const subscription = subscriptionByTenant.get(tenant.id)
@@ -120,7 +124,7 @@ export default async function BackstageHomePage() {
                 <td>{accountVenues.length}</td>
                 <td>
                   {usageLabel}
-                  <p className="muted">{formatCurrency(usage.estimatedCostCents)}</p>
+                  <p className="muted">{formatCurrency(usage.estimatedCostCents)} · {formatTokens(usage.inputTokens + usage.outputTokens)} tokens</p>
                 </td>
                 <td>{counts.pending} pendientes · {counts.accepted} aceptadas</td>
                 <td>{new Date(account.created_at).toLocaleDateString('es-ES')}</td>
@@ -151,6 +155,10 @@ export default async function BackstageHomePage() {
       </table>
     </div>
   )
+}
+
+function formatTokens(tokens: number) {
+  return new Intl.NumberFormat('es-ES', { notation: 'compact', maximumFractionDigits: 1 }).format(tokens)
 }
 
 function formatCurrency(cents: number) {

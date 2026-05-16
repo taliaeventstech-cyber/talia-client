@@ -1,6 +1,7 @@
 'use server'
 
 import { requirePlatformAdmin } from '@/lib/platform/auth'
+import { emailAgentSettingsToMetadata, normalizeEmailAgentSettings } from '@/lib/email/settings'
 import { createSignupInvite } from '@/lib/platform/invites'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getActiveSubscription } from '@/lib/usage/service'
@@ -99,6 +100,9 @@ const updateTenantSchema = createTenantSchema.extend({
   voicePublicPhoneNumber: z.string().trim().max(20).optional(),
   voiceForwardingNotes: z.string().trim().max(2000).optional(),
   voiceOperationalStatus: z.enum(['draft', 'provisioning', 'active', 'paused', 'error']),
+  chatbotWebhookUrl: z.string().trim().url('El webhook del chatbot debe ser una URL válida.').optional().or(z.literal('')),
+  chatbotSystemPrompt: z.string().trim().max(4000, 'El prompt del chatbot es demasiado largo.').optional(),
+  chatbotScrapeUrls: z.string().trim().max(3000, 'Las fuentes web del chatbot son demasiado largas.').optional(),
   emailMailboxEmail: z.string().trim().email('El buzón de email no es válido.').optional().or(z.literal('')),
   emailProvider: z.enum(['google', 'microsoft', 'imap', 'forwarding']),
   emailStatus: z.enum(['draft', 'connected', 'syncing', 'error', 'revoked', 'disabled']),
@@ -115,10 +119,18 @@ const updateTenantSchema = createTenantSchema.extend({
   }),
   emailCronEnabled: z.boolean().default(true),
   emailAutoProcessAfterSync: z.boolean().default(false),
+  emailAutoClassifyAfterSync: z.boolean().default(false),
+  emailAutoDraftAfterSync: z.boolean().default(false),
   emailExcludeAutomated: z.boolean().default(true),
   emailBlockedSenders: z.string().trim().max(2000).optional(),
   emailBlockedDomains: z.string().trim().max(2000).optional(),
   emailGmailSyncQuery: z.string().trim().max(240, 'La query avanzada de Gmail es demasiado larga.').optional(),
+  emailAgentTone: z.enum(['professional_cercano', 'formal', 'directo']),
+  emailAgentDraftStyle: z.enum(['breve', 'detallado']),
+  emailAgentSignature: z.string().trim().max(500, 'La firma del agente de email es demasiado larga.').optional(),
+  emailChannelPrompt: z.string().trim().max(4000, 'El prompt del agente de email es demasiado largo.').optional(),
+  emailHumanReviewTopics: z.string().trim().max(1000, 'Los temas de revisión humana son demasiado largos.').optional(),
+  emailClassificationRules: z.string().trim().max(2000, 'Las reglas de clasificación son demasiado largas.').optional(),
 })
 
 function slugify(value: string) {
@@ -486,6 +498,9 @@ export async function updateTenantAction(
     voicePublicPhoneNumber: String(formData.get('voice_public_phone_number') ?? '').trim() || undefined,
     voiceForwardingNotes: String(formData.get('voice_forwarding_notes') ?? '').trim() || undefined,
     voiceOperationalStatus: formData.get('voice_operational_status') || 'draft',
+    chatbotWebhookUrl: formData.get('chatbot_webhook_url') || '',
+    chatbotSystemPrompt: formData.get('chatbot_system_prompt') || '',
+    chatbotScrapeUrls: formData.get('chatbot_scrape_urls') || '',
     emailMailboxEmail: formData.get('email_mailbox_email') || '',
     emailProvider: formData.get('email_provider') || 'google',
     emailStatus: formData.get('email_status') || 'draft',
@@ -496,10 +511,18 @@ export async function updateTenantAction(
     emailSyncLimit: formData.get('email_sync_limit') || '100',
     emailCronEnabled: formData.get('email_cron_enabled') === 'on',
     emailAutoProcessAfterSync: formData.get('email_auto_process_after_sync') === 'on',
+    emailAutoClassifyAfterSync: formData.get('email_auto_classify_after_sync') === 'on',
+    emailAutoDraftAfterSync: formData.get('email_auto_draft_after_sync') === 'on',
     emailExcludeAutomated: formData.get('email_exclude_automated') === 'on',
     emailBlockedSenders: formData.get('email_blocked_senders') || '',
     emailBlockedDomains: formData.get('email_blocked_domains') || '',
     emailGmailSyncQuery: formData.get('email_gmail_sync_query') || '',
+    emailAgentTone: formData.get('email_agent_tone') || 'professional_cercano',
+    emailAgentDraftStyle: formData.get('email_agent_draft_style') || 'breve',
+    emailAgentSignature: formData.get('email_agent_signature') || '',
+    emailChannelPrompt: formData.get('email_channel_prompt') || '',
+    emailHumanReviewTopics: formData.get('email_human_review_topics') || '',
+    emailClassificationRules: formData.get('email_classification_rules') || '',
     modules,
   })
 
@@ -552,6 +575,9 @@ export async function updateTenantAction(
       voice_public_phone_number: data.voicePublicPhoneNumber || null,
       voice_forwarding_notes: data.voiceForwardingNotes || null,
       voice_operational_status: data.voiceOperationalStatus,
+      n8n_webhook_url: data.chatbotWebhookUrl || null,
+      system_prompt: data.chatbotSystemPrompt || null,
+      scrape_urls: parseUrlList(data.chatbotScrapeUrls),
     })
     .eq('id', data.tenantId)
 
@@ -597,10 +623,20 @@ export async function updateTenantAction(
       syncLimit: data.emailSyncLimit,
       cronEnabled: data.emailCronEnabled,
       autoProcessAfterSync: data.emailAutoProcessAfterSync,
+      autoClassifyAfterSync: data.emailAutoClassifyAfterSync,
+      autoDraftAfterSync: data.emailAutoDraftAfterSync,
       excludeAutomated: data.emailExcludeAutomated,
       blockedSenders: parseEmailRuleList(data.emailBlockedSenders),
       blockedDomains: parseEmailRuleList(data.emailBlockedDomains),
       gmailSyncQuery: data.emailGmailSyncQuery,
+      agentSettings: normalizeEmailAgentSettings({
+        tone: data.emailAgentTone,
+        draftStyle: data.emailAgentDraftStyle,
+        signature: data.emailAgentSignature,
+        channelPrompt: data.emailChannelPrompt,
+        humanReviewTopics: parseEmailRuleList(data.emailHumanReviewTopics),
+        classificationRules: data.emailClassificationRules,
+      }),
     }),
   ])
 
@@ -643,10 +679,13 @@ async function syncEmailConnection(
     syncLimit?: number
     cronEnabled?: boolean
     autoProcessAfterSync?: boolean
+    autoClassifyAfterSync?: boolean
+    autoDraftAfterSync?: boolean
     excludeAutomated?: boolean
     blockedSenders?: string[]
     blockedDomains?: string[]
     gmailSyncQuery?: string
+    agentSettings?: ReturnType<typeof normalizeEmailAgentSettings>
   },
 ) {
   const { data: existingConnections } = await admin
@@ -709,10 +748,13 @@ function buildEmailConnectionMetadata(
     syncLimit?: number
     cronEnabled?: boolean
     autoProcessAfterSync?: boolean
+    autoClassifyAfterSync?: boolean
+    autoDraftAfterSync?: boolean
     excludeAutomated?: boolean
     blockedSenders?: string[]
     blockedDomains?: string[]
     gmailSyncQuery?: string
+    agentSettings?: ReturnType<typeof normalizeEmailAgentSettings>
   },
 ) {
   const currentRecord = current && typeof current === 'object' && !Array.isArray(current)
@@ -735,11 +777,14 @@ function buildEmailConnectionMetadata(
     sync_frequency_minutes: syncFrequencyMinutes,
     gmail_sync_limit: syncLimit,
     cron_enabled: input.cronEnabled !== false,
-    auto_process_after_sync: input.autoProcessAfterSync === true,
+    auto_process_after_sync: input.autoClassifyAfterSync === true && input.autoDraftAfterSync === true,
+    auto_classify_after_sync: input.autoClassifyAfterSync === true,
+    auto_draft_after_sync: input.autoDraftAfterSync === true,
     exclude_automated: input.excludeAutomated !== false,
     blocked_senders: input.blockedSenders ?? [],
     blocked_domains: input.blockedDomains ?? [],
     gmail_sync_query: advancedQuery || null,
+    email_agent_settings: emailAgentSettingsToMetadata(input.agentSettings ?? normalizeEmailAgentSettings({})),
   } satisfies Json
 }
 
@@ -751,6 +796,16 @@ function parseEmailRuleList(value: string | undefined) {
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean)
     .slice(0, 50)
+}
+
+function parseUrlList(value: string | undefined) {
+  if (!value) return []
+
+  return value
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 20)
 }
 
 function getDefaultModuleLimits(moduleKey: (typeof moduleKeys)[number]) {

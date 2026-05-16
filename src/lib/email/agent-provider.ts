@@ -1,3 +1,5 @@
+import type { EmailAgentSettings } from './settings'
+
 export type EmailAgentPriority = 'low' | 'normal' | 'high' | 'urgent'
 
 export type EmailAgentKnowledgeHint = {
@@ -20,6 +22,19 @@ export type EmailAgentInput = {
   fallbackEmail: string | null
   fallbackPhone: string | null
   knowledgeHints: EmailAgentKnowledgeHint[]
+  agentSettings: EmailAgentSettings
+}
+
+export type EmailAgentClassification = {
+  shouldProcess: boolean
+  shouldReply: boolean
+  needsHumanReview: boolean
+  topic: string | null
+  priority: EmailAgentPriority
+  confidence: number | null
+  classificationReason: string | null
+  escalationReason: string | null
+  raw?: unknown
 }
 
 export type EmailAgentDraft = {
@@ -39,6 +54,18 @@ export type EmailAgentProviderResult =
   | { ok: true; draft: EmailAgentDraft }
   | { ok: false; error: string; details?: string }
 
+export type EmailAgentClassificationResult =
+  | { ok: true; classification: EmailAgentClassification }
+  | { ok: false; error: string; details?: string }
+
 export interface EmailAgentProvider {
   generateDraft(input: EmailAgentInput): Promise<EmailAgentProviderResult>
+}
+
+export interface EmailAgentClassifierProvider {
+  classify(input: EmailAgentInput): Promise<EmailAgentClassificationResult>
+}
+
+export interface EmailAgentDrafterProvider {
+  generateDraft(input: EmailAgentInput & { classification: EmailAgentClassification }): Promise<EmailAgentProviderResult>
 }

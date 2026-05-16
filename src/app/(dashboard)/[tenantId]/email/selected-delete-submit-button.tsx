@@ -12,6 +12,7 @@ type SelectedDeleteSubmitButtonProps = {
 export function SelectedDeleteSubmitButton({ formAction, targetName }: SelectedDeleteSubmitButtonProps) {
   const { pending } = useFormStatus()
   const [hasSelection, setHasSelection] = useState(false)
+  const [confirming, setConfirming] = useState(false)
   const rootRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
@@ -22,26 +23,55 @@ export function SelectedDeleteSubmitButton({ formAction, targetName }: SelectedD
       const selected = Array.from(form.querySelectorAll<HTMLInputElement>(`input[name="${targetName}"]`))
         .some((input) => input.checked)
       setHasSelection(selected)
+      if (!selected && !pending) setConfirming(false)
     }
 
     form.addEventListener('change', updateSelection)
     updateSelection()
 
     return () => form.removeEventListener('change', updateSelection)
-  }, [targetName])
+  }, [pending, targetName])
 
   return (
-    <span ref={rootRef}>
-      <button
-        aria-disabled={!hasSelection || pending}
-        className="button-outline button-danger button-fit"
-        disabled={!hasSelection || pending}
-        formAction={formAction}
-        type="submit"
-      >
-        <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
-        Borrar
-      </button>
+    <span className="draft-delete-choice" ref={rootRef}>
+      {confirming ? (
+        <span className="draft-delete-inline-confirm">
+          <span className="draft-delete-inline-question">
+            ¿Borrar los emails seleccionados? Solo se borrarán en Àgora.
+          </span>
+          <span className="delete-inline-actions">
+            <button
+              className="button-outline button-danger button-fit"
+              disabled={pending}
+              formAction={formAction}
+              type="submit"
+            >
+              {pending ? (
+                <>Borrando<span className="inline-loading-dots" aria-hidden="true" /></>
+              ) : 'Sí'}
+            </button>
+            <button
+              className="button-outline button-fit"
+              disabled={pending}
+              type="button"
+              onClick={() => setConfirming(false)}
+            >
+              Cancelar
+            </button>
+          </span>
+        </span>
+      ) : (
+        <button
+          aria-disabled={!hasSelection || pending}
+          className="button-outline button-danger button-fit"
+          disabled={!hasSelection || pending}
+          onClick={() => setConfirming(true)}
+          type="button"
+        >
+          <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
+          Borrar
+        </button>
+      )}
     </span>
   )
 }
