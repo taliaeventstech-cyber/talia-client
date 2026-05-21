@@ -3,7 +3,7 @@
 import { Bot, Cable, ListChecks, RefreshCw } from 'lucide-react'
 import { useActionState, useState } from 'react'
 import { ActionToast } from '@/components/ui/action-toast'
-import { getEmailAgentSettings } from '@/lib/email/settings'
+import { defaultEmailClassificationTopics, getEmailAgentSettings } from '@/lib/email/settings'
 import { updateTenantAction, type UpdateTenantState } from '../../actions'
 
 const initialState: UpdateTenantState = { ok: false, message: '' }
@@ -596,7 +596,7 @@ function EmailOperationsFields({ client, connection }: { client: Client; connect
     {
       key: 'rules',
       label: 'Reglas',
-      summary: `${agentSettings.humanReviewTopics.length} temas sensibles`,
+      summary: `${agentSettings.classificationTopics.length} temas · ${agentSettings.humanReviewTopics.length} sensibles`,
       icon: ListChecks,
     },
   ] satisfies Array<{ key: EmailTabKey; label: string; summary: string; icon: React.ElementType }>
@@ -845,8 +845,8 @@ function EmailOperationsFields({ client, connection }: { client: Client; connect
       <EmailConfigGroup
         id="rules"
         title="Reglas y exclusiones"
-        description="Define qué debe ignorarse y qué debe llegar marcado para revisión humana."
-        summary={`${metadata.excludeAutomated ? 'Automáticos ignorados' : 'Automáticos incluidos'} · ${agentSettings.humanReviewTopics.length} temas sensibles`}
+        description="Define cómo clasifica TALIA los emails, qué debe ignorarse y qué debe llegar marcado para revisión humana."
+        summary={`${agentSettings.classificationTopics.length} temas · ${metadata.excludeAutomated ? 'automáticos ignorados' : 'automáticos incluidos'}`}
         active={activeEmailTab === 'rules'}
       >
         <label className="checkbox-row checkbox-row-card">
@@ -886,14 +886,29 @@ function EmailOperationsFields({ client, connection }: { client: Client; connect
         </div>
 
         <label className="field">
-          Query Gmail avanzada
+          Query avanzada del buzón
           <input
             name="email_gmail_sync_query"
             defaultValue={metadata.gmailSyncQuery}
             placeholder="in:inbox newer_than:14d"
           />
           <span className="field-hint">
-            Solo Backstage. Si se deja vacío, TALIA genera una query segura con la ventana seleccionada.
+            Solo Backstage. En Gmail sustituye la query generada; en Outlook se usa la ventana seleccionada.
+          </span>
+        </label>
+
+        <label className="field field-important">
+          <span className="field-label-row">
+            Temas de clasificación
+          </span>
+          <textarea
+            name="email_classification_topics"
+            defaultValue={agentSettings.classificationTopics.join('\n')}
+            rows={5}
+            placeholder="entradas&#10;horarios&#10;devoluciones&#10;partnerships&#10;otro"
+          />
+          <span className="field-hint">
+            Uno por línea. El clasificador elegirá uno de estos temas; deja “otro” como fallback.
           </span>
         </label>
 
@@ -951,6 +966,7 @@ function HiddenEmailOperationsFields({ connection }: { connection: EmailConnecti
       <input type="hidden" name="email_agent_draft_style" value="breve" />
       <input type="hidden" name="email_agent_signature" value="" />
       <input type="hidden" name="email_channel_prompt" value="" />
+      <input type="hidden" name="email_classification_topics" value={defaultEmailClassificationTopics.join('\n')} />
       <input type="hidden" name="email_human_review_topics" value={'devoluciones\nquejas\ngrupos'} />
       <input type="hidden" name="email_classification_rules" value="" />
     </>

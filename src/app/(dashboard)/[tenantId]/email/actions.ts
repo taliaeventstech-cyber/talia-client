@@ -6,7 +6,10 @@ import { processEmailMessage } from '@/lib/email/service'
 import { deleteGmailDraft } from '@/lib/email/gmail'
 import { getFreshGoogleAccessToken } from '@/lib/email/google-tokens'
 import { decryptOAuthTokens, revokeGoogleOAuthToken } from '@/lib/email/google-oauth'
+import { getFreshMicrosoftAccessToken } from '@/lib/email/microsoft-tokens'
+import { deleteOutlookDraft } from '@/lib/email/outlook'
 import { createAdminClient } from '@/lib/supabase/admin'
+import type { Json } from '@/types/database.types'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -142,18 +145,14 @@ export async function deleteProviderEmailDraftAction(tenantId: string, draftId: 
     redirect(`/${tenantId}/email?email_draft_delete_error=${encodeURIComponent(error?.message ?? 'No se ha encontrado el draft')}`)
   }
 
-  if (!draft.provider_draft_id || connection.provider !== 'google') {
-    redirect(`/${tenantId}/email?email_draft_delete_error=${encodeURIComponent('Este draft no tiene borrador Gmail asociado')}`)
+  if (!draft.provider_draft_id || !['google', 'microsoft'].includes(connection.provider)) {
+    redirect(`/${tenantId}/email?email_draft_delete_error=${encodeURIComponent('Este draft no tiene borrador de proveedor asociado')}`)
   }
 
   try {
-    const accessToken = await getFreshGoogleAccessToken(admin, {
-      id: connection.id,
-      oauth_metadata: connection.oauth_metadata,
-    })
-    await deleteGmailDraft(accessToken, draft.provider_draft_id)
+    await deleteProviderDraft(admin, connection, draft.provider_draft_id)
   } catch (deleteError) {
-    const message = deleteError instanceof Error ? deleteError.message : 'No se ha podido eliminar el draft en Gmail'
+    const message = deleteError instanceof Error ? deleteError.message : 'No se ha podido eliminar el draft en el buzón'
     redirect(`/${tenantId}/email?email_draft_delete_error=${encodeURIComponent(message)}`)
   }
 
@@ -205,17 +204,10 @@ export async function deleteSelectedEmailDraftsAction(tenantId: string, formData
         ? draft.email_connections[0]
         : draft.email_connections
 
-      if (!draft.provider_draft_id || !connection || connection.provider !== 'google') continue
+      if (!draft.provider_draft_id || !connection || !['google', 'microsoft'].includes(connection.provider)) continue
 
       try {
-        const cachedToken = accessTokens.get(connection.id)
-        const accessToken = cachedToken ?? await getFreshGoogleAccessToken(admin, {
-          id: connection.id,
-          oauth_metadata: connection.oauth_metadata,
-        })
-
-        accessTokens.set(connection.id, accessToken)
-        await deleteGmailDraft(accessToken, draft.provider_draft_id)
+        await deleteProviderDraft(admin, connection, draft.provider_draft_id, accessTokens)
         providerDeleted += 1
       } catch {
         providerFailed += 1
@@ -244,7 +236,7 @@ export async function disconnectGoogleEmailAction(tenantId: string) {
   const admin = createAdminClient()
   const { data: connection, error } = await admin
     .from('email_connections')
-    .select('id, oauth_metadata')
+    .select('id, provider, oauth_metadata')
     .eq('theatre_id', tenantId)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -254,7 +246,7 @@ export async function disconnectGoogleEmailAction(tenantId: string) {
     redirect(`/${tenantId}/email?email_error=no_connection`)
   }
 
-  const revokeError = await revokeConnectionToken(connection.oauth_metadata)
+  const revokeError = await revokeConnectionToken(connection.provider, connection.oauth_metadata)
 
   const { error: updateError } = await admin
     .from('email_connections')
@@ -282,8 +274,37 @@ export async function disconnectGoogleEmailAction(tenantId: string) {
   redirect(`/${tenantId}/email?email_disconnected=1`)
 }
 
-async function revokeConnectionToken(oauthMetadata: unknown) {
+async function deleteProviderDraft(
+  admin: ReturnType<typeof createAdminClient>,
+  connection: { id: string; provider: string; oauth_metadata: Json },
+  draftId: string,
+  tokenCache?: Map<string, string>,
+) {
+  const cachedToken = tokenCache?.get(connection.id)
+  const accessToken = cachedToken ?? (connection.provider === 'microsoft'
+    ? await getFreshMicrosoftAccessToken(admin, {
+      id: connection.id,
+      oauth_metadata: connection.oauth_metadata,
+    })
+    : await getFreshGoogleAccessToken(admin, {
+      id: connection.id,
+      oauth_metadata: connection.oauth_metadata,
+    }))
+
+  tokenCache?.set(connection.id, accessToken)
+
+  if (connection.provider === 'microsoft') {
+    await deleteOutlookDraft(accessToken, draftId)
+    return
+  }
+
+  await deleteGmailDraft(accessToken, draftId)
+}
+
+async function revokeConnectionToken(provider: string, oauthMetadata: unknown) {
   try {
+    if (provider === 'microsoft') return null
+
     const metadata = oauthMetadata && typeof oauthMetadata === 'object'
       ? oauthMetadata as Record<string, unknown>
       : {}
@@ -295,7 +316,7 @@ async function revokeConnectionToken(oauthMetadata: unknown) {
     await revokeGoogleOAuthToken(tokenToRevoke)
     return null
   } catch (error) {
-    console.error('[email-google-disconnect]', error)
+    console.error('[email-disconnect]', error)
     return error instanceof Error ? error.message : 'Unknown token revocation error'
   }
 }

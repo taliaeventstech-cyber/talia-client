@@ -235,7 +235,7 @@ function formatClassificationReason(reason: string) {
     refund_request: 'Solicitud de devolución',
     partnership_request: 'Partnership / colaboración',
     missing_context: 'Falta contexto',
-    non_actionable: 'No accionable',
+    non_actionable: 'No requiere respuesta',
     blocked_sender: 'Remitente bloqueado',
     blocked_domain: 'Dominio bloqueado',
     automated_email: 'Email automático',
@@ -254,7 +254,7 @@ function formatThreadStatus(status: string) {
     sent: 'Enviado',
     resolved: 'Cerrado',
     escalated: 'Escalado',
-    ignored: 'No accionable',
+    ignored: 'No requiere respuesta',
   }
 
   return labels[status] ?? status
@@ -270,10 +270,22 @@ function formatTopic(topic?: string | null) {
     programacion: 'Programación',
     grupos: 'Grupos',
     devoluciones: 'Devoluciones',
+    partnerships: 'Partnerships',
+    prensa: 'Prensa',
+    quejas: 'Quejas',
+    facturacion: 'Facturación',
     otro: 'Otro',
   }
 
-  return labels[topic] ?? topic
+  return labels[topic] ?? formatCustomTopic(topic)
+}
+
+function formatCustomTopic(topic: string) {
+  return topic
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\p{L}/gu, (letter) => letter.toUpperCase())
 }
 
 function getRecord(value: unknown) {

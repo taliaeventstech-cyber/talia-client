@@ -11,7 +11,9 @@ import { applyEmailClassificationSafeguards } from './classification-safeguards'
 import { classifyEmailMessage } from './classifier'
 import { createGmailDraft } from './gmail'
 import { getFreshGoogleAccessToken } from './google-tokens'
+import { getFreshMicrosoftAccessToken } from './microsoft-tokens'
 import { N8nEmailClassifierProvider, N8nEmailDrafterProvider } from './n8n'
+import { createOutlookDraft } from './outlook'
 import { getEmailAgentSettings } from './settings'
 
 type AdminClient = ReturnType<typeof createAdminClient>
@@ -26,7 +28,7 @@ export type ProcessEmailInput = {
 export async function processEmailMessage(admin: AdminClient, input: ProcessEmailInput) {
   const { data: connection } = await admin
     .from('email_connections')
-    .select('id, theatre_id, mailbox_email, status, draft_mode, oauth_metadata, metadata')
+    .select('id, theatre_id, provider, mailbox_email, status, draft_mode, oauth_metadata, metadata')
     .eq('theatre_id', input.tenantId)
     .in('status', ['connected', 'syncing'])
     .order('created_at', { ascending: false })
@@ -318,6 +320,7 @@ async function createProviderDraft(
   input: {
     connection: {
       id: string
+      provider: string
       oauth_metadata: Json
     }
     draftId: string
@@ -335,13 +338,13 @@ async function createProviderDraft(
       .from('email_drafts')
       .update({
         status: 'error',
-        error_message: 'Cannot create Gmail draft without recipient email',
+        error_message: 'Cannot create provider draft without recipient email',
       })
       .eq('id', input.draftId)
 
     return {
       ok: false as const,
-      error: 'Cannot create Gmail draft without recipient email',
+      error: 'Cannot create provider draft without recipient email',
       draftId: input.draftId,
     }
   }
@@ -349,7 +352,9 @@ async function createProviderDraft(
   let accessToken: string
 
   try {
-    accessToken = await getFreshGoogleAccessToken(admin, input.connection)
+    accessToken = input.connection.provider === 'microsoft'
+      ? await getFreshMicrosoftAccessToken(admin, input.connection)
+      : await getFreshGoogleAccessToken(admin, input.connection)
   } catch (error) {
     const message = getErrorMessage(error)
     await Promise.all([
@@ -371,32 +376,41 @@ async function createProviderDraft(
 
     return {
       ok: false as const,
-      error: 'Failed to refresh Gmail connection',
+      error: 'Failed to refresh email connection',
       details: message,
       draftId: input.draftId,
     }
   }
 
   try {
-    const gmailDraft = await createGmailDraft(accessToken, {
-      to: input.to,
-      subject: input.subject,
-      bodyText: input.bodyText,
-      bodyHtml: input.bodyHtml,
-    })
+    const providerDraft = input.connection.provider === 'microsoft'
+      ? await createOutlookDraft(accessToken, {
+        to: input.to,
+        subject: input.subject,
+        bodyText: input.bodyText,
+        bodyHtml: input.bodyHtml,
+      })
+      : await createGmailDraft(accessToken, {
+        to: input.to,
+        subject: input.subject,
+        bodyText: input.bodyText,
+        bodyHtml: input.bodyHtml,
+      })
 
     await Promise.all([
       admin
         .from('email_drafts')
         .update({
           status: 'created_in_provider',
-          provider_draft_id: gmailDraft.id,
+          provider_draft_id: providerDraft.id,
           metadata: {
             ...getJsonRecord(input.metadata),
-            mailbox_provider: 'google',
-            gmail_draft_id: gmailDraft.id,
-            gmail_message_id: gmailDraft.message?.id ?? null,
-            gmail_thread_id: gmailDraft.message?.threadId ?? null,
+            mailbox_provider: input.connection.provider,
+            provider_draft_id: providerDraft.id,
+            provider_thread_id: getProviderDraftThreadId(providerDraft),
+            gmail_draft_id: input.connection.provider === 'google' ? providerDraft.id : undefined,
+            gmail_message_id: input.connection.provider === 'google' && 'message' in providerDraft ? providerDraft.message?.id ?? null : undefined,
+            gmail_thread_id: input.connection.provider === 'google' && 'message' in providerDraft ? providerDraft.message?.threadId ?? null : undefined,
           } satisfies Json,
           error_message: null,
         })
@@ -411,15 +425,15 @@ async function createProviderDraft(
           thread_id: input.threadId,
           draft_id: input.draftId,
           source: 'email_agent',
-          provider: 'gmail',
-          tool: 'users.drafts.create',
+          provider: input.connection.provider === 'microsoft' ? 'outlook' : 'gmail',
+          tool: input.connection.provider === 'microsoft' ? 'me.messages.create' : 'users.drafts.create',
         },
       }),
     ])
 
     return {
       ok: true as const,
-      providerDraftId: gmailDraft.id,
+      providerDraftId: providerDraft.id,
     }
   } catch (error) {
     const message = getErrorMessage(error)
@@ -433,7 +447,7 @@ async function createProviderDraft(
 
     return {
       ok: false as const,
-      error: 'Failed to create Gmail draft',
+      error: 'Failed to create provider draft',
       details: message,
       draftId: input.draftId,
     }
@@ -466,6 +480,11 @@ function getEmailClassifierProvider(metadata: Json) {
     ok: true as const,
     provider: new N8nEmailClassifierProvider(webhookUrl) satisfies EmailAgentClassifierProvider,
   }
+}
+
+function getProviderDraftThreadId(draft: Awaited<ReturnType<typeof createGmailDraft>> | Awaited<ReturnType<typeof createOutlookDraft>>) {
+  const record = draft as { message?: { threadId?: string }; conversationId?: string }
+  return record.message?.threadId ?? record.conversationId ?? null
 }
 
 function getEmailDrafterProvider(metadata: Json) {

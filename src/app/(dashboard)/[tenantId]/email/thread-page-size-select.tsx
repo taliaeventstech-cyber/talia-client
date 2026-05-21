@@ -4,17 +4,17 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 const PAGE_SIZE_OPTIONS = [15, 25, 50]
 
-export function ThreadPageSizeSelect({ value }: { value: number }) {
+export function ThreadPageSizeSelect({ ariaLabel, label, value }: { ariaLabel: string; label: string; value: number }) {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
 
   return (
     <label className="table-page-size">
-      <span>Por página</span>
+      <span>{label}</span>
       <span className="table-page-size-select">
         <select
-          aria-label="Emails por página"
+          aria-label={ariaLabel}
           onChange={(event) => {
             const nextLimit = Number(event.target.value)
             if (!PAGE_SIZE_OPTIONS.includes(nextLimit)) return

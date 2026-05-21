@@ -129,6 +129,7 @@ const updateTenantSchema = createTenantSchema.extend({
   emailAgentDraftStyle: z.enum(['breve', 'detallado']),
   emailAgentSignature: z.string().trim().max(500, 'La firma del agente de email es demasiado larga.').optional(),
   emailChannelPrompt: z.string().trim().max(4000, 'El prompt del agente de email es demasiado largo.').optional(),
+  emailClassificationTopics: z.string().trim().max(1500, 'Los temas de clasificación son demasiado largos.').optional(),
   emailHumanReviewTopics: z.string().trim().max(1000, 'Los temas de revisión humana son demasiado largos.').optional(),
   emailClassificationRules: z.string().trim().max(2000, 'Las reglas de clasificación son demasiado largas.').optional(),
 })
@@ -521,6 +522,7 @@ export async function updateTenantAction(
     emailAgentDraftStyle: formData.get('email_agent_draft_style') || 'breve',
     emailAgentSignature: formData.get('email_agent_signature') || '',
     emailChannelPrompt: formData.get('email_channel_prompt') || '',
+    emailClassificationTopics: formData.get('email_classification_topics') || '',
     emailHumanReviewTopics: formData.get('email_human_review_topics') || '',
     emailClassificationRules: formData.get('email_classification_rules') || '',
     modules,
@@ -634,6 +636,7 @@ export async function updateTenantAction(
         draftStyle: data.emailAgentDraftStyle,
         signature: data.emailAgentSignature,
         channelPrompt: data.emailChannelPrompt,
+        classificationTopics: parseEmailRuleList(data.emailClassificationTopics),
         humanReviewTopics: parseEmailRuleList(data.emailHumanReviewTopics),
         classificationRules: data.emailClassificationRules,
       }),

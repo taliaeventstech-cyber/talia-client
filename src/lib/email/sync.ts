@@ -7,6 +7,13 @@ import {
   parseGmailMessage,
   type ParsedGmailMessage,
 } from './gmail'
+import { getFreshMicrosoftAccessToken } from './microsoft-tokens'
+import {
+  getOutlookMessage,
+  listOutlookInboxMessages,
+  parseOutlookMessage,
+  type ParsedOutlookMessage,
+} from './outlook'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 const GMAIL_LIST_PAGE_SIZE = 50
@@ -24,14 +31,14 @@ export async function syncGmailMessages(admin: AdminClient, input: SyncGmailInpu
     .from('email_connections')
     .select('id, theatre_id, provider, mailbox_email, status, oauth_metadata, metadata')
     .eq('theatre_id', input.tenantId)
-    .eq('provider', 'google')
+    .in('provider', ['google', 'microsoft'])
     .in('status', ['connected', 'syncing'])
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
   if (!connection) {
-    return { ok: false as const, error: 'No connected Gmail mailbox for this tenant' }
+    return { ok: false as const, error: 'No connected email mailbox for this tenant' }
   }
 
   await admin
@@ -41,14 +48,24 @@ export async function syncGmailMessages(admin: AdminClient, input: SyncGmailInpu
 
   try {
     const syncConfig = getEmailSyncConfig(connection.metadata)
-    const accessToken = await getFreshGoogleAccessToken(admin, {
-      id: connection.id,
-      oauth_metadata: connection.oauth_metadata,
-    })
-    const messageRefs = await listGmailMessagesForSync(accessToken, {
-      query: input.query ?? syncConfig.query,
-      maxMessages: input.maxResults ?? syncConfig.limit,
-    })
+    const accessToken = connection.provider === 'microsoft'
+      ? await getFreshMicrosoftAccessToken(admin, {
+        id: connection.id,
+        oauth_metadata: connection.oauth_metadata,
+      })
+      : await getFreshGoogleAccessToken(admin, {
+        id: connection.id,
+        oauth_metadata: connection.oauth_metadata,
+      })
+    const messageRefs = connection.provider === 'microsoft'
+      ? await listOutlookMessagesForSync(accessToken, {
+        windowDays: syncConfig.windowDays,
+        maxMessages: input.maxResults ?? syncConfig.limit,
+      })
+      : await listGmailMessagesForSync(accessToken, {
+        query: input.query ?? syncConfig.query,
+        maxMessages: input.maxResults ?? syncConfig.limit,
+      })
     const newestMessageId = messageRefs[0]?.id ?? null
     const existingMessageIds = await getExistingProviderMessageIds(
       admin,
@@ -64,13 +81,15 @@ export async function syncGmailMessages(admin: AdminClient, input: SyncGmailInpu
         continue
       }
 
-      const gmailMessage = await getGmailMessage(accessToken, messageRef.id)
-      const parsed = parseGmailMessage(gmailMessage)
+      const parsed = connection.provider === 'microsoft'
+        ? parseOutlookMessage(await getOutlookMessage(accessToken, messageRef.id))
+        : parseGmailMessage(await getGmailMessage(accessToken, messageRef.id))
 
-      const result = await persistGmailMessage(admin, {
+      const result = await persistProviderMessage(admin, {
         tenantId: input.tenantId,
         connectionId: connection.id,
         mailboxEmail: connection.mailbox_email,
+        provider: connection.provider,
         message: parsed,
       })
 
@@ -108,7 +127,7 @@ export async function syncGmailMessages(admin: AdminClient, input: SyncGmailInpu
       })
       .eq('id', connection.id)
 
-    return { ok: false as const, error: 'Failed to sync Gmail messages', details: message }
+    return { ok: false as const, error: 'Failed to sync email messages', details: message }
   }
 }
 
@@ -136,6 +155,34 @@ async function listGmailMessagesForSync(
   return messages
 }
 
+async function listOutlookMessagesForSync(
+  accessToken: string,
+  input: { windowDays: number; maxMessages: number },
+) {
+  const messages: Array<{ id: string; threadId?: string }> = []
+  let nextLink: string | undefined
+  const since = new Date(Date.now() - input.windowDays * 24 * 60 * 60 * 1000)
+
+  do {
+    const remaining = Math.min(input.maxMessages, GMAIL_MAX_INSPECTED_PER_SYNC) - messages.length
+    if (remaining <= 0) break
+
+    const listed = await listOutlookInboxMessages(accessToken, {
+      maxResults: remaining,
+      since,
+      nextLink,
+    })
+
+    messages.push(...(listed.value ?? []).map((message) => ({
+      id: message.id,
+      threadId: message.conversationId,
+    })))
+    nextLink = listed['@odata.nextLink']
+  } while (nextLink)
+
+  return messages
+}
+
 export function getEmailSyncConfig(metadata: Json) {
   const record = getJsonRecord(metadata)
   const configuredWindow = typeof record.gmail_sync_window_days === 'number'
@@ -153,6 +200,7 @@ export function getEmailSyncConfig(metadata: Json) {
     : ''
 
   return {
+    windowDays,
     limit,
     query: configuredQuery || `in:inbox newer_than:${windowDays}d`,
     autoProcessAfterSync: record.auto_process_after_sync === true,
@@ -183,13 +231,14 @@ async function getExistingProviderMessageIds(
   return new Set((data ?? []).map((message) => message.provider_message_id))
 }
 
-async function persistGmailMessage(
+async function persistProviderMessage(
   admin: AdminClient,
   input: {
     tenantId: string
     connectionId: string
     mailboxEmail: string
-    message: ParsedGmailMessage
+    provider: string
+    message: ParsedGmailMessage | ParsedOutlookMessage
   },
 ) {
   const { data: existingMessage, error: existingMessageError } = await admin
@@ -202,7 +251,7 @@ async function persistGmailMessage(
   if (existingMessageError) throw existingMessageError
   if (existingMessage) return { imported: false }
 
-  const thread = await upsertGmailThread(admin, input)
+  const thread = await upsertProviderThread(admin, input)
   const direction = input.message.fromEmail === input.mailboxEmail.toLowerCase()
     ? 'outbound'
     : 'inbound'
@@ -224,10 +273,14 @@ async function persistGmailMessage(
       received_at: direction === 'inbound' ? input.message.receivedAt : null,
       sent_at: direction === 'outbound' ? input.message.receivedAt : null,
       metadata: {
-        source: 'gmail_sync',
-        gmail_labels: input.message.labelIds,
-        gmail_snippet: input.message.snippet,
-        gmail_headers: input.message.headers,
+        source: input.provider === 'microsoft' ? 'outlook_sync' : 'gmail_sync',
+        provider: input.provider,
+        provider_labels: input.message.labelIds,
+        provider_snippet: input.message.snippet,
+        provider_headers: input.message.headers,
+        gmail_labels: input.provider === 'google' ? input.message.labelIds : undefined,
+        gmail_snippet: input.provider === 'google' ? input.message.snippet : undefined,
+        gmail_headers: input.provider === 'google' ? input.message.headers : undefined,
       } satisfies Json,
     })
 
@@ -235,13 +288,14 @@ async function persistGmailMessage(
   return { imported: true }
 }
 
-async function upsertGmailThread(
+async function upsertProviderThread(
   admin: AdminClient,
   input: {
     tenantId: string
     connectionId: string
     mailboxEmail: string
-    message: ParsedGmailMessage
+    provider: string
+    message: ParsedGmailMessage | ParsedOutlookMessage
   },
 ) {
   const { data: existingThread, error: existingThreadError } = await admin
@@ -260,8 +314,10 @@ async function upsertGmailThread(
     sender_name: isInbound ? input.message.fromName : null,
     last_message_at: input.message.receivedAt,
     metadata: {
-      source: 'gmail_sync',
-      latest_gmail_message_id: input.message.id,
+      source: input.provider === 'microsoft' ? 'outlook_sync' : 'gmail_sync',
+      provider: input.provider,
+      latest_provider_message_id: input.message.id,
+      latest_gmail_message_id: input.provider === 'google' ? input.message.id : undefined,
     } satisfies Json,
   }
 

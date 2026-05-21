@@ -51,7 +51,8 @@ function getClassifierConfig(metadata: Json) {
 }
 
 function isAutomatedMessage(input: ClassifyEmailInput, senderEmail: string) {
-  const headers = getJsonRecord(getJsonRecord(input.messageMetadata).gmail_headers)
+  const metadata = getJsonRecord(input.messageMetadata)
+  const headers = getJsonRecord(metadata.gmail_headers ?? metadata.provider_headers)
   const fullText = `${input.subject ?? ''}\n${input.bodyText}`.toLowerCase()
 
   if (/^(no[-_. ]?reply|noreply|mailer-daemon|postmaster)@/i.test(senderEmail)) return true

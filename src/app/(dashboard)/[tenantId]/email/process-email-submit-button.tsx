@@ -4,7 +4,7 @@ import { PencilLine } from 'lucide-react'
 import { useState } from 'react'
 import { useFormStatus } from 'react-dom'
 
-export function ProcessEmailSubmitButton() {
+export function ProcessEmailSubmitButton({ label, processingLabel }: { label: string; processingLabel: string }) {
   const { pending } = useFormStatus()
   const [startedHere, setStartedHere] = useState(false)
   const isProcessing = pending && startedHere
@@ -18,13 +18,13 @@ export function ProcessEmailSubmitButton() {
     >
       {isProcessing ? (
         <>
-          <span>Preparando borrador</span>
+          <span>{processingLabel}</span>
           <span className="processing-line" aria-hidden="true" />
         </>
       ) : (
         <>
           <PencilLine size={15} strokeWidth={2} aria-hidden="true" />
-          <span>Procesar seleccionados</span>
+          <span>{label}</span>
         </>
       )}
     </button>

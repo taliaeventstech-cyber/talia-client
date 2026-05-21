@@ -17,7 +17,7 @@ export class N8nEmailClassifierProvider implements EmailAgentClassifierProvider 
 
     return {
       ok: true as const,
-      classification: parseN8nEmailClassification(result.text),
+      classification: coerceClassificationTopic(parseN8nEmailClassification(result.text), input.agentSettings.classificationTopics),
     }
   }
 }
@@ -34,7 +34,7 @@ export class N8nEmailDrafterProvider implements EmailAgentDrafterProvider {
 
     return {
       ok: true as const,
-      draft: parseN8nEmailDraft(result.text),
+      draft: coerceDraftTopic(parseN8nEmailDraft(result.text), input.agentSettings.classificationTopics),
     }
   }
 }
@@ -48,7 +48,7 @@ export class N8nEmailAgentProvider implements EmailAgentProvider {
 
     return {
       ok: true as const,
-      draft: parseN8nEmailDraft(result.text),
+      draft: coerceDraftTopic(parseN8nEmailDraft(result.text), input.agentSettings.classificationTopics),
     }
   }
 }
@@ -202,6 +202,43 @@ function pickNumber(record: Record<string, unknown>, keys: string[]) {
   }
 
   return null
+}
+
+function coerceClassificationTopic(classification: EmailAgentClassification, allowedTopics: string[]) {
+  return {
+    ...classification,
+    topic: coerceTopic(classification.topic, allowedTopics),
+  }
+}
+
+function coerceDraftTopic(draft: EmailAgentDraft, allowedTopics: string[]) {
+  return {
+    ...draft,
+    topic: coerceTopic(draft.topic, allowedTopics),
+  }
+}
+
+function coerceTopic(topic: string | null, allowedTopics: string[]) {
+  if (!topic) return null
+  const normalizedTopic = normalizeTopic(topic)
+  const normalizedAllowedTopics = new Set(allowedTopics.map(normalizeTopic).filter(Boolean))
+
+  if (!normalizedAllowedTopics.size || normalizedAllowedTopics.has(normalizedTopic)) {
+    return normalizedTopic || null
+  }
+
+  return normalizedAllowedTopics.has('otro') ? 'otro' : null
+}
+
+function normalizeTopic(topic: string) {
+  return topic
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 48)
 }
 
 function pickBoolean(record: Record<string, unknown>, keys: string[]) {

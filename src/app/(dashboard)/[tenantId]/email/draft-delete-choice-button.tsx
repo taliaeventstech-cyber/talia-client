@@ -6,6 +6,14 @@ import { useEffect, useRef, useState } from 'react'
 type DraftDeleteChoiceButtonProps = {
   buttonClassName?: string
   draftId?: string
+  labels: {
+    cancel: string
+    deleting: string
+    deletingAgora: string
+    no: string
+    question: string
+    yes: string
+  }
   label: string
   requireSelectionName?: string
 }
@@ -13,6 +21,7 @@ type DraftDeleteChoiceButtonProps = {
 export function DraftDeleteChoiceButton({
   buttonClassName = 'button-outline button-danger button-fit',
   draftId,
+  labels,
   label,
   requireSelectionName,
 }: DraftDeleteChoiceButtonProps) {
@@ -60,7 +69,7 @@ export function DraftDeleteChoiceButton({
       {confirming ? (
         <span className="draft-delete-inline-confirm">
           <span className="draft-delete-inline-question">
-            ¿Borrar también en Gmail?
+            {labels.question}
           </span>
           <span className="delete-inline-actions">
             <button
@@ -70,8 +79,8 @@ export function DraftDeleteChoiceButton({
               onClick={() => submitChoice('local')}
             >
               {deletingScope === 'local' ? (
-                <>Borrando en Àgora<span className="inline-loading-dots" aria-hidden="true" /></>
-              ) : 'No'}
+                <>{labels.deletingAgora}<span className="inline-loading-dots" aria-hidden="true" /></>
+              ) : labels.no}
             </button>
             <button
               className="button-outline button-danger button-fit"
@@ -80,8 +89,8 @@ export function DraftDeleteChoiceButton({
               onClick={() => submitChoice('provider')}
             >
               {deletingScope === 'provider' ? (
-                <>Borrando<span className="inline-loading-dots" aria-hidden="true" /></>
-              ) : 'Sí'}
+                <>{labels.deleting}<span className="inline-loading-dots" aria-hidden="true" /></>
+              ) : labels.yes}
             </button>
             <button
               className="button-outline button-fit"
@@ -89,7 +98,7 @@ export function DraftDeleteChoiceButton({
               type="button"
               onClick={() => setConfirming(false)}
             >
-              Cancelar
+              {labels.cancel}
             </button>
           </span>
         </span>

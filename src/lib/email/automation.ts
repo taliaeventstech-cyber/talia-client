@@ -63,7 +63,7 @@ export async function listDueEmailSyncTenants(admin: AdminClient, input: { limit
   const { data, error } = await admin
     .from('email_connections')
     .select('theatre_id, last_synced_at, metadata')
-    .eq('provider', 'google')
+    .in('provider', ['google', 'microsoft'])
     .eq('sync_mode', 'polling')
     .in('status', ['connected', 'syncing'])
     .order('last_synced_at', { ascending: true, nullsFirst: true })

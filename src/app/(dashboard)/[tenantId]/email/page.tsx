@@ -1,8 +1,9 @@
 import { requireTenantPermission } from '@/lib/auth/tenant-access'
+import { getDictionary, getLocale, type Dictionary } from '@/lib/i18n/dictionaries'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { QueryToastNotice } from '@/components/ui/query-toast-notice'
 import { SelectAllCheckbox } from '@/components/ui/select-all-checkbox'
-import { ChevronLeft, ChevronRight, Clock3, ExternalLink, Mail, PencilLine, RefreshCw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock3, ExternalLink, Mail, PencilLine } from 'lucide-react'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import {
@@ -15,6 +16,7 @@ import {
 import { DraftDeleteChoiceButton } from './draft-delete-choice-button'
 import { ProcessEmailSubmitButton } from './process-email-submit-button'
 import { SelectedDeleteSubmitButton } from './selected-delete-submit-button'
+import { SyncEmailSubmitButton } from './sync-email-submit-button'
 import { ThreadPageSizeSelect } from './thread-page-size-select'
 
 interface Props {
@@ -44,18 +46,16 @@ interface Props {
   }>
 }
 
-const threadStatusFilters = [
-  { value: 'all', label: 'Todos' },
-  { value: 'new', label: 'Sin procesar' },
-  { value: 'drafted', label: 'Respuesta preparada' },
-  { value: 'waiting_human', label: 'Requiere revisión' },
-  { value: 'ignored', label: 'No accionable' },
-] as const
+type ThreadStatusFilter = 'all' | 'new' | 'drafted' | 'waiting_human' | 'ignored'
+type EmailCopy = Dictionary['email']
 
 export default async function EmailAgentPage({ params, searchParams }: Props) {
   const { tenantId } = await params
   const query = searchParams ? await searchParams : {}
   await requireTenantPermission(tenantId, 'manage_email', 'email')
+  const locale = await getLocale()
+  const dictionary = await getDictionary(locale)
+  const copy = dictionary.email
 
   const admin = createAdminClient()
   const threadPagination = getThreadPagination(query)
@@ -143,20 +143,21 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
   const visibleThreadsWithDrafts = draftedThreadIds
 
   const connection = connections?.[0] ?? null
-  const activeMailbox = connection?.mailbox_email ?? theatre?.fallback_email ?? 'Sin buzón conectado'
+  const activeMailbox = connection?.mailbox_email ?? theatre?.fallback_email ?? copy.mailboxFallback
   const isConnected = connection?.status === 'connected' || connection?.status === 'syncing'
   const isError = connection?.status === 'error'
   const hasOAuthSuccess = query.email_connected === '1'
   const hasDisconnectSuccess = query.email_disconnected === '1'
-  const processSuccessMessage = getProcessSuccessMessage(query.email_processed)
-  const selectedProcessMessage = getSelectedProcessMessage({
+  const processSuccessMessage = getProcessSuccessMessage(copy, query.email_processed)
+  const selectedProcessMessage = getSelectedProcessMessage(copy, {
     processed: query.email_selected_processed,
     ignored: query.email_selected_ignored,
     failed: query.email_selected_failed,
   })
-  const syncSuccessMessage = getSyncSuccessMessage(query.email_synced, query.email_auto_processed)
-  const deleteSuccessMessage = getDeleteSuccessMessage(query.email_deleted)
+  const syncSuccessMessage = getSyncSuccessMessage(copy, query.email_synced, query.email_auto_processed)
+  const deleteSuccessMessage = getDeleteSuccessMessage(copy, query.email_deleted)
   const draftDeleteSuccessMessage = getDraftDeleteSuccessMessage(
+    copy,
     query.email_draft_deleted,
     {
       deleted: query.email_drafts_deleted,
@@ -164,21 +165,21 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
       providerFailed: query.email_provider_drafts_failed,
     },
   )
-  const oauthErrorMessage = getOAuthErrorMessage(query.email_error)
+  const oauthErrorMessage = getOAuthErrorMessage(copy, query.email_error)
   const processErrorMessage = query.email_process_error
   const syncErrorMessage = query.email_sync_error
   const deleteErrorMessage = query.email_delete_error
   const draftDeleteErrorMessage = query.email_draft_delete_error
   const successToast = hasOAuthSuccess
-    ? 'Buzón conectado correctamente.'
+    ? copy.toasts.connected
     : hasDisconnectSuccess
-      ? 'Buzón desconectado correctamente.'
+      ? copy.toasts.disconnected
       : selectedProcessMessage ?? syncSuccessMessage ?? deleteSuccessMessage ?? draftDeleteSuccessMessage ?? processSuccessMessage
   const errorToast = oauthErrorMessage
-    ?? (processErrorMessage ? `No se ha podido procesar el email: ${processErrorMessage}` : null)
-    ?? (syncErrorMessage ? `No se ha podido sincronizar Gmail: ${syncErrorMessage}` : null)
-    ?? (deleteErrorMessage ? `No se han podido borrar los threads: ${deleteErrorMessage}` : null)
-    ?? (draftDeleteErrorMessage ? `No se ha podido borrar el draft: ${draftDeleteErrorMessage}` : null)
+    ?? (processErrorMessage ? copy.toasts.processError(processErrorMessage) : null)
+    ?? (syncErrorMessage ? copy.toasts.syncError(syncErrorMessage) : null)
+    ?? (deleteErrorMessage ? copy.toasts.deleteError(deleteErrorMessage) : null)
+    ?? (draftDeleteErrorMessage ? copy.toasts.draftDeleteError(draftDeleteErrorMessage) : null)
   const disconnectAction = disconnectGoogleEmailAction.bind(null, tenantId)
   const processSelectedAction = processSelectedEmailThreadsAction.bind(null, tenantId)
   const deleteSelectedAction = deleteSelectedEmailThreadsAction.bind(null, tenantId)
@@ -192,11 +193,11 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
 
       <header className="page-header">
         <div>
-          <p className="section-label">Agente de email</p>
+          <p className="section-label">{copy.section}</p>
           <div className="page-title-row">
             <h1>{theatre?.name ?? 'Email'}</h1>
             <span className={`status-pill ${getConnectionStatusClass(connection?.status)}`}>
-              {formatConnectionStatus(connection?.status)}
+              {formatConnectionStatus(copy, connection?.status)}
             </span>
             <div className="email-header-mailbox">
               <span className="detail-icon" aria-hidden="true">
@@ -205,7 +206,7 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
               <div>
                 <strong>{activeMailbox}</strong>
                 <p>
-                  {formatProvider(connection?.provider)} · {formatDraftMode(connection?.draft_mode)} · {formatSync(connection?.sync_mode, connection?.last_synced_at)}
+                  {formatProvider(copy, connection?.provider)} · {formatDraftMode(copy, connection?.draft_mode)} · {formatSync(copy, locale, connection?.sync_mode, connection?.last_synced_at)}
                 </p>
               </div>
             </div>
@@ -215,18 +216,18 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
 
       {isError || connection?.error_message ? (
         <p className="notice notice-error">
-          {connection?.error_message ?? 'Hay un error en la conexión del buzón. Revisa permisos o credenciales.'}
+          {connection?.error_message ?? copy.connectionError}
         </p>
       ) : null}
 
       <section className="card stack">
         <div className="section-title-row">
           <div>
-            <p className="eyebrow">Bandeja</p>
-            <h2>Emails sincronizados</h2>
+            <p className="eyebrow">{copy.inbox.eyebrow}</p>
+            <h2>{copy.inbox.title}</h2>
           </div>
-          <Suspense fallback={<PageSizeSelectFallback value={threadPagination.limit} />}>
-            <ThreadPageSizeSelect value={threadPagination.limit} />
+          <Suspense fallback={<PageSizeSelectFallback ariaLabel={copy.inbox.pageSizeAria} label={copy.inbox.pageSize} value={threadPagination.limit} />}>
+            <ThreadPageSizeSelect ariaLabel={copy.inbox.pageSizeAria} label={copy.inbox.pageSize} value={threadPagination.limit} />
           </Suspense>
         </div>
 
@@ -234,19 +235,16 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
           <div className="email-action-buttons">
             {isConnected ? (
               <form action={syncAction}>
-                <button className="button-primary button-fit" type="submit">
-                  <RefreshCw size={15} strokeWidth={2} aria-hidden="true" />
-                  Sincronizar Gmail
-                </button>
+                <SyncEmailSubmitButton label={copy.inbox.sync} syncingLabel={copy.inbox.syncing} />
               </form>
             ) : null}
-            <a className="button-outline button-fit" href={`/api/email/google/connect?tenantId=${tenantId}`}>
-              {isConnected ? 'Reconectar' : 'Conectar Gmail'}
+            <a className="button-outline button-fit" href={getProviderConnectUrl(tenantId, connection?.provider)}>
+              {isConnected ? copy.header.reconnect : copy.header.connect(getProviderConnectLabel(connection?.provider))}
             </a>
             {isConnected ? (
               <form action={disconnectAction}>
                 <button className="button-outline button-danger button-fit" type="submit">
-                  Desconectar
+                  {copy.header.disconnect}
                 </button>
               </form>
             ) : null}
@@ -256,6 +254,7 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
         <ThreadStatusFilters
           activeStatus={activeThreadStatus}
           counts={threadStatusCounts}
+          labels={copy.inbox.filters}
           limit={threadPagination.limit}
           tenantId={tenantId}
           total={threadTotal}
@@ -265,10 +264,21 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
           <form className="email-thread-selection" action={processSelectedAction}>
             <div className="email-thread-toolbar">
               <div className="email-thread-toolbar-main">
-                <ProcessEmailSubmitButton />
+                <ProcessEmailSubmitButton label={copy.inbox.process} processingLabel={copy.inbox.processing} />
               </div>
               <div className="email-thread-toolbar-aside">
-                <SelectedDeleteSubmitButton formAction={deleteSelectedAction} targetName="thread_ids" />
+                <SelectedDeleteSubmitButton
+                  formAction={deleteSelectedAction}
+                  labels={{
+                    cancel: copy.inbox.cancel,
+                    confirm: copy.inbox.delete,
+                    delete: copy.inbox.delete,
+                    deleting: copy.inbox.deleting,
+                    question: copy.inbox.deleteConfirm,
+                    yes: copy.inbox.yes,
+                  }}
+                  targetName="thread_ids"
+                />
               </div>
             </div>
 
@@ -276,12 +286,12 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
               <thead>
                 <tr>
                   <th className="email-select-cell">
-                    <SelectAllCheckbox label="Seleccionar todos los threads visibles" targetName="thread_ids" />
+                    <SelectAllCheckbox label={copy.inbox.selectAllThreads} targetName="thread_ids" />
                   </th>
-                  <th>Asunto</th>
-                  <th>Remitente</th>
-                  <th>Estado</th>
-                  <th>Tema</th>
+                  <th>{copy.inbox.table.subject}</th>
+                  <th>{copy.inbox.table.sender}</th>
+                  <th>{copy.inbox.table.status}</th>
+                  <th>{copy.inbox.table.topic}</th>
                 </tr>
               </thead>
               <tbody>
@@ -289,7 +299,7 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
                   <tr key={thread.id}>
                     <td className="email-select-cell">
                       <input
-                        aria-label={`Seleccionar ${thread.subject ?? 'thread sin asunto'}`}
+                        aria-label={copy.inbox.selectThread(thread.subject ?? copy.fallbackValues.noSubject)}
                         name="thread_ids"
                         type="checkbox"
                         value={thread.id}
@@ -297,20 +307,19 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
                     </td>
                     <td>
                       <div className="email-thread-subject">
-                        <strong>{thread.subject ?? 'Sin asunto'}</strong>
-                        <span>{getThreadInsight(thread.metadata)}</span>
+                        <strong>{thread.subject ?? copy.fallbackValues.noSubject}</strong>
+                        <span>{getThreadInsight(copy, thread.metadata)}</span>
                       </div>
                     </td>
-                    <td><span className="email-thread-sender">{thread.sender_email ?? '-'}</span></td>
+                    <td><span className="email-thread-sender">{thread.sender_email ?? copy.fallbackValues.noSender}</span></td>
                     <td>
                       <span className={`status-pill ${getThreadStatusClass(getDisplayThreadStatus(thread.status, thread.id, visibleThreadsWithDrafts))}`}>
-                        {formatThreadStatus(getDisplayThreadStatus(thread.status, thread.id, visibleThreadsWithDrafts))}
+                        {formatThreadStatus(copy, getDisplayThreadStatus(thread.status, thread.id, visibleThreadsWithDrafts))}
                       </span>
                     </td>
                     <td>
                       <div className="email-thread-topic">
-                        <span>{formatTopic(thread.topic)}</span>
-                        {hasKnowledgeMatches(thread.metadata) ? <span className="email-knowledge-pill">Conocimiento</span> : null}
+                        <span>{formatTopic(copy, thread.topic)}</span>
                       </div>
                     </td>
                   </tr>
@@ -319,6 +328,7 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
             </table>
             <TablePagination
               hrefForPage={(page) => getThreadPageHref(tenantId, { page, limit: threadPagination.limit, status: activeThreadStatus })}
+              labels={copy.inbox.pagination}
               page={threadPage}
               pageCount={threadPageCount}
               total={filteredThreadCount}
@@ -328,10 +338,10 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
           <div className="empty-state">
             <Clock3 size={18} aria-hidden="true" />
             <div>
-              <strong>Aún no hay emails sincronizados</strong>
-              <p className="muted">
-                Cuando se active OAuth, aquí aparecerán los últimos hilos procesados y sus borradores asociados.
-              </p>
+            <strong>{copy.inbox.emptyTitle}</strong>
+            <p className="muted">
+                {copy.inbox.emptyDescription}
+            </p>
             </div>
           </div>
         )}
@@ -340,13 +350,13 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
       <section className="card stack">
         <div className="section-title-row">
           <div>
-            <p className="eyebrow">Respuestas</p>
-            <h2>Últimas respuestas preparadas</h2>
+            <p className="eyebrow">{copy.drafts.eyebrow}</p>
+            <h2>{copy.drafts.title}</h2>
           </div>
           {connection?.mailbox_email ? (
-            <a className="button-outline button-fit" href={getGmailDraftsUrl(connection.mailbox_email)} target="_blank" rel="noopener noreferrer">
+            <a className="button-outline button-fit" href={getProviderDraftsUrl(connection.provider, connection.mailbox_email)} target="_blank" rel="noopener noreferrer">
               <ExternalLink size={15} strokeWidth={2} aria-hidden="true" />
-              Abrir Gmail
+              {copy.drafts.openMailbox}
             </a>
           ) : null}
         </div>
@@ -356,13 +366,21 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
             <div className="email-thread-toolbar">
               <div className="email-thread-toolbar-main">
                 <label className="bulk-select-row">
-                  <SelectAllCheckbox label="Seleccionar todas las respuestas visibles" targetName="draft_ids" />
-                  Seleccionar todo
+                  <SelectAllCheckbox label={copy.drafts.selectAllDrafts} targetName="draft_ids" />
+                  {copy.drafts.selectAll}
                 </label>
               </div>
               <div className="email-thread-toolbar-aside">
                 <DraftDeleteChoiceButton
-                  label="Borrar"
+                  label={copy.drafts.delete}
+                  labels={{
+                    cancel: copy.drafts.cancel,
+                    deleting: copy.drafts.deleting,
+                    deletingAgora: copy.drafts.deletingAgora,
+                    no: copy.drafts.no,
+                    question: copy.drafts.deleteInMailboxQuestion,
+                    yes: copy.drafts.yes,
+                  }}
                   requireSelectionName="draft_ids"
                 />
               </div>
@@ -378,7 +396,7 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
                 <article className="email-draft-item" key={draft.id}>
                   <div className="email-draft-main">
                     <input
-                      aria-label={`Seleccionar respuesta ${draft.generated_subject ?? thread?.subject ?? 'sin asunto'}`}
+                      aria-label={copy.drafts.selectDraft(draft.generated_subject ?? thread?.subject ?? copy.fallbackValues.noSubject)}
                       className="email-draft-checkbox"
                       name="draft_ids"
                       type="checkbox"
@@ -386,13 +404,13 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
                     />
                     {draft.status === 'created_in_provider' ? null : (
                       <span className={`status-pill ${getDraftStatusClass(draft.status)}`}>
-                        {formatDraftStatus(draft.status)}
+                        {formatDraftStatus(copy, draft.status)}
                       </span>
                     )}
                     <div>
-                      <strong>{draft.generated_subject ?? thread?.subject ?? 'Sin asunto'}</strong>
+                      <strong>{draft.generated_subject ?? thread?.subject ?? copy.fallbackValues.noSubject}</strong>
                       <p className="muted">
-                        {thread?.sender_email ?? 'Remitente no identificado'} · {formatTopic(thread?.topic)}
+                        {thread?.sender_email ?? copy.drafts.unknownSender} · {formatTopic(copy, thread?.topic)}
                       </p>
                     </div>
                   </div>
@@ -411,8 +429,8 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
           <div className="empty-state">
             <PencilLine size={18} aria-hidden="true" />
             <div>
-              <strong>Aún no hay respuestas preparadas</strong>
-              <p className="muted">Cuando proceses emails, las respuestas preparadas aparecerán aquí con su estado.</p>
+            <strong>{copy.drafts.emptyTitle}</strong>
+              <p className="muted">{copy.drafts.emptyDescription}</p>
             </div>
           </div>
         )}
@@ -431,7 +449,17 @@ function getThreadPagination(query: { thread_page?: string; thread_limit?: strin
 }
 
 function getThreadStatusFilter(value?: string) {
-  return threadStatusFilters.some((filter) => filter.value === value) ? value as typeof threadStatusFilters[number]['value'] : 'all'
+  return getThreadStatusFilters().some((filter) => filter.value === value) ? value as ThreadStatusFilter : 'all'
+}
+
+function getThreadStatusFilters() {
+  return [
+    { value: 'all' },
+    { value: 'new' },
+    { value: 'drafted' },
+    { value: 'waiting_human' },
+    { value: 'ignored' },
+  ] satisfies Array<{ value: ThreadStatusFilter }>
 }
 
 function getThreadPageHref(tenantId: string, input: { page: number; limit: number; status: string }) {
@@ -455,19 +483,21 @@ function getThreadFilterHref(tenantId: string, input: { status: string; limit: n
 function ThreadStatusFilters({
   activeStatus,
   counts,
+  labels,
   limit,
   tenantId,
   total,
 }: {
   activeStatus: string
   counts: Map<string, number>
+  labels: EmailCopy['inbox']['filters']
   limit: number
   tenantId: string
   total: number
 }) {
   return (
-    <nav className="email-thread-filters" aria-label="Filtrar emails por estado">
-      {threadStatusFilters.map((filter) => {
+    <nav className="email-thread-filters" aria-label={labels.all}>
+      {getThreadStatusFilters().map((filter) => {
         const count = filter.value === 'all' ? total : counts.get(filter.value) ?? 0
         const active = activeStatus === filter.value
 
@@ -479,7 +509,7 @@ function ThreadStatusFilters({
             key={filter.value}
             scroll={false}
           >
-            <span>{filter.label}</span>
+            <span>{labels[filter.value]}</span>
             <strong>{count}</strong>
           </Link>
         )
@@ -488,12 +518,12 @@ function ThreadStatusFilters({
   )
 }
 
-function PageSizeSelectFallback({ value }: { value: number }) {
+function PageSizeSelectFallback({ ariaLabel, label, value }: { ariaLabel: string; label: string; value: number }) {
   return (
     <label className="table-page-size">
-      <span>Por página</span>
+      <span>{label}</span>
       <span className="table-page-size-select">
-        <select aria-label="Emails por página" defaultValue={value}>
+        <select aria-label={ariaLabel} defaultValue={value}>
           <option value="15">15</option>
           <option value="25">25</option>
           <option value="50">50</option>
@@ -505,11 +535,13 @@ function PageSizeSelectFallback({ value }: { value: number }) {
 
 function TablePagination({
   hrefForPage,
+  labels,
   page,
   pageCount,
   total,
 }: {
   hrefForPage: (page: number) => string
+  labels: EmailCopy['inbox']['pagination']
   page: number
   pageCount: number
   total: number
@@ -517,24 +549,24 @@ function TablePagination({
   if (total === 0) return null
 
   return (
-    <nav className="table-pagination" aria-label="Paginación de emails sincronizados">
-      <p>Página {page} de {pageCount}</p>
+    <nav className="table-pagination" aria-label={labels.label}>
+      <p>{labels.page(page, pageCount)}</p>
       <div className="table-pagination-actions">
         {page > 1 ? (
-          <Link className="pagination-icon-button" href={hrefForPage(page - 1)} aria-label="Página anterior" scroll={false}>
+          <Link className="pagination-icon-button" href={hrefForPage(page - 1)} aria-label={labels.previous} scroll={false}>
             <ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />
           </Link>
         ) : (
-          <span className="pagination-icon-button button-disabled" aria-label="Página anterior">
+          <span className="pagination-icon-button button-disabled" aria-label={labels.previous}>
             <ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />
           </span>
         )}
         {page < pageCount ? (
-          <Link className="pagination-icon-button" href={hrefForPage(page + 1)} aria-label="Página siguiente" scroll={false}>
+          <Link className="pagination-icon-button" href={hrefForPage(page + 1)} aria-label={labels.next} scroll={false}>
             <ChevronRight size={16} strokeWidth={2} aria-hidden="true" />
           </Link>
         ) : (
-          <span className="pagination-icon-button button-disabled" aria-label="Página siguiente">
+          <span className="pagination-icon-button button-disabled" aria-label={labels.next}>
             <ChevronRight size={16} strokeWidth={2} aria-hidden="true" />
           </span>
         )}
@@ -558,88 +590,69 @@ function getConnectionStatusClass(status?: string) {
   return 'status-pill-soon'
 }
 
-function formatConnectionStatus(status?: string) {
-  if (status === 'connected') return 'Conectado'
-  if (status === 'syncing') return 'Sincronizando'
-  if (status === 'error') return 'Error'
-  if (status === 'revoked') return 'Revocado'
-  if (status === 'disabled') return 'Desactivado'
-  return 'Pendiente'
+function formatConnectionStatus(copy: EmailCopy, status?: string) {
+  if (status === 'connected') return copy.statuses.connected
+  if (status === 'syncing') return copy.statuses.syncing
+  if (status === 'error') return copy.statuses.error
+  if (status === 'revoked') return copy.statuses.revoked
+  if (status === 'disabled') return copy.statuses.disabled
+  return copy.statuses.pending
 }
 
-function getOAuthErrorMessage(error?: string) {
+function getOAuthErrorMessage(copy: EmailCopy, error?: string) {
   if (!error) return null
-  if (error === 'oauth_config') {
-    return 'Falta configurar OAuth de Google en el entorno de TALIA.'
-  }
-  if (error === 'oauth_callback') {
-    return 'Google ha devuelto la autorización, pero TALIA no ha podido guardar la conexión.'
-  }
-  if (error === 'missing_code') {
-    return 'Google no ha devuelto el código de autorización.'
-  }
-  if (error === 'access_denied') {
-    return 'La autorización de Google se ha cancelado.'
-  }
-  if (error === 'no_connection') {
-    return 'No hay ninguna conexión de Gmail activa para desconectar.'
-  }
-  if (error === 'disconnect_failed') {
-    return 'No se ha podido guardar la desconexión de Gmail.'
-  }
+  if (error === 'oauth_config') return copy.toasts.oauthConfig
+  if (error === 'oauth_callback') return copy.toasts.oauthCallback
+  if (error === 'missing_code') return copy.toasts.missingCode
+  if (error === 'access_denied') return copy.toasts.accessDenied
+  if (error === 'no_connection') return copy.toasts.noConnection
+  if (error === 'disconnect_failed') return copy.toasts.disconnectFailed
 
-  return `No se ha podido conectar Gmail: ${error}`
+  return copy.toasts.connectFailed(error)
 }
 
-function getProcessSuccessMessage(action?: string) {
-  if (action === 'provider_draft_created') {
-    return 'Email procesado. TALIA ha preparado la respuesta en Gmail.'
-  }
-  if (action === 'draft_generated') {
-    return 'Email procesado. TALIA ha guardado la respuesta para revisión.'
-  }
-  if (action === 'ignored') {
-    return 'Email procesado. TALIA lo ha marcado como no accionable.'
-  }
+function getProcessSuccessMessage(copy: EmailCopy, action?: string) {
+  if (action === 'provider_draft_created') return copy.toasts.providerDraftCreated
+  if (action === 'draft_generated') return copy.toasts.draftGenerated
+  if (action === 'ignored') return copy.toasts.ignored
   return null
 }
 
-function getSelectedProcessMessage(input: { processed?: string; ignored?: string; failed?: string }) {
+function getSelectedProcessMessage(copy: EmailCopy, input: { processed?: string; ignored?: string; failed?: string }) {
   if (input.processed === undefined && input.ignored === undefined && input.failed === undefined) return null
   const processed = Number(input.processed ?? 0)
   const ignored = Number(input.ignored ?? 0)
   const failed = Number(input.failed ?? 0)
   const parts = []
 
-  if (processed > 0) parts.push(`${processed} ${processed === 1 ? 'respuesta preparada' : 'respuestas preparadas'}`)
-  if (ignored > 0) parts.push(`${ignored} ${ignored === 1 ? 'thread no accionable' : 'threads no accionables'}`)
-  if (failed > 0) parts.push(`${failed} ${failed === 1 ? 'fallo' : 'fallos'}`)
+  if (processed > 0) parts.push(copy.toasts.processedPart(processed))
+  if (ignored > 0) parts.push(copy.toasts.ignoredPart(ignored))
+  if (failed > 0) parts.push(copy.toasts.failedPart(failed))
 
-  return parts.length ? `Procesamiento completado: ${parts.join(', ')}.` : 'No se ha procesado ningún thread.'
+  return parts.length ? copy.toasts.processCompleted(parts.join(', ')) : copy.toasts.noEmailProcessed
 }
 
-function getSyncSuccessMessage(imported?: string, autoProcessed?: string) {
+function getSyncSuccessMessage(copy: EmailCopy, imported?: string, autoProcessed?: string) {
   if (imported === undefined) return null
   const count = Number(imported)
   const processed = Number(autoProcessed ?? 0)
-  const suffix = processed > 0
-    ? ` TALIA ha procesado ${processed === 1 ? '1 email' : `${processed} emails`} automáticamente.`
-    : ''
-  if (Number.isNaN(count)) return `Gmail sincronizado.${suffix}`
-  if (count === 0) return 'Gmail sincronizado. No había emails nuevos.'
-  if (count === 1) return `Gmail sincronizado. Se ha importado 1 email nuevo.${suffix}`
-  return `Gmail sincronizado. Se han importado ${count} emails nuevos.${suffix}`
+  const suffix = processed > 0 ? copy.toasts.autoProcessedSuffix(processed) : ''
+  if (Number.isNaN(count)) return `${copy.toasts.mailboxSynced}${suffix}`
+  if (count === 0) return copy.toasts.noNewEmails
+  if (count === 1) return `${copy.toasts.oneEmailImported}${suffix}`
+  return `${copy.toasts.emailsImported(count)}${suffix}`
 }
 
-function getDeleteSuccessMessage(deleted?: string) {
+function getDeleteSuccessMessage(copy: EmailCopy, deleted?: string) {
   if (deleted === undefined) return null
   const count = Number(deleted)
-  if (Number.isNaN(count)) return 'Threads borrados.'
-  if (count === 1) return 'Se ha borrado 1 thread y sus mensajes.'
-  return `Se han borrado ${count} threads y sus mensajes.`
+  if (Number.isNaN(count)) return copy.toasts.threadsDeleted
+  if (count === 1) return copy.toasts.oneThreadDeleted
+  return copy.toasts.manyThreadsDeleted(count)
 }
 
 function getDraftDeleteSuccessMessage(
+  copy: EmailCopy,
   mode?: string,
   bulk?: { deleted?: string; providerDeleted?: string; providerFailed?: string },
 ) {
@@ -648,62 +661,64 @@ function getDraftDeleteSuccessMessage(
     const providerDeleted = Number(bulk.providerDeleted ?? 0)
     const providerFailed = Number(bulk.providerFailed ?? 0)
     const deletedText = Number.isNaN(deleted)
-      ? 'Respuestas eliminadas de Àgora.'
+      ? copy.toasts.draftsDeletedAgora
       : deleted === 1
-        ? 'Se ha eliminado 1 respuesta de Àgora.'
-        : `Se han eliminado ${deleted} respuestas de Àgora.`
+        ? copy.toasts.oneDraftDeletedAgora
+        : copy.toasts.manyDraftsDeletedAgora(deleted)
     const providerText = providerDeleted > 0
-      ? ` ${providerDeleted === 1 ? 'También se ha borrado 1 respuesta en Gmail.' : `También se han borrado ${providerDeleted} respuestas en Gmail.`}`
+      ? providerDeleted === 1 ? copy.toasts.oneDraftDeletedProvider : copy.toasts.manyDraftsDeletedProvider(providerDeleted)
       : ''
     const failedText = providerFailed > 0
-      ? ` ${providerFailed === 1 ? '1 respuesta no se ha podido borrar en Gmail.' : `${providerFailed} respuestas no se han podido borrar en Gmail.`}`
+      ? providerFailed === 1 ? copy.toasts.oneDraftProviderFailed : copy.toasts.manyDraftsProviderFailed(providerFailed)
       : ''
 
     return `${deletedText}${providerText}${failedText}`
   }
 
-  if (mode === 'provider') return 'Respuesta eliminada de Gmail y de Àgora.'
-  if (mode === 'local') return 'Respuesta eliminada de Àgora.'
+  if (mode === 'provider') return copy.toasts.draftDeletedProvider
+  if (mode === 'local') return copy.toasts.draftDeletedLocal
   return null
 }
 
-function formatProvider(provider?: string) {
-  if (provider === 'google') return 'Google Workspace'
-  if (provider === 'microsoft') return 'Microsoft 365'
-  if (provider === 'imap') return 'IMAP'
-  if (provider === 'forwarding') return 'Forwarding TALIA'
-  return 'No configurado'
+function formatProvider(copy: EmailCopy, provider?: string) {
+  if (provider === 'google') return copy.provider.google
+  if (provider === 'microsoft') return copy.provider.microsoft
+  if (provider === 'imap') return copy.provider.imap
+  if (provider === 'forwarding') return copy.provider.forwarding
+  return copy.provider.unknown
 }
 
-function formatDraftMode(mode?: string) {
-  if (mode === 'provider_drafts') return 'Respuestas en Gmail'
-  if (mode === 'agora_review') return 'Revisión en Àgora'
-  if (mode === 'disabled') return 'Sin respuestas'
-  return 'Pendiente'
+function formatDraftMode(copy: EmailCopy, mode?: string) {
+  if (mode === 'provider_drafts') return copy.draftMode.provider_drafts
+  if (mode === 'agora_review') return copy.draftMode.agora_review
+  if (mode === 'disabled') return copy.draftMode.disabled
+  return copy.draftMode.pending
 }
 
-function formatSync(mode?: string, lastSyncedAt?: string | null) {
-  const label = mode === 'webhook' ? 'Webhook' : mode === 'manual' ? 'Manual' : 'Polling'
+function formatSync(copy: EmailCopy, locale: string, mode?: string, lastSyncedAt?: string | null) {
+  const label = mode === 'webhook' ? copy.syncMode.webhook : mode === 'manual' ? copy.syncMode.manual : copy.syncMode.polling
   if (!lastSyncedAt) return label
-  return `${label} · ${new Date(lastSyncedAt).toLocaleString('es-ES')}`
+  return `${label} · ${new Date(lastSyncedAt).toLocaleString(locale === 'ca' ? 'ca-ES' : 'es-ES')}`
 }
 
-function getGmailDraftsUrl(mailboxEmail: string) {
+function getProviderConnectUrl(tenantId: string, provider?: string) {
+  return provider === 'microsoft'
+    ? `/api/email/microsoft/connect?tenantId=${tenantId}`
+    : `/api/email/google/connect?tenantId=${tenantId}`
+}
+
+function getProviderConnectLabel(provider?: string) {
+  if (provider === 'microsoft') return 'Outlook'
+  return 'Gmail'
+}
+
+function getProviderDraftsUrl(provider: string | undefined, mailboxEmail: string) {
+  if (provider === 'microsoft') return 'https://outlook.office.com/mail/drafts'
   return `https://mail.google.com/mail/u/${encodeURIComponent(mailboxEmail)}/#drafts`
 }
 
-function formatThreadStatus(status: string) {
-  const labels: Record<string, string> = {
-    new: 'Sin procesar',
-    drafted: 'Respuesta preparada',
-    waiting_human: 'Requiere revisión',
-    sent: 'Enviado',
-    resolved: 'Cerrado',
-    escalated: 'Escalado',
-    ignored: 'No accionable',
-  }
-
-  return labels[status] ?? status
+function formatThreadStatus(copy: EmailCopy, status: string) {
+  return copy.statuses[status as keyof EmailCopy['statuses']] ?? status
 }
 
 function getDisplayThreadStatus(status: string, threadId: string, threadsWithDrafts: Set<string>) {
@@ -718,7 +733,7 @@ function getThreadStatusClass(status: string) {
   return 'status-pill-muted'
 }
 
-function getThreadInsight(metadata: unknown) {
+function getThreadInsight(copy: EmailCopy, metadata: unknown) {
   const record = getRecord(metadata)
   const classification = getRecord(record.classification)
   const rawReason = typeof classification.agent_reason === 'string'
@@ -729,51 +744,16 @@ function getThreadInsight(metadata: unknown) {
         ? record.escalation_reason
         : null
 
-  if (!rawReason) return 'Sin motivo de clasificación'
-  return formatClassificationReason(rawReason)
+  if (!rawReason) return copy.reasons.none
+  return formatClassificationReason(copy, rawReason)
 }
 
-function hasKnowledgeMatches(metadata: unknown) {
-  const record = getRecord(metadata)
-  return typeof record.knowledge_match_count === 'number' && record.knowledge_match_count > 0
+function formatClassificationReason(copy: EmailCopy, reason: string) {
+  return copy.reasons[reason as keyof EmailCopy['reasons']] ?? reason.replaceAll('_', ' ')
 }
 
-function formatClassificationReason(reason: string) {
-  const labels: Record<string, string> = {
-    candidate_for_agent: 'Candidato para agente',
-    visitor_question: 'Pregunta de visitante',
-    newsletter: 'Newsletter',
-    spam: 'Spam',
-    auto_reply: 'Respuesta automática',
-    bounce: 'Rebote de correo',
-    complaint: 'Queja',
-    group_request: 'Solicitud de grupo',
-    refund_request: 'Solicitud de devolución',
-    partnership_request: 'Partnership / colaboración',
-    missing_context: 'Falta contexto',
-    non_actionable: 'No accionable',
-    blocked_sender: 'Remitente bloqueado',
-    blocked_domain: 'Dominio bloqueado',
-    automated_email: 'Email automático',
-    empty_body: 'Sin contenido suficiente',
-    other: 'Otro motivo',
-  }
-
-  return labels[reason] ?? reason.replaceAll('_', ' ')
-}
-
-function formatDraftStatus(status: string) {
-  const labels: Record<string, string> = {
-    generated: 'Generado',
-    created_in_provider: 'En Gmail',
-    edited_by_human: 'Editado',
-    approved: 'Aprobado',
-    sent: 'Enviado',
-    discarded: 'Descartado',
-    error: 'Error',
-  }
-
-  return labels[status] ?? status
+function formatDraftStatus(copy: EmailCopy, status: string) {
+  return copy.draftStatuses[status as keyof EmailCopy['draftStatuses']] ?? status
 }
 
 function getDraftStatusClass(status: string) {
@@ -783,24 +763,21 @@ function getDraftStatusClass(status: string) {
   return 'status-pill-muted'
 }
 
-function formatTopic(topic?: string | null) {
-  if (!topic) return 'Sin tema'
-  const labels: Record<string, string> = {
-    entradas: 'Entradas',
-    horarios: 'Horarios',
-    ubicacion: 'Ubicación',
-    accesibilidad: 'Accesibilidad',
-    programacion: 'Programación',
-    grupos: 'Grupos',
-    devoluciones: 'Devoluciones',
-    otro: 'Otro',
-  }
+function formatTopic(copy: EmailCopy, topic?: string | null) {
+  if (!topic) return copy.topics.none
+  return copy.topics[topic as keyof EmailCopy['topics']] ?? formatCustomTopic(topic)
+}
 
-  return labels[topic] ?? topic
+function formatCustomTopic(topic: string) {
+  return topic
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\p{L}/gu, (letter) => letter.toUpperCase())
 }
 
 function formatDateTime(value: string | null) {
-  if (!value) return 'Sin fecha'
+  if (!value) return ''
   return new Date(value).toLocaleString('es-ES', {
     day: '2-digit',
     month: 'short',

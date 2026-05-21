@@ -6,10 +6,18 @@ import { useFormStatus } from 'react-dom'
 
 type SelectedDeleteSubmitButtonProps = {
   formAction: (formData: FormData) => void | Promise<void>
+  labels: {
+    cancel: string
+    confirm: string
+    delete: string
+    deleting: string
+    question: string
+    yes: string
+  }
   targetName: string
 }
 
-export function SelectedDeleteSubmitButton({ formAction, targetName }: SelectedDeleteSubmitButtonProps) {
+export function SelectedDeleteSubmitButton({ formAction, labels, targetName }: SelectedDeleteSubmitButtonProps) {
   const { pending } = useFormStatus()
   const [hasSelection, setHasSelection] = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -37,7 +45,7 @@ export function SelectedDeleteSubmitButton({ formAction, targetName }: SelectedD
       {confirming ? (
         <span className="draft-delete-inline-confirm">
           <span className="draft-delete-inline-question">
-            ¿Borrar los emails seleccionados? Solo se borrarán en Àgora.
+            {labels.question}
           </span>
           <span className="delete-inline-actions">
             <button
@@ -47,8 +55,8 @@ export function SelectedDeleteSubmitButton({ formAction, targetName }: SelectedD
               type="submit"
             >
               {pending ? (
-                <>Borrando<span className="inline-loading-dots" aria-hidden="true" /></>
-              ) : 'Sí'}
+                <>{labels.deleting}<span className="inline-loading-dots" aria-hidden="true" /></>
+              ) : labels.yes}
             </button>
             <button
               className="button-outline button-fit"
@@ -56,7 +64,7 @@ export function SelectedDeleteSubmitButton({ formAction, targetName }: SelectedD
               type="button"
               onClick={() => setConfirming(false)}
             >
-              Cancelar
+              {labels.cancel}
             </button>
           </span>
         </span>
@@ -69,7 +77,7 @@ export function SelectedDeleteSubmitButton({ formAction, targetName }: SelectedD
           type="button"
         >
           <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
-          Borrar
+          {labels.delete}
         </button>
       )}
     </span>

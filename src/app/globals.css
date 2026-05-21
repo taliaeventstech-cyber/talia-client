@@ -2832,20 +2832,6 @@ textarea {
   white-space: nowrap;
 }
 
-.email-knowledge-pill {
-  display: inline-flex;
-  width: fit-content;
-  align-items: center;
-  border: 0.5px solid color-mix(in srgb, var(--color-ia) 34%, var(--color-border));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-ia-bg) 46%, transparent);
-  color: var(--color-ia);
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
-  padding: 4px 7px;
-}
-
 .email-select-cell {
   width: 52px;
 }
