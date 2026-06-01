@@ -3,8 +3,13 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getPostAuthRedirectPath } from '@/lib/auth/post-auth-redirect'
 import { NextRequest, NextResponse } from 'next/server'
 
+function getInternalRedirect(value: unknown) {
+  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) return undefined
+  return value
+}
+
 export async function POST(request: NextRequest) {
-  const { email, password } = await request.json()
+  const { email, password, redirectTo: requestedRedirectTo } = await request.json()
 
   if (typeof email !== 'string' || typeof password !== 'string') {
     return NextResponse.json({ error: 'Email o contraseña incorrectos' }, { status: 400 })
@@ -23,5 +28,5 @@ export async function POST(request: NextRequest) {
 
   const admin = createAdminClient()
   const redirectTo = await getPostAuthRedirectPath(admin, data.user.id)
-  return NextResponse.json({ redirectTo })
+  return NextResponse.json({ redirectTo: getInternalRedirect(requestedRedirectTo) ?? redirectTo })
 }

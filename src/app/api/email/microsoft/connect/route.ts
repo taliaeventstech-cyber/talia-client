@@ -1,4 +1,4 @@
-import { requireTenantPermission } from '@/lib/auth/tenant-access'
+import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getMicrosoftAuthorizationUrl } from '@/lib/email/microsoft-oauth'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const access = await requireTenantPermission(tenantId, 'manage_email', 'email')
+    const access = await requireTenantProductAccess(tenantId, 'manage_email', 'email')
     const authorizationUrl = getMicrosoftAuthorizationUrl({ tenantId, userId: access.userId })
 
     return NextResponse.redirect(authorizationUrl)

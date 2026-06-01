@@ -7,11 +7,20 @@ import { useState } from 'react'
 
 type LoginCopy = Dictionary['auth']['login']
 
-export function LoginForm({ copy, errorParam }: { copy: LoginCopy; errorParam?: string }) {
+export function LoginForm({
+  copy,
+  errorParam,
+  redirectTo,
+}: {
+  copy: LoginCopy
+  errorParam?: string
+  redirectTo?: string
+}) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const signupHref = redirectTo ? `/signup?next=${encodeURIComponent(redirectTo)}` : '/signup'
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -25,7 +34,7 @@ export function LoginForm({ copy, errorParam }: { copy: LoginCopy; errorParam?: 
       response = await fetch('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, redirectTo }),
       })
       result = await response.json()
     } catch {
@@ -77,7 +86,7 @@ export function LoginForm({ copy, errorParam }: { copy: LoginCopy; errorParam?: 
         </button>
       </form>
       <p className="muted" style={{ marginTop: 16, fontSize: 13 }}>
-        {copy.noAccount} <Link className="link-accent" href="/signup">{copy.createAccount}</Link>
+        {copy.noAccount} <Link className="link-accent" href={signupHref}>{copy.createAccount}</Link>
       </p>
     </>
   )

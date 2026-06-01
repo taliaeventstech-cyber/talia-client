@@ -1,4 +1,4 @@
-import { requireTenantPermission } from '@/lib/auth/tenant-access'
+import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale, type Dictionary } from '@/lib/i18n/dictionaries'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { QueryToastNotice } from '@/components/ui/query-toast-notice'
@@ -52,7 +52,7 @@ type EmailCopy = Dictionary['email']
 export default async function EmailAgentPage({ params, searchParams }: Props) {
   const { tenantId } = await params
   const query = searchParams ? await searchParams : {}
-  await requireTenantPermission(tenantId, 'manage_email', 'email')
+  await requireTenantProductAccess(tenantId, 'manage_email', 'email')
   const locale = await getLocale()
   const dictionary = await getDictionary(locale)
   const copy = dictionary.email
@@ -146,6 +146,7 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
   const activeMailbox = connection?.mailbox_email ?? theatre?.fallback_email ?? copy.mailboxFallback
   const isConnected = connection?.status === 'connected' || connection?.status === 'syncing'
   const isError = connection?.status === 'error'
+  const activeProvider = isConnected ? connection?.provider : undefined
   const hasOAuthSuccess = query.email_connected === '1'
   const hasDisconnectSuccess = query.email_disconnected === '1'
   const processSuccessMessage = getProcessSuccessMessage(copy, query.email_processed)
@@ -206,7 +207,7 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
               <div>
                 <strong>{activeMailbox}</strong>
                 <p>
-                  {formatProvider(copy, connection?.provider)} · {formatDraftMode(copy, connection?.draft_mode)} · {formatSync(copy, locale, connection?.sync_mode, connection?.last_synced_at)}
+                  {formatProvider(copy, activeProvider)} · {formatDraftMode(copy, connection?.draft_mode)} · {formatSync(copy, locale, connection?.sync_mode, connection?.last_synced_at)}
                 </p>
               </div>
             </div>
@@ -238,9 +239,22 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
                 <SyncEmailSubmitButton label={copy.inbox.sync} syncingLabel={copy.inbox.syncing} />
               </form>
             ) : null}
-            <a className="button-outline button-fit" href={getProviderConnectUrl(tenantId, connection?.provider)}>
-              {isConnected ? copy.header.reconnect : copy.header.connect(getProviderConnectLabel(connection?.provider))}
-            </a>
+            {isConnected ? (
+              <a className="button-outline button-fit" href={getProviderConnectUrl(tenantId, connection.provider)}>
+                {copy.header.reconnect}
+              </a>
+            ) : (
+              <div className="email-provider-connectors" aria-label={copy.header.connectMailbox}>
+                <a className="button-outline button-fit" href={getProviderConnectUrl(tenantId, 'google')}>
+                  <GoogleProviderIcon />
+                  {copy.header.connectGmail}
+                </a>
+                <a className="button-outline button-fit" href={getProviderConnectUrl(tenantId, 'microsoft')}>
+                  <MicrosoftProviderIcon />
+                  {copy.header.connectOutlook}
+                </a>
+              </div>
+            )}
             {isConnected ? (
               <form action={disconnectAction}>
                 <button className="button-outline button-danger button-fit" type="submit">
@@ -707,9 +721,26 @@ function getProviderConnectUrl(tenantId: string, provider?: string) {
     : `/api/email/google/connect?tenantId=${tenantId}`
 }
 
-function getProviderConnectLabel(provider?: string) {
-  if (provider === 'microsoft') return 'Outlook'
-  return 'Gmail'
+function GoogleProviderIcon() {
+  return (
+    <svg className="email-provider-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9c-.3 1.4-1 2.6-2.1 3.4v2.8h3.4c2-1.8 3.4-4.5 3.4-8.2Z" />
+      <path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.6l-3.4-2.8c-.9.6-2.2 1-3.9 1-3 0-5.6-2-6.5-4.8H2v2.9C3.8 20.4 7.6 23 12 23Z" />
+      <path fill="#FBBC05" d="M5.5 13.8a6.7 6.7 0 0 1 0-4.3V6.6H2A11 11 0 0 0 2 16.7l3.5-2.9Z" />
+      <path fill="#EA4335" d="M12 4.4c1.6 0 3.1.6 4.2 1.7l3.1-3.1A10.6 10.6 0 0 0 12 0C7.6 0 3.8 2.6 2 6.6l3.5 2.9C6.4 6.4 9 4.4 12 4.4Z" />
+    </svg>
+  )
+}
+
+function MicrosoftProviderIcon() {
+  return (
+    <svg className="email-provider-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#F25022" d="M1 1h10v10H1z" />
+      <path fill="#7FBA00" d="M13 1h10v10H13z" />
+      <path fill="#00A4EF" d="M1 13h10v10H1z" />
+      <path fill="#FFB900" d="M13 13h10v10H13z" />
+    </svg>
+  )
 }
 
 function getProviderDraftsUrl(provider: string | undefined, mailboxEmail: string) {

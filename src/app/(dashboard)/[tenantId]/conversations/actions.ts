@@ -1,14 +1,14 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { requireTenantPermission } from '@/lib/auth/tenant-access'
+import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { revalidatePath } from 'next/cache'
 
 export async function deleteConversation(
   tenantId: string,
   conversationId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  await requireTenantPermission(tenantId, 'delete_conversations', 'chatbot')
+  await requireTenantProductAccess(tenantId, 'delete_conversations', 'chatbot')
 
   const admin = createAdminClient()
 

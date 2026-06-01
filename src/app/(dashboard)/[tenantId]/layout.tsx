@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { DashboardNav } from '@/components/dashboard-nav'
+import { TrialExpiredModal } from '@/components/trial-expired-modal'
 import { LanguageToggle } from '@/components/language-toggle'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
@@ -24,6 +25,7 @@ export default async function DashboardLayout({ children, params }: Props) {
   if (!user) redirect('/login')
 
   const access = await getTenantAccess(tenantId)
+  const billingAccess = access.billingAccess
 
   return (
     <div className="dashboard-shell">
@@ -43,12 +45,16 @@ export default async function DashboardLayout({ children, params }: Props) {
           tenantId={tenantId}
           role={access.role}
           modules={access.modules}
+          hasProductAccess={billingAccess.hasProductAccess}
+          needsUpgrade={billingAccess.needsUpgrade}
+          isTrialExpired={billingAccess.isTrialExpired}
+          trialDaysRemaining={billingAccess.isTrialing ? billingAccess.trialDaysRemaining : null}
+          chatbotSetupCompleted={access.chatbotSetupCompleted}
           labels={{
             main: dictionary.nav.main,
             overview: dictionary.nav.overview,
             attention: dictionary.nav.attention,
             webChatbot: dictionary.nav.webChatbot,
-            voiceAgent: dictionary.nav.voiceAgent,
             emailAgent: dictionary.nav.emailAgent,
             inbox: dictionary.nav.inbox,
             whatsapp: dictionary.nav.whatsapp,
@@ -61,6 +67,9 @@ export default async function DashboardLayout({ children, params }: Props) {
             conversations: dictionary.common.conversations,
             analysis: dictionary.common.analysis,
             settings: dictionary.common.settings,
+            upgrade: dictionary.nav.upgrade,
+            trial: dictionary.nav.trial,
+            trialEndsIn: dictionary.nav.trialEndsIn,
           }}
         />
         <div className="dashboard-sidebar-footer">
@@ -77,6 +86,12 @@ export default async function DashboardLayout({ children, params }: Props) {
       </aside>
 
       <header className="dashboard-topbar">
+        {billingAccess.isTrialExpired ? (
+          <Link className="dashboard-trial-banner" href={`/${tenantId}/upgrade`}>
+            <strong>Tu prueba de 7 días ha terminado</strong>
+            <span>Upgrade</span>
+          </Link>
+        ) : null}
         <div className="dashboard-topbar-actions">
           <Link className="icon-button" href={access.source === 'platform' ? '/backstage' : `/${tenantId}/account`} aria-label="Área de usuario">
             <UserRound size={16} strokeWidth={2} aria-hidden="true" />
@@ -90,6 +105,7 @@ export default async function DashboardLayout({ children, params }: Props) {
       </header>
 
       <div className="dashboard-main">{children}</div>
+      {billingAccess.isTrialExpired ? <TrialExpiredModal tenantId={tenantId} /> : null}
     </div>
   )
 }

@@ -1,11 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireTenantPermission } from '@/lib/auth/tenant-access'
-import { hasTenantPermission, isTenantModuleEnabled } from '@/lib/auth/permissions'
+import { isTenantModuleEnabled } from '@/lib/auth/permissions'
 import { classifyConversationTopic } from '@/lib/analytics/topics'
+import { isChatbotSetupCompleted } from '@/lib/chatbot/setup-status'
 import { getDictionary, getLocale, getTopicLabel } from '@/lib/i18n/dictionaries'
 import { getActiveSubscription, getTenantUsageForPeriod } from '@/lib/usage/service'
-import { Bot, CheckCircle2, Database, Mail, MessagesSquare, Mic2, Plus, SlidersHorizontal } from 'lucide-react'
+import { Bot, CheckCircle2, Database, Mail, MessagesSquare, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
@@ -20,7 +21,6 @@ export default async function OverviewPage({ params }: Props) {
   const dictionary = await getDictionary(locale)
   const copy = dictionary.overview
   const access = await requireTenantPermission(tenantId, 'view_overview')
-  const hasVoiceModule = isTenantModuleEnabled(access.modules.voice)
   const hasEmailModule = isTenantModuleEnabled(access.modules.email)
   const hasInstagramModule = isTenantModuleEnabled(access.modules.instagram)
   const supabase = await createClient()
@@ -38,7 +38,6 @@ export default async function OverviewPage({ params }: Props) {
     { data: topics },
     { count: knowledgeItems },
     { count: knowledgeSources },
-    { count: voiceConversations },
     { data: emailConnections },
     { count: emailThreads },
     { count: emailWaitingHuman },
@@ -48,7 +47,7 @@ export default async function OverviewPage({ params }: Props) {
   ] = await Promise.all([
       admin
         .from('theatres')
-        .select('name, n8n_webhook_url, scrape_urls, widget_config, system_prompt, fallback_email, fallback_phone, voice_enabled, voice_phone_number, voice_id, elevenlabs_agent_id, onboarding_completed')
+        .select('name, n8n_webhook_url, scrape_urls, widget_config, system_prompt, fallback_email, fallback_phone, onboarding_completed')
         .eq('id', tenantId)
         .single(),
       admin
@@ -79,10 +78,6 @@ export default async function OverviewPage({ params }: Props) {
         .eq('active', true),
       admin
         .from('knowledge_sources')
-        .select('*', { count: 'exact', head: true })
-        .eq('theatre_id', tenantId),
-      admin
-        .from('voice_conversations')
         .select('*', { count: 'exact', head: true })
         .eq('theatre_id', tenantId),
       hasEmailModule
@@ -128,9 +123,9 @@ export default async function OverviewPage({ params }: Props) {
   const emailConnection = emailConnections?.[0] ?? null
   const isEmailConnected = emailConnection?.status === 'connected' || emailConnection?.status === 'syncing'
   const emailDraftsPrepared = (emailDrafts ?? []).filter((draft) => draft.status === 'generated' || draft.status === 'created_in_provider').length
-  const canConfigureModules = hasTenantPermission(access.role, 'manage_chatbot')
-    || hasTenantPermission(access.role, 'manage_knowledge')
-    || (hasEmailModule && hasTenantPermission(access.role, 'manage_email'))
+  const isChatbotConfigured = isChatbotSetupCompleted({
+    widgetConfig: theatre?.widget_config,
+  })
   const checklist = buildChecklist({
     tenantId,
     labels: copy.checklist,
@@ -139,8 +134,6 @@ export default async function OverviewPage({ params }: Props) {
     hasScrapeUrls: Array.isArray(theatre?.scrape_urls) && theatre.scrape_urls.length > 0,
     hasFallbackContact: Boolean(theatre?.fallback_email || theatre?.fallback_phone),
     knowledgeItems: knowledgeItems ?? 0,
-    includeVoice: hasVoiceModule,
-    voiceReady: Boolean(theatre?.voice_enabled && theatre?.voice_phone_number && (theatre.voice_id || theatre.elevenlabs_agent_id)),
   })
 
   return (
@@ -172,7 +165,6 @@ export default async function OverviewPage({ params }: Props) {
             <SummaryMetric label={copy.kpis.conversations} value={totalConversations ?? 0} />
             <SummaryMetric label={copy.kpis.messages} value={totalMessages ?? 0} />
             <SummaryMetric label={copy.kpis.faqs} value={knowledgeItems ?? 0} />
-            {hasVoiceModule ? <SummaryMetric label={copy.kpis.voiceCalls} value={voiceConversations ?? 0} /> : null}
           </div>
         </div>
       </header>
@@ -182,67 +174,25 @@ export default async function OverviewPage({ params }: Props) {
           <div>
             <p className="eyebrow">{copy.modules.section}</p>
             <h2>{copy.modules.title}</h2>
+            <p className="muted">{copy.modules.setupHint}</p>
           </div>
-          {canConfigureModules ? (
-            <details className="row-action-menu module-config-menu">
-              <summary className="link-accent link-with-icon">
-                <SlidersHorizontal aria-hidden="true" size={14} strokeWidth={2} />
-                {copy.modules.configure}
-              </summary>
-              <div className="row-action-menu-content">
-                {hasTenantPermission(access.role, 'manage_chatbot') ? (
-                  <Link className="row-action-menu-item" href={`/${tenantId}/settings`}>
-                    <Bot aria-hidden="true" size={14} strokeWidth={2} />
-                    Chatbot
-                  </Link>
-                ) : null}
-                {hasTenantPermission(access.role, 'manage_knowledge') ? (
-                  <Link className="row-action-menu-item" href={`/${tenantId}/knowledge`}>
-                    <Database aria-hidden="true" size={14} strokeWidth={2} />
-                    Conocimiento
-                  </Link>
-                ) : null}
-                {hasEmailModule && hasTenantPermission(access.role, 'manage_email') ? (
-                  <Link className="row-action-menu-item" href={`/${tenantId}/email`}>
-                    <Mail aria-hidden="true" size={14} strokeWidth={2} />
-                    Email
-                  </Link>
-                ) : null}
-              </div>
-            </details>
-          ) : null}
         </div>
 
         <div className="module-orbit-grid">
           <ModuleStatusCard
-            href={`/${tenantId}/settings`}
+            href={`/${tenantId}/chatbot/setup`}
             icon={<Bot size={22} />}
             label="Chatbot"
             title={copy.modules.chatbot}
-            status={dictionary.common.active}
-            tone="active"
-            description={theatre?.n8n_webhook_url ? copy.modules.chatbotReady : copy.modules.chatbotPending}
+            status={isChatbotConfigured ? dictionary.common.active : copy.modules.pending}
+            tone={isChatbotConfigured ? 'active' : 'soon'}
+            description={isChatbotConfigured ? copy.modules.chatbotReady : 'Configura tu chatbot para comenzar a utilizarlo.'}
           >
             <div className="module-mini-stats">
               <span><strong>{totalConversations ?? 0}</strong>Conversaciones</span>
               <span><strong>{knowledgeItems ?? 0}</strong>FAQs</span>
             </div>
           </ModuleStatusCard>
-          {hasVoiceModule ? (
-            <ModuleStatusCard
-              href={`/${tenantId}/overview`}
-              icon={<Mic2 size={22} />}
-              label="Voz"
-              title={copy.modules.voice}
-              status={theatre?.voice_enabled ? dictionary.common.active : copy.modules.pending}
-              tone={theatre?.voice_enabled ? 'active' : 'soon'}
-              description={theatre?.voice_enabled ? copy.modules.voiceReady : copy.modules.voicePending}
-            >
-            <div className="module-mini-stats">
-              <span><strong>{voiceConversations ?? 0}</strong>Llamadas</span>
-            </div>
-            </ModuleStatusCard>
-          ) : null}
           {hasEmailModule ? (
             <ModuleStatusCard
               href={`/${tenantId}/email`}
@@ -507,8 +457,6 @@ function buildChecklist({
   hasScrapeUrls,
   hasFallbackContact,
   knowledgeItems,
-  includeVoice,
-  voiceReady,
 }: {
   tenantId: string
   labels: {
@@ -517,15 +465,12 @@ function buildChecklist({
     scrapeUrls: string
     knowledge: string
     fallback: string
-    voice: string
   }
   hasWebhook: boolean
   hasSystemPrompt: boolean
   hasScrapeUrls: boolean
   hasFallbackContact: boolean
   knowledgeItems: number
-  includeVoice: boolean
-  voiceReady: boolean
 }) {
   const items = [
     { label: labels.webhook, done: hasWebhook, href: `/${tenantId}/settings` },
@@ -534,10 +479,6 @@ function buildChecklist({
     { label: labels.knowledge, done: knowledgeItems > 0, href: `/${tenantId}/settings` },
     { label: labels.fallback, done: hasFallbackContact, href: `/${tenantId}/settings` },
   ]
-
-  if (includeVoice) {
-    items.push({ label: labels.voice, done: voiceReady, href: `/${tenantId}/voice/settings` })
-  }
 
   return items
 }

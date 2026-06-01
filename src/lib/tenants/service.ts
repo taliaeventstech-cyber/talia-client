@@ -1,4 +1,6 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
+import { getBillingAccess } from '@/lib/billing/access'
+import type { Json } from '@/types/database.types'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -78,12 +80,16 @@ export async function assertTenantAdmin(admin: AdminClient, userId: string, tena
 export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string) {
   const { data, error } = await admin
     .from('theatres')
-    .select('id, name, fallback_email, fallback_phone, widget_config')
+    .select('id, name, fallback_email, fallback_phone, widget_config, accounts(status, created_at, metadata)')
     .eq('id', tenantId)
     .single()
 
   if (error || !data) {
     return { ok: false as const, error: 'Tenant not found' }
+  }
+
+  if (!hasRuntimeAccess(data.accounts)) {
+    return { ok: false as const, error: 'Trial expired or subscription inactive' }
   }
 
   const widgetConfig = getWidgetConfig(data.widget_config)
@@ -107,12 +113,16 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
 export async function getTenantChatConfig(admin: AdminClient, tenantId: string) {
   const { data, error } = await admin
     .from('theatres')
-    .select('id, n8n_webhook_url')
+    .select('id, n8n_webhook_url, accounts(status, created_at, metadata)')
     .eq('id', tenantId)
     .single()
 
   if (error || !data) {
     return { ok: false as const, error: 'Tenant not found' }
+  }
+
+  if (!hasRuntimeAccess(data.accounts)) {
+    return { ok: false as const, error: 'Trial expired or subscription inactive' }
   }
 
   return {
@@ -267,6 +277,24 @@ function getWidgetConfig(value: unknown) {
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
   }
+}
+
+function hasRuntimeAccess(accountRelation: unknown) {
+  const account = getAccount(accountRelation)
+  const access = getBillingAccess({
+    source: 'tenant',
+    accountStatus: typeof account?.status === 'string' ? account.status : undefined,
+    accountCreatedAt: typeof account?.created_at === 'string' ? account.created_at : null,
+    accountMetadata: account?.metadata as Json | null | undefined,
+  })
+
+  return access.hasProductAccess
+}
+
+function getAccount(accountRelation: unknown) {
+  if (Array.isArray(accountRelation)) return accountRelation[0] as Record<string, unknown> | undefined
+  if (accountRelation && typeof accountRelation === 'object') return accountRelation as Record<string, unknown>
+  return undefined
 }
 
 function buildDefaultSystemPrompt(name: string, fallbackEmail: string | null, fallbackPhone: string | null) {

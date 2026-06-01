@@ -8,7 +8,8 @@ Este directorio recoge la documentación de producto, arquitectura, requirements
 
 - [`product/roadmap.md`](product/roadmap.md): visión por fases y módulos.
 - [`product/pricing.md`](product/pricing.md): planes, límites y criterios de monetización.
-- [`product/onboarding.md`](product/onboarding.md): flujo de alta de clientes, accounts, venues e invitaciones.
+- [`product/onboarding.md`](product/onboarding.md): flujo de alta self-serve, accounts, venues e invitaciones de equipo.
+- [`product/accessibility-widget.md`](product/accessibility-widget.md): exploración inicial de un widget de accesibilidad tipo OneTap para TALIA.
 
 ### Arquitectura
 
@@ -36,7 +37,7 @@ Este directorio recoge la documentación de producto, arquitectura, requirements
 
 ## Principios
 
-- TALIA no es signup libre: funciona por invitación.
+- TALIA usa signup self-serve para crear el primer workspace; las invitaciones son para equipos.
 - Los módulos contratados se definen por venue.
 - Un account puede tener una o varias venues.
 - Las personas y emails son rotativos; el modelo debe permitir vincular, desvincular y cambiar accesos sin romper la historia del cliente.

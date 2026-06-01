@@ -473,7 +473,7 @@ export async function createAccountInviteAction(
   return {
     ok: true,
     message: 'Invitación creada. Copia este enlace ahora; el token no se guarda en claro.',
-    inviteUrl: `${appUrl}/signup?invite=${invite.token}`,
+    inviteUrl: `${appUrl}/invite/${invite.token}`,
   }
 }
 

@@ -1,4 +1,4 @@
-import { requireTenantPermission } from '@/lib/auth/tenant-access'
+import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AlertTriangle, Brain, Inbox, MailCheck } from 'lucide-react'
 
@@ -8,7 +8,7 @@ interface Props {
 
 export default async function EmailAnalysisPage({ params }: Props) {
   const { tenantId } = await params
-  await requireTenantPermission(tenantId, 'manage_email', 'email')
+  await requireTenantProductAccess(tenantId, 'manage_email', 'email')
 
   const admin = createAdminClient()
   const { data: threads } = await admin

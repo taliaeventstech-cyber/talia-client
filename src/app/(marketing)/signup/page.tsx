@@ -3,20 +3,25 @@ import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { SignupForm } from './signup-form'
 
 type Props = {
-  searchParams: Promise<{ invite?: string | string[] }>
+  searchParams: Promise<{ next?: string | string[] }>
+}
+
+function getInternalRedirect(value?: string) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return undefined
+  return value
 }
 
 export default async function SignupPage({ searchParams }: Props) {
   const locale = await getLocale()
   const dictionary = await getDictionary(locale)
   const params = await searchParams
-  const invite = Array.isArray(params.invite) ? params.invite[0] : params.invite
+  const next = Array.isArray(params.next) ? params.next[0] : params.next
 
   return (
     <main className="auth-shell auth-marketing-shell">
       <AuthSplineBackground sceneUrl={process.env.NEXT_PUBLIC_AUTH_SPLINE_SCENE_URL} />
       <section className="auth-card">
-        <SignupForm copy={dictionary.auth.signup} initialInviteToken={invite ?? ''} />
+        <SignupForm copy={dictionary.auth.signup} redirectTo={getInternalRedirect(next)} />
       </section>
     </main>
   )

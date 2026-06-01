@@ -1,21 +1,16 @@
 # Onboarding de Clientes
 
-TALIA funciona por invitación. No debe existir signup libre operativo para clientes no contratados.
+TALIA usa alta self-serve como entrada principal: una entidad crea cuenta, completa el onboarding inicial y obtiene su primer account/venue operativo. Las invitaciones se mantienen como flujo separado para añadir miembros del equipo a un account o venue ya creado.
 
 ## Flujo Ideal
 
-1. TALIA crea un account desde Backstage.
-2. TALIA crea una o varias venues dentro del account.
-3. TALIA activa módulos por venue.
-4. TALIA genera invitaciones:
-   - por account si el usuario debe ver varias venues;
-   - por venue si el usuario solo debe operar una venue concreta.
-5. El usuario recibe un enlace `/signup?invite=TOKEN`.
-6. El usuario crea contraseña.
-7. El sistema crea `profile` y memberships.
-8. El usuario entra en:
-   - account dashboard si tiene acceso de account;
-   - Àgora de venue si solo tiene acceso de venue.
+1. El usuario crea cuenta desde `/signup`.
+2. El sistema crea `auth.users` y `profiles`.
+3. El usuario entra en `/onboarding`.
+4. El onboarding recoge los datos mínimos de la entidad cultural.
+5. El sistema crea `account`, `venue`, `users`, `account_memberships` y `venue_memberships`.
+6. El usuario entra en el Àgora de la venue creada.
+7. Backstage puede ajustar módulos, plan, configuración avanzada y accesos.
 
 ## Datos de Account
 
@@ -49,6 +44,8 @@ Datos propios:
 
 ## Invitaciones
 
+Las invitaciones ya no son el mecanismo de alta inicial del cliente. Son un flujo de equipo para sumar personas a una organización existente.
+
 ### Invitación por Account
 
 Uso:
@@ -72,6 +69,7 @@ Resultado:
 
 - Crea `venue_membership`.
 - Puede crear también membership de account mínima si hace falta para navegación.
+- El enlace de invitación debe usar `/invite/TOKEN`, no `/signup?invite=TOKEN`.
 
 ## Roles
 

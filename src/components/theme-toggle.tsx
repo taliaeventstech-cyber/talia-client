@@ -4,12 +4,11 @@ import { useEffect, useState } from 'react'
 import { Moon, Sun } from 'lucide-react'
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark')
 
   useEffect(() => {
     const saved = localStorage.getItem('talia-theme') as 'light' | 'dark' | null
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const next = saved ?? (prefersDark ? 'dark' : 'light')
+    const next = saved ?? 'dark'
     document.documentElement.setAttribute('data-theme', next)
     queueMicrotask(() => setTheme(next))
   }, [])

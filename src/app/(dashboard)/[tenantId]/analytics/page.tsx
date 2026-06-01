@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { requireTenantPermission } from '@/lib/auth/tenant-access'
+import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { classifyConversationTopic } from '@/lib/analytics/topics'
 import { getDictionary, getLocale, getTopicLabel } from '@/lib/i18n/dictionaries'
 import Link from 'next/link'
@@ -14,7 +14,7 @@ export default async function AnalyticsPage({ params, searchParams }: Props) {
   const { tab: tabParam } = await searchParams
   const locale = await getLocale()
   const dictionary = await getDictionary(locale)
-  await requireTenantPermission(tenantId, 'view_analytics', 'data')
+  await requireTenantProductAccess(tenantId, 'view_analytics', 'data')
   const tabs = [
     { value: 'intencion', label: dictionary.analytics.tabs.intent },
     { value: 'temas', label: dictionary.analytics.tabs.topics },

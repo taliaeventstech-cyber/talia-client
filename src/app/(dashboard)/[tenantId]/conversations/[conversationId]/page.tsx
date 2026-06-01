@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { requireTenantPermission } from '@/lib/auth/tenant-access'
+import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -11,7 +11,7 @@ interface Props {
 
 export default async function ConversationDetailPage({ params }: Props) {
   const { tenantId, conversationId } = await params
-  const access = await requireTenantPermission(tenantId, 'view_conversations', 'chatbot')
+  const access = await requireTenantProductAccess(tenantId, 'view_conversations', 'chatbot')
 
   const admin = createAdminClient()
 

@@ -1,6 +1,6 @@
 'use server'
 
-import { requireTenantPermission } from '@/lib/auth/tenant-access'
+import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { syncAndMaybeProcessEmail } from '@/lib/email/automation'
 import { processEmailMessage } from '@/lib/email/service'
 import { deleteGmailDraft } from '@/lib/email/gmail'
@@ -14,7 +14,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 export async function syncLatestEmailAction(tenantId: string) {
-  await requireTenantPermission(tenantId, 'manage_email', 'email')
+  await requireTenantProductAccess(tenantId, 'manage_email', 'email')
 
   const result = await syncAndMaybeProcessEmail(createAdminClient(), tenantId)
 
@@ -27,7 +27,7 @@ export async function syncLatestEmailAction(tenantId: string) {
 }
 
 export async function processSelectedEmailThreadsAction(tenantId: string, formData: FormData) {
-  await requireTenantPermission(tenantId, 'manage_email', 'email')
+  await requireTenantProductAccess(tenantId, 'manage_email', 'email')
 
   const threadIds = getSelectedThreadIds(formData)
   if (!threadIds.length) {
@@ -64,7 +64,7 @@ export async function processSelectedEmailThreadsAction(tenantId: string, formDa
 }
 
 export async function deleteSelectedEmailThreadsAction(tenantId: string, formData: FormData) {
-  await requireTenantPermission(tenantId, 'manage_email', 'email')
+  await requireTenantProductAccess(tenantId, 'manage_email', 'email')
 
   const threadIds = getSelectedThreadIds(formData)
   if (!threadIds.length) {
@@ -97,7 +97,7 @@ export async function deleteSelectedEmailThreadsAction(tenantId: string, formDat
 }
 
 export async function deleteEmailDraftAction(tenantId: string, draftId: string) {
-  await requireTenantPermission(tenantId, 'manage_email', 'email')
+  await requireTenantProductAccess(tenantId, 'manage_email', 'email')
 
   const admin = createAdminClient()
   const { data: drafts, error: fetchError } = await admin
@@ -127,7 +127,7 @@ export async function deleteEmailDraftAction(tenantId: string, draftId: string) 
 }
 
 export async function deleteProviderEmailDraftAction(tenantId: string, draftId: string) {
-  await requireTenantPermission(tenantId, 'manage_email', 'email')
+  await requireTenantProductAccess(tenantId, 'manage_email', 'email')
 
   const admin = createAdminClient()
   const { data: draft, error } = await admin
@@ -172,7 +172,7 @@ export async function deleteProviderEmailDraftAction(tenantId: string, draftId: 
 }
 
 export async function deleteSelectedEmailDraftsAction(tenantId: string, formData: FormData) {
-  await requireTenantPermission(tenantId, 'manage_email', 'email')
+  await requireTenantProductAccess(tenantId, 'manage_email', 'email')
 
   const singleDraftId = formData.get('single_draft_id')
   const draftIds = typeof singleDraftId === 'string' && singleDraftId
@@ -231,7 +231,7 @@ export async function deleteSelectedEmailDraftsAction(tenantId: string, formData
 }
 
 export async function disconnectGoogleEmailAction(tenantId: string) {
-  await requireTenantPermission(tenantId, 'manage_email', 'email')
+  await requireTenantProductAccess(tenantId, 'manage_email', 'email')
 
   const admin = createAdminClient()
   const { data: connection, error } = await admin

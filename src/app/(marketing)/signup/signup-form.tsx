@@ -6,21 +6,15 @@ import { useState } from 'react'
 
 type SignupCopy = Dictionary['auth']['signup']
 
-export function SignupForm({
-  copy,
-  initialInviteToken,
-}: {
-  copy: SignupCopy
-  initialInviteToken: string
-}) {
+export function SignupForm({ copy, redirectTo }: { copy: SignupCopy; redirectTo?: string }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [inviteToken, setInviteToken] = useState(initialInviteToken)
   const [loading, setLoading] = useState(false)
   const [resending, setResending] = useState(false)
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const loginHref = redirectTo ? `/login?next=${encodeURIComponent(redirectTo)}` : '/login'
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -35,7 +29,7 @@ export function SignupForm({
       response = await fetch('/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, inviteToken }),
+        body: JSON.stringify({ email, password, redirectTo }),
       })
       result = await response.json()
     } catch {
@@ -147,29 +141,17 @@ export function SignupForm({
           />
         </label>
 
-        <label className="field">
-          {copy.invite}
-          <input
-            type="text"
-            value={inviteToken}
-            onChange={(event) => setInviteToken(event.target.value)}
-            required
-            placeholder={copy.invitePlaceholder}
-            autoComplete="off"
-          />
-        </label>
-
         <button
           className="button-primary"
           type="submit"
-          disabled={loading || !inviteToken}
+          disabled={loading}
         >
           {loading ? copy.submitting : copy.submit}
         </button>
       </form>
 
       <p className="muted" style={{ marginTop: 16, fontSize: 13 }}>
-        {copy.haveAccount} <Link className="link-accent" href="/login">{copy.login}</Link>
+        {copy.haveAccount} <Link className="link-accent" href={loginHref}>{copy.login}</Link>
       </p>
     </>
   )

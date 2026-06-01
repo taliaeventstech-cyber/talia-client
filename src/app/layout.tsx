@@ -60,7 +60,7 @@ export default async function RootLayout({
   const locale = await getLocale()
 
   return (
-    <html lang={locale} data-theme="light" className={`${syne.variable} ${spaceGrotesk.variable} ${jetBrainsMono.variable}`}>
+    <html lang={locale} data-theme="dark" className={`${syne.variable} ${spaceGrotesk.variable} ${jetBrainsMono.variable}`}>
       <body>{children}</body>
     </html>
   );

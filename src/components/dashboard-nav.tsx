@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bot, Database, Inbox, LayoutDashboard, Mail, MessageCircle, MessageSquare, Network, SlidersHorizontal, Megaphone } from 'lucide-react'
+import { Bot, Database, Inbox, LayoutDashboard, Mail, MessageCircle, MessageSquare, Network, SlidersHorizontal, Megaphone, Zap } from 'lucide-react'
 import {
   hasTenantPermission,
   isTenantModuleEnabled,
@@ -15,7 +15,6 @@ type DashboardNavLabels = {
   overview: string
   attention: string
   webChatbot: string
-  voiceAgent: string
   emailAgent: string
   inbox: string
   whatsapp: string
@@ -28,6 +27,9 @@ type DashboardNavLabels = {
   conversations: string
   analysis: string
   settings: string
+  upgrade: string
+  trial: string
+  trialEndsIn: string
 }
 
 export function DashboardNav({
@@ -35,18 +37,27 @@ export function DashboardNav({
   labels,
   role,
   modules,
+  hasProductAccess,
+  needsUpgrade,
+  isTrialExpired,
+  trialDaysRemaining,
+  chatbotSetupCompleted,
 }: {
   tenantId: string
   labels: DashboardNavLabels
   role: TenantRole
   modules: Partial<Record<TenantModuleKey, string>>
+  hasProductAccess: boolean
+  needsUpgrade: boolean
+  isTrialExpired: boolean
+  trialDaysRemaining: number | null
+  chatbotSetupCompleted: boolean
 }) {
   const pathname = usePathname()
   const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
   const activeExact = (href: string) => pathname === href
   const chatbotEnabled = isTenantModuleEnabled(modules.chatbot)
   const dataEnabled = isTenantModuleEnabled(modules.data)
-  const voiceEnabled = isTenantModuleEnabled(modules.voice)
   const emailEnabled = isTenantModuleEnabled(modules.email)
   const whatsappEnabled = isTenantModuleEnabled(modules.whatsapp)
   const marketingEnabled = isTenantModuleEnabled(modules.marketing)
@@ -54,14 +65,15 @@ export function DashboardNav({
   const canViewAnalytics = hasTenantPermission(role, 'view_analytics')
   const canManageChatbot = hasTenantPermission(role, 'manage_chatbot')
   const canManageKnowledge = hasTenantPermission(role, 'manage_knowledge')
-  const canManageVoice = hasTenantPermission(role, 'manage_voice')
   const canManageEmail = hasTenantPermission(role, 'manage_email')
-  const showChatbot = chatbotEnabled && (canViewConversations || canManageChatbot || (dataEnabled && canViewAnalytics))
-  const showKnowledge = dataEnabled && canManageKnowledge
-  const showVoice = voiceEnabled && canManageVoice
-  const showEmail = emailEnabled && canManageEmail
-  const showAttention = showChatbot || showVoice || showEmail || whatsappEnabled
-  const showMarketing = marketingEnabled
+  const showChatbot = hasProductAccess && chatbotEnabled && (canManageChatbot || canViewConversations || (dataEnabled && canViewAnalytics))
+  const showKnowledge = hasProductAccess && dataEnabled && canManageKnowledge
+  const showEmail = hasProductAccess && emailEnabled && canManageEmail
+  const showAttention = showChatbot || showEmail || (hasProductAccess && whatsappEnabled)
+  const showMarketing = hasProductAccess && marketingEnabled
+  const trialProgress = trialDaysRemaining === null
+    ? 0
+    : Math.max(0, Math.min(100, Math.round((trialDaysRemaining / 7) * 100)))
 
   return (
     <nav className="dashboard-nav" aria-label={labels.main}>
@@ -86,7 +98,9 @@ export function DashboardNav({
                   <Bot size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
                   <span>{labels.webChatbot}</span>
                 </span>
-                <span className="nav-channel-status">{labels.active}</span>
+                <span className="nav-channel-status">
+                  {labels.active}
+                </span>
               </div>
               <div className="nav-subnav">
                 {canViewConversations ? (
@@ -107,7 +121,7 @@ export function DashboardNav({
                     {labels.analysis}
                   </Link>
                 ) : null}
-                {canManageChatbot ? (
+                {chatbotSetupCompleted && canManageChatbot ? (
                   <Link
                     className={`nav-link nav-link-nested ${active(`/${tenantId}/settings`) ? 'nav-link-active' : ''}`}
                     href={`/${tenantId}/settings`}
@@ -120,29 +134,16 @@ export function DashboardNav({
             </div>
           ) : null}
 
-          {showVoice ? (
-            <div className="nav-channel">
-              <div className="nav-channel-title">
-                <span>{labels.voiceAgent}</span>
-              </div>
-              <div className="nav-subnav">
-                <Link
-                  className={`nav-link nav-link-nested ${active(`/${tenantId}/voice/settings`) ? 'nav-link-active' : ''}`}
-                  href={`/${tenantId}/voice/settings`}
-                >
-                  <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
-                  {labels.settings}
-                </Link>
-              </div>
-            </div>
-          ) : null}
-
           {showEmail ? (
             <div className="nav-channel">
               <div className="nav-channel-title">
-                <Mail size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
-                <span>{labels.emailAgent}</span>
-                <span className="nav-channel-status">{labels.active}</span>
+                <span className="nav-channel-title-main">
+                  <Mail size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
+                  <span>{labels.emailAgent}</span>
+                </span>
+                <span className="nav-channel-status">
+                  {labels.active}
+                </span>
               </div>
               <div className="nav-subnav">
                 <Link
@@ -198,6 +199,40 @@ export function DashboardNav({
               <span className="nav-channel-status">{labels.soon}</span>
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {needsUpgrade ? (
+        <div className="nav-trial-panel">
+          {isTrialExpired ? (
+            <div className="nav-expired-card">
+              <span>Trial finalizado</span>
+              <strong>Activa un plan para continuar</strong>
+            </div>
+          ) : null}
+          <Link
+            className={`nav-upgrade-button ${active(`/${tenantId}/upgrade`) ? 'nav-upgrade-button-active' : ''}`}
+            href={`/${tenantId}/upgrade`}
+          >
+            <Zap size={24} strokeWidth={2.4} fill="currentColor" aria-hidden="true" />
+            {labels.upgrade}
+          </Link>
+        </div>
+      ) : trialDaysRemaining !== null && trialDaysRemaining > 0 ? (
+        <div className="nav-trial-panel">
+          <div className="nav-trial-card">
+            <strong>{labels.trialEndsIn.replace('{days}', String(trialDaysRemaining))}</strong>
+            <span className="nav-trial-progress" aria-hidden="true">
+              <span style={{ width: `${trialProgress}%` }} />
+            </span>
+          </div>
+          <Link
+            className={`nav-upgrade-button ${active(`/${tenantId}/upgrade`) ? 'nav-upgrade-button-active' : ''}`}
+            href={`/${tenantId}/upgrade`}
+          >
+            <Zap size={24} strokeWidth={2.4} fill="currentColor" aria-hidden="true" />
+            {labels.upgrade}
+          </Link>
         </div>
       ) : null}
     </nav>

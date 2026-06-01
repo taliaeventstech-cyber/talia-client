@@ -1,4 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
+import { createTrialMetadata } from '@/lib/billing/access'
 import type { Json } from '@/types/database.types'
 
 type AdminClient = ReturnType<typeof createAdminClient>
@@ -17,6 +18,8 @@ export type TenantLanguage = 'ca' | 'es' | 'en'
 export type CreateTenantInput = {
   userId: string
   userEmail: string
+  fullName?: string
+  profileMetadata?: Json
   entityType: CulturalEntityType
   theatreName: string
   websiteUrl?: string
@@ -25,15 +28,29 @@ export type CreateTenantInput = {
   primaryLanguage: TenantLanguage
   onboardingGoals: string[]
   primaryColor?: string
+  chatbotInitialMessage?: string
+  chatbotTone?: string
+  fallbackBehavior?: string
+  knowledgeUrls?: string[]
 }
 
 export async function createTenantForUser(admin: AdminClient, input: CreateTenantInput) {
+  const now = new Date()
   const slug = await getAvailableSlug(admin, slugify(input.theatreName))
-  const scrapeUrls = input.websiteUrl ? [input.websiteUrl] : []
+  const scrapeUrls = Array.from(new Set([
+    input.websiteUrl,
+    ...(input.knowledgeUrls ?? []),
+  ].filter((url): url is string => Boolean(url))))
   const widgetConfig = {
     assistantName: 'TALIA',
-    initialMessage: getInitialMessage(input.primaryLanguage, input.entityType),
-    primaryColor: input.primaryColor || '#000000',
+    initialMessage: input.chatbotInitialMessage || getInitialMessage(input.primaryLanguage, input.entityType),
+    primaryColor: input.primaryColor || '#00e5c8',
+    tone: input.chatbotTone || 'close',
+    fallbackBehavior: input.fallbackBehavior || 'contact',
+  } satisfies Json
+  const trialMetadata = {
+    ...createTrialMetadata(now),
+    commercial_plan: 'chatbot_email',
   } satisfies Json
 
   const { data: account, error: accountError } = await admin
@@ -43,7 +60,8 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
       slug,
       billing_email: input.fallbackEmail || input.userEmail,
       plan: 'essential',
-      status: 'active',
+      status: 'trialing',
+      metadata: trialMetadata,
     })
     .select('id')
     .single()
@@ -63,7 +81,7 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
       website_url: input.websiteUrl || null,
       onboarding_goals: input.onboardingGoals,
       onboarding_completed: true,
-      plan: 'esencial',
+      plan: 'essential',
       fallback_email: input.fallbackEmail || input.userEmail,
       fallback_phone: input.fallbackPhone || null,
       scrape_urls: scrapeUrls,
@@ -76,6 +94,21 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
 
   if (theatreError || !theatre) {
     return { ok: false as const, error: theatreError?.message ?? 'Could not create tenant' }
+  }
+
+  const enabledModules = getInitialModules()
+  const { error: modulesError } = await admin
+    .from('tenant_modules')
+    .insert(enabledModules.map((moduleKey) => ({
+      theatre_id: theatre.id,
+      module_key: moduleKey,
+      status: 'trial',
+      enabled_at: now.toISOString(),
+      config: {},
+    })))
+
+  if (modulesError) {
+    return { ok: false as const, error: modulesError.message }
   }
 
   const { error: userError } = await admin
@@ -96,6 +129,8 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
     .upsert({
       auth_user_id: input.userId,
       email: input.userEmail.toLowerCase(),
+      full_name: input.fullName || null,
+      metadata: input.profileMetadata ?? {},
       status: 'active',
     }, { onConflict: 'auth_user_id' })
     .select('id')
@@ -182,8 +217,13 @@ function getGoalLabel(goal: string) {
     location: 'ubicación y cómo llegar',
     accessibility: 'accesibilidad',
     prices: 'precios y descuentos',
+    email: 'agente de email',
   }
   return labels[goal] ?? goal
+}
+
+function getInitialModules() {
+  return ['chatbot', 'data', 'email']
 }
 
 async function getAvailableSlug(admin: AdminClient, baseSlug: string) {

@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { requireTenantPermission } from '@/lib/auth/tenant-access'
+import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import Link from 'next/link'
 import { SettingsForm } from './settings-form'
@@ -15,7 +15,8 @@ export default async function SettingsPage({ params, searchParams }: Props) {
   const { tenantId } = await params
   const { tab: tabParam } = await searchParams
   const dictionary = await getDictionary(await getLocale())
-  await requireTenantPermission(tenantId, 'manage_chatbot', 'chatbot')
+  const access = await requireTenantProductAccess(tenantId, 'manage_chatbot', 'chatbot')
+  const hasScriptAccess = access.billingAccess.hasProductAccess && access.chatbotSetupCompleted
   const tabs = [
     { value: 'general', label: dictionary.settings.tabs.general },
     { value: 'preview', label: dictionary.settings.tabs.preview },
@@ -73,7 +74,12 @@ export default async function SettingsPage({ params, searchParams }: Props) {
       ) : null}
 
       {activeTab === 'preview' ? (
-        <PreviewTab tenantId={tenantId} widgetConfig={widgetConfig} dictionary={dictionary} />
+        <PreviewTab
+          tenantId={tenantId}
+          widgetConfig={widgetConfig}
+          dictionary={dictionary}
+          hasScriptAccess={hasScriptAccess}
+        />
       ) : null}
     </main>
   )
@@ -83,10 +89,12 @@ function PreviewTab({
   tenantId,
   widgetConfig,
   dictionary,
+  hasScriptAccess,
 }: {
   tenantId: string
   widgetConfig: ReturnType<typeof getWidgetConfig>
   dictionary: Awaited<ReturnType<typeof getDictionary>>
+  hasScriptAccess: boolean
 }) {
   const embedCode = getEmbedCode(tenantId, widgetConfig)
 
@@ -94,11 +102,23 @@ function PreviewTab({
     <div className="two-column-grid">
       <section className="card stack">
         <h2>{dictionary.settings.integrationCode}</h2>
-        <p
-          className="muted"
-          dangerouslySetInnerHTML={{ __html: dictionary.settings.integrationHelp }}
-        />
-        <pre className="ai-output" style={{ whiteSpace: 'pre-wrap' }}>{embedCode}</pre>
+        {hasScriptAccess ? (
+          <>
+            <p
+              className="muted"
+              dangerouslySetInnerHTML={{ __html: dictionary.settings.integrationHelp }}
+            />
+            <pre className="ai-output" style={{ whiteSpace: 'pre-wrap' }}>{embedCode}</pre>
+          </>
+        ) : (
+          <div className="locked-panel">
+            <span className="status-pill status-pill-soon">Configura el chatbot</span>
+            <h3>El script se desbloquea al completar la configuración</h3>
+            <p className="muted">
+              Completa el setup inicial para generar el script de instalación.
+            </p>
+          </div>
+        )}
       </section>
 
       <section className="card stack">

@@ -1,12 +1,12 @@
 # TALIA: Auth, clientes, invitaciones, roles y módulos
 
-Documento operativo para el modelo B2B de TALIA. La premisa de producto es que TALIA no es una herramienta self-service abierta: es una plataforma SaaS privada para entidades culturales contratadas.
+Documento operativo para el modelo B2B de TALIA. La premisa actual de producto es self-serve controlado: una entidad puede crear cuenta y completar un onboarding mínimo, mientras Backstage conserva el control de módulos, planes, soporte y gobierno avanzado.
 
 ## Principios
 
-- El signup público no debe permitir crear clientes ni usar servicios sin contrato.
-- TALIA crea primero el cliente desde Backstage.
-- El cliente entra mediante invitación vinculada a una entidad cultural.
+- El signup público crea una cuenta y deriva siempre a onboarding.
+- El onboarding crea el primer account/venue del cliente.
+- Las invitaciones quedan para añadir usuarios de equipo a clientes existentes.
 - Los módulos visibles dependen del contrato del cliente.
 - Los permisos dependen del rol del usuario dentro del cliente.
 - Los usuarios internos de TALIA no tienen por qué pertenecer a ningún cliente.
@@ -54,18 +54,15 @@ Roles de cliente:
 
 ## Flujo de alta de cliente
 
-1. TALIA firma contrato con la entidad cultural.
-2. TALIA entra en `/backstage`.
-3. TALIA crea el cliente en `public.theatres`.
-4. TALIA activa módulos en `public.tenant_modules`.
-5. TALIA crea una invitación para el email del cliente.
-6. El cliente abre `/signup?invite=TOKEN`.
-7. El signup valida la invitación.
-8. Supabase Auth crea el usuario.
-9. TALIA guarda la pertenencia en `public.users`.
-10. El cliente entra en `/{tenantId}/overview`.
+1. El cliente abre `/signup`.
+2. Supabase Auth crea el usuario.
+3. TALIA crea `public.profiles`.
+4. El usuario entra en `/onboarding`.
+5. El onboarding crea `public.accounts`, `public.theatres`, `public.users`, `public.account_memberships` y `public.venue_memberships`.
+6. El cliente entra en `/{tenantId}/overview`.
+7. Backstage completa módulos, límites, pricing, soporte y configuración avanzada.
 
-Si un usuario autenticado no tiene cliente ni es `platform_admin`, debe ver la pantalla de acceso por invitación.
+Si un usuario autenticado no tiene cliente ni es `platform_admin`, debe ver `/onboarding`.
 
 ## Acceso de TALIA al perfil del cliente
 
@@ -124,7 +121,7 @@ No crea membership automática en `public.users`.
 
 ### `public.signup_invites`
 
-Invitaciones privadas de signup.
+Invitaciones privadas de equipo. No son el alta principal de cliente.
 
 - `theatre_id`: cliente al que se unirá el usuario.
 - `email`: email exacto invitado.
@@ -135,6 +132,8 @@ Invitaciones privadas de signup.
 - `revoked_at`.
 
 Regla: no guardar tokens en claro.
+
+Regla de producto: el enlace de invitación se abre en `/invite/TOKEN`; `/signup` no debe depender de tokens.
 
 ### `public.tenant_modules`
 
