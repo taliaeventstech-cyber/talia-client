@@ -1,4 +1,5 @@
 import { getAuthCallbackUrl } from '@/lib/auth/callback-url'
+import { checkRateLimit, getClientIp, normalizeEmail } from '@/lib/auth/security'
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -13,22 +14,38 @@ export async function POST(request: NextRequest) {
 
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Introduce un email válido.' },
+      { error: 'invalid_email' },
       { status: 400 }
     )
   }
 
+  const email = normalizeEmail(parsed.data.email)
+  const limited = checkRateLimit(request, [
+    { key: `auth-resend:ip:${getClientIp(request)}`, limit: 5 },
+    { key: `auth-resend:email:${email}`, limit: 2 },
+  ])
+  if (limited) return limited
+
   const supabase = await createClient()
   const { error } = await supabase.auth.resend({
     type: 'signup',
-    email: parsed.data.email,
+    email,
     options: {
       emailRedirectTo: getAuthCallbackUrl(request),
     },
   })
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 })
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[auth-resend-confirmation]', error.message)
+    }
+
+    const isProviderRateLimit = error.message.toLowerCase().includes('rate limit')
+
+    return NextResponse.json(
+      { error: isProviderRateLimit ? 'email_rate_limited' : 'resend_failed' },
+      { status: isProviderRateLimit ? 429 : 400 }
+    )
   }
 
   return NextResponse.json({

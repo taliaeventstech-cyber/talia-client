@@ -39,7 +39,7 @@ export default async function AccountPage({ params }: Props) {
 
   return (
     <main className="page-shell">
-      <header className="page-header">
+      <header className="page-header account-page-header">
         <Link className="back-link" href={`/${tenantId}/overview`}>
           <ArrowLeft size={15} strokeWidth={2} aria-hidden="true" />
           {copy.back}

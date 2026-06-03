@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getPostAuthRedirectPath } from '@/lib/auth/post-auth-redirect'
+import { getInternalRedirect } from '@/lib/auth/security'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -17,6 +18,6 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.redirect(`${origin}/login`)
 
   const admin = createAdminClient()
-  const redirectPath = await getPostAuthRedirectPath(admin, user.id)
-  return NextResponse.redirect(`${origin}${redirectPath}`)
+  const redirectPath = getInternalRedirect(searchParams.get('next')) ?? await getPostAuthRedirectPath(admin, user.id)
+  return NextResponse.redirect(`${origin}/auth/confirmed?next=${encodeURIComponent(redirectPath)}`)
 }

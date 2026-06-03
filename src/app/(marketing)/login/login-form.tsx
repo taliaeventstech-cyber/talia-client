@@ -1,6 +1,7 @@
 'use client'
 
 import type { Dictionary } from '@/lib/i18n/dictionaries'
+import { PasswordInput } from '@/components/password-input'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
@@ -44,7 +45,7 @@ export function LoginForm({
     }
 
     if (!response.ok) {
-      setError(result.error ?? copy.invalidCredentials)
+      setError(getLoginError(copy, result.error))
       setLoading(false)
       return
     }
@@ -68,14 +69,16 @@ export function LoginForm({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder={copy.emailPlaceholder}
+          autoComplete="email"
           required
         />
-        <input
-          type="password"
+        <PasswordInput
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={setPassword}
           placeholder={copy.passwordPlaceholder}
-          required
+          autoComplete="current-password"
+          showLabel={copy.showPassword}
+          hideLabel={copy.hidePassword}
         />
         <button
           className="button-primary"
@@ -90,4 +93,9 @@ export function LoginForm({
       </p>
     </>
   )
+}
+
+function getLoginError(copy: LoginCopy, error?: string) {
+  if (error === 'too_many_attempts') return copy.tooManyAttempts
+  return copy.invalidCredentials
 }

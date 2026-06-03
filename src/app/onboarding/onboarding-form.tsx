@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, Globe2, Landmark, Mail, MessageSquare, Sparkles, Ticket } from 'lucide-react'
 import Image from 'next/image'
+import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { createTenant, type OnboardingFormState } from './actions'
 
 type EntityType = 'theatre' | 'museum' | 'cinema' | 'auditorium' | 'festival' | 'cultural_center' | 'other'
@@ -28,45 +29,24 @@ const initialState: OnboardingFormState = {
   message: '',
 }
 
-const WORKSPACE_STEPS = ['Sobre ti', 'Sobre tu entidad', 'Casos de uso'] as const
+type OnboardingCopy = Dictionary['onboarding']
 
-const ROLE_OPTIONS = [
-  'Dirección / gerencia',
-  'Marketing / comunicación',
-  'Atención al público',
-  'Ticketing / taquilla',
-  'Producción',
-  'Equipo técnico',
-  'Otro',
-]
-
-const HEARD_ABOUT_OPTIONS = ['Recomendación', 'Google', 'LinkedIn', 'Evento del sector', 'Equipo TALIA', 'Otro']
-const DEPLOY_TIMELINES = ['Esta semana', 'Este mes', 'En 1-3 meses', 'Solo estoy explorando']
-
-const ENTITY_OPTIONS: { value: EntityType; label: string; description: string }[] = [
-  { value: 'theatre', label: 'Teatro', description: 'Programación escénica, entradas y accesibilidad.' },
-  { value: 'museum', label: 'Museo', description: 'Visitas, exposiciones, horarios y entradas.' },
-  { value: 'cinema', label: 'Cine', description: 'Cartelera, sesiones, entradas y promociones.' },
-  { value: 'auditorium', label: 'Auditorio', description: 'Conciertos, salas, abonos y acceso.' },
-  { value: 'festival', label: 'Festival', description: 'Agenda, sedes, pases y logística.' },
-  { value: 'cultural_center', label: 'Centro cultural', description: 'Actividades, talleres y comunidad.' },
-  { value: 'other', label: 'Otra entidad cultural', description: 'Configuración flexible para otros casos.' },
-]
+const ENTITY_TYPES: EntityType[] = ['theatre', 'museum', 'cinema', 'auditorium', 'festival', 'cultural_center', 'other']
 
 const USE_CASES = [
-  { value: 'faqs', label: 'Preguntas frecuentes', icon: MessageSquare },
-  { value: 'agenda', label: 'Programación / agenda', icon: Sparkles },
-  { value: 'tickets', label: 'Entradas / reservas', icon: Ticket },
-  { value: 'hours', label: 'Horarios', icon: Globe2 },
-  { value: 'location', label: 'Ubicación / cómo llegar', icon: Landmark },
-  { value: 'accessibility', label: 'Accesibilidad', icon: Check },
-  { value: 'prices', label: 'Precios / descuentos', icon: Ticket },
-  { value: 'email', label: 'Agente de email', icon: Mail },
-]
+  { value: 'faqs', icon: MessageSquare },
+  { value: 'agenda', icon: Sparkles },
+  { value: 'tickets', icon: Ticket },
+  { value: 'hours', icon: Globe2 },
+  { value: 'location', icon: Landmark },
+  { value: 'accessibility', icon: Check },
+  { value: 'prices', icon: Ticket },
+  { value: 'email', icon: Mail },
+] as const
 
 const MAX_USE_CASES = 3
 
-export function OnboardingForm({ email }: { email: string }) {
+export function OnboardingForm({ copy, email }: { copy: OnboardingCopy; email: string }) {
   const [state, action, pending] = useActionState(createTenant, initialState)
   const [workspaceStep, setWorkspaceStep] = useState<WorkspaceStep>(0)
   const [values, setValues] = useState<FormValues>({
@@ -83,7 +63,7 @@ export function OnboardingForm({ email }: { email: string }) {
     goals: [],
   })
 
-  const websiteUrlError = getWebsiteUrlError(values.websiteUrl)
+  const websiteUrlError = getWebsiteUrlError(values.websiteUrl, copy)
   const normalizedWebsiteUrl = useMemo(() => normalizeWebsiteUrl(values.websiteUrl), [values.websiteUrl])
   const canContinue = isWorkspaceStepValid(workspaceStep, values, websiteUrlError)
 
@@ -134,16 +114,17 @@ export function OnboardingForm({ email }: { email: string }) {
         </p>
       ) : null}
 
-      <StepHeader steps={WORKSPACE_STEPS} activeStep={workspaceStep} />
+      <StepHeader copy={copy} activeStep={workspaceStep} />
 
       <div className="onboarding-panel">
         <section className="onboarding-panel-main">
           {workspaceStep === 0 ? (
-            <WorkspaceAboutYou values={values} update={update} />
+            <WorkspaceAboutYou copy={copy} values={values} update={update} />
           ) : null}
 
           {workspaceStep === 1 ? (
             <WorkspaceCompany
+              copy={copy}
               values={values}
               update={update}
               email={email}
@@ -152,7 +133,7 @@ export function OnboardingForm({ email }: { email: string }) {
           ) : null}
 
           {workspaceStep === 2 ? (
-            <WorkspaceUseCases goals={values.goals} toggleGoal={toggleGoal} />
+            <WorkspaceUseCases copy={copy} goals={values.goals} toggleGoal={toggleGoal} />
           ) : null}
 
         </section>
@@ -168,7 +149,7 @@ export function OnboardingForm({ email }: { email: string }) {
           disabled={workspaceStep === 0 || pending}
         >
           <ArrowLeft size={14} strokeWidth={2} aria-hidden="true" />
-          Atrás
+          {copy.back}
         </button>
 
         {workspaceStep < 2 ? (
@@ -179,12 +160,12 @@ export function OnboardingForm({ email }: { email: string }) {
             disabled={!canContinue || pending}
             style={{ opacity: !canContinue ? 0.5 : 1 }}
           >
-            Continuar
+            {copy.continue}
             <ArrowRight size={14} strokeWidth={2} aria-hidden="true" />
           </button>
         ) : (
           <button className="button-primary" type="submit" disabled={!canContinue || pending}>
-            {pending ? 'Creando espacio...' : 'Configurar chatbot'}
+            {pending ? copy.submitting : copy.submit}
             <ArrowRight size={14} strokeWidth={2} aria-hidden="true" />
           </button>
         )}
@@ -193,10 +174,10 @@ export function OnboardingForm({ email }: { email: string }) {
   )
 }
 
-function StepHeader({ steps, activeStep }: { steps: readonly string[]; activeStep: number }) {
+function StepHeader({ copy, activeStep }: { copy: OnboardingCopy; activeStep: number }) {
   return (
-    <div className="onboarding-stepper" aria-label="Progreso del onboarding">
-      {steps.map((label, index) => {
+    <div className="onboarding-stepper" aria-label={copy.progressLabel}>
+      {copy.steps.map((label, index) => {
         const isDone = index < activeStep
         const isActive = index === activeStep
         return (
@@ -213,44 +194,47 @@ function StepHeader({ steps, activeStep }: { steps: readonly string[]; activeSte
 }
 
 function WorkspaceAboutYou({
+  copy,
   values,
   update,
 }: {
+  copy: OnboardingCopy
   values: FormValues
   update: <K extends keyof FormValues>(key: K, value: FormValues[K]) => void
 }) {
+  const about = copy.about
   return (
     <div className="onboarding-step-content">
-      <p className="section-label">Paso 1 de 3</p>
-      <h2>Bienvenido a TALIA</h2>
-      <p className="muted">Queremos entender tu contexto para preparar una experiencia útil desde el primer minuto.</p>
+      <p className="section-label">{copy.stepLabel(1, 3)}</p>
+      <h2>{about.title}</h2>
+      <p className="muted">{about.description}</p>
 
       <label className="field">
-        Nombre completo
-        <input value={values.fullName} onChange={(event) => update('fullName', event.target.value)} placeholder="Nombre y apellidos" />
+        {about.fullName}
+        <input value={values.fullName} onChange={(event) => update('fullName', event.target.value)} placeholder={about.fullNamePlaceholder} />
       </label>
 
       <label className="field">
-        ¿Qué describe mejor tu rol?
+        {about.role}
         <select value={values.role} onChange={(event) => update('role', event.target.value)}>
-          <option value="">Selecciona una opción</option>
-          {ROLE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+          <option value="">{about.emptyOption}</option>
+          {about.roleOptions.map((option) => <option key={option} value={option}>{option}</option>)}
         </select>
       </label>
 
       <label className="field">
-        ¿Cómo nos conociste?
+        {about.heardAbout}
         <select value={values.heardAbout} onChange={(event) => update('heardAbout', event.target.value)}>
-          <option value="">Selecciona una opción</option>
-          {HEARD_ABOUT_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+          <option value="">{about.emptyOption}</option>
+          {about.heardAboutOptions.map((option) => <option key={option} value={option}>{option}</option>)}
         </select>
       </label>
 
       <label className="field">
-        ¿Cuándo quieres activar TALIA?
+        {about.deployTimeline}
         <select value={values.deployTimeline} onChange={(event) => update('deployTimeline', event.target.value)}>
-          <option value="">Selecciona una opción</option>
-          {DEPLOY_TIMELINES.map((option) => <option key={option} value={option}>{option}</option>)}
+          <option value="">{about.emptyOption}</option>
+          {about.deployTimelineOptions.map((option) => <option key={option} value={option}>{option}</option>)}
         </select>
       </label>
     </div>
@@ -258,55 +242,58 @@ function WorkspaceAboutYou({
 }
 
 function WorkspaceCompany({
+  copy,
   values,
   update,
   email,
   websiteUrlError,
 }: {
+  copy: OnboardingCopy
   values: FormValues
   update: <K extends keyof FormValues>(key: K, value: FormValues[K]) => void
   email: string
   websiteUrlError: string
 }) {
+  const company = copy.company
   return (
     <div className="onboarding-step-content">
-      <p className="section-label">Paso 2 de 3</p>
-      <h2>Sobre tu entidad</h2>
-      <p className="muted">Estos datos crean el primer espacio de trabajo y el núcleo común de conocimiento.</p>
+      <p className="section-label">{copy.stepLabel(2, 3)}</p>
+      <h2>{company.title}</h2>
+      <p className="muted">{company.description}</p>
 
       <label className="field">
-        Nombre de la entidad
-        <input value={values.theatreName} onChange={(event) => update('theatreName', event.target.value)} placeholder="Teatre Nacional de Catalunya" />
+        {company.name}
+        <input value={values.theatreName} onChange={(event) => update('theatreName', event.target.value)} placeholder={company.namePlaceholder} />
       </label>
 
       <label className="field">
-        Tipo de entidad
+        {company.entityType}
         <select value={values.entityType} onChange={(event) => update('entityType', event.target.value as EntityType)}>
-          {ENTITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          {ENTITY_TYPES.map((value) => <option key={value} value={value}>{company.entityOptions[value].label}</option>)}
         </select>
       </label>
 
       <label className="field">
-        Web oficial
+        {company.website}
         <input
           value={values.websiteUrl}
           onChange={(event) => update('websiteUrl', event.target.value)}
           type="text"
           inputMode="url"
-          placeholder="www.tnc.cat"
+          placeholder={company.websitePlaceholder}
           aria-invalid={Boolean(websiteUrlError)}
           aria-describedby={websiteUrlError ? 'website-url-error' : undefined}
         />
         {websiteUrlError ? (
           <span className="field-error" id="website-url-error">{websiteUrlError}</span>
         ) : (
-          <span className="field-hint">Puedes escribir el dominio sin https://. TALIA lo normaliza automáticamente.</span>
+          <span className="field-hint">{company.websiteHint}</span>
         )}
       </label>
 
       <div className="form-grid two-columns">
         <label className="field">
-          Idioma principal
+          {company.primaryLanguage}
           <select value={values.primaryLanguage} onChange={(event) => update('primaryLanguage', event.target.value as Language)}>
             <option value="ca">Català</option>
             <option value="es">Español</option>
@@ -315,25 +302,26 @@ function WorkspaceCompany({
         </label>
 
         <label className="field">
-          Email público
-          <input value={values.fallbackEmail} onChange={(event) => update('fallbackEmail', event.target.value)} type="email" placeholder={email || 'info@entidad.com'} />
+          {company.publicEmail}
+          <input value={values.fallbackEmail} onChange={(event) => update('fallbackEmail', event.target.value)} type="email" placeholder={email || company.publicEmailPlaceholder} />
         </label>
       </div>
 
       <label className="field">
-        Teléfono público
-        <input value={values.fallbackPhone} onChange={(event) => update('fallbackPhone', event.target.value)} placeholder="+34 ..." />
+        {company.publicPhone}
+        <input value={values.fallbackPhone} onChange={(event) => update('fallbackPhone', event.target.value)} placeholder={company.publicPhonePlaceholder} />
       </label>
     </div>
   )
 }
 
-function WorkspaceUseCases({ goals, toggleGoal }: { goals: string[]; toggleGoal: (goal: string) => void }) {
+function WorkspaceUseCases({ copy, goals, toggleGoal }: { copy: OnboardingCopy; goals: string[]; toggleGoal: (goal: string) => void }) {
+  const useCases = copy.useCases
   return (
     <div className="onboarding-step-content">
-      <p className="section-label">Paso 3 de 3</p>
-      <h2>¿Qué quieres resolver primero?</h2>
-      <p className="muted">Elige hasta 3 casos de uso iniciales. Podrás ajustar prioridades más adelante.</p>
+      <p className="section-label">{copy.stepLabel(3, 3)}</p>
+      <h2>{useCases.title}</h2>
+      <p className="muted">{useCases.description}</p>
 
       <div className="onboarding-choice-list">
         {USE_CASES.map((goal) => {
@@ -350,14 +338,14 @@ function WorkspaceUseCases({ goals, toggleGoal }: { goals: string[]; toggleGoal:
             >
               <span className="onboarding-choice-label">
                 <Icon size={18} strokeWidth={2} aria-hidden="true" />
-                {goal.label}
+                {useCases.options[goal.value]}
               </span>
               <span className="onboarding-checkbox">{selected ? <Check size={14} strokeWidth={2.6} aria-hidden="true" /> : null}</span>
             </button>
           )
         })}
       </div>
-      <span className="field-hint">{goals.length}/{MAX_USE_CASES} seleccionados</span>
+      <span className="field-hint">{useCases.selectedCount(goals.length, MAX_USE_CASES)}</span>
     </div>
   )
 }
@@ -388,21 +376,21 @@ function isWorkspaceStepValid(step: WorkspaceStep, values: FormValues, websiteUr
   return values.goals.length > 0
 }
 
-function getWebsiteUrlError(value: string) {
+function getWebsiteUrlError(value: string, copy: OnboardingCopy) {
   const url = normalizeWebsiteUrl(value)
   if (!url) return ''
 
   try {
     const parsed = new URL(url)
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-      return 'La web debe empezar por https:// o http://'
+      return copy.company.websiteProtocolError
     }
     if (!parsed.hostname.includes('.')) {
-      return 'Introduce un dominio válido, por ejemplo https://www.tnc.cat'
+      return copy.company.websiteDomainError
     }
     return ''
   } catch {
-    return 'Introduce una URL válida, por ejemplo https://www.tnc.cat'
+    return copy.company.websiteUrlError
   }
 }
 

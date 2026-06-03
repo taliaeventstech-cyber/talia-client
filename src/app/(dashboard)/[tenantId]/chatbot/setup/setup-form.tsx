@@ -1,7 +1,8 @@
 'use client'
 
 import { startTransition, useActionState, useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, Database, Link2, MessageSquare, Palette } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Link2, MessageSquare } from 'lucide-react'
+import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { saveChatbotSetup, type ChatbotSetupState } from './actions'
 
 type Step = 0 | 1 | 2
@@ -17,17 +18,19 @@ type InitialValues = {
   systemPrompt: string
 }
 
+type ChatbotSetupCopy = Dictionary['chatbotSetup']
+
 const initialState: ChatbotSetupState = {
   ok: false,
   message: '',
 }
 
-const STEPS = ['Setup básico', 'Conocimiento', 'Widget'] as const
-
 export function ChatbotSetupForm({
+  copy,
   tenantId,
   initialValues,
 }: {
+  copy: ChatbotSetupCopy
   tenantId: string
   initialValues: InitialValues
 }) {
@@ -35,7 +38,7 @@ export function ChatbotSetupForm({
   const [step, setStep] = useState<Step>(0)
   const [values, setValues] = useState(initialValues)
   const normalizedSourceUrl = useMemo(() => normalizeUrl(values.sourceUrl), [values.sourceUrl])
-  const sourceUrlError = getUrlError(values.sourceUrl)
+  const sourceUrlError = getUrlError(values.sourceUrl, copy)
   const canContinue = isStepValid(step, values, sourceUrlError)
 
   function update<K extends keyof InitialValues>(key: K, value: InitialValues[K]) {
@@ -78,7 +81,7 @@ export function ChatbotSetupForm({
       <input type="hidden" name="tone" value={values.tone} />
       <input type="hidden" name="fallback_behavior" value={values.fallbackBehavior} />
 
-      <StepHeader activeStep={step} />
+      <StepHeader copy={copy} activeStep={step} />
 
       {state.message ? (
         <p className={`notice ${state.ok ? 'notice-success' : 'notice-error'}`}>
@@ -88,35 +91,36 @@ export function ChatbotSetupForm({
 
       <div className="chatbot-setup-grid">
         <section className="chatbot-setup-main">
-          {step === 0 ? <BasicStep values={values} update={update} /> : null}
+          {step === 0 ? <BasicStep copy={copy} values={values} update={update} /> : null}
           {step === 1 ? (
             <KnowledgeStep
+              copy={copy}
               values={values}
               update={update}
               sourceUrlError={sourceUrlError}
             />
           ) : null}
-          {step === 2 ? <WidgetStep values={values} update={update} /> : null}
+          {step === 2 ? <WidgetStep copy={copy} values={values} update={update} /> : null}
         </section>
 
-        <aside className="chatbot-setup-preview" aria-label="Vista previa del chatbot">
+        <aside className="chatbot-setup-preview" aria-label={copy.previewLabel}>
           <div className="chatbot-widget-stage">
             <div className="chatbot-widget-panel">
               <div className="chatbot-widget-header" style={{ background: values.primaryColor }}>
                 <span>TALIA</span>
-                <button type="button" aria-label="Cerrar preview">×</button>
+                <button type="button" aria-label={copy.closePreview}>×</button>
               </div>
               <div className="chatbot-widget-messages">
                 <p className="chatbot-widget-message chatbot-widget-message-assistant">
-                  {values.initialMessage || 'Hola, soy TALIA. ¿En qué puedo ayudarte?'}
+                  {values.initialMessage || copy.defaultInitialMessage}
                 </p>
                 <p className="chatbot-widget-message chatbot-widget-message-user" style={{ background: values.primaryColor }}>
-                  Quiero información
+                  {copy.previewUserMessage}
                 </p>
               </div>
               <div className="chatbot-widget-form">
-                <span>Escribe tu mensaje...</span>
-                <button type="button" style={{ background: values.primaryColor }}>Enviar</button>
+                <span>{copy.inputPlaceholder}</span>
+                <button type="button" style={{ background: values.primaryColor }}>{copy.send}</button>
               </div>
             </div>
             <span className="chatbot-widget-toggle" style={{ background: values.primaryColor }} aria-hidden="true">
@@ -129,7 +133,7 @@ export function ChatbotSetupForm({
       <div className="chatbot-setup-actions">
         <button className="button-outline" type="button" onClick={back} disabled={step === 0 || pending}>
           <ArrowLeft size={14} strokeWidth={2} aria-hidden="true" />
-          Atrás
+          {copy.back}
         </button>
 
         {step < 2 ? (
@@ -139,12 +143,12 @@ export function ChatbotSetupForm({
             disabled={!canContinue || pending}
             style={{ opacity: !canContinue ? 0.5 : 1 }}
           >
-            Continuar
+            {copy.continue}
             <ArrowRight size={14} strokeWidth={2} aria-hidden="true" />
           </button>
         ) : (
           <button className="button-primary" type="submit" disabled={!canContinue || pending}>
-            {pending ? 'Guardando...' : 'Guardar y entrar al Àgora'}
+            {pending ? copy.saving : copy.submit}
           </button>
         )}
       </div>
@@ -152,10 +156,10 @@ export function ChatbotSetupForm({
   )
 }
 
-function StepHeader({ activeStep }: { activeStep: Step }) {
+function StepHeader({ copy, activeStep }: { copy: ChatbotSetupCopy; activeStep: Step }) {
   return (
-    <div className="chatbot-setup-stepper" aria-label="Progreso de configuración del chatbot">
-      {STEPS.map((label, index) => {
+    <div className="chatbot-setup-stepper" aria-label={copy.progressLabel}>
+      {copy.steps.map((label, index) => {
         const isDone = index < activeStep
         const isActive = index === activeStep
         return (
@@ -172,47 +176,50 @@ function StepHeader({ activeStep }: { activeStep: Step }) {
 }
 
 function BasicStep({
+  copy,
   values,
   update,
 }: {
+  copy: ChatbotSetupCopy
   values: InitialValues
   update: <K extends keyof InitialValues>(key: K, value: InitialValues[K]) => void
 }) {
+  const basic = copy.basic
   return (
     <div className="chatbot-setup-step">
-      <span className="chatbot-setup-icon"><MessageSquare size={20} strokeWidth={2} aria-hidden="true" /></span>
-      <p className="section-label">Paso 1 de 3</p>
-      <h2>Define cómo debe responder TALIA</h2>
-      <p className="muted">Estos ajustes marcan la primera impresión del chatbot antes de entrar en configuración avanzada.</p>
+     
+      <p className="section-label">{copy.stepLabel(1, 3)}</p>
+      <h2>{basic.title}</h2>
+      <p className="muted">{basic.description}</p>
 
       <label className="field">
-        Mensaje inicial
+        {basic.initialMessage}
         <textarea
           value={values.initialMessage}
           onChange={(event) => update('initialMessage', event.target.value)}
           maxLength={300}
           rows={3}
-          placeholder="Hola, soy TALIA. ¿En qué puedo ayudarte?"
+          placeholder={basic.initialMessagePlaceholder}
         />
       </label>
 
       <div className="chatbot-setup-option-grid">
         <ChoiceButton
           active={values.tone === 'close'}
-          title="Cercano"
-          description="Claro, amable y directo."
+          title={basic.tones.close.title}
+          description={basic.tones.close.description}
           onClick={() => update('tone', 'close')}
         />
         <ChoiceButton
           active={values.tone === 'formal'}
-          title="Formal"
-          description="Más institucional y sobrio."
+          title={basic.tones.formal.title}
+          description={basic.tones.formal.description}
           onClick={() => update('tone', 'formal')}
         />
         <ChoiceButton
           active={values.tone === 'brief'}
-          title="Breve"
-          description="Respuestas más compactas."
+          title={basic.tones.brief.title}
+          description={basic.tones.brief.description}
           onClick={() => update('tone', 'brief')}
         />
       </div>
@@ -221,23 +228,26 @@ function BasicStep({
 }
 
 function KnowledgeStep({
+  copy,
   values,
   update,
   sourceUrlError,
 }: {
+  copy: ChatbotSetupCopy
   values: InitialValues
   update: <K extends keyof InitialValues>(key: K, value: InitialValues[K]) => void
   sourceUrlError: string
 }) {
+  const knowledge = copy.knowledge
   return (
     <div className="chatbot-setup-step">
-      <span className="chatbot-setup-icon"><Database size={20} strokeWidth={2} aria-hidden="true" /></span>
-      <p className="section-label">Paso 2 de 3</p>
-      <h2>Añade la primera fuente de conocimiento</h2>
-      <p className="muted">Puedes empezar con la web oficial. Luego podrás completar la base de conocimiento desde su sección propia.</p>
+
+      <p className="section-label">{copy.stepLabel(2, 3)}</p>
+      <h2>{knowledge.title}</h2>
+      <p className="muted">{knowledge.description}</p>
 
       <label className="field">
-        Web oficial o fuente principal
+        {knowledge.sourceLabel}
         <div className="chatbot-setup-url-row">
           <Link2 size={18} strokeWidth={2} aria-hidden="true" />
           <input
@@ -245,7 +255,7 @@ function KnowledgeStep({
             onChange={(event) => update('sourceUrl', event.target.value)}
             type="text"
             inputMode="url"
-            placeholder="www.teatro.com"
+            placeholder={knowledge.sourcePlaceholder}
             aria-invalid={Boolean(sourceUrlError)}
             aria-describedby={sourceUrlError ? 'chatbot-source-url-error' : undefined}
           />
@@ -253,18 +263,18 @@ function KnowledgeStep({
         {sourceUrlError ? (
           <span className="field-error" id="chatbot-source-url-error">{sourceUrlError}</span>
         ) : (
-          <span className="field-hint">Puedes escribir el dominio sin https://. TALIA lo normaliza automáticamente.</span>
+          <span className="field-hint">{knowledge.sourceHint}</span>
         )}
       </label>
 
       <label className="field">
-        Instrucciones internas del canal chatbot
+        {knowledge.promptLabel}
         <textarea
           value={values.systemPrompt}
           onChange={(event) => update('systemPrompt', event.target.value)}
           rows={6}
           maxLength={8000}
-          placeholder="Ejemplo: Responde siempre con tono claro, deriva a taquilla cuando no haya certeza y prioriza programación, horarios y entradas."
+          placeholder={knowledge.promptPlaceholder}
         />
       </label>
     </div>
@@ -272,41 +282,49 @@ function KnowledgeStep({
 }
 
 function WidgetStep({
+  copy,
   values,
   update,
 }: {
+  copy: ChatbotSetupCopy
   values: InitialValues
   update: <K extends keyof InitialValues>(key: K, value: InitialValues[K]) => void
 }) {
+  const widget = copy.widget
   return (
     <div className="chatbot-setup-step">
-      <span className="chatbot-setup-icon"><Palette size={20} strokeWidth={2} aria-hidden="true" /></span>
-      <p className="section-label">Paso 3 de 3</p>
-      <h2>Ajusta la presencia del widget</h2>
-      <p className="muted">Deja una base visual coherente. Los detalles finos siguen disponibles en la configuración del chatbot.</p>
+      
+      <p className="section-label">{copy.stepLabel(3, 3)}</p>
+      <h2>{widget.title}</h2>
+      <p className="muted">{widget.description}</p>
 
       <div className="field">
-        Color principal
-        <ColorPicker value={values.primaryColor} onChange={(color) => update('primaryColor', color)} />
+        {widget.color}
+        <ColorPicker copy={copy} value={values.primaryColor} onChange={(color) => update('primaryColor', color)} />
       </div>
+
+      <section className="chatbot-setup-explainer">
+        <p className="section-label">{widget.fallbackTitle}</p>
+        <p className="muted">{widget.fallbackDescription}</p>
+      </section>
 
       <div className="chatbot-setup-option-grid">
         <ChoiceButton
           active={values.fallbackBehavior === 'contact'}
-          title="Derivar a contacto"
-          description="Muestra contacto oficial si no hay certeza."
+          title={widget.fallbackOptions.contact.title}
+          description={widget.fallbackOptions.contact.description}
           onClick={() => update('fallbackBehavior', 'contact')}
         />
         <ChoiceButton
           active={values.fallbackBehavior === 'human'}
-          title="Pedir revisión"
-          description="Marca los casos dudosos para humano."
+          title={widget.fallbackOptions.human.title}
+          description={widget.fallbackOptions.human.description}
           onClick={() => update('fallbackBehavior', 'human')}
         />
         <ChoiceButton
           active={values.fallbackBehavior === 'unknown'}
-          title="Responder sin inventar"
-          description="Admite falta de información."
+          title={widget.fallbackOptions.unknown.title}
+          description={widget.fallbackOptions.unknown.description}
           onClick={() => update('fallbackBehavior', 'unknown')}
         />
       </div>
@@ -314,7 +332,7 @@ function WidgetStep({
   )
 }
 
-function ColorPicker({ value, onChange }: { value: string; onChange: (color: string) => void }) {
+function ColorPicker({ copy, value, onChange }: { copy: ChatbotSetupCopy; value: string; onChange: (color: string) => void }) {
   const [draft, setDraft] = useState(value)
 
   function commit(nextValue: string) {
@@ -330,14 +348,14 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (color: str
       <label className="chatbot-color-picker-surface">
         <span className="chatbot-color-picker-preview" style={{ background: value }} aria-hidden="true" />
         <span>
-          <strong>Color de marca</strong>
+          <strong>{copy.widget.brandColor}</strong>
           <small>{value.toUpperCase()}</small>
         </span>
         <input
           type="color"
           value={value}
           onChange={(event) => commit(event.target.value)}
-          aria-label="Abrir selector de color"
+          aria-label={copy.widget.openColorPicker}
         />
       </label>
       <label className="chatbot-color-hex">
@@ -348,7 +366,7 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (color: str
           onChange={(event) => commit(event.target.value.slice(0, 7))}
           spellCheck={false}
           inputMode="text"
-          aria-label="Color en formato hexadecimal"
+          aria-label={copy.widget.hexColor}
         />
       </label>
     </div>
@@ -391,20 +409,20 @@ function normalizeUrl(value: string) {
   return `https://${trimmed}`
 }
 
-function getUrlError(value: string) {
+function getUrlError(value: string, copy: ChatbotSetupCopy) {
   const url = normalizeUrl(value)
   if (!url) return ''
 
   try {
     const parsed = new URL(url)
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-      return 'La web debe empezar por https:// o http://'
+      return copy.knowledge.protocolError
     }
     if (!parsed.hostname.includes('.')) {
-      return 'Introduce un dominio válido, por ejemplo https://www.tnc.cat'
+      return copy.knowledge.domainError
     }
     return ''
   } catch {
-    return 'Introduce una URL válida, por ejemplo https://www.tnc.cat'
+    return copy.knowledge.urlError
   }
 }

@@ -1,4 +1,5 @@
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
+import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ChatbotSetupForm } from './setup-form'
 
@@ -24,7 +25,9 @@ export default async function ChatbotSetupPage({ params }: Props) {
     .eq('id', tenantId)
     .single()
 
-  const widgetConfig = getWidgetConfig(theatre?.widget_config)
+  const dictionary = await getDictionary(await getLocale())
+  const copy = dictionary.chatbotSetup
+  const widgetConfig = getWidgetConfig(theatre?.widget_config, copy.defaultInitialMessage)
   const scrapeUrls = Array.isArray(theatre?.scrape_urls)
     ? theatre.scrape_urls.filter((url): url is string => typeof url === 'string')
     : []
@@ -33,15 +36,16 @@ export default async function ChatbotSetupPage({ params }: Props) {
     <main className={access.chatbotSetupCompleted ? 'page-shell chatbot-setup-shell' : 'page-shell chatbot-setup-shell chatbot-onboarding-shell'}>
       <header className="page-header">
         <div>
-          <p className="eyebrow">Setup del chatbot</p>
-          <h1>Configura el chatbot de {theatre?.name ?? 'TALIA'}</h1>
+          <p className="eyebrow">{copy.eyebrow}</p>
+          <h1>{copy.title(theatre?.name ?? 'TALIA')}</h1>
           <p className="muted">
-            Un flujo corto y enfocado para dejar lista la primera experiencia del asistente.
+            {copy.description}
           </p>
         </div>
       </header>
 
       <ChatbotSetupForm
+        copy={copy}
         tenantId={tenantId}
         initialValues={{
           initialMessage: widgetConfig.initialMessage,
@@ -56,10 +60,10 @@ export default async function ChatbotSetupPage({ params }: Props) {
   )
 }
 
-function getWidgetConfig(value: unknown): WidgetConfig {
+function getWidgetConfig(value: unknown, defaultInitialMessage: string): WidgetConfig {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {
-      initialMessage: 'Hola, soy TALIA. ¿En qué puedo ayudarte?',
+      initialMessage: defaultInitialMessage,
       primaryColor: '#00e5c8',
       tone: 'close',
       fallbackBehavior: 'contact',
@@ -76,7 +80,7 @@ function getWidgetConfig(value: unknown): WidgetConfig {
   return {
     initialMessage: typeof config.initialMessage === 'string'
       ? config.initialMessage
-      : 'Hola, soy TALIA. ¿En qué puedo ayudarte?',
+      : defaultInitialMessage,
     primaryColor: typeof config.primaryColor === 'string' ? config.primaryColor : '#00e5c8',
     tone: isTone(config.tone) ? config.tone : 'close',
     fallbackBehavior: isFallbackBehavior(config.fallbackBehavior) ? config.fallbackBehavior : 'contact',

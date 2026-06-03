@@ -182,10 +182,10 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
     })
     .eq('id', message.thread_id)
 
-  if (!agentClassification.shouldProcess || !agentClassification.shouldReply || input.createDraft === false || connection.draft_mode === 'disabled') {
+  if (!agentClassification.shouldProcess || !agentClassification.shouldGenerateDraft || input.createDraft === false || connection.draft_mode === 'disabled') {
     return {
       ok: true as const,
-      action: agentClassification.shouldReply && (input.createDraft === false || connection.draft_mode === 'disabled')
+      action: agentClassification.shouldGenerateDraft && (input.createDraft === false || connection.draft_mode === 'disabled')
         ? 'classified' as const
         : 'ignored' as const,
       threadId: message.thread_id,
@@ -219,7 +219,7 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
   const draft = result.draft
   const finalTopic = draft.topic ?? agentClassification.topic ?? 'otro'
   const finalPriority = draft.priority === 'normal' ? agentClassification.priority : draft.priority
-  if (!draft.shouldReply) {
+  if (!draft.shouldGenerateDraft) {
     await admin
       .from('email_threads')
       .update({
@@ -538,7 +538,7 @@ function buildDraftMetadata(draft: {
 }
 
 type CombinedEmailClassification = ReturnType<typeof classifyEmailMessage> & {
-  shouldReply: boolean
+  shouldGenerateDraft: boolean
   needsHumanReview: boolean
   topic: string | null
   priority: EmailAgentClassification['priority']
@@ -556,7 +556,7 @@ function mergeClassifications(
     ...rulesClassification,
     shouldProcess: rulesClassification.shouldProcess && agentClassification.shouldProcess,
     confidence: rulesClassification.confidence,
-    shouldReply: agentClassification.shouldReply,
+    shouldGenerateDraft: agentClassification.shouldGenerateDraft,
     needsHumanReview: agentClassification.needsHumanReview,
     topic: agentClassification.topic,
     priority: agentClassification.priority,
@@ -569,7 +569,7 @@ function mergeClassifications(
 
 function getClassifiedThreadStatus(classification: EmailAgentClassification) {
   if (classification.needsHumanReview) return 'waiting_human'
-  if (!classification.shouldProcess || !classification.shouldReply) return 'ignored'
+  if (!classification.shouldProcess || !classification.shouldGenerateDraft) return 'ignored'
   return 'new'
 }
 
@@ -592,7 +592,7 @@ function buildClassificationMetadata(
 function buildThreadClassificationRecord(classification: CombinedEmailClassification, draftReason?: string | null) {
   return {
     shouldProcess: classification.shouldProcess,
-    shouldReply: classification.shouldReply,
+    shouldGenerateDraft: classification.shouldGenerateDraft,
     needsHumanReview: classification.needsHumanReview,
     reason: classification.reason,
     source: classification.source,

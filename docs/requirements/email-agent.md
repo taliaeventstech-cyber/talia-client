@@ -45,8 +45,10 @@ Reglas:
 - n8n no crea borradores directamente en Gmail.
 - TALIA persiste threads, mensajes, drafts y uso.
 - TALIA crea el borrador real en Gmail/Outlook cuando `draft_mode = provider_drafts`.
-- El provider debe devolver un contrato simple: `shouldReply`, `subject`, `bodyText/bodyHtml`, `topic`, `priority`, `confidence`.
-- El workflow puede devolver también `should_process` y `classification_reason`; si `should_process` es `false`, TALIA lo interpreta como `shouldReply = false`.
+- El classifier debe devolver un contrato simple: `should_process`, `should_generate_draft`, `needs_human_review`, `classification_reason`, `topic`, `priority`, `confidence`.
+- `should_process` significa que el email es candidato válido para el agente. Si es `false`, TALIA lo ignora como newsletter, spam, rebote, no-reply, automático, remitente bloqueado o mensaje no accionable.
+- `should_generate_draft` significa que TALIA debe llamar al drafter para preparar un borrador supervisado. No implica enviar el email.
+- El drafter debe devolver `should_generate_draft`, `subject`, `body_text/body_html`, `topic`, `priority`, `confidence`.
 
 Payload TALIA -> n8n:
 
@@ -73,7 +75,7 @@ Respuesta n8n -> TALIA:
 ```json
 {
   "should_process": true,
-  "should_reply": true,
+  "should_generate_draft": true,
   "classification_reason": "visitor_question",
   "subject": "Re: Consulta sobre entradas",
   "body_text": "Hola...",

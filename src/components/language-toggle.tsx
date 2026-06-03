@@ -9,6 +9,7 @@ type LanguageToggleLabels = {
   label: string
   es: string
   ca: string
+  en: string
 }
 
 export function LanguageToggle({ locale, labels }: { locale: Locale; labels: LanguageToggleLabels }) {
@@ -16,31 +17,46 @@ export function LanguageToggle({ locale, labels }: { locale: Locale; labels: Lan
   const [currentLocale, setOptimisticLocale] = useOptimistic(locale)
   const [pending, startTransition] = useTransition()
 
-  function toggleLocale() {
-    const nextLocale = currentLocale === 'ca' ? 'es' : 'ca'
+  function setLocale(locale: Locale) {
+    if (locale === currentLocale) return
 
     startTransition(async () => {
-      setOptimisticLocale(nextLocale)
-      await setLocaleAction(nextLocale)
+      setOptimisticLocale(locale)
+      await setLocaleAction(locale)
       router.refresh()
     })
   }
 
   return (
-    <button
+    <div
       className={`language-toggle language-toggle-${currentLocale}`}
-      type="button"
-      onClick={toggleLocale}
+      role="group"
       aria-label={labels.label}
-      aria-pressed={currentLocale === 'ca'}
-      disabled={pending}
     >
-      <span className={currentLocale === 'es' ? 'language-toggle-option language-toggle-option-active' : 'language-toggle-option'}>
-        {labels.es}
-      </span>
-      <span className={currentLocale === 'ca' ? 'language-toggle-option language-toggle-option-active' : 'language-toggle-option'}>
-        {labels.ca}
-      </span>
-    </button>
+      <button
+        className={currentLocale === 'es' ? 'language-toggle-option language-toggle-option-active' : 'language-toggle-option'}
+        type="button"
+        onClick={() => setLocale('es')}
+        disabled={pending}
+      >
+        ES
+      </button>
+      <button
+        className={currentLocale === 'ca' ? 'language-toggle-option language-toggle-option-active' : 'language-toggle-option'}
+        type="button"
+        onClick={() => setLocale('ca')}
+        disabled={pending}
+      >
+        CA
+      </button>
+      <button
+        className={currentLocale === 'en' ? 'language-toggle-option language-toggle-option-active' : 'language-toggle-option'}
+        type="button"
+        onClick={() => setLocale('en')}
+        disabled={pending}
+      >
+        EN
+      </button>
+    </div>
   )
 }

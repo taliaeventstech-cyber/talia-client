@@ -670,7 +670,7 @@ function EmailOperationsFields({ client, connection }: { client: Client; connect
               <option value="connected">Conectado</option>
               <option value="syncing">Sincronizando</option>
               <option value="error">Error</option>
-              <option value="revoked">Revocado</option>
+              <option value="revoked">Desconectado</option>
               <option value="disabled">Desactivado</option>
             </select>
           </label>

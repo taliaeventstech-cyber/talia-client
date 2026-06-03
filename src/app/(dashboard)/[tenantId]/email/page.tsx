@@ -3,7 +3,7 @@ import { getDictionary, getLocale, type Dictionary } from '@/lib/i18n/dictionari
 import { createAdminClient } from '@/lib/supabase/admin'
 import { QueryToastNotice } from '@/components/ui/query-toast-notice'
 import { SelectAllCheckbox } from '@/components/ui/select-all-checkbox'
-import { ChevronLeft, ChevronRight, Clock3, ExternalLink, Mail, PencilLine } from 'lucide-react'
+import { ChevronLeft, ChevronRight, PencilLine } from 'lucide-react'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import {
@@ -14,6 +14,7 @@ import {
   syncLatestEmailAction,
 } from './actions'
 import { DraftDeleteChoiceButton } from './draft-delete-choice-button'
+import { EmptySyncSubmitButton } from './empty-sync-submit-button'
 import { ProcessEmailSubmitButton } from './process-email-submit-button'
 import { SelectedDeleteSubmitButton } from './selected-delete-submit-button'
 import { SyncEmailSubmitButton } from './sync-email-submit-button'
@@ -195,15 +196,10 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
       <header className="page-header">
         <div>
           <p className="section-label">{copy.section}</p>
-          <div className="page-title-row">
+          <div className="page-title-row email-page-title-row">
             <h1>{theatre?.name ?? 'Email'}</h1>
-            <span className={`status-pill ${getConnectionStatusClass(connection?.status)}`}>
-              {formatConnectionStatus(copy, connection?.status)}
-            </span>
+            <span className="email-header-separator" aria-hidden="true" />
             <div className="email-header-mailbox">
-              <span className="detail-icon" aria-hidden="true">
-                <Mail size={16} strokeWidth={2} />
-              </span>
               <div>
                 <strong>{activeMailbox}</strong>
                 <p>
@@ -213,6 +209,9 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
             </div>
           </div>
         </div>
+        <span className={`status-pill email-header-status ${getConnectionStatusClass(connection?.status)}`}>
+          {formatConnectionStatus(copy, connection?.status)}
+        </span>
       </header>
 
       {isError || connection?.error_message ? (
@@ -226,13 +225,18 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
           <div>
             <p className="eyebrow">{copy.inbox.eyebrow}</p>
             <h2>{copy.inbox.title}</h2>
+            {!isConnected ? (
+              <p className="email-connect-instructions">{copy.inbox.connectDescription}</p>
+            ) : null}
           </div>
-          <Suspense fallback={<PageSizeSelectFallback ariaLabel={copy.inbox.pageSizeAria} label={copy.inbox.pageSize} value={threadPagination.limit} />}>
-            <ThreadPageSizeSelect ariaLabel={copy.inbox.pageSizeAria} label={copy.inbox.pageSize} value={threadPagination.limit} />
-          </Suspense>
+          {isConnected ? (
+            <Suspense fallback={<PageSizeSelectFallback ariaLabel={copy.inbox.pageSizeAria} label={copy.inbox.pageSize} value={threadPagination.limit} />}>
+              <ThreadPageSizeSelect ariaLabel={copy.inbox.pageSizeAria} label={copy.inbox.pageSize} value={threadPagination.limit} />
+            </Suspense>
+          ) : null}
         </div>
 
-        <div className="email-action-strip">
+        <div className={`email-action-strip ${isConnected ? '' : 'email-action-strip-connect'}`}>
           <div className="email-action-buttons">
             {isConnected ? (
               <form action={syncAction}>
@@ -249,10 +253,6 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
                   <GoogleProviderIcon />
                   {copy.header.connectGmail}
                 </a>
-                <a className="button-outline button-fit" href={getProviderConnectUrl(tenantId, 'microsoft')}>
-                  <MicrosoftProviderIcon />
-                  {copy.header.connectOutlook}
-                </a>
               </div>
             )}
             {isConnected ? (
@@ -265,100 +265,103 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
           </div>
         </div>
 
-        <ThreadStatusFilters
-          activeStatus={activeThreadStatus}
-          counts={threadStatusCounts}
-          labels={copy.inbox.filters}
-          limit={threadPagination.limit}
-          tenantId={tenantId}
-          total={threadTotal}
-        />
-
-        {(threads ?? []).length ? (
-          <form className="email-thread-selection" action={processSelectedAction}>
-            <div className="email-thread-toolbar">
-              <div className="email-thread-toolbar-main">
-                <ProcessEmailSubmitButton label={copy.inbox.process} processingLabel={copy.inbox.processing} />
-              </div>
-              <div className="email-thread-toolbar-aside">
-                <SelectedDeleteSubmitButton
-                  formAction={deleteSelectedAction}
-                  labels={{
-                    cancel: copy.inbox.cancel,
-                    confirm: copy.inbox.delete,
-                    delete: copy.inbox.delete,
-                    deleting: copy.inbox.deleting,
-                    question: copy.inbox.deleteConfirm,
-                    yes: copy.inbox.yes,
-                  }}
-                  targetName="thread_ids"
-                />
-              </div>
-            </div>
-
-            <table className="data-table email-thread-table">
-              <thead>
-                <tr>
-                  <th className="email-select-cell">
-                    <SelectAllCheckbox label={copy.inbox.selectAllThreads} targetName="thread_ids" />
-                  </th>
-                  <th>{copy.inbox.table.subject}</th>
-                  <th>{copy.inbox.table.sender}</th>
-                  <th>{copy.inbox.table.status}</th>
-                  <th>{copy.inbox.table.topic}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(threads ?? []).map((thread) => (
-                  <tr key={thread.id}>
-                    <td className="email-select-cell">
-                      <input
-                        aria-label={copy.inbox.selectThread(thread.subject ?? copy.fallbackValues.noSubject)}
-                        name="thread_ids"
-                        type="checkbox"
-                        value={thread.id}
-                      />
-                    </td>
-                    <td>
-                      <div className="email-thread-subject">
-                        <strong>{thread.subject ?? copy.fallbackValues.noSubject}</strong>
-                        <span>{getThreadInsight(copy, thread.metadata)}</span>
-                      </div>
-                    </td>
-                    <td><span className="email-thread-sender">{thread.sender_email ?? copy.fallbackValues.noSender}</span></td>
-                    <td>
-                      <span className={`status-pill ${getThreadStatusClass(getDisplayThreadStatus(thread.status, thread.id, visibleThreadsWithDrafts))}`}>
-                        {formatThreadStatus(copy, getDisplayThreadStatus(thread.status, thread.id, visibleThreadsWithDrafts))}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="email-thread-topic">
-                        <span>{formatTopic(copy, thread.topic)}</span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <TablePagination
-              hrefForPage={(page) => getThreadPageHref(tenantId, { page, limit: threadPagination.limit, status: activeThreadStatus })}
-              labels={copy.inbox.pagination}
-              page={threadPage}
-              pageCount={threadPageCount}
-              total={filteredThreadCount}
+        {isConnected ? (
+          <>
+            <ThreadStatusFilters
+              activeStatus={activeThreadStatus}
+              counts={threadStatusCounts}
+              labels={copy.inbox.filters}
+              limit={threadPagination.limit}
+              tenantId={tenantId}
+              total={threadTotal}
             />
-          </form>
-        ) : (
-          <div className="empty-state">
-            <Clock3 size={18} aria-hidden="true" />
-            <div>
-            <strong>{copy.inbox.emptyTitle}</strong>
-            <p className="muted">
-                {copy.inbox.emptyDescription}
-            </p>
-            </div>
-          </div>
-        )}
+
+            {(threads ?? []).length ? (
+              <form className="email-thread-selection" action={processSelectedAction}>
+                <div className="email-thread-toolbar">
+                  <div className="email-thread-toolbar-main">
+                    <ProcessEmailSubmitButton label={copy.inbox.process} processingLabel={copy.inbox.processing} />
+                  </div>
+                  <div className="email-thread-toolbar-aside">
+                    <SelectedDeleteSubmitButton
+                      formAction={deleteSelectedAction}
+                      labels={{
+                        cancel: copy.inbox.cancel,
+                        confirm: copy.inbox.delete,
+                        delete: copy.inbox.delete,
+                        deleting: copy.inbox.deleting,
+                        question: copy.inbox.deleteConfirm,
+                        yes: copy.inbox.yes,
+                      }}
+                      targetName="thread_ids"
+                    />
+                  </div>
+                </div>
+
+                <table className="data-table email-thread-table">
+                  <thead>
+                    <tr>
+                      <th className="email-select-cell">
+                        <SelectAllCheckbox label={copy.inbox.selectAllThreads} targetName="thread_ids" />
+                      </th>
+                      <th>{copy.inbox.table.subject}</th>
+                      <th>{copy.inbox.table.sender}</th>
+                      <th>{copy.inbox.table.status}</th>
+                      <th>{copy.inbox.table.topic}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(threads ?? []).map((thread) => (
+                      <tr key={thread.id}>
+                        <td className="email-select-cell">
+                          <input
+                            aria-label={copy.inbox.selectThread(thread.subject ?? copy.fallbackValues.noSubject)}
+                            name="thread_ids"
+                            type="checkbox"
+                            value={thread.id}
+                          />
+                        </td>
+                        <td>
+                          <div className="email-thread-subject">
+                            <strong>{thread.subject ?? copy.fallbackValues.noSubject}</strong>
+                            <span>{getThreadInsight(copy, thread.metadata)}</span>
+                          </div>
+                        </td>
+                        <td><span className="email-thread-sender">{thread.sender_email ?? copy.fallbackValues.noSender}</span></td>
+                        <td>
+                          <span className={`status-pill ${getThreadStatusClass(getDisplayThreadStatus(thread.status, thread.id, visibleThreadsWithDrafts))}`}>
+                            {formatThreadStatus(copy, getDisplayThreadStatus(thread.status, thread.id, visibleThreadsWithDrafts))}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="email-thread-topic">
+                            <span>{formatTopic(copy, thread.topic)}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <TablePagination
+                  hrefForPage={(page) => getThreadPageHref(tenantId, { page, limit: threadPagination.limit, status: activeThreadStatus })}
+                  labels={copy.inbox.pagination}
+                  page={threadPage}
+                  pageCount={threadPageCount}
+                  total={filteredThreadCount}
+                />
+              </form>
+            ) : (
+              <form action={syncAction}>
+                <EmptySyncSubmitButton
+                  description={copy.inbox.emptySyncDescription}
+                  label={copy.inbox.sync}
+                  syncingLabel={copy.inbox.syncing}
+                  title={copy.inbox.emptySyncTitle}
+                />
+              </form>
+            )}
+          </>
+        ) : null}
       </section>
 
       <section className="card stack">
@@ -367,12 +370,7 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
             <p className="eyebrow">{copy.drafts.eyebrow}</p>
             <h2>{copy.drafts.title}</h2>
           </div>
-          {connection?.mailbox_email ? (
-            <a className="button-outline button-fit" href={getProviderDraftsUrl(connection.provider, connection.mailbox_email)} target="_blank" rel="noopener noreferrer">
-              <ExternalLink size={15} strokeWidth={2} aria-hidden="true" />
-              {copy.drafts.openMailbox}
-            </a>
-          ) : null}
+        
         </div>
 
         {(latestDrafts ?? []).length ? (
@@ -408,7 +406,7 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
 
               return (
                 <article className="email-draft-item" key={draft.id}>
-                  <div className="email-draft-main">
+                  <div className="email-draft-row">
                     <input
                       aria-label={copy.drafts.selectDraft(draft.generated_subject ?? thread?.subject ?? copy.fallbackValues.noSubject)}
                       className="email-draft-checkbox"
@@ -416,22 +414,38 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
                       type="checkbox"
                       value={draft.id}
                     />
-                    {draft.status === 'created_in_provider' ? null : (
-                      <span className={`status-pill ${getDraftStatusClass(draft.status)}`}>
-                        {formatDraftStatus(copy, draft.status)}
-                      </span>
-                    )}
-                    <div>
-                      <strong>{draft.generated_subject ?? thread?.subject ?? copy.fallbackValues.noSubject}</strong>
-                      <p className="muted">
-                        {thread?.sender_email ?? copy.drafts.unknownSender} · {formatTopic(copy, thread?.topic)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="email-draft-meta">
-                    <span>{formatDateTime(draft.updated_at ?? draft.created_at)}</span>
+                    <details className="email-draft-details">
+                      <summary>
+                        <span className="email-draft-main">
+                          {draft.status === 'created_in_provider' ? null : (
+                            <span className={`status-pill ${getDraftStatusClass(draft.status)}`}>
+                              {formatDraftStatus(copy, draft.status)}
+                            </span>
+                          )}
+                          <span className="email-draft-title-block">
+                            <strong>{draft.generated_subject ?? thread?.subject ?? copy.fallbackValues.noSubject}</strong>
+                            <span className="muted">
+                              {thread?.sender_email ?? copy.drafts.unknownSender} · {formatTopic(copy, thread?.topic)}
+                            </span>
+                          </span>
+                        </span>
+                        <span className="email-draft-summary-aside">
+                          <span>{formatDateTime(draft.updated_at ?? draft.created_at)}</span>
+                          <span className="email-draft-toggle-text">
+                            <span className="email-draft-toggle-open">{copy.drafts.expand}</span>
+                            <span className="email-draft-toggle-close">{copy.drafts.collapse}</span>
+                          </span>
+                        </span>
+                      </summary>
+                      <div className="email-draft-body">
+                        <p className="eyebrow">{copy.drafts.bodyLabel}</p>
+                        <div className="email-draft-message">
+                          {draft.generated_body_text?.trim() || copy.drafts.emptyBody}
+                        </div>
+                      </div>
+                    </details>
                     {draft.error_message ? (
-                      <span className="email-error-text">{draft.error_message}</span>
+                      <span className="email-error-text email-draft-row-error">{draft.error_message}</span>
                     ) : null}
                   </div>
                 </article>
@@ -730,22 +744,6 @@ function GoogleProviderIcon() {
       <path fill="#EA4335" d="M12 4.4c1.6 0 3.1.6 4.2 1.7l3.1-3.1A10.6 10.6 0 0 0 12 0C7.6 0 3.8 2.6 2 6.6l3.5 2.9C6.4 6.4 9 4.4 12 4.4Z" />
     </svg>
   )
-}
-
-function MicrosoftProviderIcon() {
-  return (
-    <svg className="email-provider-icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="#F25022" d="M1 1h10v10H1z" />
-      <path fill="#7FBA00" d="M13 1h10v10H13z" />
-      <path fill="#00A4EF" d="M1 13h10v10H1z" />
-      <path fill="#FFB900" d="M13 13h10v10H13z" />
-    </svg>
-  )
-}
-
-function getProviderDraftsUrl(provider: string | undefined, mailboxEmail: string) {
-  if (provider === 'microsoft') return 'https://outlook.office.com/mail/drafts'
-  return `https://mail.google.com/mail/u/${encodeURIComponent(mailboxEmail)}/#drafts`
 }
 
 function formatThreadStatus(copy: EmailCopy, status: string) {

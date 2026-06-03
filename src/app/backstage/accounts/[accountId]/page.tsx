@@ -402,7 +402,7 @@ function isAccountTab(value: string | undefined): value is 'venues' | 'users' | 
 
 function getInviteStatus(invite: { accepted_at: string | null; revoked_at: string | null; expires_at: string }) {
   if (invite.accepted_at) return { label: 'Aceptada', className: 'status-pill-active' }
-  if (invite.revoked_at) return { label: 'Revocada', className: 'status-pill-danger' }
+  if (invite.revoked_at) return { label: 'Desactivada', className: 'status-pill-danger' }
   if (new Date(invite.expires_at).getTime() < Date.now()) return { label: 'Caducada', className: 'status-pill-muted' }
   return { label: 'Pendiente', className: 'status-pill-soon' }
 }

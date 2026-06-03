@@ -1,6 +1,7 @@
 'use client'
 
 import type { Dictionary } from '@/lib/i18n/dictionaries'
+import { PasswordInput } from '@/components/password-input'
 import Link from 'next/link'
 import { useState } from 'react'
 
@@ -39,7 +40,7 @@ export function SignupForm({ copy, redirectTo }: { copy: SignupCopy; redirectTo?
     }
 
     if (!response.ok) {
-      setError(result.error ?? copy.createError)
+      setError(getSignupError(copy, result.error))
       setLoading(false)
       return
     }
@@ -50,7 +51,7 @@ export function SignupForm({ copy, redirectTo }: { copy: SignupCopy; redirectTo?
     }
 
     setPendingEmail(email)
-    setMessage(result.message ?? copy.created)
+    setMessage(copy.created)
     setLoading(false)
   }
 
@@ -79,12 +80,12 @@ export function SignupForm({ copy, redirectTo }: { copy: SignupCopy; redirectTo?
     }
 
     if (!response.ok) {
-      setError(result.error ?? copy.resendError)
+      setError(getSignupError(copy, result.error))
       setResending(false)
       return
     }
 
-    setMessage(result.message ?? copy.resent)
+    setMessage(copy.resent)
     setResending(false)
   }
 
@@ -95,26 +96,39 @@ export function SignupForm({ copy, redirectTo }: { copy: SignupCopy; redirectTo?
         {copy.description}
       </p>
 
-      {error ? (
-        <p className="notice notice-error" style={{ marginBottom: 16 }}>
-          {error}
-        </p>
-      ) : null}
-
-      {message ? (
-        <div className="notice notice-success" style={{ marginBottom: 16 }}>
-          <p>{message}</p>
-          {pendingEmail ? (
+      {pendingEmail ? (
+        <div className="auth-confirmation-state">
+          <div className="notice notice-success">
+            <p>{message ?? copy.created}</p>
+          </div>
+          <div className="auth-confirmation-panel">
+            <p className="section-label">{copy.confirmationTitle}</p>
+            <h2>{pendingEmail}</h2>
+            <p className="muted">{copy.confirmationDescription}</p>
+            {error ? (
+              <p className="notice notice-error">
+                {error}
+              </p>
+            ) : null}
             <button
-              className="button-link"
+              className="button-secondary"
               type="button"
               onClick={handleResendConfirmation}
               disabled={resending}
             >
               {resending ? copy.resending : copy.resend}
             </button>
-          ) : null}
+          </div>
+          <p className="muted" style={{ marginTop: 16, fontSize: 13 }}>
+            {copy.haveAccount} <Link className="link-accent" href={loginHref}>{copy.login}</Link>
+          </p>
         </div>
+      ) : (
+        <>
+      {error ? (
+        <p className="notice notice-error" style={{ marginBottom: 16 }}>
+          {error}
+        </p>
       ) : null}
 
       <form className="form-grid" onSubmit={handleSubmit}>
@@ -131,13 +145,14 @@ export function SignupForm({ copy, redirectTo }: { copy: SignupCopy; redirectTo?
 
         <label className="field">
           {copy.password}
-          <input
-            type="password"
+          <PasswordInput
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-            minLength={8}
+            onChange={setPassword}
+            minLength={12}
+            autoComplete="new-password"
             placeholder={copy.passwordPlaceholder}
+            showLabel={copy.showPassword}
+            hideLabel={copy.hidePassword}
           />
         </label>
 
@@ -153,6 +168,17 @@ export function SignupForm({ copy, redirectTo }: { copy: SignupCopy; redirectTo?
       <p className="muted" style={{ marginTop: 16, fontSize: 13 }}>
         {copy.haveAccount} <Link className="link-accent" href={loginHref}>{copy.login}</Link>
       </p>
+        </>
+      )}
     </>
   )
+}
+
+function getSignupError(copy: SignupCopy, error?: string) {
+  if (error === 'too_many_attempts') return copy.tooManyAttempts
+  if (error === 'email_rate_limited') return copy.emailRateLimited
+  if (error === 'weak_password') return copy.passwordPolicy
+  if (error === 'invalid_email' || error === 'invalid_signup') return copy.invalidData
+  if (error === 'resend_failed') return copy.resendError
+  return copy.createError
 }

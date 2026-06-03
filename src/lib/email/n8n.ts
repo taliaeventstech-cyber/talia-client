@@ -98,13 +98,17 @@ function parseN8nEmailClassification(text: string): EmailAgentClassification {
     ? parsed.record.classification as Record<string, unknown>
     : parsed.record
   const shouldProcess = pickBoolean(classification, ['should_process', 'shouldProcess', 'actionable']) ?? true
-  const shouldReply = shouldProcess === false
+  const shouldGenerateDraft = shouldProcess === false
     ? false
-    : pickBoolean(classification, ['should_reply', 'shouldReply', 'reply_needed']) ?? false
+    : pickBoolean(classification, [
+      'should_generate_draft',
+      'shouldGenerateDraft',
+      'generate_draft',
+    ]) ?? false
 
   return {
     shouldProcess,
-    shouldReply,
+    shouldGenerateDraft,
     needsHumanReview: pickBoolean(classification, ['needs_human_review', 'needsHumanReview', 'requires_human']) ?? false,
     topic: pickString(classification, ['topic', 'category', 'intent']),
     priority: parsePriority(pickString(classification, ['priority'])),
@@ -125,12 +129,16 @@ function parseN8nEmailDraft(text: string): EmailAgentDraft {
   const bodyText = pickString(draft, ['body_text', 'bodyText', 'body', 'reply', 'answer', 'text'])
   const bodyHtml = pickString(draft, ['body_html', 'bodyHtml', 'html'])
   const shouldProcess = pickBoolean(draft, ['should_process', 'shouldProcess', 'actionable'])
-  const shouldReply = shouldProcess === false
+  const shouldGenerateDraft = shouldProcess === false
     ? false
-    : pickBoolean(draft, ['should_reply', 'shouldReply', 'reply_needed']) ?? Boolean(bodyText || bodyHtml)
+    : pickBoolean(draft, [
+      'should_generate_draft',
+      'shouldGenerateDraft',
+      'generate_draft',
+    ]) ?? Boolean(bodyText || bodyHtml)
 
   return {
-    shouldReply,
+    shouldGenerateDraft,
     subject: pickString(draft, ['subject', 'generated_subject', 'generatedSubject']),
     bodyText,
     bodyHtml,
@@ -152,14 +160,14 @@ function parseN8nObject(text: string): { raw: unknown; record: Record<string, un
     if (!value || typeof value !== 'object') return { raw: parsed, record: null }
     return { raw: parsed, record: value as Record<string, unknown> }
   } catch {
-    return { raw: text, record: { body_text: text, should_reply: true } }
+    return { raw: text, record: { body_text: text, should_generate_draft: true } }
   }
 }
 
 function emptyClassification(input: { raw: unknown }): EmailAgentClassification {
   return {
     shouldProcess: false,
-    shouldReply: false,
+    shouldGenerateDraft: false,
     needsHumanReview: false,
     topic: null,
     priority: 'normal',
@@ -172,7 +180,7 @@ function emptyClassification(input: { raw: unknown }): EmailAgentClassification 
 
 function emptyDraft(input: { raw: unknown }): EmailAgentDraft {
   return {
-    shouldReply: false,
+    shouldGenerateDraft: false,
     subject: null,
     bodyText: null,
     bodyHtml: null,

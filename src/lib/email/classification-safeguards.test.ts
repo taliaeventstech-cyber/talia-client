@@ -16,7 +16,7 @@ describe('email classification safeguards', () => {
       },
       agentClassification: {
         shouldProcess: true,
-        shouldReply: false,
+        shouldGenerateDraft: false,
         needsHumanReview: false,
         topic: 'otro',
         priority: 'low',
@@ -27,7 +27,7 @@ describe('email classification safeguards', () => {
     })
 
     expect(classification.shouldProcess).toBe(true)
-    expect(classification.shouldReply).toBe(true)
+    expect(classification.shouldGenerateDraft).toBe(true)
     expect(classification.needsHumanReview).toBe(true)
     expect(classification.priority).toBe('normal')
     expect(classification.classificationReason).toBe('partnership_request')
@@ -46,7 +46,7 @@ describe('email classification safeguards', () => {
       },
       agentClassification: {
         shouldProcess: false,
-        shouldReply: false,
+        shouldGenerateDraft: false,
         needsHumanReview: false,
         topic: 'otro',
         priority: 'normal',
@@ -57,7 +57,7 @@ describe('email classification safeguards', () => {
     })
 
     expect(classification.shouldProcess).toBe(false)
-    expect(classification.shouldReply).toBe(false)
+    expect(classification.shouldGenerateDraft).toBe(false)
     expect(classification.needsHumanReview).toBe(false)
   })
 })

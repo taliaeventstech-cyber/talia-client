@@ -27,7 +27,7 @@ export type EmailAgentInput = {
 
 export type EmailAgentClassification = {
   shouldProcess: boolean
-  shouldReply: boolean
+  shouldGenerateDraft: boolean
   needsHumanReview: boolean
   topic: string | null
   priority: EmailAgentPriority
@@ -38,7 +38,7 @@ export type EmailAgentClassification = {
 }
 
 export type EmailAgentDraft = {
-  shouldReply: boolean
+  shouldGenerateDraft: boolean
   subject: string | null
   bodyText: string | null
   bodyHtml: string | null

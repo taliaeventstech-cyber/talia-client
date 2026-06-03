@@ -69,7 +69,7 @@ export default async function BackstageClientInvitesPage({ params }: Props) {
 
 function getInviteStatus(invite: { accepted_at: string | null; revoked_at: string | null; expires_at: string }) {
   if (invite.accepted_at) return 'Aceptada'
-  if (invite.revoked_at) return 'Revocada'
+  if (invite.revoked_at) return 'Desactivada'
   if (new Date(invite.expires_at).getTime() < Date.now()) return 'Caducada'
   return 'Pendiente'
 }

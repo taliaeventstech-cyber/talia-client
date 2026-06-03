@@ -1,4 +1,5 @@
 import { AuthSplineBackground } from '@/components/auth-spline-background'
+import { AuthLanguageSelect } from '@/components/auth-language-select'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { LoginForm } from './login-form'
 
@@ -22,6 +23,7 @@ export default async function LoginPage({ searchParams }: Props) {
     <main className="auth-shell auth-marketing-shell">
       <AuthSplineBackground sceneUrl={process.env.NEXT_PUBLIC_AUTH_SPLINE_SCENE_URL} />
       <section className="auth-card">
+        <AuthLanguageSelect locale={locale} labels={dictionary.language} />
         <LoginForm copy={dictionary.auth.login} errorParam={errorParam} redirectTo={getInternalRedirect(next)} />
       </section>
     </main>

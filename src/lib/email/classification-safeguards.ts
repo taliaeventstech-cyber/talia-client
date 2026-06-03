@@ -19,7 +19,7 @@ export function applyEmailClassificationSafeguards(input: SafeguardInput): Email
   return {
     ...input.agentClassification,
     shouldProcess: true,
-    shouldReply: true,
+    shouldGenerateDraft: true,
     needsHumanReview: true,
     topic: input.agentClassification.topic ?? 'otro',
     priority: input.agentClassification.priority === 'low' ? 'normal' : input.agentClassification.priority,

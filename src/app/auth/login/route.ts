@@ -1,29 +1,32 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPostAuthRedirectPath } from '@/lib/auth/post-auth-redirect'
+import { checkRateLimit, getClientIp, getInternalRedirect, normalizeEmail } from '@/lib/auth/security'
 import { NextRequest, NextResponse } from 'next/server'
-
-function getInternalRedirect(value: unknown) {
-  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) return undefined
-  return value
-}
 
 export async function POST(request: NextRequest) {
   const { email, password, redirectTo: requestedRedirectTo } = await request.json()
 
   if (typeof email !== 'string' || typeof password !== 'string') {
-    return NextResponse.json({ error: 'Email o contraseña incorrectos' }, { status: 400 })
+    return NextResponse.json({ error: 'invalid_credentials' }, { status: 400 })
   }
 
+  const normalizedEmail = normalizeEmail(email)
+  const limited = checkRateLimit(request, [
+    { key: `auth-login:ip:${getClientIp(request)}`, limit: 20 },
+    { key: `auth-login:email:${normalizedEmail}`, limit: 8 },
+  ])
+  if (limited) return limited
+
   const supabase = await createClient()
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password })
 
   if (error || !data.user) {
     if (process.env.NODE_ENV !== 'production') {
       console.warn('[auth-login]', error?.message || 'No user returned from Supabase Auth')
     }
 
-    return NextResponse.json({ error: 'Email o contraseña incorrectos' }, { status: 401 })
+    return NextResponse.json({ error: 'invalid_credentials' }, { status: 401 })
   }
 
   const admin = createAdminClient()
