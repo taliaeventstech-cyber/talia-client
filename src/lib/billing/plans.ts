@@ -97,7 +97,7 @@ export const BILLING_ADDONS: BillingAddon[] = [
   {
     key: 'plus_2000_messages',
     title: '+2.000 mensajes',
-    priceMonthly: 9,
+    priceMonthly: 25,
     description: 'Amplía el límite mensual del chatbot.',
     billingMode: 'recurring',
     stripePriceEnv: 'STRIPE_PLUS_2000_MESSAGES_PRICE_ID',

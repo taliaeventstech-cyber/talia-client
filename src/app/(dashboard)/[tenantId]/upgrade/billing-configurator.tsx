@@ -135,21 +135,33 @@ export function BillingConfigurator({
       </div>
 
       <div className="pricing-addons">
-        {addons.map((addon) => (
-          <label key={addon.key} className="pricing-addon pricing-addon-selectable">
-            <div>
-              <strong>{addon.title}</strong>
-              <span>{addon.description}</span>
-            </div>
-            <b>{getAddonPriceLabel(addon, monthlyLabel, oneTimeLabel)}</b>
-            <input
-              checked={selectedAddonKeys.has(addon.key)}
-              disabled={addon.disabled}
-              type="checkbox"
-              onChange={() => toggleAddon(addon.key)}
-            />
-          </label>
-        ))}
+        {addons.map((addon) => {
+          const isSelected = selectedAddonKeys.has(addon.key)
+
+          return (
+            <label
+              key={addon.key}
+              className={[
+                'pricing-addon',
+                'pricing-addon-selectable',
+                isSelected ? 'pricing-addon-selected' : '',
+                addon.disabled ? 'pricing-addon-disabled' : '',
+              ].filter(Boolean).join(' ')}
+            >
+              <input
+                checked={isSelected}
+                disabled={addon.disabled}
+                type="checkbox"
+                onChange={() => toggleAddon(addon.key)}
+              />
+              <span className="pricing-addon-copy">
+                <strong>{addon.title}</strong>
+                <span>{addon.description}</span>
+              </span>
+              <b>{getAddonPriceLabel(addon, monthlyLabel, oneTimeLabel)}</b>
+            </label>
+          )
+        })}
       </div>
 
       <aside className="billing-summary-card">

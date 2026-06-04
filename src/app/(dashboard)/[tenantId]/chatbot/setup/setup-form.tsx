@@ -18,7 +18,9 @@ type InitialValues = {
   systemPrompt: string
 }
 
-type ChatbotSetupCopy = Dictionary['chatbotSetup']
+export type ChatbotSetupFormCopy = Omit<Dictionary['chatbotSetup'], 'title' | 'stepLabel'> & {
+  stepLabels: readonly [string, string, string]
+}
 
 const initialState: ChatbotSetupState = {
   ok: false,
@@ -30,7 +32,7 @@ export function ChatbotSetupForm({
   tenantId,
   initialValues,
 }: {
-  copy: ChatbotSetupCopy
+  copy: ChatbotSetupFormCopy
   tenantId: string
   initialValues: InitialValues
 }) {
@@ -156,7 +158,7 @@ export function ChatbotSetupForm({
   )
 }
 
-function StepHeader({ copy, activeStep }: { copy: ChatbotSetupCopy; activeStep: Step }) {
+function StepHeader({ copy, activeStep }: { copy: ChatbotSetupFormCopy; activeStep: Step }) {
   return (
     <div className="chatbot-setup-stepper" aria-label={copy.progressLabel}>
       {copy.steps.map((label, index) => {
@@ -180,7 +182,7 @@ function BasicStep({
   values,
   update,
 }: {
-  copy: ChatbotSetupCopy
+  copy: ChatbotSetupFormCopy
   values: InitialValues
   update: <K extends keyof InitialValues>(key: K, value: InitialValues[K]) => void
 }) {
@@ -188,7 +190,7 @@ function BasicStep({
   return (
     <div className="chatbot-setup-step">
      
-      <p className="section-label">{copy.stepLabel(1, 3)}</p>
+      <p className="section-label">{copy.stepLabels[0]}</p>
       <h2>{basic.title}</h2>
       <p className="muted">{basic.description}</p>
 
@@ -233,7 +235,7 @@ function KnowledgeStep({
   update,
   sourceUrlError,
 }: {
-  copy: ChatbotSetupCopy
+  copy: ChatbotSetupFormCopy
   values: InitialValues
   update: <K extends keyof InitialValues>(key: K, value: InitialValues[K]) => void
   sourceUrlError: string
@@ -242,7 +244,7 @@ function KnowledgeStep({
   return (
     <div className="chatbot-setup-step">
 
-      <p className="section-label">{copy.stepLabel(2, 3)}</p>
+      <p className="section-label">{copy.stepLabels[1]}</p>
       <h2>{knowledge.title}</h2>
       <p className="muted">{knowledge.description}</p>
 
@@ -286,7 +288,7 @@ function WidgetStep({
   values,
   update,
 }: {
-  copy: ChatbotSetupCopy
+  copy: ChatbotSetupFormCopy
   values: InitialValues
   update: <K extends keyof InitialValues>(key: K, value: InitialValues[K]) => void
 }) {
@@ -294,7 +296,7 @@ function WidgetStep({
   return (
     <div className="chatbot-setup-step">
       
-      <p className="section-label">{copy.stepLabel(3, 3)}</p>
+      <p className="section-label">{copy.stepLabels[2]}</p>
       <h2>{widget.title}</h2>
       <p className="muted">{widget.description}</p>
 
@@ -332,7 +334,7 @@ function WidgetStep({
   )
 }
 
-function ColorPicker({ copy, value, onChange }: { copy: ChatbotSetupCopy; value: string; onChange: (color: string) => void }) {
+function ColorPicker({ copy, value, onChange }: { copy: ChatbotSetupFormCopy; value: string; onChange: (color: string) => void }) {
   const [draft, setDraft] = useState(value)
 
   function commit(nextValue: string) {
@@ -409,7 +411,7 @@ function normalizeUrl(value: string) {
   return `https://${trimmed}`
 }
 
-function getUrlError(value: string, copy: ChatbotSetupCopy) {
+function getUrlError(value: string, copy: ChatbotSetupFormCopy) {
   const url = normalizeUrl(value)
   if (!url) return ''
 

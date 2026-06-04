@@ -14,6 +14,9 @@ function shouldUseRequestOrigin(requestOrigin: string, appUrl?: string) {
 
   const requestHost = getHost(requestOrigin)
   const configuredHost = getHost(appUrl)
+  if (!requestHost || !configuredHost) return true
+
+  if (isLocalHost(configuredHost) && !isLocalHost(requestHost)) return true
 
   return isLocalHost(requestHost) && isLocalHost(configuredHost) && requestHost !== configuredHost
 }

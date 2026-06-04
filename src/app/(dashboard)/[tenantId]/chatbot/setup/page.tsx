@@ -1,7 +1,7 @@
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { ChatbotSetupForm } from './setup-form'
+import { ChatbotSetupForm, type ChatbotSetupFormCopy } from './setup-form'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -27,6 +27,7 @@ export default async function ChatbotSetupPage({ params }: Props) {
 
   const dictionary = await getDictionary(await getLocale())
   const copy = dictionary.chatbotSetup
+  const formCopy = getFormCopy(copy)
   const widgetConfig = getWidgetConfig(theatre?.widget_config, copy.defaultInitialMessage)
   const scrapeUrls = Array.isArray(theatre?.scrape_urls)
     ? theatre.scrape_urls.filter((url): url is string => typeof url === 'string')
@@ -45,7 +46,7 @@ export default async function ChatbotSetupPage({ params }: Props) {
       </header>
 
       <ChatbotSetupForm
-        copy={copy}
+        copy={formCopy}
         tenantId={tenantId}
         initialValues={{
           initialMessage: widgetConfig.initialMessage,
@@ -58,6 +59,20 @@ export default async function ChatbotSetupPage({ params }: Props) {
       />
     </main>
   )
+}
+
+function getFormCopy(copy: Awaited<ReturnType<typeof getDictionary>>['chatbotSetup']): ChatbotSetupFormCopy {
+  const { title, stepLabel, ...serializableCopy } = copy
+  void title
+
+  return {
+    ...serializableCopy,
+    stepLabels: [
+      stepLabel(1, 3),
+      stepLabel(2, 3),
+      stepLabel(3, 3),
+    ],
+  }
 }
 
 function getWidgetConfig(value: unknown, defaultInitialMessage: string): WidgetConfig {

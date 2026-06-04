@@ -4480,18 +4480,22 @@ textarea {
 .pricing-addons {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border: 0.5px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-surface);
-  overflow: hidden;
+  gap: 14px;
 }
 
 .pricing-addon {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  padding: 18px 22px;
+  align-content: space-between;
+  gap: 18px;
+  min-height: 132px;
+  border: 0.5px solid color-mix(in srgb, var(--color-gold) 32%, var(--color-border));
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--color-gold) 9%, transparent), transparent 50%),
+    var(--color-surface);
+  padding: 18px;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease, background 160ms ease;
 }
 
 .pricing-addon-selectable {
@@ -4499,19 +4503,50 @@ textarea {
 }
 
 .pricing-addon input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--color-brand);
-  justify-self: end;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
-.pricing-addon + .pricing-addon {
-  border-left: 0.5px solid var(--color-border);
+.pricing-addon:hover {
+  border-color: color-mix(in srgb, var(--color-gold) 72%, var(--color-border));
+  box-shadow: 0 0 26px color-mix(in srgb, var(--color-gold) 14%, transparent);
+  transform: translateY(-1px);
 }
 
-.pricing-addon div {
+.pricing-addon:has(input:focus-visible) {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 3px;
+}
+
+.pricing-addon-selected {
+  border-color: var(--color-gold);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--color-gold) 18%, transparent), transparent 52%),
+    var(--color-surface);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-gold) 34%, transparent) inset,
+    0 0 32px color-mix(in srgb, var(--color-gold) 20%, transparent);
+}
+
+.pricing-addon-disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.pricing-addon-disabled:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+.pricing-addon-copy {
   display: grid;
-  gap: 3px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .pricing-addon strong {
@@ -4520,14 +4555,16 @@ textarea {
   text-transform: uppercase;
 }
 
-.pricing-addon span {
+.pricing-addon-copy > span {
   color: var(--color-text-tertiary);
   font-size: 12px;
 }
 
 .pricing-addon b {
+  align-self: end;
   color: var(--color-gold);
-  font-size: 22px;
+  font-size: 24px;
+  line-height: 1.05;
 }
 
 .pricing-addon-action {

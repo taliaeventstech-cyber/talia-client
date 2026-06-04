@@ -364,105 +364,106 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
         ) : null}
       </section>
 
-      <section className="card stack">
-        <div className="section-title-row">
-          <div>
-            <p className="eyebrow">{copy.drafts.eyebrow}</p>
-            <h2>{copy.drafts.title}</h2>
-          </div>
-        
-        </div>
-
-        {(latestDrafts ?? []).length ? (
-          <form className="email-draft-selection" action={deleteSelectedDraftsAction}>
-            <div className="email-thread-toolbar">
-              <div className="email-thread-toolbar-main">
-                <label className="bulk-select-row">
-                  <SelectAllCheckbox label={copy.drafts.selectAllDrafts} targetName="draft_ids" />
-                  {copy.drafts.selectAll}
-                </label>
-              </div>
-              <div className="email-thread-toolbar-aside">
-                <DraftDeleteChoiceButton
-                  label={copy.drafts.delete}
-                  labels={{
-                    cancel: copy.drafts.cancel,
-                    deleting: copy.drafts.deleting,
-                    deletingAgora: copy.drafts.deletingAgora,
-                    no: copy.drafts.no,
-                    question: copy.drafts.deleteInMailboxQuestion,
-                    yes: copy.drafts.yes,
-                  }}
-                  requireSelectionName="draft_ids"
-                />
-              </div>
-            </div>
-
-            <div className="email-draft-list">
-            {(latestDrafts ?? []).map((draft) => {
-              const thread = Array.isArray(draft.email_threads)
-                ? draft.email_threads[0]
-                : draft.email_threads
-
-              return (
-                <article className="email-draft-item" key={draft.id}>
-                  <div className="email-draft-row">
-                    <input
-                      aria-label={copy.drafts.selectDraft(draft.generated_subject ?? thread?.subject ?? copy.fallbackValues.noSubject)}
-                      className="email-draft-checkbox"
-                      name="draft_ids"
-                      type="checkbox"
-                      value={draft.id}
-                    />
-                    <details className="email-draft-details">
-                      <summary>
-                        <span className="email-draft-main">
-                          {draft.status === 'created_in_provider' ? null : (
-                            <span className={`status-pill ${getDraftStatusClass(draft.status)}`}>
-                              {formatDraftStatus(copy, draft.status)}
-                            </span>
-                          )}
-                          <span className="email-draft-title-block">
-                            <strong>{draft.generated_subject ?? thread?.subject ?? copy.fallbackValues.noSubject}</strong>
-                            <span className="muted">
-                              {thread?.sender_email ?? copy.drafts.unknownSender} · {formatTopic(copy, thread?.topic)}
-                            </span>
-                          </span>
-                        </span>
-                        <span className="email-draft-summary-aside">
-                          <span>{formatDateTime(draft.updated_at ?? draft.created_at)}</span>
-                          <span className="email-draft-toggle-text">
-                            <span className="email-draft-toggle-open">{copy.drafts.expand}</span>
-                            <span className="email-draft-toggle-close">{copy.drafts.collapse}</span>
-                          </span>
-                        </span>
-                      </summary>
-                      <div className="email-draft-body">
-                        <p className="eyebrow">{copy.drafts.bodyLabel}</p>
-                        <div className="email-draft-message">
-                          {draft.generated_body_text?.trim() || copy.drafts.emptyBody}
-                        </div>
-                      </div>
-                    </details>
-                    {draft.error_message ? (
-                      <span className="email-error-text email-draft-row-error">{draft.error_message}</span>
-                    ) : null}
-                  </div>
-                </article>
-              )
-            })}
-            </div>
-          </form>
-        ) : (
-          <div className="empty-state">
-            <PencilLine size={18} aria-hidden="true" />
+      {isConnected ? (
+        <section className="card stack">
+          <div className="section-title-row">
             <div>
-            <strong>{copy.drafts.emptyTitle}</strong>
-              <p className="muted">{copy.drafts.emptyDescription}</p>
+              <p className="eyebrow">{copy.drafts.eyebrow}</p>
+              <h2>{copy.drafts.title}</h2>
             </div>
           </div>
-        )}
-      </section>
+
+          {(latestDrafts ?? []).length ? (
+            <form className="email-draft-selection" action={deleteSelectedDraftsAction}>
+              <div className="email-thread-toolbar">
+                <div className="email-thread-toolbar-main">
+                  <label className="bulk-select-row">
+                    <SelectAllCheckbox label={copy.drafts.selectAllDrafts} targetName="draft_ids" />
+                    {copy.drafts.selectAll}
+                  </label>
+                </div>
+                <div className="email-thread-toolbar-aside">
+                  <DraftDeleteChoiceButton
+                    label={copy.drafts.delete}
+                    labels={{
+                      cancel: copy.drafts.cancel,
+                      deleting: copy.drafts.deleting,
+                      deletingAgora: copy.drafts.deletingAgora,
+                      no: copy.drafts.no,
+                      question: copy.drafts.deleteInMailboxQuestion,
+                      yes: copy.drafts.yes,
+                    }}
+                    requireSelectionName="draft_ids"
+                  />
+                </div>
+              </div>
+
+              <div className="email-draft-list">
+                {(latestDrafts ?? []).map((draft) => {
+                  const thread = Array.isArray(draft.email_threads)
+                    ? draft.email_threads[0]
+                    : draft.email_threads
+
+                  return (
+                    <article className="email-draft-item" key={draft.id}>
+                      <div className="email-draft-row">
+                        <input
+                          aria-label={copy.drafts.selectDraft(draft.generated_subject ?? thread?.subject ?? copy.fallbackValues.noSubject)}
+                          className="email-draft-checkbox"
+                          name="draft_ids"
+                          type="checkbox"
+                          value={draft.id}
+                        />
+                        <details className="email-draft-details">
+                          <summary>
+                            <span className="email-draft-main">
+                              {draft.status === 'created_in_provider' ? null : (
+                                <span className={`status-pill ${getDraftStatusClass(draft.status)}`}>
+                                  {formatDraftStatus(copy, draft.status)}
+                                </span>
+                              )}
+                              <span className="email-draft-title-block">
+                                <strong>{draft.generated_subject ?? thread?.subject ?? copy.fallbackValues.noSubject}</strong>
+                                <span className="muted">
+                                  {thread?.sender_email ?? copy.drafts.unknownSender} · {formatTopic(copy, thread?.topic)}
+                                </span>
+                              </span>
+                            </span>
+                            <span className="email-draft-summary-aside">
+                              <span>{formatDateTime(draft.updated_at ?? draft.created_at)}</span>
+                              <span className="email-draft-toggle-text">
+                                <span className="email-draft-toggle-open">{copy.drafts.expand}</span>
+                                <span className="email-draft-toggle-close">{copy.drafts.collapse}</span>
+                              </span>
+                            </span>
+                          </summary>
+                          <div className="email-draft-body">
+                            <p className="eyebrow">{copy.drafts.bodyLabel}</p>
+                            <div className="email-draft-message">
+                              {draft.generated_body_text?.trim() || copy.drafts.emptyBody}
+                            </div>
+                          </div>
+                        </details>
+                        {draft.error_message ? (
+                          <span className="email-error-text email-draft-row-error">{draft.error_message}</span>
+                        ) : null}
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            </form>
+          ) : (
+            <div className="empty-state">
+              <PencilLine size={18} aria-hidden="true" />
+              <div>
+                <strong>{copy.drafts.emptyTitle}</strong>
+                <p className="muted">{copy.drafts.emptyDescription}</p>
+              </div>
+            </div>
+          )}
+        </section>
+      ) : null}
     </main>
   )
 }
