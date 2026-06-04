@@ -29,7 +29,12 @@ const initialState: OnboardingFormState = {
   message: '',
 }
 
-type OnboardingCopy = Dictionary['onboarding']
+export type OnboardingFormCopy = Omit<Dictionary['onboarding'], 'stepLabel' | 'useCases'> & {
+  stepLabels: readonly [string, string, string]
+  useCases: Omit<Dictionary['onboarding']['useCases'], 'selectedCount'> & {
+    selectedCountLabels: Record<number, string>
+  }
+}
 
 const ENTITY_TYPES: EntityType[] = ['theatre', 'museum', 'cinema', 'auditorium', 'festival', 'cultural_center', 'other']
 
@@ -46,7 +51,7 @@ const USE_CASES = [
 
 const MAX_USE_CASES = 3
 
-export function OnboardingForm({ copy, email }: { copy: OnboardingCopy; email: string }) {
+export function OnboardingForm({ copy, email }: { copy: OnboardingFormCopy; email: string }) {
   const [state, action, pending] = useActionState(createTenant, initialState)
   const [workspaceStep, setWorkspaceStep] = useState<WorkspaceStep>(0)
   const [values, setValues] = useState<FormValues>({
@@ -174,7 +179,7 @@ export function OnboardingForm({ copy, email }: { copy: OnboardingCopy; email: s
   )
 }
 
-function StepHeader({ copy, activeStep }: { copy: OnboardingCopy; activeStep: number }) {
+function StepHeader({ copy, activeStep }: { copy: OnboardingFormCopy; activeStep: number }) {
   return (
     <div className="onboarding-stepper" aria-label={copy.progressLabel}>
       {copy.steps.map((label, index) => {
@@ -198,14 +203,14 @@ function WorkspaceAboutYou({
   values,
   update,
 }: {
-  copy: OnboardingCopy
+  copy: OnboardingFormCopy
   values: FormValues
   update: <K extends keyof FormValues>(key: K, value: FormValues[K]) => void
 }) {
   const about = copy.about
   return (
     <div className="onboarding-step-content">
-      <p className="section-label">{copy.stepLabel(1, 3)}</p>
+      <p className="section-label">{copy.stepLabels[0]}</p>
       <h2>{about.title}</h2>
       <p className="muted">{about.description}</p>
 
@@ -248,7 +253,7 @@ function WorkspaceCompany({
   email,
   websiteUrlError,
 }: {
-  copy: OnboardingCopy
+  copy: OnboardingFormCopy
   values: FormValues
   update: <K extends keyof FormValues>(key: K, value: FormValues[K]) => void
   email: string
@@ -257,7 +262,7 @@ function WorkspaceCompany({
   const company = copy.company
   return (
     <div className="onboarding-step-content">
-      <p className="section-label">{copy.stepLabel(2, 3)}</p>
+      <p className="section-label">{copy.stepLabels[1]}</p>
       <h2>{company.title}</h2>
       <p className="muted">{company.description}</p>
 
@@ -315,11 +320,11 @@ function WorkspaceCompany({
   )
 }
 
-function WorkspaceUseCases({ copy, goals, toggleGoal }: { copy: OnboardingCopy; goals: string[]; toggleGoal: (goal: string) => void }) {
+function WorkspaceUseCases({ copy, goals, toggleGoal }: { copy: OnboardingFormCopy; goals: string[]; toggleGoal: (goal: string) => void }) {
   const useCases = copy.useCases
   return (
     <div className="onboarding-step-content">
-      <p className="section-label">{copy.stepLabel(3, 3)}</p>
+      <p className="section-label">{copy.stepLabels[2]}</p>
       <h2>{useCases.title}</h2>
       <p className="muted">{useCases.description}</p>
 
@@ -345,7 +350,7 @@ function WorkspaceUseCases({ copy, goals, toggleGoal }: { copy: OnboardingCopy; 
           )
         })}
       </div>
-      <span className="field-hint">{useCases.selectedCount(goals.length, MAX_USE_CASES)}</span>
+      <span className="field-hint">{useCases.selectedCountLabels[goals.length]}</span>
     </div>
   )
 }
@@ -376,7 +381,7 @@ function isWorkspaceStepValid(step: WorkspaceStep, values: FormValues, websiteUr
   return values.goals.length > 0
 }
 
-function getWebsiteUrlError(value: string, copy: OnboardingCopy) {
+function getWebsiteUrlError(value: string, copy: OnboardingFormCopy) {
   const url = normalizeWebsiteUrl(value)
   if (!url) return ''
 
