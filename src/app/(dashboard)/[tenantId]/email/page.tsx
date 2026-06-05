@@ -765,6 +765,9 @@ function getThreadStatusClass(status: string) {
 
 function getThreadInsight(copy: EmailCopy, metadata: unknown) {
   const record = getRecord(metadata)
+  const processingError = getProcessingError(record)
+  if (processingError) return processingError
+
   const classification = getRecord(record.classification)
   const rawReason = typeof classification.agent_reason === 'string'
     ? classification.agent_reason
@@ -776,6 +779,27 @@ function getThreadInsight(copy: EmailCopy, metadata: unknown) {
 
   if (!rawReason) return copy.reasons.none
   return formatClassificationReason(copy, rawReason)
+}
+
+function getProcessingError(record: Record<string, unknown>) {
+  const processing = getRecord(record.email_processing)
+  const classifierError = typeof record.email_classifier_error === 'string'
+    ? record.email_classifier_error
+    : null
+  const agentError = typeof record.email_agent_error === 'string'
+    ? record.email_agent_error
+    : null
+  const lastError = typeof processing.last_error === 'string'
+    ? processing.last_error
+    : null
+  const phase = typeof processing.phase === 'string'
+    ? processing.phase
+    : null
+
+  const error = classifierError ?? agentError ?? lastError
+  if (!error) return null
+
+  return phase ? `${phase}: ${error}` : error
 }
 
 function formatClassificationReason(copy: EmailCopy, reason: string) {

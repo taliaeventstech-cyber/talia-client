@@ -56,7 +56,8 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
         id,
         subject,
         sender_email,
-        sender_name
+        sender_name,
+        metadata
       )
     `)
     .eq('theatre_id', input.tenantId)
@@ -87,6 +88,7 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
   const thread = Array.isArray(message.email_threads)
     ? message.email_threads[0]
     : message.email_threads
+  const currentThreadMetadata = getJsonRecord((thread as { metadata?: Json | null } | null)?.metadata)
   const rulesClassification = classifyEmailMessage({
     subject: thread?.subject ?? null,
     senderEmail: message.from_email ?? thread?.sender_email ?? null,
@@ -146,21 +148,43 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
   }
 
   const classifierProvider = getEmailClassifierProvider(connection.metadata)
-  if (!classifierProvider.ok) return classifierProvider
+  if (!classifierProvider.ok) {
+    await markEmailThreadProcessingError(admin, {
+      threadId: message.thread_id,
+      metadata: currentThreadMetadata,
+      status: 'escalated',
+      phase: 'classifier_config',
+      errorKey: 'email_classifier_error',
+      error: classifierProvider.error,
+      classification: rulesClassification,
+    })
+
+    return classifierProvider
+  }
+
+  await markEmailThreadProcessingStage(admin, {
+    threadId: message.thread_id,
+    metadata: currentThreadMetadata,
+    phase: 'classifier_requested',
+    provider: 'n8n',
+    webhookUrl: classifierProvider.webhookUrl,
+    classification: rulesClassification,
+  })
 
   const classificationResult = await classifierProvider.provider.classify(agentInput)
   if (!classificationResult.ok) {
-    await admin
-      .from('email_threads')
-      .update({
-        status: 'escalated',
-        metadata: {
-          email_classifier_error: classificationResult.error,
-          email_classifier_details: classificationResult.details ?? null,
-          classification: rulesClassification,
-        } satisfies Json,
-      })
-      .eq('id', message.thread_id)
+    await markEmailThreadProcessingError(admin, {
+      threadId: message.thread_id,
+      metadata: currentThreadMetadata,
+      status: 'escalated',
+      phase: 'classifier_failed',
+      provider: 'n8n',
+      webhookUrl: classifierProvider.webhookUrl,
+      errorKey: 'email_classifier_error',
+      error: classificationResult.error,
+      details: classificationResult.details,
+      classification: rulesClassification,
+    })
 
     return classificationResult
   }
@@ -193,7 +217,28 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
   }
 
   const drafterProvider = getEmailDrafterProvider(connection.metadata)
-  if (!drafterProvider.ok) return drafterProvider
+  if (!drafterProvider.ok) {
+    await markEmailThreadProcessingError(admin, {
+      threadId: message.thread_id,
+      metadata: currentThreadMetadata,
+      status: 'escalated',
+      phase: 'drafter_config',
+      errorKey: 'email_agent_error',
+      error: drafterProvider.error,
+      classification: buildThreadClassificationRecord(combinedClassification),
+    })
+
+    return drafterProvider
+  }
+
+  await markEmailThreadProcessingStage(admin, {
+    threadId: message.thread_id,
+    metadata: currentThreadMetadata,
+    phase: 'drafter_requested',
+    provider: 'n8n',
+    webhookUrl: drafterProvider.webhookUrl,
+    classification: buildThreadClassificationRecord(combinedClassification),
+  })
 
   const result = await drafterProvider.provider.generateDraft({
     ...agentInput,
@@ -201,17 +246,18 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
   })
 
   if (!result.ok) {
-    await admin
-      .from('email_threads')
-      .update({
-        status: 'escalated',
-        metadata: {
-          email_agent_error: result.error,
-          email_agent_details: result.details ?? null,
-          classification: buildThreadClassificationRecord(combinedClassification),
-        },
-      })
-      .eq('id', message.thread_id)
+    await markEmailThreadProcessingError(admin, {
+      threadId: message.thread_id,
+      metadata: currentThreadMetadata,
+      status: 'escalated',
+      phase: 'drafter_failed',
+      provider: 'n8n',
+      webhookUrl: drafterProvider.webhookUrl,
+      errorKey: 'email_agent_error',
+      error: result.error,
+      details: result.details,
+      classification: buildThreadClassificationRecord(combinedClassification),
+    })
 
     return result
   }
@@ -479,6 +525,7 @@ function getEmailClassifierProvider(metadata: Json) {
   return {
     ok: true as const,
     provider: new N8nEmailClassifierProvider(webhookUrl) satisfies EmailAgentClassifierProvider,
+    webhookUrl,
   }
 }
 
@@ -512,7 +559,101 @@ function getEmailDrafterProvider(metadata: Json) {
   return {
     ok: true as const,
     provider: new N8nEmailDrafterProvider(webhookUrl) satisfies EmailAgentDrafterProvider,
+    webhookUrl,
   }
+}
+
+async function markEmailThreadProcessingStage(
+  admin: AdminClient,
+  input: {
+    threadId: string
+    metadata: Record<string, Json | undefined>
+    phase: string
+    provider?: string
+    webhookUrl?: string
+    classification?: Json
+  },
+) {
+  await admin
+    .from('email_threads')
+    .update({
+      metadata: buildProcessingMetadata(input.metadata, {
+        phase: input.phase,
+        provider: input.provider,
+        webhook_url: sanitizeWebhookUrl(input.webhookUrl),
+        last_error: null,
+      }, input.classification),
+    })
+    .eq('id', input.threadId)
+}
+
+async function markEmailThreadProcessingError(
+  admin: AdminClient,
+  input: {
+    threadId: string
+    metadata: Record<string, Json | undefined>
+    status: 'escalated'
+    phase: string
+    errorKey: 'email_classifier_error' | 'email_agent_error'
+    error: string
+    details?: string
+    provider?: string
+    webhookUrl?: string
+    classification?: Json
+  },
+) {
+  await admin
+    .from('email_threads')
+    .update({
+      status: input.status,
+      metadata: buildProcessingMetadata(input.metadata, {
+        phase: input.phase,
+        provider: input.provider,
+        webhook_url: sanitizeWebhookUrl(input.webhookUrl),
+        last_error: input.error,
+        last_error_details: truncateDetails(input.details),
+      }, input.classification, {
+        [input.errorKey]: input.error,
+        [`${input.errorKey.replace('_error', '_details')}`]: truncateDetails(input.details),
+      }),
+    })
+    .eq('id', input.threadId)
+}
+
+function buildProcessingMetadata(
+  currentMetadata: Record<string, Json | undefined>,
+  processing: Record<string, Json | undefined>,
+  classification?: Json,
+  extra?: Record<string, Json | undefined>,
+) {
+  const previousProcessing = getJsonRecord(currentMetadata.email_processing)
+
+  return {
+    ...currentMetadata,
+    ...extra,
+    classification: classification ?? currentMetadata.classification ?? null,
+    email_processing: {
+      ...previousProcessing,
+      ...processing,
+      updated_at: new Date().toISOString(),
+    },
+  } satisfies Json
+}
+
+function sanitizeWebhookUrl(value?: string) {
+  if (!value) return null
+
+  try {
+    const url = new URL(value)
+    return `${url.origin}${url.pathname}`
+  } catch {
+    return 'invalid-webhook-url'
+  }
+}
+
+function truncateDetails(value?: string) {
+  if (!value) return null
+  return value.length > 800 ? `${value.slice(0, 800)}...` : value
 }
 
 function buildReplySubject(subject: string | null) {
@@ -605,7 +746,7 @@ function buildThreadClassificationRecord(classification: CombinedEmailClassifica
   } satisfies Json
 }
 
-function getJsonRecord(value: Json) {
+function getJsonRecord(value: Json | undefined | null) {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, Json | undefined>
     : {}
