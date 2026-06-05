@@ -121,11 +121,11 @@ function getUrlError(value: string) {
       return 'La web debe empezar por https:// o http://'
     }
     if (!parsed.hostname.includes('.')) {
-      return 'Introduce un dominio válido, por ejemplo https://www.tnc.cat'
+      return 'Introduce un dominio válido, por ejemplo https://www.example.org'
     }
     return ''
   } catch {
-    return 'Introduce una URL válida, por ejemplo https://www.tnc.cat'
+    return 'Introduce una URL válida, por ejemplo https://www.example.org'
   }
 }
 

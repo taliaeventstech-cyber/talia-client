@@ -38,7 +38,7 @@ Ejemplo inicial:
 | Professional | 4.000 conversaciones/mes | 500-1.500 conversaciones/mes | 60-120 minutos |
 | Enterprise | 12.000 conversaciones/mes | 2.000+ conversaciones/mes | 120+ minutos |
 
-## Propuesta Estimada TNC
+## Propuesta Estimada Para Cliente Institucional
 
 Esta propuesta es preliminar. Sirve para presentar un rango profesional y defendible antes de tener datos reales de uso. No debe comunicarse como pricing validado hasta medir volumen, coste de proveedores y carga operativa durante una prueba real.
 
@@ -102,7 +102,7 @@ Para poder clasificar bien:
 
 Incluye:
 
-- Chatbot web para la web del TNC.
+- Chatbot web para la web del cliente.
 - Agente de email en modo borradores supervisados.
 - Agente de voz con número TALIA o desvío desde número del cliente.
 - Base de conocimiento inicial.
@@ -134,7 +134,7 @@ Esta estructura es más fácil de explicar comercialmente:
 
 ### Setup Inicial
 
-Recomendación para TNC:
+Recomendación para cliente institucional:
 
 | Concepto | Precio estimado |
 | --- | ---: |
@@ -168,9 +168,9 @@ Los límites no deberían cortar el servicio de golpe en una demo o primer contr
 - Al 120%: aplicar overage o pasar a fallback según contrato.
 - No bloquear chatbot ni voz en eventos críticos sin aviso previo.
 
-### Recomendación para TNC
+### Recomendación para Cliente Institucional
 
-Para TNC, tras una demo inicial, la recomendación inicial sería clasificarlo probablemente entre **Plata** y **Oro**, pendiente de volumen real.
+Para un cliente institucional, tras una demo inicial, la recomendación inicial sería clasificarlo probablemente entre **Plata** y **Oro**, pendiente de volumen real.
 
 Si quieren empezar de forma sólida pero controlada, la propuesta más defendible es **Plata / Professional**:
 
@@ -186,7 +186,7 @@ Si desde el principio quieren cubrir teléfono, la propuesta debería subir a **
 - Add-on voz: 199-349 €/mes según minutos incluidos.
 - Minutos extra según overage.
 
-Motivo: TNC es una institución con volumen, programación recurrente, preguntas de accesibilidad, ticketing, horarios y atención multicanal. Bronce se queda corto para una propuesta seria; Oro tiene sentido si confirman volumen de llamadas o quieren atención multicanal desde el día uno.
+Motivo: un cliente institucional puede tener volumen alto, programación recurrente, preguntas de accesibilidad, ticketing, horarios y atención multicanal. Bronce se queda corto para una propuesta seria; Oro tiene sentido si confirman volumen de llamadas o quieren atención multicanal desde el día uno.
 
 ## Coste Real vs Coste Estimado
 

@@ -1,6 +1,8 @@
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { LanguageToggle } from '@/components/language-toggle'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { ChatbotSetupForm, type ChatbotSetupFormCopy } from './setup-form'
 
 interface Props {
@@ -25,16 +27,18 @@ export default async function ChatbotSetupPage({ params }: Props) {
     .eq('id', tenantId)
     .single()
 
-  const dictionary = await getDictionary(await getLocale())
+  const locale = await getLocale()
+  const dictionary = await getDictionary(locale)
   const copy = dictionary.chatbotSetup
   const formCopy = getFormCopy(copy)
   const widgetConfig = getWidgetConfig(theatre?.widget_config, copy.defaultInitialMessage)
   const scrapeUrls = Array.isArray(theatre?.scrape_urls)
     ? theatre.scrape_urls.filter((url): url is string => typeof url === 'string')
     : []
+  const isOnboardingFlow = !access.chatbotSetupCompleted
 
   return (
-    <main className={access.chatbotSetupCompleted ? 'page-shell chatbot-setup-shell' : 'page-shell chatbot-setup-shell chatbot-onboarding-shell'}>
+    <main className={isOnboardingFlow ? 'page-shell chatbot-setup-shell chatbot-onboarding-shell' : 'page-shell chatbot-setup-shell'}>
       <header className="page-header">
         <div>
           <p className="eyebrow">{copy.eyebrow}</p>
@@ -43,6 +47,20 @@ export default async function ChatbotSetupPage({ params }: Props) {
             {copy.description}
           </p>
         </div>
+        {isOnboardingFlow ? (
+          <div className="onboarding-header-controls" aria-label={dictionary.language.label}>
+            <LanguageToggle
+              locale={locale}
+              labels={{
+                label: dictionary.language.label,
+                es: dictionary.language.es,
+                ca: dictionary.language.ca,
+                en: dictionary.language.en,
+              }}
+            />
+            <ThemeToggle />
+          </div>
+        ) : null}
       </header>
 
       <ChatbotSetupForm

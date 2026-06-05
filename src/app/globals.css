@@ -387,6 +387,7 @@ textarea {
 }
 
 .onboarding-shell {
+  position: relative;
   place-items: stretch;
   padding: 0;
   background:
@@ -407,6 +408,30 @@ textarea {
   border: 0;
   border-radius: 0;
   padding: 0;
+}
+
+.onboarding-global-controls,
+.onboarding-header-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface) 76%, transparent);
+  box-shadow: 0 16px 40px color-mix(in srgb, #000000 22%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.onboarding-global-controls {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 30;
+}
+
+.onboarding-header-controls {
+  flex: 0 0 auto;
 }
 
 .onboarding-flow {

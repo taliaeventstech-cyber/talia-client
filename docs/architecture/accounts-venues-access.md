@@ -47,7 +47,7 @@ Cliente contractual.
 Ejemplo:
 
 - Layers of Reality.
-- Teatre Nacional de Catalunya.
+- Cliente institucional de ejemplo.
 - Culturactiva.
 
 ### `theatres` / venues

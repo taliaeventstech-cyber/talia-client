@@ -2,6 +2,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getPostAuthRedirectPath } from '@/lib/auth/post-auth-redirect'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
+import { LanguageToggle } from '@/components/language-toggle'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { redirect } from 'next/navigation'
 import { OnboardingForm, type OnboardingFormCopy } from './onboarding-form'
 
@@ -14,11 +16,24 @@ export default async function OnboardingPage() {
   const admin = createAdminClient()
   const postAuthRedirectPath = await getPostAuthRedirectPath(admin, user.id)
   if (postAuthRedirectPath !== '/onboarding') redirect(postAuthRedirectPath)
-  const dictionary = await getDictionary(await getLocale())
+  const locale = await getLocale()
+  const dictionary = await getDictionary(locale)
   const formCopy = getFormCopy(dictionary.onboarding)
 
   return (
     <main className="auth-shell onboarding-shell">
+      <div className="onboarding-global-controls" aria-label={dictionary.language.label}>
+        <LanguageToggle
+          locale={locale}
+          labels={{
+            label: dictionary.language.label,
+            es: dictionary.language.es,
+            ca: dictionary.language.ca,
+            en: dictionary.language.en,
+          }}
+        />
+        <ThemeToggle />
+      </div>
       <section className="auth-card onboarding-card">
         <OnboardingForm copy={formCopy} email={user.email ?? ''} />
       </section>

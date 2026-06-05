@@ -11,8 +11,8 @@ Estado: activo.
 Canales:
 
 - Chatbot web.
-- Agente de voz.
 - Agente de email.
+- Agente de voz, pausado hasta reactivacion.
 - WhatsApp e Instagram más adelante.
 
 Objetivo:
@@ -85,9 +85,9 @@ Incluye:
 
 ## Prioridades Actuales
 
-1. Cerrar flujo `account -> venues -> invites -> dashboards`.
-2. Consolidar permisos por rol y módulo.
-3. Completar agente de voz en operación real.
-4. Definir requirements e MVP del agente de email.
-5. Mejorar overview y reporting.
-6. Preparar documentación para Notion.
+1. Consolidar onboarding self-serve y configuracion inicial del chatbot.
+2. Estabilizar agente de email Gmail en modo borradores supervisados.
+3. Completar verificacion OAuth de Google.
+4. Consolidar permisos por rol, account y venue.
+5. Mejorar overview, reporting y trazabilidad de uso.
+6. Mantener `docs/current-state.md` como fuente viva para onboarding de equipo.
