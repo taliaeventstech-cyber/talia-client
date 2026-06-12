@@ -66,6 +66,7 @@ export default async function ChatbotSetupPage({ params }: Props) {
       <ChatbotSetupForm
         copy={formCopy}
         tenantId={tenantId}
+        skipHref={isOnboardingFlow ? `/${tenantId}/overview` : null}
         initialValues={{
           initialMessage: widgetConfig.initialMessage,
           primaryColor: widgetConfig.primaryColor,

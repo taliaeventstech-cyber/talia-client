@@ -1,6 +1,6 @@
 # Estado Actual de TALIA
 
-Ultima actualizacion: 5 junio 2026
+Ultima actualizacion: 12 junio 2026
 
 Este documento es la fuente rapida para entender en que punto esta la app antes de tocar codigo. Para decisiones mas profundas, ir a los documentos enlazados al final.
 
@@ -117,6 +117,30 @@ Pendiente:
 Referencia:
 
 - `docs/requirements/chatbot.md`.
+
+### Accesibilidad / Clear View
+
+Estado: MVP tecnico funcional, en endurecimiento de producto.
+
+Implementado:
+
+- Widget independiente en `public/accessibility-widget.js`.
+- Activacion por tenant desde la seccion Accesibilidad del Agora.
+- Controles visuales: tamano de texto, contraste, escala de grises, enlaces resaltados, pausa de animaciones, espaciado, fuente legible y reset.
+- Clear View como lectura simplificada de la pagina publica.
+- Clear View usa IA cuando hay proveedor configurado y fallback local cuando no.
+- Endpoint publico con validacion de tenant, activacion explicita, limite de payload y rate limit basico por IP/tenant.
+- Sanitizado para que la IA no pueda inventar enlaces nuevos.
+
+Pendiente:
+
+- QA visual en `public/olympia.html` y webs reales.
+- Definir pricing/add-on y limites comerciales de uso IA.
+- Reporting de uso si se convierte en producto de pago independiente.
+
+Referencia:
+
+- `docs/product/accessibility-widget.md`.
 
 ### Conocimiento
 

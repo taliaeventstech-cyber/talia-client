@@ -1,5 +1,6 @@
 'use client'
 
+import type { SVGProps } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Bot, Database, Inbox, LayoutDashboard, Mail, MessageCircle, MessageSquare, Network, SlidersHorizontal, Megaphone, Zap } from 'lucide-react'
@@ -10,11 +11,37 @@ import {
   type TenantRole,
 } from '@/lib/auth/permissions'
 
+function WebAccessibilityIcon({
+  size = 14,
+  strokeWidth = 2,
+  ...props
+}: SVGProps<SVGSVGElement> & { size?: number | string; strokeWidth?: number | string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <circle cx="12" cy="7.5" r="1.2" fill="currentColor" stroke="none" />
+      <path d="M7.5 10.5h9" />
+      <path d="M12 10.5v4" />
+      <path d="m9 19 3-4.5 3 4.5" />
+    </svg>
+  )
+}
+
 type DashboardNavLabels = {
   main: string
   overview: string
   attention: string
   webChatbot: string
+  accessibility: string
   emailAgent: string
   inbox: string
   whatsapp: string
@@ -67,9 +94,10 @@ export function DashboardNav({
   const canManageKnowledge = hasTenantPermission(role, 'manage_knowledge')
   const canManageEmail = hasTenantPermission(role, 'manage_email')
   const showChatbot = hasProductAccess && chatbotEnabled && (canManageChatbot || canViewConversations || (dataEnabled && canViewAnalytics))
+  const showAccessibility = hasProductAccess && chatbotEnabled && canManageChatbot
   const showKnowledge = hasProductAccess && dataEnabled && canManageKnowledge
   const showEmail = hasProductAccess && emailEnabled && canManageEmail
-  const showAttention = showChatbot || showEmail || (hasProductAccess && whatsappEnabled)
+  const showAttention = showChatbot || showAccessibility || showEmail || (hasProductAccess && whatsappEnabled)
   const showMarketing = hasProductAccess && marketingEnabled
   const trialProgress = trialDaysRemaining === null
     ? 0
@@ -130,6 +158,29 @@ export function DashboardNav({
                     {labels.settings}
                   </Link>
                 ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {showAccessibility ? (
+            <div className="nav-channel">
+              <div className="nav-channel-title">
+                <span className="nav-channel-title-main">
+                  <WebAccessibilityIcon size={16} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
+                  <span>{labels.accessibility}</span>
+                </span>
+                <span className="nav-channel-status">
+                  {labels.active}
+                </span>
+              </div>
+              <div className="nav-subnav">
+                <Link
+                  className={`nav-link nav-link-nested ${active(`/${tenantId}/accessibility`) ? 'nav-link-active' : ''}`}
+                  href={`/${tenantId}/accessibility/settings`}
+                >
+                  <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
+                  {labels.settings}
+                </Link>
               </div>
             </div>
           ) : null}

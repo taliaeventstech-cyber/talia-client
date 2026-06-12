@@ -30,12 +30,13 @@
     var assistantName = config.assistantName || script.getAttribute('data-name') || 'TALIA';
     var initialMessage = config.initialMessage || script.getAttribute('data-initial-message') || 'Hola, soc TALIA. En què et puc ajudar?';
     var primaryColor = config.primaryColor || script.getAttribute('data-color') || '#000000';
+    var position = getPosition(config.position || script.getAttribute('data-position') || 'bottom-right');
     var host = document.createElement('div');
     host.id = 'talia-widget-root';
     document.body.appendChild(host);
 
     var root = host.attachShadow({ mode: 'open' });
-    root.innerHTML = getTemplate(assistantName, initialMessage, primaryColor);
+    root.innerHTML = getTemplate(assistantName, initialMessage, primaryColor, position);
 
     var panel = root.querySelector('[data-panel]');
     var toggle = root.querySelector('[data-toggle]');
@@ -125,15 +126,21 @@
     if (typing) typing.remove();
   }
 
-  function getTemplate(assistantName, initialMessage, primaryColor) {
+  function getTemplate(assistantName, initialMessage, primaryColor, position) {
+    var togglePosition = getTogglePositionCss(position);
+    var panelPosition = getPanelPositionCss(position);
+    var transformOrigin = position.indexOf('left') >= 0
+      ? (position.indexOf('top') >= 0 ? 'top left' : 'bottom left')
+      : (position.indexOf('top') >= 0 ? 'top right' : 'bottom right');
+
     return '\
       <style>\
         :host { all: initial; font-family: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }\
-        .toggle { position: fixed; right: 20px; bottom: 20px; z-index: 2147483647; width: 56px; height: 56px; border: 0; border-radius: 999px; background: ' + primaryColor + '; color: white; cursor: pointer; display: grid; place-items: center; box-shadow: 0 4px 16px rgba(0,0,0,.18); transition: transform 150ms ease, box-shadow 150ms ease; }\
+        .toggle { position: fixed; ' + togglePosition + ' z-index: 2147483647; width: 56px; height: 56px; border: 0; border-radius: 999px; background: ' + primaryColor + '; color: white; cursor: pointer; display: grid; place-items: center; box-shadow: 0 4px 16px rgba(0,0,0,.18); transition: transform 150ms ease, box-shadow 150ms ease; }\
         .toggle:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,.22); }\
         .toggle:active { transform: scale(0.94); }\
         .toggle svg { width: 28px; height: 28px; display: block; }\
-        .panel { position: fixed; right: 20px; bottom: 88px; z-index: 2147483647; width: min(360px, calc(100vw - 40px)); height: 520px; max-height: calc(100vh - 120px); background: white; color: #1A1A2E; border: .5px solid rgba(26,26,46,.12); border-radius: 12px; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; opacity: 0; transform: translateY(14px) scale(0.97); transform-origin: bottom right; pointer-events: none; transition: opacity 280ms cubic-bezier(0.16,1,0.3,1), transform 280ms cubic-bezier(0.16,1,0.3,1), box-shadow 280ms cubic-bezier(0.16,1,0.3,1); box-shadow: 0 0 0 rgba(0,0,0,0); }\
+        .panel { position: fixed; ' + panelPosition + ' z-index: 2147483647; width: min(360px, calc(100vw - 40px)); height: 520px; max-height: calc(100vh - 120px); background: white; color: #1A1A2E; border: .5px solid rgba(26,26,46,.12); border-radius: 12px; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; opacity: 0; transform: translateY(14px) scale(0.97); transform-origin: ' + transformOrigin + '; pointer-events: none; transition: opacity 280ms cubic-bezier(0.16,1,0.3,1), transform 280ms cubic-bezier(0.16,1,0.3,1), box-shadow 280ms cubic-bezier(0.16,1,0.3,1); box-shadow: 0 0 0 rgba(0,0,0,0); }\
         .panel--open { opacity: 1 !important; transform: translateY(0) scale(1) !important; pointer-events: auto !important; box-shadow: 0 12px 40px rgba(0,0,0,.16) !important; }\
         .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: ' + primaryColor + '; color: white; font: 500 16px "Space Grotesk", system-ui; }\
         .close { border: 0; background: transparent; color: white; font-size: 22px; cursor: pointer; line-height: 1; }\
@@ -162,5 +169,25 @@
     return String(value).replace(/[&<>"']/g, function (char) {
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char];
     });
+  }
+
+  function getPosition(value) {
+    return value === 'bottom-left' || value === 'top-right' || value === 'top-left'
+      ? value
+      : 'bottom-right';
+  }
+
+  function getTogglePositionCss(position) {
+    if (position === 'bottom-left') return 'left: 20px; bottom: 20px;';
+    if (position === 'top-right') return 'right: 20px; top: 20px;';
+    if (position === 'top-left') return 'left: 20px; top: 20px;';
+    return 'right: 20px; bottom: 20px;';
+  }
+
+  function getPanelPositionCss(position) {
+    if (position === 'bottom-left') return 'left: 20px; bottom: 88px;';
+    if (position === 'top-right') return 'right: 20px; top: 88px;';
+    if (position === 'top-left') return 'left: 20px; top: 88px;';
+    return 'right: 20px; bottom: 88px;';
   }
 })();

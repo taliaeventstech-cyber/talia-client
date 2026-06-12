@@ -45,8 +45,27 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
     assistantName: 'TALIA',
     initialMessage: input.chatbotInitialMessage || getInitialMessage(input.primaryLanguage, input.entityType),
     primaryColor: input.primaryColor || '#00e5c8',
+    position: 'bottom-right',
     tone: input.chatbotTone || 'close',
     fallbackBehavior: input.fallbackBehavior || 'contact',
+    accessibility: {
+      enabled: false,
+      position: 'bottom-right',
+      language: 'auto',
+      primaryColor: input.primaryColor || '#00e5c8',
+      showBranding: true,
+      controls: {
+        textSize: true,
+        contrast: true,
+        grayscale: true,
+        highlightLinks: true,
+        pauseAnimations: true,
+        lineSpacing: true,
+        readableFont: true,
+        lowStimulation: true,
+        focusReading: true,
+      },
+    },
   } satisfies Json
   const trialMetadata = {
     ...createTrialMetadata(now),

@@ -110,7 +110,7 @@ We use personal data to:
 11. Comply with legal obligations.
 12. Improve the service, subject to contractual and legal limits.
 
-TALIA does not automatically send emails with the current Gmail permissions. Drafts created by TALIA must be reviewed and sent by the user from their own email account.
+TALIA does not automatically send emails through the current Gmail or Microsoft Outlook / Microsoft 365 integrations. Drafts created by TALIA must be reviewed and sent by the user from their own email account.
 
 ## 5. Legal bases for processing
 
@@ -175,20 +175,68 @@ TALIA does not use Google Workspace API data to train, improve, or build general
 
 Reference: https://developers.google.com/gmail/api/policy
 
-## 7. How we protect Google OAuth tokens
+## 7. Microsoft Outlook / Microsoft 365 data
 
-OAuth tokens used to connect Gmail are stored in encrypted form. Access to those tokens is restricted to the systems and authorized personnel necessary to provide, maintain, secure, and support the service.
+TALIA uses Microsoft Graph APIs only when a user explicitly connects a Microsoft account through the OAuth consent flow.
+
+TALIA currently requests the following Microsoft delegated permissions:
+
+- `openid`
+- `email`
+- `profile`
+- `offline_access`
+- `User.Read`
+- `Mail.ReadWrite`
+
+We use these permissions only to provide the email agent functionality:
+
+- to identify the connected Microsoft user and mailbox;
+- to read authorized Outlook / Microsoft 365 messages;
+- to classify incoming requests;
+- to prepare suggested replies;
+- to create draft replies in Outlook / Microsoft 365 for human review.
+
+TALIA does not use Microsoft user data for advertising. TALIA does not sell Microsoft user data. TALIA does not use Microsoft user data to build advertising profiles. TALIA does not automatically send emails through the current Microsoft integration. The user remains responsible for reviewing and sending any draft created in Outlook / Microsoft 365.
+
+### 7.1 Limited human access to Microsoft user data
+
+TALIA personnel do not access Microsoft user data except in limited circumstances, such as:
+
+- when the customer or user gives explicit instruction for support or troubleshooting;
+- when access is necessary to investigate security, abuse, or service integrity issues;
+- when required to comply with applicable law;
+- when access is necessary for internal operations and only to the minimum extent required.
+
+Where possible, support and operational review should use metadata, logs, redacted content, or customer-provided examples instead of raw mailbox content.
+
+### 7.2 Transfers of Microsoft user data
+
+TALIA may transfer Microsoft user data only where necessary to provide or maintain the user-facing email-agent feature, comply with law, protect security, or act on the user's or customer's instructions.
+
+Such transfers may include processing by infrastructure, database, automation, and AI providers listed in the subprocessor section of this Privacy Policy, subject to contractual, technical, and organizational safeguards.
+
+TALIA does not transfer Microsoft user data to advertising platforms, data brokers, or third parties for unrelated purposes.
+
+### 7.3 Microsoft user data and AI processing
+
+Where Outlook / Microsoft 365 content is processed by AI providers to classify messages or generate draft replies, TALIA uses such processing only to provide the user-facing email-agent feature requested by the customer.
+
+TALIA does not use Microsoft Graph API data to train, improve, or build generalized AI or machine-learning models. TALIA does not permit its AI providers to use Microsoft user data to train their general-purpose models, except where the customer has separately agreed to a provider configuration that lawfully permits such use.
+
+## 8. How we protect OAuth tokens
+
+OAuth tokens used to connect Gmail or Outlook / Microsoft 365 are stored in encrypted form. Access to those tokens is restricted to the systems and authorized personnel necessary to provide, maintain, secure, and support the service.
 
 Users can revoke access at any time from:
 
 - TALIA account settings, where available; or
 - Google Account > Security > Third-party apps and services.
 
-After revocation or disconnection, TALIA will stop syncing new Gmail data.
+After revocation or disconnection, TALIA will stop syncing new Gmail or Outlook / Microsoft 365 data.
 
 Disconnecting or revoking access prevents future synchronization. Existing synchronized data will be deleted according to the retention periods in this Privacy Policy, unless the customer requests earlier deletion or a longer retention period is legally required or contractually agreed.
 
-## 8. Use of artificial intelligence providers
+## 9. Use of artificial intelligence providers
 
 TALIA may use artificial intelligence providers to classify messages, summarize context, generate suggested replies, and assist with customer support workflows.
 
@@ -203,7 +251,7 @@ Current or expected providers:
 
 Customers should review the applicable Data Processing Agreement and subprocessor list for more details.
 
-## 9. Service providers and subprocessors
+## 10. Service providers and subprocessors
 
 We use third-party providers to operate TALIA. These may include providers for:
 
@@ -227,13 +275,13 @@ Subprocessor table:
 
 We do not sell personal data.
 
-## 10. International data transfers
+## 11. International data transfers
 
 Some providers may process data outside the European Economic Area.
 
 Where international transfers occur, we use appropriate safeguards, such as adequacy decisions, Standard Contractual Clauses, the EU-US Data Privacy Framework where applicable, supplementary measures, or other lawful mechanisms recognized under applicable data protection law.
 
-## 11. Data retention
+## 12. Data retention
 
 We keep personal data only for as long as necessary to provide TALIA, comply with legal obligations, resolve disputes, enforce agreements, and maintain security.
 
@@ -251,7 +299,7 @@ Customers may request deletion or export of data according to their contract and
 
 These retention periods are enforced through scheduled deletion jobs or equivalent operational controls.
 
-## 12. Security measures
+## 13. Security measures
 
 We apply technical and organizational measures designed to protect personal data, including:
 
@@ -272,7 +320,7 @@ No system is completely secure. If we become aware of a personal data breach, we
 
 Where TALIA acts as a processor for a customer, TALIA will notify the customer of a personal data breach as required by the applicable Data Processing Agreement and data protection law.
 
-## 13. Your rights
+## 14. Your rights
 
 Depending on your location and applicable law, you may have the right to:
 
@@ -295,7 +343,7 @@ If you are located in Spain or the European Union, you may also contact the Span
 
 https://www.aepd.es
 
-## 14. Disconnecting Gmail or Outlook
+## 15. Disconnecting Gmail or Outlook
 
 You can disconnect Gmail or Outlook from TALIA where the product provides this option.
 
@@ -306,7 +354,7 @@ You can also revoke access directly:
 
 After disconnection, TALIA will stop syncing new messages from that account. Existing data will be retained or deleted according to this Privacy Policy, customer settings, the customer agreement, and applicable legal obligations.
 
-## 15. Cookies and similar technologies
+## 16. Cookies and similar technologies
 
 TALIA may use strictly necessary cookies for authentication, security, session management, and platform functionality.
 
@@ -314,25 +362,25 @@ If TALIA uses analytics, advertising, or non-essential tracking cookies, we will
 
 If a separate Cookie Policy is published, it will be made available through TALIA's public website.
 
-## 16. Marketing communications
+## 17. Marketing communications
 
 We may send product or commercial communications where we have a valid legal basis, such as consent or legitimate interest where allowed by law.
 
 You can opt out of marketing communications by using the unsubscribe mechanism in the message or by contacting us at info@talia.events.
 
-## 17. Children
+## 18. Children
 
 TALIA is intended for business customers, cultural organizations, and authorized professional users. It is not directed to children.
 
 If we become aware that we have processed children's personal data without a valid legal basis, we will take appropriate steps to delete or regularize the data.
 
-## 18. Changes to this Privacy Policy
+## 19. Changes to this Privacy Policy
 
 We may update this Privacy Policy to reflect legal, technical, or operational changes.
 
 If changes are material, we will notify users or customers through reasonable means.
 
-## 19. Contact
+## 20. Contact
 
 For privacy questions, contact:
 
@@ -346,7 +394,7 @@ For general support:
 info@talia.events
 ```
 
-## 20. References
+## 21. References
 
 - Google API Services User Data Policy: https://developers.google.com/terms/api-services-user-data-policy
 - Google Workspace API User Data and Developer Policy: https://developers.google.com/gmail/api/policy

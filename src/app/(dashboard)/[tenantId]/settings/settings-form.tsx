@@ -13,6 +13,7 @@ type SettingsFormLabels = {
   fallbackPhone: string
   autoOpen: string
   delay: string
+  position: string
   channelPrompt: string
   channelPromptHint: string
   saving: string
@@ -30,6 +31,7 @@ type SettingsFormProps = {
   widgetConfig: {
     initialMessage: string
     primaryColor: string
+    position: string
     autoOpen: boolean
     autoOpenDelay: number
   }
@@ -68,6 +70,16 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels }: Settin
           <label className="field">
             {labels.primaryColor}
             <input name="primary_color" type="color" defaultValue={widgetConfig.primaryColor} style={{ height: 44 }} />
+          </label>
+
+          <label className="field">
+            {labels.position}
+            <select name="position" defaultValue={widgetConfig.position}>
+              <option value="bottom-right">Abajo derecha</option>
+              <option value="bottom-left">Abajo izquierda</option>
+              <option value="top-right">Arriba derecha</option>
+              <option value="top-left">Arriba izquierda</option>
+            </select>
           </label>
 
           <label className="field">

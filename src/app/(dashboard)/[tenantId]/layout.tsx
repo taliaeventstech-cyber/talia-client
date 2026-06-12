@@ -55,6 +55,7 @@ export default async function DashboardLayout({ children, params }: Props) {
             overview: dictionary.nav.overview,
             attention: dictionary.nav.attention,
             webChatbot: dictionary.nav.webChatbot,
+            accessibility: dictionary.nav.accessibility,
             emailAgent: dictionary.nav.emailAgent,
             inbox: dictionary.nav.inbox,
             whatsapp: dictionary.nav.whatsapp,
@@ -89,8 +90,8 @@ export default async function DashboardLayout({ children, params }: Props) {
       <header className="dashboard-topbar">
         {billingAccess.isTrialExpired ? (
           <Link className="dashboard-trial-banner" href={`/${tenantId}/upgrade`}>
-            <strong>Tu prueba de 7 días ha terminado</strong>
-            <span>Upgrade</span>
+            <strong>{dictionary.trialExpired.bannerTitle}</strong>
+            <span>{dictionary.trialExpired.bannerAction}</span>
           </Link>
         ) : null}
         <div className="dashboard-topbar-actions">
@@ -106,7 +107,12 @@ export default async function DashboardLayout({ children, params }: Props) {
       </header>
 
       <div className="dashboard-main">{children}</div>
-      {billingAccess.isTrialExpired ? <TrialExpiredModal tenantId={tenantId} /> : null}
+      {billingAccess.isTrialExpired ? (
+        <TrialExpiredModal
+          tenantId={tenantId}
+          labels={dictionary.trialExpired}
+        />
+      ) : null}
     </div>
   )
 }

@@ -130,7 +130,7 @@ TALIA is not responsible for decisions made solely on the basis of AI-generated 
 
 ## 11. Email agent and Gmail/Outlook integrations
 
-Where enabled, the email agent allows you to connect Gmail or Microsoft Outlook to classify incoming messages and create supervised draft replies.
+Where enabled, the email agent allows you to connect Gmail or Microsoft Outlook / Microsoft 365 to classify authorized incoming messages and create supervised draft replies.
 
 The Service may:
 
@@ -140,11 +140,13 @@ The Service may:
 - create draft replies in Gmail or Outlook;
 - display synchronized email threads and draft status in the dashboard.
 
-The Service does not automatically send emails with the current Gmail permissions. Users are responsible for reviewing, editing, approving, and sending any draft replies.
+The Service requests only the email permissions needed to provide the enabled workflow. For Gmail, this currently includes reading authorized messages and creating drafts. For Microsoft Outlook / Microsoft 365, this currently uses Microsoft Graph delegated permissions to read authorized mailbox content and create draft messages.
+
+The Service does not automatically send emails. Users are responsible for reviewing, editing, approving, and sending any draft replies from their own mailbox.
 
 You are responsible for ensuring that you have the authority and legal basis to connect any mailbox and process the emails contained in it.
 
-You may disconnect Gmail or Outlook through the Service where available or directly through the third-party provider's account settings.
+You may disconnect Gmail or Outlook through the Service where available or directly through the third-party provider's account settings. Disconnecting an email account prevents new synchronization, but previously synchronized data may be retained or deleted according to the Privacy Policy, the customer agreement, and applicable law.
 
 ## 12. Customer content
 

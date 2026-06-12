@@ -10,10 +10,34 @@ export type PublicWidgetConfig = {
   assistantName: string
   initialMessage: string
   primaryColor: string
+  position: WidgetPosition
   fallbackEmail: string | null
   fallbackPhone: string | null
   autoOpen: boolean
   autoOpenDelay: number
+  accessibility: PublicAccessibilityConfig
+}
+
+export type WidgetPosition = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
+
+export type PublicAccessibilityConfig = {
+  enabled: boolean
+  clearViewEnabled: boolean
+  position: WidgetPosition
+  language: 'auto' | 'es' | 'ca' | 'en'
+  primaryColor: string
+  showBranding: boolean
+  controls: {
+    textSize: boolean
+    contrast: boolean
+    grayscale: boolean
+    highlightLinks: boolean
+    pauseAnimations: boolean
+    lineSpacing: boolean
+    readableFont: boolean
+    lowStimulation: boolean
+    focusReading: boolean
+  }
 }
 
 export type TenantChatConfig = {
@@ -102,10 +126,12 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
       assistantName: widgetConfig.assistantName,
       initialMessage: widgetConfig.initialMessage,
       primaryColor: widgetConfig.primaryColor,
+      position: widgetConfig.position,
       fallbackEmail: data.fallback_email,
       fallbackPhone: data.fallback_phone,
       autoOpen: widgetConfig.autoOpen,
       autoOpenDelay: widgetConfig.autoOpenDelay,
+      accessibility: widgetConfig.accessibility,
     } satisfies PublicWidgetConfig,
   }
 }
@@ -266,17 +292,92 @@ export async function getTenantRuntimeChatConfig(admin: AdminClient, tenantId: s
 
 function getWidgetConfig(value: unknown) {
   if (!value || typeof value !== 'object') {
-    return { assistantName: 'TALIA', initialMessage: 'Hola, soc TALIA. En què et puc ajudar?', primaryColor: '#000000', autoOpen: false, autoOpenDelay: 3 }
+    return {
+      assistantName: 'TALIA',
+      initialMessage: 'Hola, soc TALIA. En què et puc ajudar?',
+      primaryColor: '#000000',
+      position: 'bottom-right' as const,
+      autoOpen: false,
+      autoOpenDelay: 3,
+      accessibility: getAccessibilityConfig(undefined, '#000000'),
+    }
   }
 
-  const config = value as { assistantName?: unknown; initialMessage?: unknown; primaryColor?: unknown; autoOpen?: unknown; autoOpenDelay?: unknown }
+  const config = value as {
+    assistantName?: unknown
+    initialMessage?: unknown
+    primaryColor?: unknown
+    position?: unknown
+    autoOpen?: unknown
+    autoOpenDelay?: unknown
+    accessibility?: unknown
+  }
+  const primaryColor = typeof config.primaryColor === 'string' ? config.primaryColor : '#000000'
+
   return {
     assistantName: typeof config.assistantName === 'string' ? config.assistantName : 'TALIA',
     initialMessage: typeof config.initialMessage === 'string' ? config.initialMessage : 'Hola, soc TALIA. En què et puc ajudar?',
-    primaryColor: typeof config.primaryColor === 'string' ? config.primaryColor : '#000000',
+    primaryColor,
+    position: getWidgetPosition(config.position, 'bottom-right'),
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
+    accessibility: getAccessibilityConfig(config.accessibility, primaryColor),
   }
+}
+
+function getAccessibilityConfig(value: unknown, fallbackColor: string): PublicAccessibilityConfig {
+  const config = value && typeof value === 'object'
+    ? value as {
+      enabled?: unknown
+      clearViewEnabled?: unknown
+      position?: unknown
+      language?: unknown
+      primaryColor?: unknown
+      showBranding?: unknown
+      controls?: unknown
+    }
+    : {}
+  const controls = config.controls && typeof config.controls === 'object'
+    ? config.controls as Record<string, unknown>
+    : {}
+
+  return {
+    enabled: config.enabled === true,
+    clearViewEnabled: config.clearViewEnabled !== false,
+    position: getWidgetPosition(config.position, 'bottom-right'),
+    language: getAccessibilityLanguage(config.language),
+    primaryColor: typeof config.primaryColor === 'string' ? config.primaryColor : fallbackColor,
+    showBranding: config.showBranding !== false,
+    controls: {
+      textSize: controls.textSize !== false,
+      contrast: controls.contrast !== false,
+      grayscale: controls.grayscale !== false,
+      highlightLinks: controls.highlightLinks !== false,
+      pauseAnimations: controls.pauseAnimations !== false,
+      lineSpacing: controls.lineSpacing !== false,
+      readableFont: controls.readableFont !== false,
+      lowStimulation: controls.lowStimulation !== false,
+      focusReading: controls.focusReading !== false,
+    },
+  }
+}
+
+function getWidgetPosition(value: unknown, fallback: WidgetPosition): WidgetPosition {
+  if (
+    value === 'bottom-right' ||
+    value === 'bottom-left' ||
+    value === 'top-right' ||
+    value === 'top-left'
+  ) {
+    return value
+  }
+
+  return fallback
+}
+
+function getAccessibilityLanguage(value: unknown): PublicAccessibilityConfig['language'] {
+  if (value === 'es' || value === 'ca' || value === 'en' || value === 'auto') return value
+  return 'auto'
 }
 
 function hasRuntimeAccess(accountRelation: unknown) {

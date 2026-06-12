@@ -5,7 +5,28 @@ import { usePathname } from 'next/navigation'
 import { X } from 'lucide-react'
 import { useState } from 'react'
 
-export function TrialExpiredModal({ tenantId }: { tenantId: string }) {
+export type TrialExpiredModalLabels = {
+  title: string
+  close: string
+  headline: string
+  description: string
+  chatbotTitle: string
+  chatbotMessage: string
+  emailTitle: string
+  emailMessage: string
+  agoraTitle: string
+  agoraMessage: string
+  viewPlans: string
+  upgradeNow: string
+}
+
+export function TrialExpiredModal({
+  tenantId,
+  labels,
+}: {
+  tenantId: string
+  labels: TrialExpiredModalLabels
+}) {
   const pathname = usePathname()
   const [dismissed, setDismissed] = useState(false)
 
@@ -22,42 +43,42 @@ export function TrialExpiredModal({ tenantId }: { tenantId: string }) {
         role="dialog"
       >
         <header className="trial-expired-modal-header">
-          <h2 id="trial-expired-title">Tu prueba gratuita de 7 días ha terminado</h2>
-          <button className="trial-expired-close" type="button" onClick={() => setDismissed(true)} aria-label="Cerrar aviso">
+          <h2 id="trial-expired-title">{labels.title}</h2>
+          <button className="trial-expired-close" type="button" onClick={() => setDismissed(true)} aria-label={labels.close}>
             <X size={22} strokeWidth={2} aria-hidden="true" />
           </button>
         </header>
 
         <div className="trial-expired-modal-body">
           <div>
-            <h3>Haz upgrade para seguir usando TALIA</h3>
+            <h3>{labels.headline}</h3>
             <p>
-              Mantén activo el chatbot web, el agente de correo y las métricas de Àgora con un plan mensual.
+              {labels.description}
             </p>
           </div>
 
           <div className="trial-expired-preview" aria-hidden="true">
             <div className="trial-preview-card trial-preview-card-chatbot">
-              <span>Chatbot Web</span>
-              <p>Hola, ¿en qué puedo ayudarte?</p>
+              <span>{labels.chatbotTitle}</span>
+              <p>{labels.chatbotMessage}</p>
             </div>
             <div className="trial-preview-card trial-preview-card-email">
-              <span>Agent de Correu</span>
-              <p>Borrador preparado para revisar.</p>
+              <span>{labels.emailTitle}</span>
+              <p>{labels.emailMessage}</p>
             </div>
             <div className="trial-preview-card trial-preview-card-agora">
-              <span>Àgora</span>
-              <p>Actividad, temas y uso mensual.</p>
+              <span>{labels.agoraTitle}</span>
+              <p>{labels.agoraMessage}</p>
             </div>
           </div>
         </div>
 
         <footer className="trial-expired-modal-actions">
           <Link className="button-outline" href={`/${tenantId}/upgrade`}>
-            Ver todos los planes
+            {labels.viewPlans}
           </Link>
           <Link className="button-primary" href={`/${tenantId}/upgrade`}>
-            Upgrade ahora
+            {labels.upgradeNow}
           </Link>
         </footer>
       </section>

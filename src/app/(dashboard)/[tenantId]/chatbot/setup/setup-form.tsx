@@ -2,6 +2,7 @@
 
 import { startTransition, useActionState, useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, Link2, MessageSquare } from 'lucide-react'
+import Link from 'next/link'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { saveChatbotSetup, type ChatbotSetupState } from './actions'
 
@@ -30,10 +31,12 @@ const initialState: ChatbotSetupState = {
 export function ChatbotSetupForm({
   copy,
   tenantId,
+  skipHref,
   initialValues,
 }: {
   copy: ChatbotSetupFormCopy
   tenantId: string
+  skipHref?: string | null
   initialValues: InitialValues
 }) {
   const [state, action, pending] = useActionState(saveChatbotSetup.bind(null, tenantId), initialState)
@@ -133,10 +136,17 @@ export function ChatbotSetupForm({
       </div>
 
       <div className="chatbot-setup-actions">
-        <button className="button-outline" type="button" onClick={back} disabled={step === 0 || pending}>
-          <ArrowLeft size={14} strokeWidth={2} aria-hidden="true" />
-          {copy.back}
-        </button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button className="button-outline" type="button" onClick={back} disabled={step === 0 || pending}>
+            <ArrowLeft size={14} strokeWidth={2} aria-hidden="true" />
+            {copy.back}
+          </button>
+          {skipHref ? (
+            <Link className="button-outline" href={skipHref}>
+              {copy.skip}
+            </Link>
+          ) : null}
+        </div>
 
         {step < 2 ? (
           <button

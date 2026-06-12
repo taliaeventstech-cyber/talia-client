@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { assertTenantAdmin } from '@/lib/tenants/service'
 import { updateTenantSettings as updateTenantSettingsRecord } from '@/lib/tenants/settings'
+import type { Json } from '@/types/database.types'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
@@ -19,6 +20,7 @@ const settingsSchema = z.object({
   plan: z.enum(['esencial', 'profesional', 'pro']),
   initialMessage: z.string().trim().min(1, 'El mensaje inicial es obligatorio').max(300),
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'El color debe estar en formato hexadecimal'),
+  position: z.enum(['bottom-right', 'bottom-left', 'top-right', 'top-left']),
   fallbackEmail: z.string().trim().email('El email no es válido').optional().or(z.literal('')),
   fallbackPhone: z.string().trim().max(40).optional(),
   autoOpen: z.boolean(),
@@ -57,6 +59,7 @@ export async function updateTenantSettings(
     plan: formData.get('plan'),
     initialMessage: formData.get('initial_message'),
     primaryColor: formData.get('primary_color'),
+    position: formData.get('position') || 'bottom-right',
     fallbackEmail: String(formData.get('fallback_email') ?? '').trim(),
     fallbackPhone: String(formData.get('fallback_phone') ?? '').trim(),
     autoOpen: formData.get('auto_open') === 'on',
@@ -69,15 +72,18 @@ export async function updateTenantSettings(
   }
 
   const { data } = parsed
+  const existingWidget = await getExistingWidgetConfig(admin, tenantId)
   const updated = await updateTenantSettingsRecord(admin, tenantId, {
     plan: data.plan,
     systemPrompt: data.systemPrompt,
     fallbackEmail: data.fallbackEmail,
     fallbackPhone: data.fallbackPhone,
     widgetConfig: {
+      ...existingWidget,
       assistantName: 'TALIA',
       initialMessage: data.initialMessage,
       primaryColor: data.primaryColor,
+      position: data.position,
       autoOpen: data.autoOpen,
       autoOpenDelay: data.autoOpenDelay,
     },
@@ -90,6 +96,22 @@ export async function updateTenantSettings(
   revalidatePath(`/${tenantId}/settings`)
   revalidatePath(`/${tenantId}/overview`)
   return { ok: true, message: 'Configuración guardada correctamente.' }
+}
+
+async function getExistingWidgetConfig(admin: ReturnType<typeof createAdminClient>, tenantId: string) {
+  const { data } = await admin
+    .from('theatres')
+    .select('widget_config')
+    .eq('id', tenantId)
+    .single()
+
+  return isPlainObject(data?.widget_config)
+    ? data.widget_config as Record<string, Json>
+    : {}
+}
+
+function isPlainObject(value: unknown): value is Record<string, Json> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
 export async function updateScrapeUrls(

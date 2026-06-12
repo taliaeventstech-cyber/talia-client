@@ -66,6 +66,7 @@ export default async function SettingsPage({ params, searchParams }: Props) {
           widgetConfig={{
             initialMessage: widgetConfig.initialMessage,
             primaryColor: widgetConfig.primaryColor,
+            position: widgetConfig.position,
             autoOpen: widgetConfig.autoOpen,
             autoOpenDelay: widgetConfig.autoOpenDelay,
           }}
@@ -131,20 +132,57 @@ function PreviewTab({
 
 function getWidgetConfig(value: unknown) {
   if (!value || typeof value !== 'object') {
-    return { assistantName: 'TALIA', initialMessage: 'Hola, soc TALIA. En què et puc ajudar?', primaryColor: '#000000', autoOpen: false, autoOpenDelay: 3 }
+    return {
+      assistantName: 'TALIA',
+      initialMessage: 'Hola, soc TALIA. En què et puc ajudar?',
+      primaryColor: '#000000',
+      position: 'bottom-right',
+      autoOpen: false,
+      autoOpenDelay: 3,
+    }
   }
 
-  const config = value as { assistantName?: unknown; initialMessage?: unknown; primaryColor?: unknown; autoOpen?: unknown; autoOpenDelay?: unknown }
+  const config = value as {
+    assistantName?: unknown
+    initialMessage?: unknown
+    primaryColor?: unknown
+    position?: unknown
+    autoOpen?: unknown
+    autoOpenDelay?: unknown
+  }
+
   return {
     assistantName: typeof config.assistantName === 'string' ? config.assistantName : 'TALIA',
     initialMessage: typeof config.initialMessage === 'string' ? config.initialMessage : 'Hola, soc TALIA. En què et puc ajudar?',
     primaryColor: typeof config.primaryColor === 'string' ? config.primaryColor : '#000000',
+    position: getWidgetPosition(config.position),
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
   }
 }
 
-function getEmbedCode(tenantId: string, widgetConfig: { primaryColor: string; autoOpen: boolean; autoOpenDelay: number }) {
+function getWidgetPosition(value: unknown) {
+  if (
+    value === 'bottom-right' ||
+    value === 'bottom-left' ||
+    value === 'top-right' ||
+    value === 'top-left'
+  ) {
+    return value
+  }
+
+  return 'bottom-right'
+}
+
+function getEmbedCode(
+  tenantId: string,
+  widgetConfig: {
+    primaryColor: string
+    position: string
+    autoOpen: boolean
+    autoOpenDelay: number
+  }
+) {
   const appUrl = getAppUrl()
   const autoOpenAttrs = widgetConfig.autoOpen
     ? `\n  data-auto-open="true"\n  data-auto-open-delay="${widgetConfig.autoOpenDelay}"`
@@ -154,7 +192,8 @@ function getEmbedCode(tenantId: string, widgetConfig: { primaryColor: string; au
   src="${appUrl}/widget.js"
   crossorigin="anonymous"
   data-tenant="${tenantId}"
-  data-color="${widgetConfig.primaryColor}"${autoOpenAttrs}
+  data-color="${widgetConfig.primaryColor}"
+  data-position="${widgetConfig.position}"${autoOpenAttrs}
 ></script>`
 }
 
@@ -164,7 +203,9 @@ function getAppUrl() {
   return 'http://localhost:3000'
 }
 
-function WidgetPreview({ widgetConfig }: { widgetConfig: { assistantName: string; initialMessage: string; primaryColor: string } }) {
+function WidgetPreview({ widgetConfig }: { widgetConfig: { assistantName: string; initialMessage: string; primaryColor: string; position: string } }) {
+  const chatbotPosition = getPreviewPosition(widgetConfig.position, 16)
+
   return (
     <div style={{ minHeight: 220, position: 'relative' }}>
       <div style={{ border: '0.5px solid var(--color-border)', borderRadius: 12, overflow: 'hidden', background: 'var(--color-surface)' }}>
@@ -180,7 +221,7 @@ function WidgetPreview({ widgetConfig }: { widgetConfig: { assistantName: string
           </p>
         </div>
       </div>
-      <div style={{ position: 'absolute', right: 16, bottom: 16, width: 48, height: 48, borderRadius: 999, background: widgetConfig.primaryColor, color: '#fff', display: 'grid', placeItems: 'center' }}>
+      <div style={{ position: 'absolute', ...chatbotPosition, width: 48, height: 48, borderRadius: 999, background: widgetConfig.primaryColor, color: '#fff', display: 'grid', placeItems: 'center' }}>
         <svg viewBox="0 0 28 28" aria-hidden="true" focusable="false" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M5.25 6.8C5.25 4.98 6.73 3.5 8.55 3.5h10.9c1.82 0 3.3 1.48 3.3 3.3v7.7c0 1.82-1.48 3.3-3.3 3.3h-6.17l-5.1 4.2v-4.2h.37c-1.82 0-3.3-1.48-3.3-3.3V6.8Z" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
           <path d="M10 10.5h7.2M10 14h4.8" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -188,4 +229,11 @@ function WidgetPreview({ widgetConfig }: { widgetConfig: { assistantName: string
       </div>
     </div>
   )
+}
+
+function getPreviewPosition(position: string, offset: number) {
+  if (position === 'bottom-left') return { left: 16, bottom: offset }
+  if (position === 'top-right') return { right: 16, top: offset }
+  if (position === 'top-left') return { left: 16, top: offset }
+  return { right: 16, bottom: offset }
 }

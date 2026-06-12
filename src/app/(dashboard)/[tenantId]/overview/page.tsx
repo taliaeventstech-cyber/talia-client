@@ -126,6 +126,9 @@ export default async function OverviewPage({ params }: Props) {
   const isChatbotConfigured = isChatbotSetupCompleted({
     widgetConfig: theatre?.widget_config,
   })
+  const chatbotHref = isChatbotConfigured
+    ? `/${tenantId}/settings`
+    : `/${tenantId}/chatbot/setup`
   const checklist = buildChecklist({
     tenantId,
     labels: copy.checklist,
@@ -180,7 +183,7 @@ export default async function OverviewPage({ params }: Props) {
 
         <div className="module-orbit-grid">
           <ModuleStatusCard
-            href={`/${tenantId}/chatbot/setup`}
+            href={chatbotHref}
             icon={<Bot size={22} />}
             label="Chatbot"
             title={copy.modules.chatbot}
