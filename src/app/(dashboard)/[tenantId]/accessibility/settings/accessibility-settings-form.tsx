@@ -116,11 +116,11 @@ function ToggleCard({
         display: 'flex',
         gap: 12,
         justifyContent: 'space-between',
-        minHeight: 68,
-        padding: '0.9rem 1rem',
+        minHeight: 58,
+        padding: '0.75rem 0.9rem',
       }}
     >
-      <span style={{ color: 'var(--color-text)', fontWeight: 700, lineHeight: 1.25 }}>
+      <span style={{ color: 'var(--color-text)', fontSize: '0.98rem', fontWeight: 650, lineHeight: 1.22 }}>
         {label}
       </span>
       <span style={{ position: 'relative', flex: '0 0 auto' }}>
@@ -140,14 +140,15 @@ function ToggleCard({
           aria-hidden="true"
           style={{
             alignItems: 'center',
-            background: checked ? 'var(--color-accent)' : 'rgba(255,255,255,.12)',
-            border: '1px solid rgba(255,255,255,.18)',
+            background: checked ? '#00e0c7' : 'rgba(255,255,255,.1)',
+            border: checked ? '1px solid rgba(0,224,199,.8)' : '1px solid rgba(255,255,255,.18)',
             borderRadius: 999,
+            boxShadow: checked ? '0 0 18px rgba(0,224,199,.28)' : 'none',
             display: 'flex',
-            height: 30,
+            height: 26,
             justifyContent: checked ? 'flex-end' : 'flex-start',
-            padding: 3,
-            width: 54,
+            padding: 2,
+            width: 48,
           }}
         >
           <span
@@ -155,8 +156,8 @@ function ToggleCard({
               background: '#fff',
               borderRadius: 999,
               boxShadow: '0 2px 8px rgba(0,0,0,.22)',
-              height: 22,
-              width: 22,
+              height: 20,
+              width: 20,
             }}
           />
         </span>

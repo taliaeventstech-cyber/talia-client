@@ -81,8 +81,35 @@
 
     injectGlobalStyles();
 
+    var overlayHost = document.createElement('div');
+    overlayHost.id = 'talia-accessibility-overlay';
+    setImportant(overlayHost, 'position', 'fixed');
+    setImportant(overlayHost, 'inset', '0');
+    setImportant(overlayHost, 'width', '100vw');
+    setImportant(overlayHost, 'height', '100vh');
+    setImportant(overlayHost, 'display', 'block');
+    setImportant(overlayHost, 'pointer-events', 'none');
+    setImportant(overlayHost, 'z-index', '2147483647');
+    setImportant(overlayHost, 'overflow', 'visible');
+    setImportant(overlayHost, 'max-width', 'none');
+    setImportant(overlayHost, 'max-height', 'none');
+    setImportant(overlayHost, 'margin', '0');
+    setImportant(overlayHost, 'padding', '0');
+    setImportant(overlayHost, 'border', '0');
+    setImportant(overlayHost, 'background', 'transparent');
+    setImportant(overlayHost, 'box-sizing', 'border-box');
+    setImportant(overlayHost, 'contain', 'none');
+    setImportant(overlayHost, 'isolation', 'isolate');
+    setImportant(overlayHost, 'transform', 'none');
+    setImportant(overlayHost, 'filter', 'none');
+    setImportant(overlayHost, 'clip-path', 'none');
+    (document.documentElement || document.body).appendChild(overlayHost);
+    var overlayElements = createOverlayElements(overlayHost, config);
+
     var host = document.createElement('div');
     host.id = 'talia-accessibility-root';
+    host.style.position = 'relative';
+    host.style.zIndex = '2147483647';
     document.body.appendChild(host);
 
     var root = host.attachShadow({ mode: 'open' });
@@ -99,16 +126,19 @@
     var decrease = root.querySelector('[data-text-decrease]');
     var clearViewButton = root.querySelector('[data-clear-view]');
     var controlsView = root.querySelector('[data-controls-view]');
+    var aiView = root.querySelector('[data-ai-view]');
+    var controlsTab = root.querySelector('[data-tab-controls]');
+    var aiTab = root.querySelector('[data-tab-ai]');
     var clearView = root.querySelector('[data-clear-view-panel]');
     var clearViewContent = root.querySelector('[data-clear-view-content]');
     var clearViewBack = root.querySelector('[data-clear-view-back]');
     var clearViewRefresh = root.querySelector('[data-clear-view-refresh]');
     var controlButtons = Array.prototype.slice.call(root.querySelectorAll('[data-control]'));
-    var focusTop = root.querySelector('[data-focus-top]');
-    var focusBand = root.querySelector('[data-focus-band]');
-    var focusBottom = root.querySelector('[data-focus-bottom]');
-    var readingLine = root.querySelector('[data-reading-line]');
-    var contentHighlight = root.querySelector('[data-content-highlight]');
+    var focusTop = overlayElements.focusTop;
+    var focusBand = overlayElements.focusBand;
+    var focusBottom = overlayElements.focusBottom;
+    var readingLine = overlayElements.readingLine;
+    var contentHighlight = overlayElements.contentHighlight;
     var targetReadingY = Math.round(window.innerHeight / 2);
     var currentReadingY = targetReadingY;
     var focusFrame = 0;
@@ -192,9 +222,20 @@
     }, { passive: true });
 
     if (clearViewButton && clearView && clearViewContent && clearViewBack && clearViewRefresh) {
+      if (controlsTab && aiTab && aiView) {
+        controlsTab.addEventListener('click', function () {
+          showTab('controls');
+        });
+
+        aiTab.addEventListener('click', function () {
+          showTab('ai');
+        });
+      }
+
       clearViewButton.addEventListener('click', function () {
         var content = extractClearViewContent(copy);
         controlsView.hidden = true;
+        if (aiView) aiView.hidden = true;
         clearView.hidden = false;
         clearViewBack.focus();
         renderAiClearView(content, copy, config, clearViewContent, false);
@@ -208,7 +249,7 @@
 
       clearViewBack.addEventListener('click', function () {
         clearView.hidden = true;
-        controlsView.hidden = false;
+        showTab('ai');
         clearViewButton.focus();
       });
     }
@@ -224,7 +265,7 @@
       panel.classList.add('panel--open');
       toggle.setAttribute('aria-expanded', 'true');
       setTimeout(function () {
-        var firstControl = root.querySelector('[data-clear-view]') || root.querySelector('[data-text-increase]') || root.querySelector('[data-control]') || reset;
+        var firstControl = root.querySelector('[data-tab-controls]') || root.querySelector('[data-text-increase]') || root.querySelector('[data-control]') || reset;
         if (firstControl) firstControl.focus();
       }, 50);
     }
@@ -232,6 +273,19 @@
     function closePanel() {
       panel.classList.remove('panel--open');
       toggle.setAttribute('aria-expanded', 'false');
+    }
+
+    function showTab(tab) {
+      if (!controlsView || !aiView || !controlsTab || !aiTab) return;
+
+      var isAi = tab === 'ai';
+      controlsView.hidden = isAi;
+      aiView.hidden = !isAi;
+      clearView.hidden = true;
+      controlsTab.classList.toggle('tab--active', !isAi);
+      aiTab.classList.toggle('tab--active', isAi);
+      controlsTab.setAttribute('aria-selected', isAi ? 'false' : 'true');
+      aiTab.setAttribute('aria-selected', isAi ? 'true' : 'false');
     }
 
     function renderState() {
@@ -282,13 +336,17 @@
 
       var maskEnabled = Boolean(state.readingMask);
       var lineEnabled = Boolean(state.readingLine);
-      focusTop.hidden = !maskEnabled;
-      focusBand.hidden = !maskEnabled;
-      focusBottom.hidden = !maskEnabled;
-      readingLine.hidden = !lineEnabled;
+      var displayMask = maskEnabled ? 'block' : 'none';
+      setImportant(focusTop, 'display', displayMask);
+      setImportant(focusBand, 'display', displayMask);
+      setImportant(focusBottom, 'display', displayMask);
+      setImportant(readingLine, 'display', lineEnabled ? 'block' : 'none');
       if (!maskEnabled && !lineEnabled) return;
 
-      var bandHeight = Math.max(96, Math.min(140, Math.round(window.innerHeight * 0.16)));
+      var viewportWidth = getViewportWidth();
+      var viewportHeight = getViewportHeight();
+      var viewportWidthCss = viewportWidth + 'px';
+      var bandHeight = Math.max(96, Math.min(140, Math.round(viewportHeight * 0.16)));
       var halfBand = Math.round(bandHeight / 2);
       var safeY = clampReadingY(targetReadingY);
       var distance = safeY - currentReadingY;
@@ -297,21 +355,26 @@
         : currentReadingY + (distance * 0.65);
       var visualY = clampReadingY(currentReadingY);
       var topHeight = Math.max(0, visualY - halfBand);
-      var bottomTop = Math.min(window.innerHeight, visualY + halfBand);
+      var bottomTop = Math.min(viewportHeight, visualY + halfBand);
 
-      focusTop.style.height = topHeight + 'px';
-      focusBand.style.top = topHeight + 'px';
-      focusBand.style.height = bandHeight + 'px';
-      focusBottom.style.top = bottomTop + 'px';
-      focusBottom.style.height = Math.max(0, window.innerHeight - bottomTop) + 'px';
-      readingLine.style.transform = 'translate3d(0,' + visualY + 'px,0) translateY(-50%)';
+      setImportant(focusTop, 'width', viewportWidthCss);
+      setImportant(focusTop, 'height', topHeight + 'px');
+      setImportant(focusBand, 'width', viewportWidthCss);
+      setImportant(focusBand, 'top', topHeight + 'px');
+      setImportant(focusBand, 'height', bandHeight + 'px');
+      setImportant(focusBottom, 'width', viewportWidthCss);
+      setImportant(focusBottom, 'top', bottomTop + 'px');
+      setImportant(focusBottom, 'height', Math.max(0, viewportHeight - bottomTop) + 'px');
+      setImportant(readingLine, 'width', viewportWidthCss);
+      setImportant(readingLine, 'min-width', viewportWidthCss);
+      setImportant(readingLine, 'transform', 'translate3d(0,' + visualY + 'px,0) translateY(-50%)');
       if (!immediate && Math.abs(safeY - visualY) >= 0.5 && (maskEnabled || lineEnabled)) {
         scheduleFocusReading(false);
       }
     }
 
     function clampReadingY(value) {
-      return Math.max(0, Math.min(window.innerHeight, Math.round(value)));
+      return Math.max(0, Math.min(getViewportHeight(), Math.round(value)));
     }
 
     function setHighlightTarget(element) {
@@ -333,24 +396,26 @@
       if (!contentHighlight) return;
 
       var enabled = Boolean(state.highlightContent && highlightTarget && highlightTarget.isConnected);
-      contentHighlight.hidden = !enabled;
+      setImportant(contentHighlight, 'display', enabled ? 'block' : 'none');
       if (!enabled) return;
 
       var rect = highlightTarget.getBoundingClientRect();
-      if (rect.width < 24 || rect.height < 18 || rect.bottom < 0 || rect.top > window.innerHeight) {
-        contentHighlight.hidden = true;
+      var viewportWidth = getViewportWidth();
+      var viewportHeight = getViewportHeight();
+      if (rect.width < 24 || rect.height < 18 || rect.bottom < 0 || rect.top > viewportHeight) {
+        setImportant(contentHighlight, 'display', 'none');
         return;
       }
 
       var padding = 8;
       var left = Math.max(8, rect.left - padding);
       var top = Math.max(8, rect.top - padding);
-      var right = Math.min(window.innerWidth - 8, rect.right + padding);
-      var bottom = Math.min(window.innerHeight - 8, rect.bottom + padding);
+      var right = Math.min(viewportWidth - 8, rect.right + padding);
+      var bottom = Math.min(viewportHeight - 8, rect.bottom + padding);
 
-      contentHighlight.style.width = Math.max(0, Math.round(right - left)) + 'px';
-      contentHighlight.style.height = Math.max(0, Math.round(bottom - top)) + 'px';
-      contentHighlight.style.transform = 'translate3d(' + Math.round(left) + 'px,' + Math.round(top) + 'px,0)';
+      setImportant(contentHighlight, 'width', Math.max(0, Math.round(right - left)) + 'px');
+      setImportant(contentHighlight, 'height', Math.max(0, Math.round(bottom - top)) + 'px');
+      setImportant(contentHighlight, 'transform', 'translate3d(' + Math.round(left) + 'px,' + Math.round(top) + 'px,0)');
     }
 
     function findHighlightElement(element) {
@@ -369,7 +434,7 @@
         rect = candidate.getBoundingClientRect();
       }
 
-      if (rect.width > window.innerWidth * 0.96 && rect.height > window.innerHeight * 0.8) {
+      if (rect.width > getViewportWidth() * 0.96 && rect.height > getViewportHeight() * 0.8) {
         return element.closest('section, article, form, li, p, blockquote, figure, table, details, [class*="card"], [class*="item"]') || null;
       }
 
@@ -469,10 +534,14 @@
         .body { display: grid; gap: 14px; padding: 16px; }\
         [hidden] { display: none !important; }\
         .view { display: grid; gap: 14px; }\
-        .clear-launch { width: 100%; border: 1px solid #111827; border-radius: 8px; background: #111827; color: #fff; cursor: pointer; display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; padding: 12px; text-align: left; }\
-        .clear-launch svg { width: 22px; height: 22px; }\
-        .clear-launch strong { display: block; font: 800 14px/1.2 Arial, Helvetica, system-ui, sans-serif; }\
-        .clear-launch span { display: block; margin-top: 3px; color: rgba(255,255,255,.78); font: 500 12px/1.35 Arial, Helvetica, system-ui, sans-serif; }\
+        .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; border: 1px solid #d5d7db; border-radius: 8px; background: #f3f4f6; padding: 4px; }\
+        .tab { min-height: 38px; border: 0; border-radius: 6px; background: transparent; color: #4b5563; cursor: pointer; font: 800 13px/1 Arial, Helvetica, system-ui, sans-serif; }\
+        .tab--active { background: #111827; color: #fff; box-shadow: 0 1px 2px rgba(17,24,39,.16); }\
+        .ai-empty { margin: 0; color: #4b5563; font: 500 13px/1.45 Arial, Helvetica, system-ui, sans-serif; }\
+        .clear-launch { width: 100%; min-height: 96px; border: 1px solid #111827; border-radius: 8px; background: #111827; color: #fff; cursor: pointer; display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; padding: 16px; text-align: left; }\
+        .clear-launch svg { width: 26px; height: 26px; }\
+        .clear-launch strong { display: block; font: 800 16px/1.2 Arial, Helvetica, system-ui, sans-serif; }\
+        .clear-launch span { display: block; margin-top: 4px; color: rgba(255,255,255,.78); font: 600 13px/1.4 Arial, Helvetica, system-ui, sans-serif; }\
         .text-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; }\
         .text-level { color: #374151; font: 600 13px/1.2 Arial, Helvetica, system-ui, sans-serif; }\
         .icon-button { width: 42px; height: 42px; border: 1px solid #c5c9d0; border-radius: 8px; background: #f9fafb; color: #111827; cursor: pointer; font: 700 20px/1 Arial, Helvetica, system-ui, sans-serif; }\
@@ -497,12 +566,6 @@
         .clear-actions { display: grid; gap: 8px; }\
         .clear-action { display: block; border: 1px solid #111827; border-radius: 8px; padding: 11px 12px; background: #f9fafb; color: #111827; text-decoration: none; font: 800 14px/1.2 Arial, Helvetica, system-ui, sans-serif; }\
         .clear-action:focus-visible { outline: 3px solid #111827; outline-offset: 3px; }\
-        .focus-mask, .focus-band, .reading-line, .content-highlight { position: fixed; left: 0; top: 0; z-index: 2147483646; pointer-events: none; transition: opacity 120ms ease; }\
-        .focus-mask { background: rgba(10,14,22,.46); backdrop-filter: saturate(.75); }\
-        .focus-mask-top { top: 0; }\
-        .focus-band { border-top: 2px solid rgba(255,255,255,.74); border-bottom: 2px solid rgba(255,255,255,.74); box-shadow: inset 0 1px 0 rgba(17,24,39,.28), inset 0 -1px 0 rgba(17,24,39,.28); }\
-        .reading-line { top: 0; height: 5px; background: var(--talia-a11y-highlight); border: 1px solid rgba(17,24,39,.85); border-radius: 999px; box-shadow: 0 0 0 1px rgba(255,255,255,.78), 0 2px 8px rgba(0,0,0,.28); transform: translate3d(0,50vh,0) translateY(-50%); will-change: transform; }\
-        .content-highlight { width: 0; height: 0; border: 3px solid var(--talia-a11y-highlight); border-radius: 10px; background: var(--talia-a11y-highlight-soft); box-shadow: 0 0 0 2px rgba(17,24,39,.74), 0 10px 32px rgba(0,0,0,.18); will-change: transform, width, height; }\
         .branding { margin: 0; color: #6b7280; text-align: center; font: 600 11px/1.2 Arial, Helvetica, system-ui, sans-serif; }\
         @media (max-width: 420px) { .panel { width: calc(100vw - 24px); max-height: calc(100vh - 168px); } .grid { grid-template-columns: 1fr; } }\
       </style>\
@@ -512,11 +575,11 @@
           <button class="close" data-close aria-label="' + escapeHtml(copy.close) + '">×</button>\
         </div>\
         <div class="body">\
-          <div class="view" data-controls-view>\
-            ' + (config.clearViewEnabled ? '<button class="clear-launch" data-clear-view type="button">\
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"></path><path d="M4 12h10"></path><path d="M4 19h16"></path></svg>\
-              <span><strong>' + escapeHtml(copy.clearView) + '</strong><span>' + escapeHtml(copy.clearViewDescription) + '</span></span>\
-            </button>' : '') + '\
+          ' + (config.clearViewEnabled ? '<div class="tabs" role="tablist" aria-label="' + escapeHtml(copy.tabsLabel) + '">\
+            <button class="tab tab--active" data-tab-controls type="button" role="tab" aria-selected="true" aria-controls="talia-a11y-controls">' + escapeHtml(copy.controlsTab) + '</button>\
+            <button class="tab" data-tab-ai type="button" role="tab" aria-selected="false" aria-controls="talia-a11y-ai">' + escapeHtml(copy.aiTab) + '</button>\
+          </div>' : '') + '\
+          <div class="view" data-controls-view id="talia-a11y-controls" role="tabpanel">\
             ' + (controls.textSize ? '<div class="text-row"><span class="text-level" data-text-level></span><button class="icon-button" data-text-decrease type="button" aria-label="' + escapeHtml(copy.decreaseText) + '">A-</button><button class="icon-button" data-text-increase type="button" aria-label="' + escapeHtml(copy.increaseText) + '">A+</button></div>' : '') + '\
             <div class="grid">\
               ' + controlTemplate(controls.contrast, 'contrast', copy.contrast, 'M4 4h16v16H4z M8 8h8v8H8z') + '\
@@ -532,6 +595,12 @@
             </div>\
             <button class="reset" data-reset type="button">' + escapeHtml(copy.reset) + '</button>\
           </div>\
+          ' + (config.clearViewEnabled ? '<div class="view" data-ai-view id="talia-a11y-ai" role="tabpanel" hidden>\
+            <button class="clear-launch" data-clear-view type="button">\
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"></path><path d="M4 12h10"></path><path d="M4 19h16"></path></svg>\
+              <span><strong>' + escapeHtml(copy.clearView) + '</strong><span>' + escapeHtml(copy.clearViewDescription) + '</span></span>\
+            </button>\
+          </div>' : '') + '\
           ' + (config.clearViewEnabled ? '<div class="view" data-clear-view-panel hidden>\
             <div class="clear-toolbar">\
               <button class="clear-back" data-clear-view-back type="button">' + escapeHtml(copy.backToControls) + '</button>\
@@ -542,16 +611,114 @@
           ' + (config.showBranding ? '<p class="branding">TALIA Accessibility</p>' : '') + '\
         </div>\
       </section>\
-      <div class="focus-mask focus-mask-top" data-focus-top hidden></div>\
-      <div class="focus-band" data-focus-band hidden></div>\
-      <div class="focus-mask" data-focus-bottom hidden></div>\
-      <div class="reading-line" data-reading-line hidden></div>\
-      <div class="content-highlight" data-content-highlight hidden></div>\
       <button class="toggle" data-toggle type="button" aria-label="' + escapeHtml(copy.open) + '" aria-expanded="false" aria-controls="talia-a11y-panel">\
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\
           <circle cx="12" cy="7.5" r="1.2" fill="currentColor" stroke="none"></circle><path d="M7.5 10.5h9"></path><path d="M12 10.5v4"></path><path d="m9 19 3-4.5 3 4.5"></path>\
         </svg>\
       </button>';
+  }
+
+  function createOverlayElements(host, config) {
+    var highlightColor = config.highlightColor || '#fffb00';
+    var focusTop = createOverlayNode();
+    var focusBand = createOverlayNode();
+    var focusBottom = createOverlayNode();
+    var readingLine = createOverlayNode();
+    var contentHighlight = createOverlayNode();
+
+    focusTop.setAttribute('data-focus-top', '');
+    focusBand.setAttribute('data-focus-band', '');
+    focusBottom.setAttribute('data-focus-bottom', '');
+    readingLine.setAttribute('data-reading-line', '');
+    contentHighlight.setAttribute('data-content-highlight', '');
+
+    setImportant(focusTop, 'background', 'rgba(10,14,22,.46)');
+    setImportant(focusTop, 'backdrop-filter', 'saturate(.75)');
+    setImportant(focusTop, '-webkit-backdrop-filter', 'saturate(.75)');
+    setImportant(focusTop, 'width', '100vw');
+
+    setImportant(focusBand, 'width', '100vw');
+    setImportant(focusBand, 'border-top', '2px solid rgba(255,255,255,.74)');
+    setImportant(focusBand, 'border-bottom', '2px solid rgba(255,255,255,.74)');
+    setImportant(focusBand, 'box-shadow', 'inset 0 1px 0 rgba(17,24,39,.28), inset 0 -1px 0 rgba(17,24,39,.28)');
+
+    setImportant(focusBottom, 'background', 'rgba(10,14,22,.46)');
+    setImportant(focusBottom, 'backdrop-filter', 'saturate(.75)');
+    setImportant(focusBottom, '-webkit-backdrop-filter', 'saturate(.75)');
+    setImportant(focusBottom, 'width', '100vw');
+
+    setImportant(readingLine, 'width', '100vw');
+    setImportant(readingLine, 'min-width', '100vw');
+    setImportant(readingLine, 'right', 'auto');
+    setImportant(readingLine, 'height', '6px');
+    setImportant(readingLine, 'background', highlightColor);
+    setImportant(readingLine, 'border', '1px solid rgba(17,24,39,.9)');
+    setImportant(readingLine, 'border-radius', '999px');
+    setImportant(readingLine, 'box-shadow', '0 0 0 2px rgba(255,255,255,.85), 0 3px 14px rgba(0,0,0,.34)');
+    setImportant(readingLine, 'transform', 'translate3d(0,50vh,0) translateY(-50%)');
+    setImportant(readingLine, 'will-change', 'transform');
+
+    setImportant(contentHighlight, 'width', '0');
+    setImportant(contentHighlight, 'height', '0');
+    setImportant(contentHighlight, 'border', '3px solid ' + highlightColor);
+    setImportant(contentHighlight, 'border-radius', '10px');
+    setImportant(contentHighlight, 'background', hexToRgba(highlightColor, 0.12));
+    setImportant(contentHighlight, 'box-shadow', '0 0 0 2px rgba(17,24,39,.74), 0 10px 32px rgba(0,0,0,.18)');
+    setImportant(contentHighlight, 'will-change', 'transform, width, height');
+
+    host.appendChild(focusTop);
+    host.appendChild(focusBand);
+    host.appendChild(focusBottom);
+    host.appendChild(readingLine);
+    host.appendChild(contentHighlight);
+
+    return {
+      focusTop: focusTop,
+      focusBand: focusBand,
+      focusBottom: focusBottom,
+      readingLine: readingLine,
+      contentHighlight: contentHighlight,
+    };
+  }
+
+  function createOverlayNode() {
+    var node = document.createElement('div');
+    setImportant(node, 'position', 'fixed');
+    setImportant(node, 'display', 'none');
+    setImportant(node, 'left', '0');
+    setImportant(node, 'top', '0');
+    setImportant(node, 'z-index', '2147483647');
+    setImportant(node, 'pointer-events', 'none');
+    setImportant(node, 'transition', 'opacity 120ms ease');
+    setImportant(node, 'max-width', 'none');
+    setImportant(node, 'max-height', 'none');
+    setImportant(node, 'margin', '0');
+    setImportant(node, 'padding', '0');
+    setImportant(node, 'box-sizing', 'border-box');
+    setImportant(node, 'visibility', 'visible');
+    setImportant(node, 'opacity', '1');
+    setImportant(node, 'float', 'none');
+    setImportant(node, 'clear', 'none');
+    setImportant(node, 'clip-path', 'none');
+    return node;
+  }
+
+  function setImportant(element, property, value) {
+    element.style.setProperty(property, value, 'important');
+  }
+
+  function getViewportWidth() {
+    return Math.max(
+      document.documentElement ? document.documentElement.clientWidth : 0,
+      window.innerWidth || 0
+    );
+  }
+
+  function getViewportHeight() {
+    return Math.max(
+      document.documentElement ? document.documentElement.clientHeight : 0,
+      window.innerHeight || 0
+    );
   }
 
   function controlTemplate(enabled, key, label, path) {
@@ -843,6 +1010,9 @@
         description: 'Ajusta la lectura y visualización de esta web.',
         open: 'Abrir ajustes de accesibilidad',
         close: 'Cerrar ajustes de accesibilidad',
+        tabsLabel: 'Secciones de accesibilidad',
+        controlsTab: 'Ajustes',
+        aiTab: 'IA',
         increaseText: 'Aumentar texto',
         decreaseText: 'Reducir texto',
         contrast: 'Alto contraste',
@@ -860,7 +1030,7 @@
         clearViewDescription: 'Resume esta página en una lectura simple y ordenada.',
         clearViewLoading: 'Preparando una vista clara de esta página...',
         clearViewTitle: 'Información clara',
-        backToControls: 'Volver a ajustes',
+        backToControls: 'Volver a IA',
         refreshClearView: 'Actualizar vista',
         clearViewSourceAi: 'Generada con IA',
         clearViewSourceLocal: 'Vista local',
@@ -885,6 +1055,9 @@
         description: "Ajusta la lectura i visualització d'aquest web.",
         open: "Obre els ajustos d'accessibilitat",
         close: "Tanca els ajustos d'accessibilitat",
+        tabsLabel: "Seccions d'accessibilitat",
+        controlsTab: 'Ajustos',
+        aiTab: 'IA',
         increaseText: 'Augmenta el text',
         decreaseText: 'Redueix el text',
         contrast: 'Alt contrast',
@@ -902,7 +1075,7 @@
         clearViewDescription: 'Resumeix aquesta pàgina en una lectura simple i ordenada.',
         clearViewLoading: 'Preparant una vista clara d’aquesta pàgina...',
         clearViewTitle: 'Informació clara',
-        backToControls: 'Torna als ajustos',
+        backToControls: 'Torna a IA',
         refreshClearView: 'Actualitza vista',
         clearViewSourceAi: 'Generada amb IA',
         clearViewSourceLocal: 'Vista local',
@@ -927,6 +1100,9 @@
         description: 'Adjust reading and visual display for this website.',
         open: 'Open accessibility settings',
         close: 'Close accessibility settings',
+        tabsLabel: 'Accessibility sections',
+        controlsTab: 'Settings',
+        aiTab: 'AI',
         increaseText: 'Increase text',
         decreaseText: 'Decrease text',
         contrast: 'High contrast',
@@ -944,7 +1120,7 @@
         clearViewDescription: 'Summarize this page into a simple, ordered reading view.',
         clearViewLoading: 'Preparing a clear view of this page...',
         clearViewTitle: 'Clear information',
-        backToControls: 'Back to settings',
+        backToControls: 'Back to AI',
         refreshClearView: 'Refresh view',
         clearViewSourceAi: 'Generated with AI',
         clearViewSourceLocal: 'Local view',

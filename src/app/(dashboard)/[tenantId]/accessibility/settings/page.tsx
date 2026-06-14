@@ -132,6 +132,7 @@ function AccessibilityPreview({
   }
 }) {
   const position = getPreviewPosition(values.position, 16)
+  const widgetOpacity = values.enabled ? 1 : 0.46
 
   return (
     <div style={{ minHeight: 360, position: 'relative', border: '1px solid var(--color-border)', borderRadius: 8, background: 'linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018))', overflow: 'hidden' }}>
@@ -169,21 +170,14 @@ function AccessibilityPreview({
 
       <div style={{ position: 'absolute', left: 26, right: 34, top: 128, height: 72, border: `3px solid ${values.highlightColor}`, borderRadius: 10, background: 'rgba(255,255,255,.08)', boxShadow: '0 0 0 2px rgba(17,24,39,.72), 0 10px 28px rgba(0,0,0,.22)', pointerEvents: 'none' }} />
 
-      <div style={{ position: 'absolute', left: 24, bottom: 24, display: 'grid', gap: 8 }}>
-        <span style={{ width: 84, height: 10, borderRadius: 999, background: values.primaryColor }} />
-        <span style={{ width: 124, height: 10, borderRadius: 999, background: values.highlightColor }} />
+      <div aria-hidden="true" style={{ position: 'absolute', ...position, width: 56, height: 56, borderRadius: 999, background: values.primaryColor, color: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 6px 20px rgba(0,0,0,.18)', opacity: widgetOpacity }}>
+        <svg viewBox="0 0 24 24" focusable="false" width="38" height="38" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="7.5" r="1.2" fill="currentColor" stroke="none" />
+          <path d="M7.5 10.5h9" />
+          <path d="M12 10.5v4" />
+          <path d="m9 19 3-4.5 3 4.5" />
+        </svg>
       </div>
-
-      {values.enabled ? (
-        <div style={{ position: 'absolute', ...position, width: 56, height: 56, borderRadius: 999, background: values.primaryColor, color: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 6px 20px rgba(0,0,0,.18)' }}>
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" width="38" height="38" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="7.5" r="1.2" fill="currentColor" stroke="none" />
-            <path d="M7.5 10.5h9" />
-            <path d="M12 10.5v4" />
-            <path d="m9 19 3-4.5 3 4.5" />
-          </svg>
-        </div>
-      ) : null}
     </div>
   )
 }
