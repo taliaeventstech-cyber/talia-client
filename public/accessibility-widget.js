@@ -2,7 +2,11 @@
   var script = document.currentScript;
   if (!script) return;
 
-  var tenantId = script.getAttribute('data-tenant') || 'demo';
+  var tenantId = script.getAttribute('data-tenant');
+  if (!tenantId) {
+    console.warn('[TALIA Accessibility] Missing data-tenant attribute');
+    return;
+  }
   var explicitEnabled = script.getAttribute('data-enabled') === 'true' || script.getAttribute('data-accessibility') === 'true';
   var baseUrl = new URL(script.src, window.location.href).origin;
   var remoteConfigLoaded = false;
@@ -40,12 +44,19 @@
       script.getAttribute('data-color') ||
       '#00e0c7'
     );
+    var highlightColor = sanitizeColor(
+      readString(remote.highlightColor) ||
+      script.getAttribute('data-highlight-color') ||
+      '#fffb00',
+      '#fffb00'
+    );
     var controls = remote.controls && typeof remote.controls === 'object' ? remote.controls : {};
 
     return {
       tenantId: tenantId,
       language: language,
       primaryColor: primaryColor,
+      highlightColor: highlightColor,
       position: readString(remote.position) || script.getAttribute('data-position') || 'bottom-right',
       showBranding: fromAccessibilityConfig ? remote.showBranding !== false : script.getAttribute('data-branding') !== 'false',
       clearViewEnabled: fromAccessibilityConfig ? remote.clearViewEnabled !== false : script.getAttribute('data-clear-view') !== 'false',
@@ -58,7 +69,9 @@
         lineSpacing: controls.lineSpacing !== false,
         readableFont: controls.readableFont !== false,
         lowStimulation: controls.lowStimulation !== false,
-        focusReading: controls.focusReading !== false,
+        readingMask: controls.readingMask !== false && controls.focusReading !== false,
+        readingLine: controls.readingLine !== false,
+        highlightContent: controls.highlightContent !== false,
       },
     };
   }
@@ -94,7 +107,13 @@
     var focusTop = root.querySelector('[data-focus-top]');
     var focusBand = root.querySelector('[data-focus-band]');
     var focusBottom = root.querySelector('[data-focus-bottom]');
-    var lastFocusY = Math.round(window.innerHeight / 2);
+    var readingLine = root.querySelector('[data-reading-line]');
+    var contentHighlight = root.querySelector('[data-content-highlight]');
+    var targetReadingY = Math.round(window.innerHeight / 2);
+    var currentReadingY = targetReadingY;
+    var focusFrame = 0;
+    var highlightTarget = null;
+    var highlightFrame = 0;
 
     applyState(state);
     renderState();
@@ -148,24 +167,29 @@
     });
 
     document.addEventListener('mousemove', function (event) {
-      if (!state.focusReading) return;
       if (event.target && event.target.closest && event.target.closest('#talia-accessibility-root, #talia-widget-root')) return;
-      lastFocusY = event.clientY;
-      renderFocusReading();
+      if (state.readingMask || state.readingLine) setReadingTarget(event.clientY, false);
+      if (state.highlightContent) setHighlightTarget(event.target);
     }, { passive: true });
 
     document.addEventListener('focusin', function (event) {
-      if (!state.focusReading || !event.target || !event.target.getBoundingClientRect) return;
+      if ((!state.readingMask && !state.readingLine && !state.highlightContent) || !event.target || !event.target.getBoundingClientRect) return;
       if (event.target.closest && event.target.closest('#talia-accessibility-root, #talia-widget-root')) return;
       var rect = event.target.getBoundingClientRect();
-      if (rect.height > 0) {
-        lastFocusY = Math.round(rect.top + (rect.height / 2));
-        renderFocusReading();
+      if ((state.readingMask || state.readingLine) && rect.height > 0) {
+        setReadingTarget(Math.round(rect.top + (rect.height / 2)), true);
       }
+      if (state.highlightContent) setHighlightTarget(event.target);
     });
 
-    window.addEventListener('scroll', renderFocusReading, { passive: true });
-    window.addEventListener('resize', renderFocusReading, { passive: true });
+    window.addEventListener('scroll', function () {
+      scheduleFocusReading(false);
+      scheduleContentHighlight();
+    }, { passive: true });
+    window.addEventListener('resize', function () {
+      setReadingTarget(currentReadingY, true);
+      scheduleContentHighlight();
+    }, { passive: true });
 
     if (clearViewButton && clearView && clearViewContent && clearViewBack && clearViewRefresh) {
       clearViewButton.addEventListener('click', function () {
@@ -230,29 +254,126 @@
 
       var textLevel = root.querySelector('[data-text-level]');
       if (textLevel) textLevel.textContent = copy.textLevel(state.textScale);
-      renderFocusReading();
+      scheduleFocusReading(true);
+      renderContentHighlight();
     }
 
-    function renderFocusReading() {
-      if (!focusTop || !focusBand || !focusBottom) return;
+    function setReadingTarget(value, immediate) {
+      targetReadingY = clampReadingY(value);
+      if (immediate) currentReadingY = targetReadingY;
+      scheduleFocusReading(immediate);
+    }
 
-      var enabled = Boolean(state.focusReading);
-      focusTop.hidden = !enabled;
-      focusBand.hidden = !enabled;
-      focusBottom.hidden = !enabled;
-      if (!enabled) return;
+    function scheduleFocusReading(immediate) {
+      if (immediate) {
+        renderFocusReading(true);
+        return;
+      }
+
+      if (focusFrame) return;
+      focusFrame = window.requestAnimationFrame(function () {
+        focusFrame = 0;
+        renderFocusReading(false);
+      });
+    }
+
+    function renderFocusReading(immediate) {
+      if (!focusTop || !focusBand || !focusBottom || !readingLine) return;
+
+      var maskEnabled = Boolean(state.readingMask);
+      var lineEnabled = Boolean(state.readingLine);
+      focusTop.hidden = !maskEnabled;
+      focusBand.hidden = !maskEnabled;
+      focusBottom.hidden = !maskEnabled;
+      readingLine.hidden = !lineEnabled;
+      if (!maskEnabled && !lineEnabled) return;
 
       var bandHeight = Math.max(96, Math.min(140, Math.round(window.innerHeight * 0.16)));
       var halfBand = Math.round(bandHeight / 2);
-      var safeY = Math.max(halfBand, Math.min(window.innerHeight - halfBand, lastFocusY));
-      var topHeight = Math.max(0, safeY - halfBand);
-      var bottomTop = Math.min(window.innerHeight, safeY + halfBand);
+      var safeY = clampReadingY(targetReadingY);
+      var distance = safeY - currentReadingY;
+      currentReadingY = immediate || Math.abs(distance) < 0.5
+        ? safeY
+        : currentReadingY + (distance * 0.65);
+      var visualY = clampReadingY(currentReadingY);
+      var topHeight = Math.max(0, visualY - halfBand);
+      var bottomTop = Math.min(window.innerHeight, visualY + halfBand);
 
       focusTop.style.height = topHeight + 'px';
       focusBand.style.top = topHeight + 'px';
       focusBand.style.height = bandHeight + 'px';
       focusBottom.style.top = bottomTop + 'px';
       focusBottom.style.height = Math.max(0, window.innerHeight - bottomTop) + 'px';
+      readingLine.style.transform = 'translate3d(0,' + visualY + 'px,0) translateY(-50%)';
+      if (!immediate && Math.abs(safeY - visualY) >= 0.5 && (maskEnabled || lineEnabled)) {
+        scheduleFocusReading(false);
+      }
+    }
+
+    function clampReadingY(value) {
+      return Math.max(0, Math.min(window.innerHeight, Math.round(value)));
+    }
+
+    function setHighlightTarget(element) {
+      var nextTarget = findHighlightElement(element);
+      if (nextTarget === highlightTarget) return;
+      highlightTarget = nextTarget;
+      scheduleContentHighlight();
+    }
+
+    function scheduleContentHighlight() {
+      if (highlightFrame) return;
+      highlightFrame = window.requestAnimationFrame(function () {
+        highlightFrame = 0;
+        renderContentHighlight();
+      });
+    }
+
+    function renderContentHighlight() {
+      if (!contentHighlight) return;
+
+      var enabled = Boolean(state.highlightContent && highlightTarget && highlightTarget.isConnected);
+      contentHighlight.hidden = !enabled;
+      if (!enabled) return;
+
+      var rect = highlightTarget.getBoundingClientRect();
+      if (rect.width < 24 || rect.height < 18 || rect.bottom < 0 || rect.top > window.innerHeight) {
+        contentHighlight.hidden = true;
+        return;
+      }
+
+      var padding = 8;
+      var left = Math.max(8, rect.left - padding);
+      var top = Math.max(8, rect.top - padding);
+      var right = Math.min(window.innerWidth - 8, rect.right + padding);
+      var bottom = Math.min(window.innerHeight - 8, rect.bottom + padding);
+
+      contentHighlight.style.width = Math.max(0, Math.round(right - left)) + 'px';
+      contentHighlight.style.height = Math.max(0, Math.round(bottom - top)) + 'px';
+      contentHighlight.style.transform = 'translate3d(' + Math.round(left) + 'px,' + Math.round(top) + 'px,0)';
+    }
+
+    function findHighlightElement(element) {
+      if (!element || !element.closest) return null;
+
+      var candidate = element.closest('article, section, main, aside, form, fieldset, nav, header, footer, li, p, blockquote, figure, table, details, [role="article"], [role="region"], [role="group"], [class*="card"], [class*="item"], [class*="panel"], [class*="block"]');
+      if (!candidate || candidate.closest('#talia-accessibility-root, #talia-widget-root')) return null;
+
+      var rect = candidate.getBoundingClientRect();
+      while (
+        candidate.parentElement &&
+        candidate.parentElement !== document.body &&
+        (rect.width < 80 || rect.height < 36)
+      ) {
+        candidate = candidate.parentElement;
+        rect = candidate.getBoundingClientRect();
+      }
+
+      if (rect.width > window.innerWidth * 0.96 && rect.height > window.innerHeight * 0.8) {
+        return element.closest('section, article, form, li, p, blockquote, figure, table, details, [class*="card"], [class*="item"]') || null;
+      }
+
+      return candidate;
     }
   }
 
@@ -272,7 +393,7 @@
       html.talia-a11y-pause-animations *, html.talia-a11y-pause-animations *::before, html.talia-a11y-pause-animations *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .001ms !important; }\
       html.talia-a11y-line-spacing body :where(p, li, blockquote, dd, dt) { line-height: 1.75 !important; letter-spacing: .02em !important; margin-bottom: 1em !important; }\
       html.talia-a11y-readable-font body :where(p, li, a, button, input, textarea, select, label, span, dd, dt, h1, h2, h3, h4, h5, h6, blockquote) { font-family: Arial, Helvetica, system-ui, sans-serif !important; }\
-      html.talia-a11y-focus-reading body :where(p, li, dd, dt, blockquote):not(#talia-accessibility-root *):not(#talia-widget-root *) { line-height: 1.68 !important; }\
+      html.talia-a11y-reading-mask body :where(p, li, dd, dt, blockquote):not(#talia-accessibility-root *):not(#talia-widget-root *) { line-height: 1.68 !important; }\
       html.talia-a11y-low-stimulation, html.talia-a11y-low-stimulation body { scroll-behavior: auto !important; }\
       html.talia-a11y-low-stimulation body { background: #f7f6f0 !important; color: #1f2933 !important; }\
       html.talia-a11y-low-stimulation body *:not(#talia-accessibility-root):not(#talia-accessibility-root *):not(#talia-widget-root):not(#talia-widget-root *) { animation-duration: .001ms !important; animation-iteration-count: 1 !important; caret-color: #1f2933 !important; text-shadow: none !important; transition-duration: .001ms !important; }\
@@ -301,7 +422,8 @@
       'talia-a11y-line-spacing',
       'talia-a11y-readable-font',
       'talia-a11y-low-stimulation',
-      'talia-a11y-focus-reading',
+      'talia-a11y-reading-mask',
+      'talia-a11y-reading-line',
     ];
 
     classes.forEach(function (className) {
@@ -317,7 +439,8 @@
     if (state.lineSpacing) root.classList.add('talia-a11y-line-spacing');
     if (state.readableFont) root.classList.add('talia-a11y-readable-font');
     if (state.lowStimulation) root.classList.add('talia-a11y-low-stimulation');
-    if (state.focusReading) root.classList.add('talia-a11y-focus-reading');
+    if (state.readingMask) root.classList.add('talia-a11y-reading-mask');
+    if (state.readingLine) root.classList.add('talia-a11y-reading-line');
   }
 
   function getTemplate(copy, config) {
@@ -330,13 +453,13 @@
 
     return '\
       <style>\
-        :host { all: initial; color-scheme: light; font-family: Arial, Helvetica, system-ui, sans-serif; }\
+        :host { all: initial; color-scheme: light; font-family: Arial, Helvetica, system-ui, sans-serif; --talia-a11y-highlight: ' + config.highlightColor + '; --talia-a11y-highlight-soft: ' + hexToRgba(config.highlightColor, 0.12) + '; }\
         *, *::before, *::after { box-sizing: border-box; }\
-        .toggle { position: fixed; ' + togglePosition + ' z-index: 2147483647; width: 52px; height: 52px; border: 0; border-radius: 999px; background: ' + config.primaryColor + '; color: #fff; cursor: pointer; display: grid; place-items: center; box-shadow: 0 6px 20px rgba(0,0,0,.22); transition: transform 150ms ease, box-shadow 150ms ease; }\
+        .toggle { position: fixed; ' + togglePosition + ' z-index: 2147483647; width: 56px; height: 56px; border: 0; border-radius: 999px; background: ' + config.primaryColor + '; color: #fff; cursor: pointer; display: grid; place-items: center; box-shadow: 0 6px 20px rgba(0,0,0,.22); transition: transform 150ms ease, box-shadow 150ms ease; }\
         .toggle:hover { transform: scale(1.06); box-shadow: 0 8px 24px rgba(0,0,0,.26); }\
         .toggle:active { transform: scale(.96); }\
         .toggle:focus-visible, button:focus-visible { outline: 3px solid #111827; outline-offset: 3px; }\
-        .toggle svg { width: 32px; height: 32px; display: block; }\
+        .toggle svg { width: 38px; height: 38px; display: block; }\
         .panel { position: fixed; ' + panelPosition + ' z-index: 2147483647; width: min(360px, calc(100vw - 40px)); max-height: min(620px, calc(100vh - 180px)); overflow: auto; border: 1px solid #d5d7db; border-radius: 8px; background: #fff; color: #111827; box-shadow: 0 18px 48px rgba(17,24,39,.22); opacity: 0; transform: translateY(10px) scale(.98); transform-origin: ' + transformOrigin + '; pointer-events: none; transition: opacity 180ms ease, transform 180ms ease; }\
         .panel--open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }\
         .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px; border-bottom: 1px solid #e5e7eb; }\
@@ -374,10 +497,12 @@
         .clear-actions { display: grid; gap: 8px; }\
         .clear-action { display: block; border: 1px solid #111827; border-radius: 8px; padding: 11px 12px; background: #f9fafb; color: #111827; text-decoration: none; font: 800 14px/1.2 Arial, Helvetica, system-ui, sans-serif; }\
         .clear-action:focus-visible { outline: 3px solid #111827; outline-offset: 3px; }\
-        .focus-mask, .focus-band { position: fixed; left: 0; right: 0; z-index: 2147483646; pointer-events: none; transition: top 90ms linear, height 90ms linear, opacity 120ms ease; }\
+        .focus-mask, .focus-band, .reading-line, .content-highlight { position: fixed; left: 0; top: 0; z-index: 2147483646; pointer-events: none; transition: opacity 120ms ease; }\
         .focus-mask { background: rgba(10,14,22,.46); backdrop-filter: saturate(.75); }\
         .focus-mask-top { top: 0; }\
         .focus-band { border-top: 2px solid rgba(255,255,255,.74); border-bottom: 2px solid rgba(255,255,255,.74); box-shadow: inset 0 1px 0 rgba(17,24,39,.28), inset 0 -1px 0 rgba(17,24,39,.28); }\
+        .reading-line { top: 0; height: 5px; background: var(--talia-a11y-highlight); border: 1px solid rgba(17,24,39,.85); border-radius: 999px; box-shadow: 0 0 0 1px rgba(255,255,255,.78), 0 2px 8px rgba(0,0,0,.28); transform: translate3d(0,50vh,0) translateY(-50%); will-change: transform; }\
+        .content-highlight { width: 0; height: 0; border: 3px solid var(--talia-a11y-highlight); border-radius: 10px; background: var(--talia-a11y-highlight-soft); box-shadow: 0 0 0 2px rgba(17,24,39,.74), 0 10px 32px rgba(0,0,0,.18); will-change: transform, width, height; }\
         .branding { margin: 0; color: #6b7280; text-align: center; font: 600 11px/1.2 Arial, Helvetica, system-ui, sans-serif; }\
         @media (max-width: 420px) { .panel { width: calc(100vw - 24px); max-height: calc(100vh - 168px); } .grid { grid-template-columns: 1fr; } }\
       </style>\
@@ -401,7 +526,9 @@
               ' + controlTemplate(controls.lineSpacing, 'lineSpacing', copy.lineSpacing, 'M7 6h13 M7 12h13 M7 18h13 M4 5v14') + '\
               ' + controlTemplate(controls.readableFont, 'readableFont', copy.readableFont, 'M4 19 10 5h4l6 14 M7 14h10') + '\
               ' + controlTemplate(controls.lowStimulation, 'lowStimulation', copy.lowStimulation, 'M5 6h14 M7 12h10 M9 18h6') + '\
-              ' + controlTemplate(controls.focusReading, 'focusReading', copy.focusReading, 'M4 7h16 M4 12h16 M4 17h16') + '\
+              ' + controlTemplate(controls.readingMask, 'readingMask', copy.readingMask, 'M4 7h16 M4 17h16 M4 12h16') + '\
+              ' + controlTemplate(controls.readingLine, 'readingLine', copy.readingLine, 'M3 12h18') + '\
+              ' + controlTemplate(controls.highlightContent, 'highlightContent', copy.highlightContent, 'M6 6h12v12H6z') + '\
             </div>\
             <button class="reset" data-reset type="button">' + escapeHtml(copy.reset) + '</button>\
           </div>\
@@ -418,6 +545,8 @@
       <div class="focus-mask focus-mask-top" data-focus-top hidden></div>\
       <div class="focus-band" data-focus-band hidden></div>\
       <div class="focus-mask" data-focus-bottom hidden></div>\
+      <div class="reading-line" data-reading-line hidden></div>\
+      <div class="content-highlight" data-content-highlight hidden></div>\
       <button class="toggle" data-toggle type="button" aria-label="' + escapeHtml(copy.open) + '" aria-expanded="false" aria-controls="talia-a11y-panel">\
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\
           <circle cx="12" cy="7.5" r="1.2" fill="currentColor" stroke="none"></circle><path d="M7.5 10.5h9"></path><path d="M12 10.5v4"></path><path d="m9 19 3-4.5 3 4.5"></path>\
@@ -723,7 +852,9 @@
         lineSpacing: 'Más espaciado',
         readableFont: 'Fuente legible',
         lowStimulation: 'Baja estimulación',
-        focusReading: 'Lectura enfocada',
+        readingMask: 'Máscara de lectura',
+        readingLine: 'Línea de lectura',
+        highlightContent: 'Resaltar contenido',
         reset: 'Restablecer',
         clearView: 'Vista clara',
         clearViewDescription: 'Resume esta página en una lectura simple y ordenada.',
@@ -763,7 +894,9 @@
         lineSpacing: 'Més espaiat',
         readableFont: 'Font llegible',
         lowStimulation: 'Baixa estimulació',
-        focusReading: 'Lectura enfocada',
+        readingMask: 'Màscara de lectura',
+        readingLine: 'Línia de lectura',
+        highlightContent: 'Ressalta contingut',
         reset: 'Restableix',
         clearView: 'Vista clara',
         clearViewDescription: 'Resumeix aquesta pàgina en una lectura simple i ordenada.',
@@ -803,7 +936,9 @@
         lineSpacing: 'More spacing',
         readableFont: 'Readable font',
         lowStimulation: 'Low stimulation',
-        focusReading: 'Focused reading',
+        readingMask: 'Reading mask',
+        readingLine: 'Reading line',
+        highlightContent: 'Highlight content',
         reset: 'Reset',
         clearView: 'Clear view',
         clearViewDescription: 'Summarize this page into a simple, ordered reading view.',
@@ -893,7 +1028,9 @@
       lineSpacing: false,
       readableFont: false,
       lowStimulation: false,
-      focusReading: false,
+      readingMask: false,
+      readingLine: false,
+      highlightContent: false,
     };
   }
 
@@ -911,7 +1048,9 @@
       state.lineSpacing = parsed.lineSpacing === true;
       state.readableFont = parsed.readableFont === true;
       state.lowStimulation = parsed.lowStimulation === true;
-      state.focusReading = parsed.focusReading === true;
+      state.readingMask = parsed.readingMask === true || parsed.focusReading === true;
+      state.readingLine = parsed.readingLine === true;
+      state.highlightContent = parsed.highlightContent === true;
       return state;
     } catch {
       return getDefaultState();
@@ -930,9 +1069,17 @@
     return typeof value === 'string' && value.trim() ? value.trim() : '';
   }
 
-  function sanitizeColor(value) {
+  function sanitizeColor(value, fallback) {
     var color = readString(value);
-    return /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#00e0c7';
+    return /^#[0-9a-fA-F]{6}$/.test(color) ? color : fallback || '#00e0c7';
+  }
+
+  function hexToRgba(hex, alpha) {
+    var color = sanitizeColor(hex, '#fffb00').slice(1);
+    var red = parseInt(color.slice(0, 2), 16);
+    var green = parseInt(color.slice(2, 4), 16);
+    var blue = parseInt(color.slice(4, 6), 16);
+    return 'rgba(' + red + ',' + green + ',' + blue + ',' + alpha + ')';
   }
 
   function escapeHtml(value) {

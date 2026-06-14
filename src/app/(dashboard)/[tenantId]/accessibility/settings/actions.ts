@@ -20,6 +20,7 @@ const accessibilitySettingsSchema = z.object({
   position: z.enum(['bottom-right', 'bottom-left', 'top-right', 'top-left']),
   language: z.enum(['auto', 'es', 'ca', 'en']),
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'El color debe estar en formato hexadecimal'),
+  highlightColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'El color de resaltado debe estar en formato hexadecimal'),
 })
 
 export async function updateAccessibilitySettings(
@@ -42,6 +43,7 @@ export async function updateAccessibilitySettings(
     position: formData.get('position') || 'bottom-right',
     language: formData.get('language') || 'auto',
     primaryColor: formData.get('primary_color') || '#00e0c7',
+    highlightColor: formData.get('highlight_color') || '#fffb00',
   })
 
   if (!parsed.success) {
@@ -72,6 +74,7 @@ export async function updateAccessibilitySettings(
           position: parsed.data.position,
           language: parsed.data.language,
           primaryColor: parsed.data.primaryColor,
+          highlightColor: parsed.data.highlightColor,
         },
       } satisfies Json,
     })
@@ -88,6 +91,7 @@ export async function updateAccessibilitySettings(
 function getDefaultAccessibilityConfig() {
   return {
     language: 'auto',
+    highlightColor: '#fffb00',
     clearViewEnabled: true,
     showBranding: true,
     controls: {
@@ -99,7 +103,9 @@ function getDefaultAccessibilityConfig() {
       lineSpacing: true,
       readableFont: true,
       lowStimulation: true,
-      focusReading: true,
+      readingMask: true,
+      readingLine: true,
+      highlightContent: true,
     },
   }
 }

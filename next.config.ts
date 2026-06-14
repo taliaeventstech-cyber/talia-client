@@ -25,7 +25,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: '/widget.js',
+        source: '/:widget(widget|accessibility-widget).js',
         headers: [
           {
             key: 'Access-Control-Allow-Origin',

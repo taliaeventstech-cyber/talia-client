@@ -97,7 +97,7 @@ function PreviewTab({
   dictionary: Awaited<ReturnType<typeof getDictionary>>
   hasScriptAccess: boolean
 }) {
-  const embedCode = getEmbedCode(tenantId, widgetConfig)
+  const embedCode = getEmbedCode(tenantId)
 
   return (
     <div className="two-column-grid">
@@ -174,26 +174,13 @@ function getWidgetPosition(value: unknown) {
   return 'bottom-right'
 }
 
-function getEmbedCode(
-  tenantId: string,
-  widgetConfig: {
-    primaryColor: string
-    position: string
-    autoOpen: boolean
-    autoOpenDelay: number
-  }
-) {
+function getEmbedCode(tenantId: string) {
   const appUrl = getAppUrl()
-  const autoOpenAttrs = widgetConfig.autoOpen
-    ? `\n  data-auto-open="true"\n  data-auto-open-delay="${widgetConfig.autoOpenDelay}"`
-    : ''
 
   return `<script
   src="${appUrl}/widget.js"
   crossorigin="anonymous"
   data-tenant="${tenantId}"
-  data-color="${widgetConfig.primaryColor}"
-  data-position="${widgetConfig.position}"${autoOpenAttrs}
 ></script>`
 }
 

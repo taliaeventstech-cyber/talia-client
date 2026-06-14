@@ -20,7 +20,7 @@ export default async function AccessibilitySettingsPage({ params }: Props) {
     .eq('id', tenantId)
     .single()
   const widgetConfig = getWidgetConfig(theatre?.widget_config)
-  const embedCode = getEmbedCode(tenantId, widgetConfig.accessibility)
+  const embedCode = getEmbedCode(tenantId)
 
   return (
     <main className="page-shell">
@@ -71,6 +71,7 @@ function getWidgetConfig(value: unknown) {
       position?: unknown
       language?: unknown
       primaryColor?: unknown
+      highlightColor?: unknown
     }
     : {}
 
@@ -81,6 +82,7 @@ function getWidgetConfig(value: unknown) {
       position: getPosition(accessibility.position),
       language: getLanguage(accessibility.language),
       primaryColor: typeof accessibility.primaryColor === 'string' ? accessibility.primaryColor : primaryColor,
+      highlightColor: typeof accessibility.highlightColor === 'string' ? accessibility.highlightColor : '#fffb00',
     },
   }
 }
@@ -103,24 +105,12 @@ function getLanguage(value: unknown) {
   return 'auto'
 }
 
-function getEmbedCode(
-  tenantId: string,
-  values: {
-    position: string
-    language: string
-    primaryColor: string
-    clearViewEnabled: boolean
-  }
-) {
+function getEmbedCode(tenantId: string) {
   const appUrl = getAppUrl()
 
   return `<script
   src="${appUrl}/accessibility-widget.js"
   data-tenant="${tenantId}"
-  data-color="${values.primaryColor}"
-  data-position="${values.position}"
-  data-language="${values.language}"
-  data-clear-view="${values.clearViewEnabled ? 'true' : 'false'}"
 ></script>`
 }
 
@@ -138,20 +128,55 @@ function AccessibilityPreview({
     clearViewEnabled: boolean
     position: string
     primaryColor: string
+    highlightColor: string
   }
 }) {
   const position = getPreviewPosition(values.position, 16)
 
   return (
-    <div style={{ minHeight: 260, position: 'relative', border: '1px solid var(--color-border)', borderRadius: 8, background: 'var(--color-surface-muted)', overflow: 'hidden' }}>
-      <div style={{ padding: 18, display: 'grid', gap: 10 }}>
-        <span style={{ width: '55%', height: 14, borderRadius: 999, background: 'rgba(120,120,140,.22)' }} />
-        <span style={{ width: '78%', height: 14, borderRadius: 999, background: 'rgba(120,120,140,.16)' }} />
-        <span style={{ width: '68%', height: 14, borderRadius: 999, background: 'rgba(120,120,140,.16)' }} />
+    <div style={{ minHeight: 360, position: 'relative', border: '1px solid var(--color-border)', borderRadius: 8, background: 'linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018))', overflow: 'hidden' }}>
+      <div style={{ height: 42, borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px', background: 'rgba(255,255,255,.035)' }}>
+        <span style={{ width: 10, height: 10, borderRadius: 999, background: '#ff6b6b' }} />
+        <span style={{ width: 10, height: 10, borderRadius: 999, background: '#ffd166' }} />
+        <span style={{ width: 10, height: 10, borderRadius: 999, background: '#06d6a0' }} />
+        <span style={{ marginLeft: 8, width: '44%', height: 10, borderRadius: 999, background: 'rgba(255,255,255,.12)' }} />
       </div>
+
+      <div style={{ padding: 20, display: 'grid', gap: 16 }}>
+        <div style={{ display: 'grid', gap: 9 }}>
+          <span style={{ width: '42%', height: 20, borderRadius: 999, background: 'rgba(255,255,255,.26)' }} />
+          <span style={{ width: '76%', height: 11, borderRadius: 999, background: 'rgba(255,255,255,.13)' }} />
+          <span style={{ width: '62%', height: 11, borderRadius: 999, background: 'rgba(255,255,255,.1)' }} />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1.15fr .85fr', gap: 14 }}>
+          <div style={{ border: '1px solid rgba(255,255,255,.12)', borderRadius: 8, padding: 14, display: 'grid', gap: 9, background: 'rgba(255,255,255,.035)' }}>
+            <span style={{ width: '54%', height: 13, borderRadius: 999, background: 'rgba(255,255,255,.2)' }} />
+            <span style={{ width: '88%', height: 10, borderRadius: 999, background: 'rgba(255,255,255,.11)' }} />
+            <span style={{ width: '72%', height: 10, borderRadius: 999, background: 'rgba(255,255,255,.11)' }} />
+          </div>
+          <div style={{ border: '1px solid rgba(255,255,255,.12)', borderRadius: 8, padding: 14, display: 'grid', gap: 9, background: 'rgba(255,255,255,.025)' }}>
+            <span style={{ width: '62%', height: 13, borderRadius: 999, background: 'rgba(255,255,255,.18)' }} />
+            <span style={{ width: '82%', height: 10, borderRadius: 999, background: 'rgba(255,255,255,.1)' }} />
+            <span style={{ width: '58%', height: 10, borderRadius: 999, background: 'rgba(255,255,255,.1)' }} />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ position: 'absolute', inset: '42px 0 auto', height: 86, background: 'rgba(6,8,18,.42)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 178, height: 4, background: values.highlightColor, borderTop: '1px solid rgba(0,0,0,.65)', borderBottom: '1px solid rgba(255,255,255,.72)', boxShadow: '0 2px 10px rgba(0,0,0,.22)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', inset: '220px 0 0', background: 'rgba(6,8,18,.42)', pointerEvents: 'none' }} />
+
+      <div style={{ position: 'absolute', left: 26, right: 34, top: 128, height: 72, border: `3px solid ${values.highlightColor}`, borderRadius: 10, background: 'rgba(255,255,255,.08)', boxShadow: '0 0 0 2px rgba(17,24,39,.72), 0 10px 28px rgba(0,0,0,.22)', pointerEvents: 'none' }} />
+
+      <div style={{ position: 'absolute', left: 24, bottom: 24, display: 'grid', gap: 8 }}>
+        <span style={{ width: 84, height: 10, borderRadius: 999, background: values.primaryColor }} />
+        <span style={{ width: 124, height: 10, borderRadius: 999, background: values.highlightColor }} />
+      </div>
+
       {values.enabled ? (
-        <div style={{ position: 'absolute', ...position, width: 48, height: 48, borderRadius: 999, background: values.primaryColor, color: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 6px 20px rgba(0,0,0,.18)' }}>
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" width="29" height="29" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div style={{ position: 'absolute', ...position, width: 56, height: 56, borderRadius: 999, background: values.primaryColor, color: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 6px 20px rgba(0,0,0,.18)' }}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" width="38" height="38" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="7.5" r="1.2" fill="currentColor" stroke="none" />
             <path d="M7.5 10.5h9" />
             <path d="M12 10.5v4" />

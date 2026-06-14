@@ -53,6 +53,7 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
       position: 'bottom-right',
       language: 'auto',
       primaryColor: input.primaryColor || '#00e5c8',
+      highlightColor: '#fffb00',
       showBranding: true,
       controls: {
         textSize: true,
@@ -63,7 +64,9 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
         lineSpacing: true,
         readableFont: true,
         lowStimulation: true,
-        focusReading: true,
+        readingMask: true,
+        readingLine: true,
+        highlightContent: true,
       },
     },
   } satisfies Json

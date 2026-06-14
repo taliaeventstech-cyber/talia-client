@@ -124,18 +124,31 @@ Implementado:
 - Hace mas lineales los layouts tipo grid, carrusel o slider cuando el usuario lo activa.
 - Mantiene excluidos los roots de TALIA para no romper el chatbot ni el propio widget.
 
-## Lectura enfocada
+## Orientacion de lectura
 
-Modo reversible para reducir distraccion durante la lectura sin modificar el DOM
-de la pagina.
+Modos reversibles para reducir distraccion durante la lectura sin modificar el DOM
+de la pagina. Pueden usarse por separado o juntos.
 
 Implementado:
 
-- Mascara visual superior e inferior dentro del Shadow DOM.
-- Banda central de lectura que sigue el raton.
+- Mascara de lectura: oscurece arriba y abajo, dejando una banda central.
+- Linea de lectura: linea fina que sigue el raton o foco.
 - Reposicionamiento por foco de teclado, scroll y resize.
-- Ligero ajuste de interlineado mientras el modo esta activo.
+- Ligero ajuste de interlineado mientras la mascara esta activa.
 - Persistencia en `localStorage` con el resto de ajustes.
+
+## Resaltar contenido
+
+Modo reversible para orientar al usuario sobre el bloque actual sin alterar la
+estructura de la web.
+
+Implementado:
+
+- Detecta el bloque semantico bajo raton o foco de teclado.
+- Prioriza contenedores como `section`, `article`, `form`, `li`, `p`, cards e items.
+- Dibuja un overlay en Shadow DOM con borde y fondo suave.
+- Reposiciona el overlay con `requestAnimationFrame`, scroll y resize.
+- Excluye los roots de TALIA para no resaltar el widget ni el chatbot.
 
 Reglas:
 
@@ -206,6 +219,7 @@ Propuesta de `widget_config`:
     "position": "bottom-right",
     "language": "auto",
     "primaryColor": "#00e0c7",
+    "highlightColor": "#fffb00",
     "showBranding": true,
     "controls": {
       "textSize": true,
@@ -216,7 +230,9 @@ Propuesta de `widget_config`:
       "lineSpacing": true,
       "readableFont": true,
       "lowStimulation": true,
-      "focusReading": true
+      "readingMask": true,
+      "readingLine": true,
+      "highlightContent": true
     }
   }
 }
@@ -230,14 +246,13 @@ Reglas:
 
 ## API de embed
 
-Para demos o activacion manual:
+Instalacion estable. Los cambios hechos en Agora se reflejan al recargar la web
+publica porque el script consulta `/api/widget/{tenantId}`.
 
 ```html
 <script
   src="https://agora.talia.events/accessibility-widget.js"
-  data-tenant="TENANT_ID"
-  data-color="#00e0c7"
-  data-language="auto">
+  data-tenant="TENANT_ID">
 </script>
 ```
 
@@ -258,7 +273,7 @@ Si una web usa tambien el chatbot:
 Prioridad:
 
 1. Configuracion remota del tenant.
-2. Atributos del script.
+2. Atributos del script solo como override avanzado o fallback manual.
 3. Defaults seguros.
 
 ## Arquitectura tecnica
@@ -304,7 +319,9 @@ Ejemplo de estado:
   "lineSpacing": false,
   "readableFont": false,
   "lowStimulation": false,
-  "focusReading": false
+  "readingMask": false,
+  "readingLine": false,
+  "highlightContent": false
 }
 ```
 

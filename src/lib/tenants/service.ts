@@ -26,6 +26,7 @@ export type PublicAccessibilityConfig = {
   position: WidgetPosition
   language: 'auto' | 'es' | 'ca' | 'en'
   primaryColor: string
+  highlightColor: string
   showBranding: boolean
   controls: {
     textSize: boolean
@@ -36,7 +37,9 @@ export type PublicAccessibilityConfig = {
     lineSpacing: boolean
     readableFont: boolean
     lowStimulation: boolean
-    focusReading: boolean
+    readingMask: boolean
+    readingLine: boolean
+    highlightContent: boolean
   }
 }
 
@@ -333,6 +336,7 @@ function getAccessibilityConfig(value: unknown, fallbackColor: string): PublicAc
       position?: unknown
       language?: unknown
       primaryColor?: unknown
+      highlightColor?: unknown
       showBranding?: unknown
       controls?: unknown
     }
@@ -347,6 +351,7 @@ function getAccessibilityConfig(value: unknown, fallbackColor: string): PublicAc
     position: getWidgetPosition(config.position, 'bottom-right'),
     language: getAccessibilityLanguage(config.language),
     primaryColor: typeof config.primaryColor === 'string' ? config.primaryColor : fallbackColor,
+    highlightColor: typeof config.highlightColor === 'string' ? config.highlightColor : '#fffb00',
     showBranding: config.showBranding !== false,
     controls: {
       textSize: controls.textSize !== false,
@@ -357,7 +362,9 @@ function getAccessibilityConfig(value: unknown, fallbackColor: string): PublicAc
       lineSpacing: controls.lineSpacing !== false,
       readableFont: controls.readableFont !== false,
       lowStimulation: controls.lowStimulation !== false,
-      focusReading: controls.focusReading !== false,
+      readingMask: controls.readingMask !== false && controls.focusReading !== false,
+      readingLine: controls.readingLine !== false,
+      highlightContent: controls.highlightContent !== false,
     },
   }
 }
