@@ -34,6 +34,7 @@
     var host = document.createElement('div');
     host.id = 'talia-widget-root';
     document.body.appendChild(host);
+    registerFloatingWidget(host, 'chatbot', position);
 
     var root = host.attachShadow({ mode: 'open' });
     root.innerHTML = getTemplate(assistantName, initialMessage, primaryColor, position);
@@ -178,16 +179,61 @@
   }
 
   function getTogglePositionCss(position) {
-    if (position === 'bottom-left') return 'left: 20px; bottom: 20px;';
-    if (position === 'top-right') return 'right: 20px; top: 20px;';
-    if (position === 'top-left') return 'left: 20px; top: 20px;';
-    return 'right: 20px; bottom: 20px;';
+    if (position === 'bottom-left') return 'left: var(--talia-floating-inline-offset, 20px); bottom: var(--talia-floating-toggle-offset, 20px);';
+    if (position === 'top-right') return 'right: var(--talia-floating-inline-offset, 20px); top: var(--talia-floating-toggle-offset, 20px);';
+    if (position === 'top-left') return 'left: var(--talia-floating-inline-offset, 20px); top: var(--talia-floating-toggle-offset, 20px);';
+    return 'right: var(--talia-floating-inline-offset, 20px); bottom: var(--talia-floating-toggle-offset, 20px);';
   }
 
   function getPanelPositionCss(position) {
-    if (position === 'bottom-left') return 'left: 20px; bottom: 88px;';
-    if (position === 'top-right') return 'right: 20px; top: 88px;';
-    if (position === 'top-left') return 'left: 20px; top: 88px;';
-    return 'right: 20px; bottom: 88px;';
+    if (position === 'bottom-left') return 'left: var(--talia-floating-inline-offset, 20px); bottom: var(--talia-floating-panel-offset, 88px);';
+    if (position === 'top-right') return 'right: var(--talia-floating-inline-offset, 20px); top: var(--talia-floating-panel-offset, 88px);';
+    if (position === 'top-left') return 'left: var(--talia-floating-inline-offset, 20px); top: var(--talia-floating-panel-offset, 88px);';
+    return 'right: var(--talia-floating-inline-offset, 20px); bottom: var(--talia-floating-panel-offset, 88px);';
+  }
+
+  function registerFloatingWidget(host, type, position) {
+    var registry = getFloatingRegistry();
+    registry.items = registry.items.filter(function (item) {
+      return item.host && item.host.isConnected && item.type !== type;
+    });
+    registry.items.push({ host: host, type: type, position: position });
+    updateFloatingWidgets(registry);
+  }
+
+  function getFloatingRegistry() {
+    var key = '__taliaFloatingWidgets';
+    window[key] = window[key] || { items: [] };
+    return window[key];
+  }
+
+  function updateFloatingWidgets(registry) {
+    var baseOffset = 20;
+    var widgetSize = 56;
+    var gap = 12;
+    var panelGap = 12;
+    var priority = { chatbot: 0, accessibility: 1 };
+    var groups = {};
+
+    registry.items = registry.items.filter(function (item) {
+      return item.host && item.host.isConnected;
+    });
+
+    registry.items.forEach(function (item) {
+      groups[item.position] = groups[item.position] || [];
+      groups[item.position].push(item);
+    });
+
+    Object.keys(groups).forEach(function (position) {
+      groups[position]
+        .sort(function (a, b) { return (priority[a.type] || 9) - (priority[b.type] || 9); })
+        .forEach(function (item, index) {
+          var toggleOffset = baseOffset + (index * (widgetSize + gap));
+          var panelOffset = toggleOffset + widgetSize + panelGap;
+          item.host.style.setProperty('--talia-floating-inline-offset', baseOffset + 'px');
+          item.host.style.setProperty('--talia-floating-toggle-offset', toggleOffset + 'px');
+          item.host.style.setProperty('--talia-floating-panel-offset', panelOffset + 'px');
+        });
+    });
   }
 })();

@@ -4,6 +4,7 @@ import type { SVGProps } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Bot, Database, Inbox, LayoutDashboard, Mail, MessageCircle, MessageSquare, Network, SlidersHorizontal, Megaphone, Zap } from 'lucide-react'
+import { FREE_TRIAL_DAYS } from '@/lib/billing/plans'
 import {
   hasTenantPermission,
   isTenantModuleEnabled,
@@ -101,7 +102,7 @@ export function DashboardNav({
   const showMarketing = hasProductAccess && marketingEnabled
   const trialProgress = trialDaysRemaining === null
     ? 0
-    : Math.max(0, Math.min(100, Math.round((trialDaysRemaining / 7) * 100)))
+    : Math.max(0, Math.min(100, Math.round((trialDaysRemaining / FREE_TRIAL_DAYS) * 100)))
 
   return (
     <nav className="dashboard-nav" aria-label={labels.main}>

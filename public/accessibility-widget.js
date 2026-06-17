@@ -111,10 +111,12 @@
     host.style.position = 'relative';
     host.style.zIndex = '2147483647';
     document.body.appendChild(host);
+    registerFloatingWidget(host, 'accessibility', config.position);
 
     var root = host.attachShadow({ mode: 'open' });
     var copy = getCopy(config.language);
     var state = readState(config.tenantId);
+    var previousFocus = null;
 
     root.innerHTML = getTemplate(copy, config);
 
@@ -237,6 +239,7 @@
         controlsView.hidden = true;
         if (aiView) aiView.hidden = true;
         clearView.hidden = false;
+        clearViewButton.setAttribute('aria-expanded', 'true');
         clearViewBack.focus();
         renderAiClearView(content, copy, config, clearViewContent, false);
       });
@@ -249,20 +252,33 @@
 
       clearViewBack.addEventListener('click', function () {
         clearView.hidden = true;
+        clearViewButton.setAttribute('aria-expanded', 'false');
         showTab('ai');
         clearViewButton.focus();
       });
     }
 
     root.addEventListener('keydown', function (event) {
+      if (event.key === 'Tab' && panel.classList.contains('panel--open')) {
+        trapPanelFocus(event);
+        return;
+      }
+
+      if (isTabKeyEvent(event)) {
+        handleTabKeyNavigation(event);
+        return;
+      }
+
       if (event.key === 'Escape' && panel.classList.contains('panel--open')) {
         closePanel();
-        toggle.focus();
+        focusPanelReturnTarget();
       }
     });
 
     function openPanel() {
+      previousFocus = root.activeElement || toggle;
       panel.classList.add('panel--open');
+      panel.setAttribute('aria-hidden', 'false');
       toggle.setAttribute('aria-expanded', 'true');
       setTimeout(function () {
         var firstControl = root.querySelector('[data-tab-controls]') || root.querySelector('[data-text-increase]') || root.querySelector('[data-control]') || reset;
@@ -272,7 +288,18 @@
 
     function closePanel() {
       panel.classList.remove('panel--open');
+      panel.setAttribute('aria-hidden', 'true');
       toggle.setAttribute('aria-expanded', 'false');
+      if (clearViewButton) clearViewButton.setAttribute('aria-expanded', 'false');
+    }
+
+    function focusPanelReturnTarget() {
+      if (previousFocus && typeof previousFocus.focus === 'function') {
+        previousFocus.focus();
+        return;
+      }
+
+      toggle.focus();
     }
 
     function showTab(tab) {
@@ -286,6 +313,62 @@
       aiTab.classList.toggle('tab--active', isAi);
       controlsTab.setAttribute('aria-selected', isAi ? 'false' : 'true');
       aiTab.setAttribute('aria-selected', isAi ? 'true' : 'false');
+      controlsView.setAttribute('aria-hidden', isAi ? 'true' : 'false');
+      aiView.setAttribute('aria-hidden', isAi ? 'false' : 'true');
+    }
+
+    function trapPanelFocus(event) {
+      var focusable = getFocusablePanelElements();
+      if (!focusable.length) {
+        event.preventDefault();
+        panel.focus();
+        return;
+      }
+
+      var first = focusable[0];
+      var last = focusable[focusable.length - 1];
+      var active = root.activeElement;
+
+      if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+        return;
+      }
+
+      if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    function getFocusablePanelElements() {
+      return Array.prototype.slice.call(panel.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+        .filter(function (element) {
+          return !element.closest('[hidden]') && element.offsetWidth > 0 && element.offsetHeight > 0;
+        });
+    }
+
+    function isTabKeyEvent(event) {
+      return (event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'Home' || event.key === 'End') &&
+        event.target &&
+        event.target.getAttribute &&
+        event.target.getAttribute('role') === 'tab';
+    }
+
+    function handleTabKeyNavigation(event) {
+      if (!controlsTab || !aiTab) return;
+      var tabs = [controlsTab, aiTab];
+      var currentIndex = tabs.indexOf(event.target);
+      if (currentIndex < 0) return;
+
+      event.preventDefault();
+      var nextIndex = currentIndex;
+      if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+      if (event.key === 'ArrowLeft') nextIndex = (currentIndex + tabs.length - 1) % tabs.length;
+      if (event.key === 'Home') nextIndex = 0;
+      if (event.key === 'End') nextIndex = tabs.length - 1;
+      tabs[nextIndex].click();
+      tabs[nextIndex].focus();
     }
 
     function renderState() {
@@ -512,45 +595,56 @@
     var controls = config.controls;
     var togglePosition = getAccessibilityTogglePositionCss(config.position);
     var panelPosition = getAccessibilityPanelPositionCss(config.position);
+    var primaryTextColor = getReadableTextColor(config.primaryColor);
+    var primaryBorderColor = getAccessibleBorderColor(config.primaryColor);
     var transformOrigin = config.position.indexOf('left') >= 0
       ? (config.position.indexOf('top') >= 0 ? 'top left' : 'bottom left')
       : (config.position.indexOf('top') >= 0 ? 'top right' : 'bottom right');
 
     return '\
       <style>\
-        :host { all: initial; color-scheme: light; font-family: Arial, Helvetica, system-ui, sans-serif; --talia-a11y-highlight: ' + config.highlightColor + '; --talia-a11y-highlight-soft: ' + hexToRgba(config.highlightColor, 0.12) + '; }\
+        :host { all: initial; color-scheme: light; font-family: Arial, Helvetica, system-ui, sans-serif; --talia-a11y-primary: ' + config.primaryColor + '; --talia-a11y-primary-text: ' + primaryTextColor + '; --talia-a11y-primary-border: ' + primaryBorderColor + '; --talia-a11y-primary-soft: ' + hexToRgba(config.primaryColor, 0.16) + '; --talia-a11y-highlight: ' + config.highlightColor + '; --talia-a11y-highlight-soft: ' + hexToRgba(config.highlightColor, 0.12) + '; }\
         *, *::before, *::after { box-sizing: border-box; }\
-        .toggle { position: fixed; ' + togglePosition + ' z-index: 2147483647; width: 56px; height: 56px; border: 0; border-radius: 999px; background: ' + config.primaryColor + '; color: #fff; cursor: pointer; display: grid; place-items: center; box-shadow: 0 6px 20px rgba(0,0,0,.22); transition: transform 150ms ease, box-shadow 150ms ease; }\
+        .toggle { position: fixed; ' + togglePosition + ' z-index: 2147483647; width: 56px; height: 56px; border: 2px solid rgba(17,24,39,.18); border-radius: 999px; background: ' + config.primaryColor + '; color: var(--talia-a11y-primary-text); cursor: pointer; display: grid; place-items: center; box-shadow: 0 6px 20px rgba(0,0,0,.22); transition: transform 150ms ease, box-shadow 150ms ease; }\
         .toggle:hover { transform: scale(1.06); box-shadow: 0 8px 24px rgba(0,0,0,.26); }\
         .toggle:active { transform: scale(.96); }\
-        .toggle:focus-visible, button:focus-visible { outline: 3px solid #111827; outline-offset: 3px; }\
+        .toggle:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid #111827; outline-offset: 3px; box-shadow: 0 0 0 6px rgba(255,255,255,.92), 0 0 0 9px #111827; }\
         .toggle svg { width: 38px; height: 38px; display: block; }\
-        .panel { position: fixed; ' + panelPosition + ' z-index: 2147483647; width: min(360px, calc(100vw - 40px)); max-height: min(620px, calc(100vh - 180px)); overflow: auto; border: 1px solid #d5d7db; border-radius: 8px; background: #fff; color: #111827; box-shadow: 0 18px 48px rgba(17,24,39,.22); opacity: 0; transform: translateY(10px) scale(.98); transform-origin: ' + transformOrigin + '; pointer-events: none; transition: opacity 180ms ease, transform 180ms ease; }\
+        .panel { position: fixed; ' + panelPosition + ' z-index: 2147483647; width: min(390px, calc(100vw - 32px)); max-height: min(680px, calc(100vh - 136px)); overflow: auto; border: 1px solid #d9dde6; border-radius: 8px; background: #fff; color: #111827; box-shadow: 0 22px 64px rgba(15,23,42,.24); opacity: 0; transform: translateY(10px) scale(.98); transform-origin: ' + transformOrigin + '; pointer-events: none; transition: opacity 180ms ease, transform 180ms ease; }\
         .panel--open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }\
-        .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px; border-bottom: 1px solid #e5e7eb; }\
-        .title { margin: 0 0 4px; font: 700 18px/1.2 Arial, Helvetica, system-ui, sans-serif; color: #111827; }\
-        .description { margin: 0; font: 400 13px/1.45 Arial, Helvetica, system-ui, sans-serif; color: #4b5563; }\
-        .close { width: 36px; height: 36px; flex: 0 0 auto; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; color: #111827; font: 24px/1 Arial, Helvetica, system-ui, sans-serif; cursor: pointer; }\
-        .body { display: grid; gap: 14px; padding: 16px; }\
+        .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 16px 14px; border-bottom: 1px solid #e7eaf0; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); }\
+        .header-main { min-width: 0; display: grid; grid-template-columns: auto 1fr; gap: 11px; align-items: start; }\
+        .header-mark { width: 38px; height: 38px; border-radius: 8px; background: var(--talia-a11y-primary-soft); color: #111827; display: grid; place-items: center; }\
+        .header-mark svg { width: 25px; height: 25px; }\
+        .title { margin: 0 0 3px; font: 800 19px/1.12 Arial, Helvetica, system-ui, sans-serif; color: #111827; }\
+        .description { margin: 0; font: 500 13px/1.4 Arial, Helvetica, system-ui, sans-serif; color: #526071; }\
+        .close { width: 38px; height: 38px; flex: 0 0 auto; border: 1px solid #d8dde6; border-radius: 8px; background: #fff; color: #111827; font: 28px/1 Arial, Helvetica, system-ui, sans-serif; cursor: pointer; display: grid; place-items: center; box-shadow: 0 1px 2px rgba(15,23,42,.04); }\
+        .close:hover { background: #f8fafc; }\
+        .body { display: grid; gap: 12px; padding: 14px; }\
         [hidden] { display: none !important; }\
-        .view { display: grid; gap: 14px; }\
-        .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; border: 1px solid #d5d7db; border-radius: 8px; background: #f3f4f6; padding: 4px; }\
-        .tab { min-height: 38px; border: 0; border-radius: 6px; background: transparent; color: #4b5563; cursor: pointer; font: 800 13px/1 Arial, Helvetica, system-ui, sans-serif; }\
-        .tab--active { background: #111827; color: #fff; box-shadow: 0 1px 2px rgba(17,24,39,.16); }\
+        .view { display: grid; gap: 12px; }\
+        .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; border: 1px solid #e1e5ec; border-radius: 8px; background: #f6f7f9; padding: 4px; }\
+        .tab { min-height: 36px; border: 0; border-radius: 6px; background: transparent; color: #4f5b6b; cursor: pointer; font: 800 13px/1 Arial, Helvetica, system-ui, sans-serif; }\
+        .tab--active { background: #111827; color: #fff; box-shadow: 0 1px 3px rgba(17,24,39,.18); }\
         .ai-empty { margin: 0; color: #4b5563; font: 500 13px/1.45 Arial, Helvetica, system-ui, sans-serif; }\
-        .clear-launch { width: 100%; min-height: 96px; border: 1px solid #111827; border-radius: 8px; background: #111827; color: #fff; cursor: pointer; display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; padding: 16px; text-align: left; }\
-        .clear-launch svg { width: 26px; height: 26px; }\
-        .clear-launch strong { display: block; font: 800 16px/1.2 Arial, Helvetica, system-ui, sans-serif; }\
-        .clear-launch span { display: block; margin-top: 4px; color: rgba(255,255,255,.78); font: 600 13px/1.4 Arial, Helvetica, system-ui, sans-serif; }\
-        .text-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; }\
-        .text-level { color: #374151; font: 600 13px/1.2 Arial, Helvetica, system-ui, sans-serif; }\
-        .icon-button { width: 42px; height: 42px; border: 1px solid #c5c9d0; border-radius: 8px; background: #f9fafb; color: #111827; cursor: pointer; font: 700 20px/1 Arial, Helvetica, system-ui, sans-serif; }\
+        .clear-launch { width: 100%; min-height: 92px; border: 1px solid #111827; border-radius: 8px; background: #111827; color: #fff; cursor: pointer; display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; padding: 15px; text-align: left; box-shadow: 0 10px 24px rgba(17,24,39,.14); }\
+        .clear-launch:hover { transform: translateY(-1px); }\
+        .clear-launch svg { width: 25px; height: 25px; }\
+        .clear-launch strong { display: block; font: 800 16px/1.15 Arial, Helvetica, system-ui, sans-serif; }\
+        .clear-launch span { display: block; margin-top: 4px; color: rgba(255,255,255,.8); font: 600 13px/1.4 Arial, Helvetica, system-ui, sans-serif; }\
+        .text-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; border: 1px solid #e1e5ec; border-radius: 8px; background: #f9fafb; padding: 10px; }\
+        .text-level { color: #253041; font: 800 13px/1.2 Arial, Helvetica, system-ui, sans-serif; }\
+        .icon-button { width: 40px; height: 40px; border: 1px solid #cfd5df; border-radius: 8px; background: #fff; color: #111827; cursor: pointer; font: 800 20px/1 Arial, Helvetica, system-ui, sans-serif; box-shadow: 0 1px 2px rgba(15,23,42,.04); }\
+        .icon-button:hover { border-color: #9aa4b2; background: #f8fafc; }\
         .icon-button:disabled { opacity: .45; cursor: not-allowed; }\
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }\
-        .control { min-height: 58px; border: 1px solid #c5c9d0; border-radius: 8px; background: #fff; color: #111827; cursor: pointer; display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center; padding: 10px; text-align: left; font: 700 13px/1.2 Arial, Helvetica, system-ui, sans-serif; }\
-        .control svg { width: 20px; height: 20px; }\
-        .control--active { border-color: #111827; background: #111827; color: #fff; box-shadow: inset 0 0 0 2px #fff; }\
-        .reset { width: 100%; border: 1px solid #111827; border-radius: 8px; background: #fff; color: #111827; padding: 12px; cursor: pointer; font: 700 14px/1 Arial, Helvetica, system-ui, sans-serif; }\
+        .control { min-height: 54px; border: 1px solid #d5dae4; border-radius: 8px; background: #fff; color: #111827; cursor: pointer; display: grid; grid-template-columns: auto 1fr; gap: 9px; align-items: center; padding: 10px; text-align: left; font: 800 13px/1.18 Arial, Helvetica, system-ui, sans-serif; box-shadow: 0 1px 2px rgba(15,23,42,.035); }\
+        .control:hover { border-color: #9aa4b2; background: #fbfcfe; }\
+        .control svg { width: 19px; height: 19px; color: #111827; }\
+        .control--active { border-color: var(--talia-a11y-primary-border); background: var(--talia-a11y-primary-soft); color: #111827; box-shadow: inset 0 0 0 1px var(--talia-a11y-primary-border); }\
+        .control--active svg { color: #111827; }\
+        .reset { width: 100%; border: 1px solid #cfd5df; border-radius: 8px; background: #fff; color: #111827; padding: 12px; cursor: pointer; font: 800 14px/1 Arial, Helvetica, system-ui, sans-serif; }\
+        .reset:hover { border-color: #111827; background: #f8fafc; }\
         .clear-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }\
         .clear-back, .clear-refresh { width: fit-content; border: 1px solid #c5c9d0; border-radius: 8px; background: #fff; color: #111827; padding: 9px 11px; cursor: pointer; font: 800 13px/1 Arial, Helvetica, system-ui, sans-serif; }\
         .clear-view-content { display: grid; gap: 14px; }\
@@ -569,18 +663,21 @@
         .branding { margin: 0; color: #6b7280; text-align: center; font: 600 11px/1.2 Arial, Helvetica, system-ui, sans-serif; }\
         @media (max-width: 420px) { .panel { width: calc(100vw - 24px); max-height: calc(100vh - 168px); } .grid { grid-template-columns: 1fr; } }\
       </style>\
-      <section class="panel" data-panel id="talia-a11y-panel" role="dialog" aria-labelledby="talia-a11y-title" aria-describedby="talia-a11y-description">\
+      <section class="panel" data-panel id="talia-a11y-panel" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="talia-a11y-title" aria-describedby="talia-a11y-description" tabindex="-1">\
         <div class="header">\
-          <div><h2 class="title" id="talia-a11y-title">' + escapeHtml(copy.title) + '</h2><p class="description" id="talia-a11y-description">' + escapeHtml(copy.description) + '</p></div>\
-          <button class="close" data-close aria-label="' + escapeHtml(copy.close) + '">×</button>\
+          <div class="header-main">\
+            <span class="header-mark" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="1.2" fill="currentColor" stroke="none"></circle><path d="M7.5 10.5h9"></path><path d="M12 10.5v4"></path><path d="m9 19 3-4.5 3 4.5"></path></svg></span>\
+            <div><h2 class="title" id="talia-a11y-title">' + escapeHtml(copy.title) + '</h2><p class="description" id="talia-a11y-description">' + escapeHtml(copy.description) + '</p></div>\
+          </div>\
+          <button class="close" data-close type="button" aria-label="' + escapeHtml(copy.close) + '">×</button>\
         </div>\
         <div class="body">\
           ' + (config.clearViewEnabled ? '<div class="tabs" role="tablist" aria-label="' + escapeHtml(copy.tabsLabel) + '">\
-            <button class="tab tab--active" data-tab-controls type="button" role="tab" aria-selected="true" aria-controls="talia-a11y-controls">' + escapeHtml(copy.controlsTab) + '</button>\
-            <button class="tab" data-tab-ai type="button" role="tab" aria-selected="false" aria-controls="talia-a11y-ai">' + escapeHtml(copy.aiTab) + '</button>\
+            <button class="tab tab--active" id="talia-a11y-tab-controls" data-tab-controls type="button" role="tab" aria-selected="true" aria-controls="talia-a11y-controls">' + escapeHtml(copy.controlsTab) + '</button>\
+            <button class="tab" id="talia-a11y-tab-ai" data-tab-ai type="button" role="tab" aria-selected="false" aria-controls="talia-a11y-ai">' + escapeHtml(copy.aiTab) + '</button>\
           </div>' : '') + '\
-          <div class="view" data-controls-view id="talia-a11y-controls" role="tabpanel">\
-            ' + (controls.textSize ? '<div class="text-row"><span class="text-level" data-text-level></span><button class="icon-button" data-text-decrease type="button" aria-label="' + escapeHtml(copy.decreaseText) + '">A-</button><button class="icon-button" data-text-increase type="button" aria-label="' + escapeHtml(copy.increaseText) + '">A+</button></div>' : '') + '\
+          <div class="view" data-controls-view id="talia-a11y-controls"' + (config.clearViewEnabled ? ' role="tabpanel" aria-labelledby="talia-a11y-tab-controls" aria-hidden="false"' : '') + '>\
+            ' + (controls.textSize ? '<div class="text-row"><span class="text-level" data-text-level aria-live="polite"></span><button class="icon-button" data-text-decrease type="button" aria-label="' + escapeHtml(copy.decreaseText) + '">A-</button><button class="icon-button" data-text-increase type="button" aria-label="' + escapeHtml(copy.increaseText) + '">A+</button></div>' : '') + '\
             <div class="grid">\
               ' + controlTemplate(controls.contrast, 'contrast', copy.contrast, 'M4 4h16v16H4z M8 8h8v8H8z') + '\
               ' + controlTemplate(controls.grayscale, 'grayscale', copy.grayscale, 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 3v18') + '\
@@ -595,18 +692,18 @@
             </div>\
             <button class="reset" data-reset type="button">' + escapeHtml(copy.reset) + '</button>\
           </div>\
-          ' + (config.clearViewEnabled ? '<div class="view" data-ai-view id="talia-a11y-ai" role="tabpanel" hidden>\
-            <button class="clear-launch" data-clear-view type="button">\
+          ' + (config.clearViewEnabled ? '<div class="view" data-ai-view id="talia-a11y-ai" role="tabpanel" aria-labelledby="talia-a11y-tab-ai" aria-hidden="true" hidden>\
+            <button class="clear-launch" data-clear-view type="button" aria-expanded="false" aria-controls="talia-a11y-clear-view-panel">\
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"></path><path d="M4 12h10"></path><path d="M4 19h16"></path></svg>\
               <span><strong>' + escapeHtml(copy.clearView) + '</strong><span>' + escapeHtml(copy.clearViewDescription) + '</span></span>\
             </button>\
           </div>' : '') + '\
-          ' + (config.clearViewEnabled ? '<div class="view" data-clear-view-panel hidden>\
+          ' + (config.clearViewEnabled ? '<div class="view" data-clear-view-panel id="talia-a11y-clear-view-panel" hidden>\
             <div class="clear-toolbar">\
               <button class="clear-back" data-clear-view-back type="button">' + escapeHtml(copy.backToControls) + '</button>\
               <button class="clear-refresh" data-clear-view-refresh type="button">' + escapeHtml(copy.refreshClearView) + '</button>\
             </div>\
-            <div class="clear-view-content" data-clear-view-content></div>\
+            <div class="clear-view-content" data-clear-view-content role="status" aria-live="polite" aria-atomic="false"></div>\
           </div>' : '') + '\
           ' + (config.showBranding ? '<p class="branding">TALIA Accessibility</p>' : '') + '\
         </div>\
@@ -842,10 +939,12 @@
   }
 
   function renderAiClearView(content, copy, config, container, refresh) {
+    container.setAttribute('aria-busy', 'true');
     container.innerHTML = '<p class="clear-summary">' + escapeHtml(copy.clearViewLoading) + '</p>';
     var cached = readClearViewCache(config.tenantId, config.language);
     if (cached && !refresh) {
       container.innerHTML = renderClearViewContent(cached.clearView || cached, copy, cached.source || 'cached');
+      container.setAttribute('aria-busy', 'false');
       return;
     }
 
@@ -870,9 +969,11 @@
         var source = data && data.source === 'ai' ? 'ai' : 'local';
         saveClearViewCache(config.tenantId, config.language, { clearView: clearView, source: source });
         container.innerHTML = renderClearViewContent(clearView, copy, source);
+        container.setAttribute('aria-busy', 'false');
       })
       .catch(function () {
         container.innerHTML = renderClearViewContent(content, copy, 'local');
+        container.setAttribute('aria-busy', 'false');
       });
   }
 
@@ -1181,17 +1282,62 @@
   }
 
   function getAccessibilityTogglePositionCss(position) {
-    if (position === 'bottom-left') return 'left: 20px; bottom: 88px;';
-    if (position === 'top-right') return 'right: 20px; top: 88px;';
-    if (position === 'top-left') return 'left: 20px; top: 88px;';
-    return 'right: 20px; bottom: 88px;';
+    if (position === 'bottom-left') return 'left: var(--talia-floating-inline-offset, 20px); bottom: var(--talia-floating-toggle-offset, 20px);';
+    if (position === 'top-right') return 'right: var(--talia-floating-inline-offset, 20px); top: var(--talia-floating-toggle-offset, 20px);';
+    if (position === 'top-left') return 'left: var(--talia-floating-inline-offset, 20px); top: var(--talia-floating-toggle-offset, 20px);';
+    return 'right: var(--talia-floating-inline-offset, 20px); bottom: var(--talia-floating-toggle-offset, 20px);';
   }
 
   function getAccessibilityPanelPositionCss(position) {
-    if (position === 'bottom-left') return 'left: 20px; bottom: 152px;';
-    if (position === 'top-right') return 'right: 20px; top: 152px;';
-    if (position === 'top-left') return 'left: 20px; top: 152px;';
-    return 'right: 20px; bottom: 152px;';
+    if (position === 'bottom-left') return 'left: var(--talia-floating-inline-offset, 20px); bottom: var(--talia-floating-panel-offset, 88px);';
+    if (position === 'top-right') return 'right: var(--talia-floating-inline-offset, 20px); top: var(--talia-floating-panel-offset, 88px);';
+    if (position === 'top-left') return 'left: var(--talia-floating-inline-offset, 20px); top: var(--talia-floating-panel-offset, 88px);';
+    return 'right: var(--talia-floating-inline-offset, 20px); bottom: var(--talia-floating-panel-offset, 88px);';
+  }
+
+  function registerFloatingWidget(host, type, position) {
+    var registry = getFloatingRegistry();
+    registry.items = registry.items.filter(function (item) {
+      return item.host && item.host.isConnected && item.type !== type;
+    });
+    registry.items.push({ host: host, type: type, position: position });
+    updateFloatingWidgets(registry);
+  }
+
+  function getFloatingRegistry() {
+    var key = '__taliaFloatingWidgets';
+    window[key] = window[key] || { items: [] };
+    return window[key];
+  }
+
+  function updateFloatingWidgets(registry) {
+    var baseOffset = 20;
+    var widgetSize = 56;
+    var gap = 12;
+    var panelGap = 12;
+    var priority = { chatbot: 0, accessibility: 1 };
+    var groups = {};
+
+    registry.items = registry.items.filter(function (item) {
+      return item.host && item.host.isConnected;
+    });
+
+    registry.items.forEach(function (item) {
+      groups[item.position] = groups[item.position] || [];
+      groups[item.position].push(item);
+    });
+
+    Object.keys(groups).forEach(function (position) {
+      groups[position]
+        .sort(function (a, b) { return (priority[a.type] || 9) - (priority[b.type] || 9); })
+        .forEach(function (item, index) {
+          var toggleOffset = baseOffset + (index * (widgetSize + gap));
+          var panelOffset = toggleOffset + widgetSize + panelGap;
+          item.host.style.setProperty('--talia-floating-inline-offset', baseOffset + 'px');
+          item.host.style.setProperty('--talia-floating-toggle-offset', toggleOffset + 'px');
+          item.host.style.setProperty('--talia-floating-panel-offset', panelOffset + 'px');
+        });
+    });
   }
 
   function getDefaultState() {
@@ -1256,6 +1402,40 @@
     var green = parseInt(color.slice(2, 4), 16);
     var blue = parseInt(color.slice(4, 6), 16);
     return 'rgba(' + red + ',' + green + ',' + blue + ',' + alpha + ')';
+  }
+
+  function getReadableTextColor(background) {
+    var blackContrast = getContrastRatio('#111827', background);
+    var whiteContrast = getContrastRatio('#ffffff', background);
+    return blackContrast >= whiteContrast ? '#111827' : '#ffffff';
+  }
+
+  function getAccessibleBorderColor(color) {
+    return getContrastRatio(color, '#ffffff') >= 3 ? color : '#111827';
+  }
+
+  function getContrastRatio(first, second) {
+    var firstLum = getRelativeLuminance(first);
+    var secondLum = getRelativeLuminance(second);
+    var lighter = Math.max(firstLum, secondLum);
+    var darker = Math.min(firstLum, secondLum);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  function getRelativeLuminance(hex) {
+    var color = sanitizeColor(hex, '#000000').slice(1);
+    var channels = [
+      parseInt(color.slice(0, 2), 16),
+      parseInt(color.slice(2, 4), 16),
+      parseInt(color.slice(4, 6), 16),
+    ].map(function (channel) {
+      var value = channel / 255;
+      return value <= 0.03928
+        ? value / 12.92
+        : Math.pow((value + 0.055) / 1.055, 2.4);
+    });
+
+    return (0.2126 * channels[0]) + (0.7152 * channels[1]) + (0.0722 * channels[2]);
   }
 
   function escapeHtml(value) {

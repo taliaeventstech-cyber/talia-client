@@ -37,9 +37,9 @@ const es = {
     trialEndsIn: 'La prueba gratuita termina en {days} días',
   },
   trialExpired: {
-    bannerTitle: 'Tu prueba gratuita de 7 días ha terminado',
+    bannerTitle: 'Tu prueba gratuita de 14 días ha terminado',
     bannerAction: 'Mejorar plan',
-    title: 'Tu prueba gratuita de 7 días ha terminado',
+    title: 'Tu prueba gratuita de 14 días ha terminado',
     close: 'Cerrar aviso',
     headline: 'Mejora tu plan para seguir usando TALIA',
     description: 'Mantén activos el chatbot web, el agente de email y las métricas de Àgora con un plan mensual.',
@@ -346,7 +346,7 @@ const es = {
     description: 'Tu cuenta tiene acceso a varios centros. Selecciona el espacio de trabajo que quieres abrir.',
   },
   upgrade: {
-    eyebrow: '7 días de prueba gratuita · Sin tarjeta · Servidor en Europa · RGPD',
+    eyebrow: '14 días de prueba gratuita · Sin tarjeta · Servidor en Europa · RGPD',
     title: 'GoTalia · Planes y precios',
     trialExpired: 'Tu prueba ha terminado. Elige un plan para reactivar Chatbot Web y Agente de Email.',
     trialActive: 'Elige el plan que quieras activar al terminar la prueba.',
@@ -871,9 +871,9 @@ const ca: Dictionary = {
     trialEndsIn: 'La prova gratuïta acaba d’aquí a {days} dies',
   },
   trialExpired: {
-    bannerTitle: 'La teva prova gratuïta de 7 dies ha acabat',
+    bannerTitle: 'La teva prova gratuïta de 14 dies ha acabat',
     bannerAction: 'Millorar pla',
-    title: 'La teva prova gratuïta de 7 dies ha acabat',
+    title: 'La teva prova gratuïta de 14 dies ha acabat',
     close: 'Tancar avís',
     headline: 'Millora el teu pla per continuar fent servir TALIA',
     description: 'Mantén actius el chatbot web, l’agent d’email i les mètriques d’Àgora amb un pla mensual.',
@@ -1688,9 +1688,9 @@ const en: Dictionary = {
     trialEndsIn: 'The free trial ends in {days} days',
   },
   trialExpired: {
-    bannerTitle: 'Your 7-day free trial has ended',
+    bannerTitle: 'Your 14-day free trial has ended',
     bannerAction: 'Upgrade plan',
-    title: 'Your 7-day free trial has ended',
+    title: 'Your 14-day free trial has ended',
     close: 'Close notice',
     headline: 'Upgrade your plan to keep using TALIA',
     description: 'Keep the web chatbot, email agent, and Àgora metrics active with a monthly plan.',
@@ -1942,7 +1942,7 @@ const en: Dictionary = {
   },
   upgrade: {
     ...es.upgrade,
-    eyebrow: '7-day free trial · No card · Server in Europe · GDPR',
+    eyebrow: '14-day free trial · No card · Server in Europe · GDPR',
     title: 'GoTalia · Plans and pricing',
     trialExpired: 'Your trial has ended. Choose a plan to reactivate Web Chatbot and Email Agent.',
     trialActive: 'Choose the plan you want to activate when the trial ends.',

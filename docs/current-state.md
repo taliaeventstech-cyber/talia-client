@@ -16,7 +16,7 @@ Estado actual:
 - Canales planificados o pausados: Microsoft/Outlook, voz, WhatsApp, Instagram.
 - Dashboard cliente: **Agora**, por venue.
 - Panel interno: **Backstage**.
-- Modelo comercial actual: trial gratuito de 7 dias, upgrade a planes de pago y extras.
+- Modelo comercial actual: trial gratuito de 14 dias, upgrade a planes de pago y extras.
 
 ## Producto Implementado
 
@@ -212,7 +212,7 @@ Referencia:
 
 Implementado:
 
-- Trial gratuito de 7 dias.
+- Trial gratuito de 14 dias.
 - Despues del trial, el acceso a Chatbot/Email se reemplaza por upgrade.
 - Pantalla `/upgrade` con planes y extras.
 - Stripe Checkout.

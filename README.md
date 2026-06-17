@@ -28,7 +28,7 @@ No usar documentos antiguos, notas sueltas o comentarios de codigo como fuente p
 - **Agora**: dashboard operativo por venue.
 - **Chatbot web**: canal mas maduro del modulo Atencion.
 - **Agente de email**: testing activo con Gmail, modo borradores supervisados.
-- **Billing**: trial de 7 dias, planes, extras y Stripe Checkout.
+- **Billing**: trial de 14 dias, planes, extras y Stripe Checkout.
 - **Backstage**: panel interno TALIA para configuracion y diagnostico.
 
 ## Comandos Basicos
