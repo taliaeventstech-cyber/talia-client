@@ -116,6 +116,19 @@ export function DashboardNav({
         </Link>
       </div>
 
+      {showKnowledge ? (
+        <div className="nav-section">
+          <p className="nav-section-label">{labels.intelligence}</p>
+          <Link
+            className={`nav-link ${active(`/${tenantId}/knowledge`) ? 'nav-link-active' : ''}`}
+            href={`/${tenantId}/knowledge`}
+          >
+            <Database size={14} strokeWidth={2} aria-hidden="true" />
+            {labels.knowledge}
+          </Link>
+        </div>
+      ) : null}
+
       {showAttention ? (
         <div className="nav-section nav-section-first">
           <p className="nav-section-label">{labels.attention}</p>
@@ -225,19 +238,6 @@ export function DashboardNav({
               </div>
             </div>
           ) : null}
-        </div>
-      ) : null}
-
-      {showKnowledge ? (
-        <div className="nav-section">
-          <p className="nav-section-label">{labels.intelligence}</p>
-          <Link
-            className={`nav-link ${active(`/${tenantId}/knowledge`) ? 'nav-link-active' : ''}`}
-            href={`/${tenantId}/knowledge`}
-          >
-            <Database size={14} strokeWidth={2} aria-hidden="true" />
-            {labels.knowledge}
-          </Link>
         </div>
       ) : null}
 

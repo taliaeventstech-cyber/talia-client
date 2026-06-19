@@ -1,7 +1,7 @@
 'use client'
 
 import { useActionState, useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, Globe2, Landmark, Mail, MessageSquare, Sparkles, Ticket } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bot, Building2, Check, Globe2, Landmark, Mail, MessageSquare, Route, Sparkles, Ticket, UserRound } from 'lucide-react'
 import Image from 'next/image'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { createTenant, type OnboardingFormState } from './actions'
@@ -48,6 +48,8 @@ const USE_CASES = [
   { value: 'prices', icon: Ticket },
   { value: 'email', icon: Mail },
 ] as const
+
+type UseCaseValue = typeof USE_CASES[number]['value']
 
 const MAX_USE_CASES = 3
 
@@ -143,7 +145,7 @@ export function OnboardingForm({ copy, email }: { copy: OnboardingFormCopy; emai
 
         </section>
 
-        <OnboardingVisual />
+        <OnboardingVisual copy={copy} activeStep={workspaceStep} values={values} />
       </div>
 
       <div className="onboarding-actions">
@@ -355,16 +357,83 @@ function WorkspaceUseCases({ copy, goals, toggleGoal }: { copy: OnboardingFormCo
   )
 }
 
-function OnboardingVisual() {
+function OnboardingVisual({
+  copy,
+  activeStep,
+  values,
+}: {
+  copy: OnboardingFormCopy
+  activeStep: WorkspaceStep
+  values: FormValues
+}) {
+  const selectedGoals = values.goals
+    .slice(0, MAX_USE_CASES)
+    .map((goal) => (isUseCaseValue(goal) ? copy.useCases.options[goal] : ''))
+    .filter(Boolean)
+
+  const nodes = [
+    {
+      label: copy.steps[0],
+      Icon: UserRound,
+      detail: values.fullName || values.role,
+    },
+    {
+      label: copy.steps[1],
+      Icon: Building2,
+      detail: values.theatreName || values.websiteUrl,
+    },
+    {
+      label: copy.steps[2],
+      Icon: Route,
+      detail: selectedGoals.join(' · '),
+    },
+  ] as const
+
   return (
-    <aside className="onboarding-visual">
+    <aside className="onboarding-visual" aria-hidden="true">
       <div className="onboarding-visual-card">
-        <div className="onboarding-visual-icon">
-          <Image src="/talia-logo-marble.png" alt="" width={132} height={36} />
+        <div className="onboarding-visual-map">
+          {nodes.map(({ label, Icon, detail }, index) => {
+            const isActive = index === activeStep
+            const isDone = index < activeStep
+            return (
+              <div
+                key={label}
+                className={
+                  isActive
+                    ? 'onboarding-visual-node onboarding-visual-node-active'
+                    : isDone
+                      ? 'onboarding-visual-node onboarding-visual-node-done'
+                      : 'onboarding-visual-node'
+                }
+              >
+                <span className="onboarding-visual-node-icon">
+                  <Icon size={19} strokeWidth={2.2} />
+                </span>
+                <span>
+                  <strong>{label}</strong>
+                  {detail ? <small>{detail}</small> : null}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="onboarding-visual-core">
+          <span className="onboarding-visual-core-mark">
+            <Image src="/talia-logo-marble.png" alt="" width={132} height={36} />
+          </span>
+          <span className="onboarding-visual-core-bot">
+            <Bot size={28} strokeWidth={2.1} />
+          </span>
         </div>
       </div>
     </aside>
   )
+}
+
+function isUseCaseValue(value: string): value is UseCaseValue {
+  return USE_CASES.some((useCase) => useCase.value === value)
 }
 
 function isWorkspaceStepValid(step: WorkspaceStep, values: FormValues, websiteUrlError: string) {

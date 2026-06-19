@@ -150,6 +150,7 @@ Implementado:
 
 - Base de conocimiento compartida por venue.
 - FAQs/respuestas oficiales.
+- Importacion de PDFs con extraccion de texto y fragmentos de conocimiento.
 - Fuentes/scrape URLs.
 - Importacion estructurada segun pantalla de configuracion.
 
@@ -157,6 +158,7 @@ Direccion de producto:
 
 - Mantener Conocimiento como nucleo comun para chatbot, email, voz y futuros canales.
 - Ampliar en el futuro hacia Sources, Guidelines, Workflows y Actions.
+- Evolucion recomendada: separar ingestion/retrieval/IA a backend propio o servicio dedicado manteniendo estable el contrato interno de TALIA.
 
 ### Agente de Email
 

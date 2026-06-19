@@ -1,7 +1,7 @@
 'use client'
 
 import { startTransition, useActionState, useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, Link2, MessageSquare } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bot, Check, Database, Link2, MessageSquare, Palette } from 'lucide-react'
 import Link from 'next/link'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { saveChatbotSetup, type ChatbotSetupState } from './actions'
@@ -42,6 +42,7 @@ export function ChatbotSetupForm({
   const [state, action, pending] = useActionState(saveChatbotSetup.bind(null, tenantId), initialState)
   const [step, setStep] = useState<Step>(0)
   const [values, setValues] = useState(initialValues)
+  const [previewOpen, setPreviewOpen] = useState(true)
   const normalizedSourceUrl = useMemo(() => normalizeUrl(values.sourceUrl), [values.sourceUrl])
   const sourceUrlError = getUrlError(values.sourceUrl, copy)
   const canContinue = isStepValid(step, values, sourceUrlError)
@@ -109,11 +110,32 @@ export function ChatbotSetupForm({
         </section>
 
         <aside className="chatbot-setup-preview" aria-label={copy.previewLabel}>
+          <div className="chatbot-setup-preview-flow" aria-hidden="true">
+            {[
+              { label: copy.steps[0], Icon: Bot },
+              { label: copy.steps[1], Icon: Database },
+              { label: copy.steps[2], Icon: Palette },
+            ].map(({ label, Icon }, index) => (
+              <span
+                key={label}
+                className={
+                  index === step
+                    ? 'chatbot-setup-preview-node chatbot-setup-preview-node-active'
+                    : index < step
+                      ? 'chatbot-setup-preview-node chatbot-setup-preview-node-done'
+                      : 'chatbot-setup-preview-node'
+                }
+              >
+                <Icon size={18} strokeWidth={2.2} />
+                {label}
+              </span>
+            ))}
+          </div>
           <div className="chatbot-widget-stage">
-            <div className="chatbot-widget-panel">
+            <div className={previewOpen ? 'chatbot-widget-panel' : 'chatbot-widget-panel chatbot-widget-panel-closed'}>
               <div className="chatbot-widget-header" style={{ background: values.primaryColor }}>
                 <span>TALIA</span>
-                <button type="button" aria-label={copy.closePreview}>×</button>
+                <button type="button" aria-label={copy.closePreview} onClick={() => setPreviewOpen(false)}>×</button>
               </div>
               <div className="chatbot-widget-messages">
                 <p className="chatbot-widget-message chatbot-widget-message-assistant">
@@ -128,9 +150,16 @@ export function ChatbotSetupForm({
                 <button type="button" style={{ background: values.primaryColor }}>{copy.send}</button>
               </div>
             </div>
-            <span className="chatbot-widget-toggle" style={{ background: values.primaryColor }} aria-hidden="true">
+            <button
+              className={previewOpen ? 'chatbot-widget-toggle chatbot-widget-toggle-active' : 'chatbot-widget-toggle'}
+              type="button"
+              style={{ background: values.primaryColor }}
+              aria-label={previewOpen ? copy.closePreview : copy.previewLabel}
+              aria-expanded={previewOpen}
+              onClick={() => setPreviewOpen((current) => !current)}
+            >
               <MessageSquare size={25} strokeWidth={2.2} />
-            </span>
+            </button>
           </div>
         </aside>
       </div>

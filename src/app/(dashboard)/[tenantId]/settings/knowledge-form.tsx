@@ -2,7 +2,8 @@
 
 import { ChevronDown, Info, Trash2 } from 'lucide-react'
 import { useActionState, useState, useTransition, useEffect, useRef } from 'react'
-import { createKnowledgeItem, uploadKnowledgeExcel, updateScrapeUrls, updateKnowledgeItem, deleteKnowledgeItem, type SettingsFormState, type ExcelUploadState } from './actions'
+import type { ReactNode } from 'react'
+import { createKnowledgeItem, uploadKnowledgeExcel, uploadKnowledgePdf, updateScrapeUrls, updateKnowledgeItem, deleteKnowledgeItem, type SettingsFormState, type ExcelUploadState, type PdfUploadState } from './actions'
 
 type KnowledgeItem = {
   id: string
@@ -16,6 +17,7 @@ type KnowledgeItem = {
 type KnowledgeFormProps = {
   tenantId: string
   items: KnowledgeItem[]
+  pagination?: ReactNode
   scrapeUrls: string[]
   labels: {
     officialAnswers: string
@@ -44,6 +46,10 @@ type KnowledgeFormProps = {
     importWarning: string
     importing: string
     importButton: string
+    importPdf: string
+    importPdfHelp: string
+    importPdfWarning: string
+    importPdfButton: string
     scrapeUrls: string
     scrapeHelp: string
     deleteUrl: string
@@ -78,12 +84,19 @@ const excelInitialState: ExcelUploadState = {
   message: '',
 }
 
-export function KnowledgeForm({ tenantId, items, scrapeUrls, labels }: KnowledgeFormProps) {
+const pdfInitialState: PdfUploadState = {
+  ok: false,
+  message: '',
+}
+
+export function KnowledgeForm({ tenantId, items, pagination, scrapeUrls, labels }: KnowledgeFormProps) {
   const [isFaqOpen, setIsFaqOpen] = useState(true)
   const [isImportOpen, setIsImportOpen] = useState(false)
+  const [isPdfOpen, setIsPdfOpen] = useState(false)
   const [isUrlsOpen, setIsUrlsOpen] = useState(false)
   const [state, formAction, pending] = useActionState(createKnowledgeItem.bind(null, tenantId), initialState)
   const [excelState, excelFormAction, excelPending] = useActionState(uploadKnowledgeExcel.bind(null, tenantId), excelInitialState)
+  const [pdfState, pdfFormAction, pdfPending] = useActionState(uploadKnowledgePdf.bind(null, tenantId), pdfInitialState)
   const [urlsState, urlsFormAction, urlsPending] = useActionState(updateScrapeUrls.bind(null, tenantId), initialState)
   const [urls, setUrls] = useState<string[]>(scrapeUrls.length ? scrapeUrls : [''])
 
@@ -176,26 +189,72 @@ export function KnowledgeForm({ tenantId, items, scrapeUrls, labels }: Knowledge
             </form>
 
             {items.length ? (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>{labels.table.question}</th>
-                    <th>{labels.table.topic}</th>
-                    <th>{labels.table.language}</th>
-                    <th>{labels.table.confidence}</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => (
-                    <KnowledgeItemRow key={item.id} tenantId={tenantId} item={item} />
-                  ))}
-                </tbody>
-              </table>
+              <>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>{labels.table.question}</th>
+                      <th>{labels.table.topic}</th>
+                      <th>{labels.table.language}</th>
+                      <th>{labels.table.confidence}</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item) => (
+                      <KnowledgeItemRow key={item.id} tenantId={tenantId} item={item} />
+                    ))}
+                  </tbody>
+                </table>
+                {pagination}
+              </>
             ) : (
               <p className="muted">{labels.noItems}</p>
             )}
           </>
+        ) : null}
+      </section>
+
+      <section className="card stack">
+        <button
+          type="button"
+          className="collapsible-header"
+          aria-expanded={isPdfOpen}
+          onClick={() => setIsPdfOpen((open) => !open)}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <h2>{labels.importPdf}</h2>
+            <span className="tooltip-wrap" onClick={(e) => e.stopPropagation()}>
+              <Info size={15} strokeWidth={2} className="tooltip-icon" aria-label="Cómo funciona la importación PDF" />
+              <span className="tooltip-tip" role="tooltip">
+                {labels.importPdfHelp}
+              </span>
+            </span>
+          </span>
+          <ChevronDown className="collapsible-chevron" data-open={isPdfOpen} aria-hidden="true" size={20} strokeWidth={2} />
+        </button>
+
+        {isPdfOpen ? (
+          <form action={pdfFormAction} className="stack">
+            {pdfState.message ? (
+              <p role="status" className={`notice ${pdfState.ok ? 'notice-success' : 'notice-error'}`}>
+                {pdfState.message}
+              </p>
+            ) : null}
+
+            <p className="notice notice-warning">
+              {labels.importPdfWarning}
+            </p>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <label className="field" style={{ flex: 1, margin: 0 }}>
+                <input type="file" name="file" accept="application/pdf,.pdf" required />
+              </label>
+              <button className="button-primary" type="submit" disabled={pdfPending} style={{ opacity: pdfPending ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                {pdfPending ? labels.importing : labels.importPdfButton}
+              </button>
+            </div>
+          </form>
         ) : null}
       </section>
 
