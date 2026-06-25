@@ -187,8 +187,8 @@ Tareas:
   - `AgentRuntimeResult`;
   - `KnowledgeRetrievalResult`;
   - `UsageEvent`.
-- Hacer que `/api/chat/:tenantId` hable con un `ChatAgentProvider`.
-- Mantener `N8nChatAgentProvider` como adapter.
+- Hacer que `/api/chat/:tenantId` hable con un `ChatAgentProvider`. Iniciado: `src/lib/agent-runtime/chat.ts`.
+- Mantener `N8nChatAgentProvider` como adapter. Iniciado.
 - Documentar payloads internos.
 
 Resultado:
@@ -201,12 +201,13 @@ Objetivo: que la base de conocimiento escale.
 
 Tareas:
 
-- Crear tabla `knowledge_chunks`.
-- Separar `knowledge_items` tipo FAQ de chunks documentales.
+- Crear tabla `knowledge_chunks`. Iniciado: la tabla ya existe como base documental para PDFs.
+- Separar `knowledge_items` tipo FAQ de chunks documentales. Iniciado: los PDFs se guardan en chunks y se reflejan temporalmente en `knowledge_items`.
 - Guardar metadata de fuente, pagina, idioma y hash.
-- Crear modulo `KnowledgeRetriever`.
-- Primer retrieval determinista por texto/prioridad.
-- Preparar columna para embeddings o tabla auxiliar.
+- Crear modulo `KnowledgeRetriever`. Iniciado: `src/lib/knowledge/retrieval.ts` ya encapsula el contrato.
+- Primer retrieval determinista por texto/prioridad. Iniciado: retrieval consulta chunks e items.
+- Preparar columna para embeddings o tabla auxiliar. Iniciado: `knowledge_chunks.embedding` usa pgvector y `match_knowledge_chunks` habilita busqueda semantica opcional.
+- Preparar backfill/reintentos de embeddings. Iniciado: `talia-ai` expone `/v1/knowledge/embed` y `/v1/knowledge/embed/pending`; Next ya no ejecuta embeddings localmente.
 
 Resultado:
 

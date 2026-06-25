@@ -547,6 +547,75 @@ export type Database = {
           },
         ]
       }
+      knowledge_chunks: {
+        Row: {
+          active: boolean
+          chunk_index: number
+          content: string
+          created_at: string
+          embedding_model: string | null
+          embedding_status: string
+          embedding_updated_at: string | null
+          embedding: string | null
+          id: string
+          language: string
+          metadata: Json
+          source_id: string | null
+          theatre_id: string
+          token_count: number | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          chunk_index: number
+          content: string
+          created_at?: string
+          embedding_model?: string | null
+          embedding_status?: string
+          embedding_updated_at?: string | null
+          embedding?: string | null
+          id?: string
+          language?: string
+          metadata?: Json
+          source_id?: string | null
+          theatre_id: string
+          token_count?: number | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          embedding_model?: string | null
+          embedding_status?: string
+          embedding_updated_at?: string | null
+          embedding?: string | null
+          id?: string
+          language?: string
+          metadata?: Json
+          source_id?: string | null
+          theatre_id?: string
+          token_count?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_chunks_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_chunks_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_sources: {
         Row: {
           config: Json
@@ -603,6 +672,7 @@ export type Database = {
           conversation_id: string
           created_at: string
           id: string
+          metadata: Json
           role: Database["public"]["Enums"]["message_role"]
           theatre_id: string
         }
@@ -611,6 +681,7 @@ export type Database = {
           conversation_id: string
           created_at?: string
           id?: string
+          metadata?: Json
           role: Database["public"]["Enums"]["message_role"]
           theatre_id: string
         }
@@ -619,6 +690,7 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           id?: string
+          metadata?: Json
           role?: Database["public"]["Enums"]["message_role"]
           theatre_id?: string
         }
@@ -1329,6 +1401,23 @@ export type Database = {
           p_theatre_id: string
         }
         Returns: undefined
+      }
+      match_knowledge_chunks: {
+        Args: {
+          p_match_count?: number
+          p_min_similarity?: number
+          p_query_embedding: string
+          p_theatre_id: string
+        }
+        Returns: {
+          chunk_index: number
+          content: string
+          id: string
+          language: string
+          metadata: Json
+          similarity: number
+          source_id: string | null
+        }[]
       }
     }
     Enums: {

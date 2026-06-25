@@ -1,8 +1,12 @@
 export type KnowledgeFaqHint = {
+  id?: string
+  sourceId?: string | null
+  sourceType?: string
   question: string
   answer: string
   category: string | null
   priority: number
+  score?: number
 }
 
 export type N8nChatInput = {

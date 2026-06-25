@@ -1,6 +1,6 @@
 # Estado Actual de TALIA
 
-Ultima actualizacion: 12 junio 2026
+Ultima actualizacion: 19 junio 2026
 
 Este documento es la fuente rapida para entender en que punto esta la app antes de tocar codigo. Para decisiones mas profundas, ir a los documentos enlazados al final.
 
@@ -107,12 +107,18 @@ Implementado:
 - Conversaciones y mensajes persistidos.
 - Analitica basica de temas e intenciones.
 - Uso asociado a billing/limits.
+- Runtime interno de chat en `src/lib/agent-runtime/chat.ts`, con n8n encapsulado como adapter temporal.
+- Provider `talia-ai` seleccionable con `CHAT_AGENT_PROVIDER=talia-ai`, con fallback temporal a n8n en errores 5xx.
+- Cuando `CHAT_AGENT_PROVIDER=talia-ai`, Next actua como gateway: valida tenant, limites y sesion, y delega retrieval + respuesta a `/v1/chat/respond`.
+- Las respuestas del agent runtime guardan fuentes compactas (`id`, `source_id`, `source_type`, `score`) en metadata del mensaje assistant, metadata de conversacion legacy y usage para auditoria.
+- Backstage muestra salud RAG por venue, trazabilidad de respuestas, pregunta original, provider solicitado/usado, modelo, idioma, estado de retrieval, avisos de baja confianza/fallback, fuentes, scores, chunks recuperados desde `talia-ai` y acciones internas para reprocesar PDFs o reintentar embeddings.
 
 Pendiente:
 
-- Reforzar trazabilidad de fuentes usadas por respuesta.
+- Validar en produccion que `metadata.retrieval.chunks` aparece en Backstage tras desplegar `talia-ai`.
 - Consolidar conocimiento como fuente primaria antes que scraping o prompts libres.
 - Mejorar preview/test integrado.
+- Estabilizar `/v1/chat/respond` en el repo externo `talia-ai` para reducir dependencia de n8n.
 
 Referencia:
 
@@ -144,13 +150,20 @@ Referencia:
 
 ### Conocimiento
 
-Estado: activo, con margen de ampliacion.
+Estado: activo, entrando en fase RAG incremental.
 
 Implementado:
 
 - Base de conocimiento compartida por venue.
 - FAQs/respuestas oficiales.
 - Importacion de PDFs con extraccion de texto y fragmentos de conocimiento.
+- Tabla `knowledge_chunks` para fragmentos documentales preparados para retrieval y embeddings.
+- Seam interno de ingestion en `src/lib/knowledge/ingestion.ts`, que sube PDFs a Storage y delega parsing/chunking en `talia-ai`.
+- Seam interno de retrieval en `src/lib/knowledge/retrieval.ts`.
+- Embeddings delegados a `talia-ai` por HTTP server-to-server; Next no genera embeddings localmente.
+- Retrieval semantico delegado a `talia-ai`; en el flujo principal de chatbot con `CHAT_AGENT_PROVIDER=talia-ai`, el retrieval ocurre dentro de `/v1/chat/respond`.
+- PDFs reprocesables desde Storage: Backstage puede pedir a `talia-ai` regenerar chunks y embeddings sin volver a subir el archivo.
+- Fallback local en Next solo textual sobre chunks/items.
 - Fuentes/scrape URLs.
 - Importacion estructurada segun pantalla de configuracion.
 
@@ -158,7 +171,8 @@ Direccion de producto:
 
 - Mantener Conocimiento como nucleo comun para chatbot, email, voz y futuros canales.
 - Ampliar en el futuro hacia Sources, Guidelines, Workflows y Actions.
-- Evolucion recomendada: separar ingestion/retrieval/IA a backend propio o servicio dedicado manteniendo estable el contrato interno de TALIA.
+- Evolucion recomendada: seguir moviendo ingestion/retrieval/IA a `talia-ai` manteniendo estable el contrato interno de TALIA.
+- Pendiente clave: cron/worker desplegado en Fly para `/v1/knowledge/embed/pending`, estado de procesamiento por fuente y UI separada para FAQs manuales vs documentos.
 
 ### Agente de Email
 
@@ -306,7 +320,8 @@ No tomar como modelo nuevo:
 Deuda activa:
 
 - Separar prompts editables de prompts tecnicos.
-- Reducir dependencia de n8n en email.
+- Crear repo separado `talia-ai` siguiendo `docs/architecture/talia-ai-service.md`.
+- Reducir dependencia de n8n en chat y email.
 - Consolidar docs de roadmap para que no haya fuentes paralelas.
 - Completar roles y permisos avanzados.
 - Completar observabilidad y reporting.
@@ -320,9 +335,11 @@ Lectura recomendada para nuevos miembros:
 3. `docs/product/roadmap.md`.
 4. `docs/product/onboarding.md`.
 5. `docs/architecture/accounts-venues-access.md`.
-6. `docs/requirements/chatbot.md`.
-7. `docs/requirements/email-agent.md`.
-8. `docs/security/auth-phase-1.md`.
+6. `docs/architecture/agent-runtime.md`.
+7. `docs/architecture/talia-ai-service.md`.
+8. `docs/requirements/chatbot.md`.
+9. `docs/requirements/email-agent.md`.
+10. `docs/security/auth-phase-1.md`.
 
 ## Validacion Basica Antes de PR
 

@@ -18,6 +18,8 @@ Este directorio recoge la documentacion curada de producto, arquitectura, requir
 - [`architecture/accounts-venues-access.md`](architecture/accounts-venues-access.md): accounts, venues, profiles, roles e invitaciones.
 - [`architecture/usage-billing.md`](architecture/usage-billing.md): medicion de uso, limites y facturacion.
 - [`architecture/ai-agents.md`](architecture/ai-agents.md): principios compartidos para chatbot, email, voz y futuros canales.
+- [`architecture/agent-runtime.md`](architecture/agent-runtime.md): contrato interno de runtime para desacoplar n8n/backend propio.
+- [`architecture/talia-ai-service.md`](architecture/talia-ai-service.md): spec del repo separado `talia-ai` para Fly.io.
 - [`architecture/knowledge-ingestion.md`](architecture/knowledge-ingestion.md): ingestion de FAQs, Excel, PDFs, URLs y futura capa de retrieval.
 - [`architecture/scaling-roadmap-lisbon-2026.md`](architecture/scaling-roadmap-lisbon-2026.md): plan de arquitectura escalable hacia noviembre de 2026.
 
@@ -32,6 +34,7 @@ Este directorio recoge la documentacion curada de producto, arquitectura, requir
 - [`operations/client-launch-checklist.md`](operations/client-launch-checklist.md): checklist interno para lanzar un cliente.
 - [`operations/google-cloud-production-oauth.md`](operations/google-cloud-production-oauth.md): verificacion OAuth de Google para Gmail.
 - [`operations/data-retention.md`](operations/data-retention.md): politica operativa de retencion y limpieza.
+- [`operations/knowledge-embeddings.md`](operations/knowledge-embeddings.md): cron/backfill operativo de embeddings.
 
 ## Seguridad y Legal
 

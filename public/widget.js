@@ -8,7 +8,7 @@
     return;
   }
 
-  var baseUrl = new URL(script.src).origin;
+  var baseUrl = (script.getAttribute('data-api-base') || new URL(script.src).origin).replace(/\/$/, '');
   var sessionKey = 'talia-session-' + tenantId;
   var sessionId = localStorage.getItem(sessionKey);
   if (!sessionId) {

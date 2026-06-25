@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentBillingPeriod } from '@/lib/usage/service'
-import { Building2, LayoutDashboard } from 'lucide-react'
+import { Building2, Edit3, LayoutDashboard } from 'lucide-react'
 import Link from 'next/link'
 import { AccountRowActions } from './account-row-actions'
 import { CreateTenantForm } from './create-tenant-form'
@@ -133,6 +133,11 @@ export default async function BackstageHomePage() {
                     {accountVenues.length > 0 ? (
                       <IconAction href={dashboardHref} label={dashboardLabel} newTab>
                         <LayoutDashboard aria-hidden="true" size={16} strokeWidth={2} />
+                      </IconAction>
+                    ) : null}
+                    {firstVenue ? (
+                      <IconAction href={`/backstage/tenants/${firstVenue.id}`} label="Ficha Backstage">
+                        <Edit3 aria-hidden="true" size={16} strokeWidth={2} />
                       </IconAction>
                     ) : null}
                     <IconAction href={`/backstage/accounts/${account.id}`} label="Ver cuenta">

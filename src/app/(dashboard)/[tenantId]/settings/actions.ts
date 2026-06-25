@@ -1,10 +1,9 @@
 'use server'
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { PDFParse } from 'pdf-parse'
 import * as XLSX from 'xlsx'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
+import { importPdfKnowledgeSource } from '@/lib/knowledge/ingestion'
+import { embedKnowledgeSourceWithTaliaAi } from '@/lib/knowledge/talia-ai-embeddings'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { assertTenantAdmin } from '@/lib/tenants/service'
@@ -32,20 +31,6 @@ const settingsSchema = z.object({
 })
 
 const scrapeUrlsSchema = z.array(z.string().trim().url('Todas las URLs deben ser válidas')).max(4)
-const MAX_PDF_SIZE_BYTES = 8 * 1024 * 1024
-const MAX_PDF_CHUNKS = 24
-const PDF_CHUNK_SIZE = 1800
-const PDF_CHUNK_OVERLAP = 220
-
-let pdfWorkerConfigured = false
-
-function ensurePdfWorker() {
-  if (pdfWorkerConfigured) return
-
-  const pdfWorkerPath = join(process.cwd(), 'node_modules/pdf-parse/dist/pdf-parse/esm/pdf.worker.mjs')
-  PDFParse.setWorker(`data:text/javascript;base64,${readFileSync(pdfWorkerPath, 'base64')}`)
-  pdfWorkerConfigured = true
-}
 
 const knowledgeItemSchema = z.object({
   question: z.string().trim().min(4, 'La pregunta debe tener al menos 4 caracteres').max(500),
@@ -375,172 +360,12 @@ export async function uploadKnowledgePdf(
     return { ok: false, message: 'Selecciona un PDF válido.' }
   }
 
-  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-    return { ok: false, message: 'El archivo debe ser un PDF.' }
-  }
-
-  if (file.size > MAX_PDF_SIZE_BYTES) {
-    return { ok: false, message: 'El PDF no puede superar los 8 MB.' }
-  }
-
-  let text = ''
-  let parser: PDFParse | null = null
-  try {
-    ensurePdfWorker()
-    const bytes = new Uint8Array(await file.arrayBuffer())
-    parser = new PDFParse({ data: bytes })
-    const parsed = await parser.getText()
-    text = normalizeExtractedPdfText(parsed.text)
-  } catch (error) {
-    console.error('[knowledge-pdf-import] failed to parse PDF', {
-      tenantId,
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type,
-      error: error instanceof Error ? error.message : String(error),
-    })
-    return { ok: false, message: getPdfParseErrorMessage(error) }
-  } finally {
-    await parser?.destroy()
-  }
-
-  if (text.length < 120) {
-    return { ok: false, message: 'No se ha encontrado suficiente texto legible en el PDF.' }
-  }
-
-  const chunks = chunkText(text, PDF_CHUNK_SIZE, PDF_CHUNK_OVERLAP).slice(0, MAX_PDF_CHUNKS)
-  if (!chunks.length) {
-    return { ok: false, message: 'No se han podido generar fragmentos útiles del PDF.' }
-  }
-
-  const existingSource = await admin
-    .from('knowledge_sources')
-    .select('id')
-    .eq('theatre_id', tenantId)
-    .eq('type', 'pdf')
-    .maybeSingle()
-
-  let sourceId: string
-  let replaced = false
-  const now = new Date().toISOString()
-
-  if (existingSource.data) {
-    sourceId = existingSource.data.id
-    replaced = true
-    await admin.from('knowledge_items').delete().eq('source_id', sourceId)
-    const { error } = await admin
-      .from('knowledge_sources')
-      .update({
-        name: file.name,
-        status: 'ready',
-        config: {
-          file_name: file.name,
-          file_size: file.size,
-          chunk_count: chunks.length,
-          max_chunks: MAX_PDF_CHUNKS,
-        },
-        last_error: null,
-        last_synced_at: now,
-      })
-      .eq('id', sourceId)
-
-    if (error) return { ok: false, message: `No se pudo actualizar la fuente PDF: ${error.message}` }
-  } else {
-    const created = await admin
-      .from('knowledge_sources')
-      .insert({
-        theatre_id: tenantId,
-        type: 'pdf',
-        name: file.name,
-        status: 'ready',
-        config: {
-          file_name: file.name,
-          file_size: file.size,
-          chunk_count: chunks.length,
-          max_chunks: MAX_PDF_CHUNKS,
-        },
-        last_synced_at: now,
-      })
-      .select('id')
-      .single()
-
-    if (created.error || !created.data) {
-      return { ok: false, message: `No se pudo registrar el PDF: ${created.error?.message ?? 'error desconocido'}` }
-    }
-    sourceId = created.data.id
-  }
-
-  const { error } = await admin
-    .from('knowledge_items')
-    .insert(chunks.map((chunk, index) => ({
-      theatre_id: tenantId,
-      source_id: sourceId,
-      question: `PDF ${file.name} · fragmento ${index + 1}`,
-      answer: chunk,
-      category: 'documento',
-      language: 'es',
-      priority: 35,
-      active: true,
-      metadata: {
-        source_type: 'pdf',
-        file_name: file.name,
-        chunk_index: index,
-        chunk_count: chunks.length,
-      },
-    })))
-
-  if (error) return { ok: false, message: `Error al guardar fragmentos del PDF: ${error.message}` }
+  const result = await importPdfKnowledgeSource({ admin, tenantId, file })
+  if (!result.ok) return result
 
   revalidatePath(`/${tenantId}/knowledge`)
   revalidatePath(`/${tenantId}/overview`)
-  return {
-    ok: true,
-    count: chunks.length,
-    replaced,
-    message: replaced
-      ? `${chunks.length} fragmentos importados. El PDF anterior ha sido reemplazado.`
-      : `${chunks.length} fragmentos del PDF importados correctamente.`,
-  }
-}
-
-function normalizeExtractedPdfText(value: string) {
-  return value
-    .replace(/\r/g, '\n')
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
-}
-
-function getPdfParseErrorMessage(error: unknown) {
-  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase()
-
-  if (message.includes('password') || message.includes('encrypted')) {
-    return 'No se pudo leer el PDF porque parece estar protegido o cifrado. Sube una versión sin contraseña.'
-  }
-
-  if (message.includes('invalid') || message.includes('malformed') || message.includes('corrupt')) {
-    return 'No se pudo leer el PDF porque el archivo parece estar dañado o no es un PDF válido.'
-  }
-
-  return 'No se pudo procesar el PDF. Revisa los logs del servidor para ver el detalle técnico.'
-}
-
-function chunkText(value: string, size: number, overlap: number) {
-  const normalized = value.replace(/\s+/g, ' ').trim()
-  const chunks: string[] = []
-  let start = 0
-
-  while (start < normalized.length) {
-    const hardEnd = Math.min(normalized.length, start + size)
-    const nextBoundary = normalized.lastIndexOf('. ', hardEnd)
-    const end = nextBoundary > start + Math.floor(size * 0.55) ? nextBoundary + 1 : hardEnd
-    const chunk = normalized.slice(start, end).trim()
-    if (chunk.length > 80) chunks.push(chunk)
-    if (end >= normalized.length) break
-    start = Math.max(0, end - overlap)
-  }
-
-  return chunks
+  return result
 }
 
 export async function updateKnowledgeItem(
@@ -616,6 +441,127 @@ export async function deleteKnowledgeItem(
   return { ok: true }
 }
 
+export async function deleteKnowledgeSource(
+  tenantId: string,
+  sourceId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  await requireTenantProductAccess(tenantId, 'manage_knowledge', 'data')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const admin = createAdminClient()
+  const isAdmin = await assertTenantAdmin(admin, user.id, tenantId)
+  if (!isAdmin) return { ok: false, error: 'Sin permisos.' }
+
+  const { data: source, error: sourceError } = await admin
+    .from('knowledge_sources')
+    .select('id, config')
+    .eq('id', sourceId)
+    .eq('theatre_id', tenantId)
+    .maybeSingle()
+
+  if (sourceError) return { ok: false, error: sourceError.message }
+  if (!source) return { ok: false, error: 'Fuente no encontrada.' }
+
+  const config = isRecord(source.config) ? source.config : {}
+  const storageBucket = typeof config.storage_bucket === 'string' ? config.storage_bucket : null
+  const storagePath = typeof config.storage_path === 'string' ? config.storage_path : null
+
+  const itemsDelete = await admin
+    .from('knowledge_items')
+    .delete()
+    .eq('source_id', sourceId)
+    .eq('theatre_id', tenantId)
+
+  if (itemsDelete.error) return { ok: false, error: itemsDelete.error.message }
+
+  const { error } = await admin
+    .from('knowledge_sources')
+    .delete()
+    .eq('id', sourceId)
+    .eq('theatre_id', tenantId)
+
+  if (error) return { ok: false, error: error.message }
+
+  if (storageBucket && storagePath) {
+    const removed = await admin.storage.from(storageBucket).remove([storagePath])
+    if (removed.error) {
+      console.warn('[knowledge-source-delete] source deleted but storage cleanup failed', {
+        tenantId,
+        sourceId,
+        storageBucket,
+        storagePath,
+        error: removed.error.message,
+      })
+    }
+  }
+
+  revalidatePath(`/${tenantId}/knowledge`)
+  revalidatePath(`/${tenantId}/overview`)
+  return { ok: true }
+}
+
+export async function retryKnowledgeSourceEmbeddings(
+  tenantId: string,
+  sourceId: string,
+): Promise<{ ok: boolean; message?: string; error?: string }> {
+  await requireTenantProductAccess(tenantId, 'manage_knowledge', 'data')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const admin = createAdminClient()
+  const isAdmin = await assertTenantAdmin(admin, user.id, tenantId)
+  if (!isAdmin) return { ok: false, error: 'Sin permisos.' }
+
+  const { data: source, error: sourceError } = await admin
+    .from('knowledge_sources')
+    .select('id')
+    .eq('id', sourceId)
+    .eq('theatre_id', tenantId)
+    .maybeSingle()
+
+  if (sourceError) return { ok: false, error: sourceError.message }
+  if (!source) return { ok: false, error: 'Fuente no encontrada.' }
+
+  const { count, error: countError } = await admin
+    .from('knowledge_chunks')
+    .select('id', { count: 'exact', head: true })
+    .eq('source_id', sourceId)
+    .eq('theatre_id', tenantId)
+    .eq('active', true)
+    .in('embedding_status', ['pending', 'error'])
+
+  if (countError) return { ok: false, error: countError.message }
+
+  const limit = Math.max(1, count ?? 100)
+  const result = await embedKnowledgeSourceWithTaliaAi({
+    tenantId,
+    sourceId,
+    limit,
+    retryErrors: true,
+  })
+
+  if (!result) {
+    return { ok: false, error: 'TALIA AI no está configurado para generar embeddings.' }
+  }
+
+  revalidatePath(`/${tenantId}/knowledge`)
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: `No se pudieron reintentar embeddings: ${result.error ?? 'error desconocido'}`,
+    }
+  }
+
+  return {
+    ok: true,
+    message: `Embeddings revisados: ${result.checked}. Generados: ${result.embedded}. Omitidos: ${result.skipped}. Errores: ${result.failed}.`,
+  }
+}
+
 async function getOrCreateManualKnowledgeSource(admin: ReturnType<typeof createAdminClient>, tenantId: string) {
   const existing = await admin
     .from('knowledge_sources')
@@ -643,4 +589,8 @@ async function getOrCreateManualKnowledgeSource(admin: ReturnType<typeof createA
   }
 
   return { ok: true as const, id: created.data.id }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }

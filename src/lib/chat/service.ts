@@ -6,6 +6,7 @@ type AdminClient = ReturnType<typeof createAdminClient>
 export type IncomingChatMessage = {
   role: 'user' | 'assistant'
   content: string
+  metadata?: Json
 }
 
 export type SaveConversationInput = {
@@ -42,6 +43,7 @@ export async function saveConversation(admin: AdminClient, input: SaveConversati
     theatre_id: input.tenantId,
     role: message.role,
     content: message.content,
+    metadata: message.metadata ?? {},
   }))
 
   const { error: messagesError } = await admin.from('messages').insert(messages)

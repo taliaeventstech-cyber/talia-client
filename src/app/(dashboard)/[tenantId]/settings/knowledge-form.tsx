@@ -1,9 +1,9 @@
 'use client'
 
-import { ChevronDown, Info, Trash2 } from 'lucide-react'
+import { ChevronDown, FileText, Link as LinkIcon, Table2, Trash2 } from 'lucide-react'
 import { useActionState, useState, useTransition, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { createKnowledgeItem, uploadKnowledgeExcel, uploadKnowledgePdf, updateScrapeUrls, updateKnowledgeItem, deleteKnowledgeItem, type SettingsFormState, type ExcelUploadState, type PdfUploadState } from './actions'
+import { createKnowledgeItem, uploadKnowledgeExcel, uploadKnowledgePdf, updateScrapeUrls, updateKnowledgeItem, deleteKnowledgeItem, deleteKnowledgeSource, retryKnowledgeSourceEmbeddings, type SettingsFormState, type ExcelUploadState, type PdfUploadState } from './actions'
 
 type KnowledgeItem = {
   id: string
@@ -14,8 +14,28 @@ type KnowledgeItem = {
   priority: number
 }
 
+type KnowledgeSource = {
+  id: string
+  type: string
+  name: string
+  status: string
+  config: unknown
+  sourceUrl: string | null
+  lastSyncedAt: string | null
+  lastError: string | null
+  chunkCount: number
+  embeddingCounts: {
+    ready: number
+    pending: number
+    processing: number
+    error: number
+  }
+}
+
 type KnowledgeFormProps = {
   tenantId: string
+  activeTab: 'links' | 'files' | 'faqs' | 'apps' | 'spreadsheets'
+  sources: KnowledgeSource[]
   items: KnowledgeItem[]
   pagination?: ReactNode
   scrapeUrls: string[]
@@ -89,42 +109,78 @@ const pdfInitialState: PdfUploadState = {
   message: '',
 }
 
-export function KnowledgeForm({ tenantId, items, pagination, scrapeUrls, labels }: KnowledgeFormProps) {
-  const [isFaqOpen, setIsFaqOpen] = useState(true)
-  const [isImportOpen, setIsImportOpen] = useState(false)
-  const [isPdfOpen, setIsPdfOpen] = useState(false)
-  const [isUrlsOpen, setIsUrlsOpen] = useState(false)
+export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination, scrapeUrls, labels }: KnowledgeFormProps) {
   const [state, formAction, pending] = useActionState(createKnowledgeItem.bind(null, tenantId), initialState)
   const [excelState, excelFormAction, excelPending] = useActionState(uploadKnowledgeExcel.bind(null, tenantId), excelInitialState)
   const [pdfState, pdfFormAction, pdfPending] = useActionState(uploadKnowledgePdf.bind(null, tenantId), pdfInitialState)
   const [urlsState, urlsFormAction, urlsPending] = useActionState(updateScrapeUrls.bind(null, tenantId), initialState)
   const [urls, setUrls] = useState<string[]>(scrapeUrls.length ? scrapeUrls : [''])
+  const fileSources = sources.filter((source) => source.type === 'pdf')
+  const spreadsheetSources = sources.filter((source) => source.type === 'xlsx' || source.type === 'csv')
 
   return (
     <>
-      <section className="card stack">
-        <button
-          type="button"
-          className="collapsible-header"
-          aria-expanded={isFaqOpen}
-          onClick={() => setIsFaqOpen((open) => !open)}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <h2>{labels.officialAnswers}</h2>
-            <span
-              className="tooltip-wrap"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Info size={15} strokeWidth={2} className="tooltip-icon" aria-label="Cómo funciona" />
-              <span className="tooltip-tip" role="tooltip">
-                {labels.officialAnswersHelp}
-              </span>
-            </span>
-          </span>
-          <ChevronDown className="collapsible-chevron" data-open={isFaqOpen} aria-hidden="true" size={20} strokeWidth={2} />
-        </button>
+      {activeTab === 'files' ? (
+        <>
+          <section className="card stack">
+            <div className="section-heading-row">
+              <div>
+                <h2>Files</h2>
+                <p className="muted">Documentos importados que TALIA usa como contexto de respuesta.</p>
+              </div>
+            </div>
 
-        {isFaqOpen ? (
+            {fileSources.length ? (
+            <div className="knowledge-files-list">
+              {fileSources.map((source) => (
+                <KnowledgeSourceRow key={source.id} tenantId={tenantId} source={source} />
+              ))}
+            </div>
+          ) : (
+            <p className="muted">Aún no hay archivos o fuentes documentales cargadas.</p>
+            )}
+          </section>
+
+          <section className="card stack">
+            <div className="section-heading-row">
+              <div>
+                <h2>{labels.importPdf}</h2>
+                <p className="muted">{labels.importPdfHelp}</p>
+              </div>
+            </div>
+
+            <form action={pdfFormAction} className="stack">
+              {pdfState.message ? (
+                <p role="status" className={`notice ${pdfState.ok ? 'notice-success' : 'notice-error'}`}>
+                  {pdfState.message}
+                </p>
+              ) : null}
+
+              <p className="notice notice-warning">
+                {labels.importPdfWarning}
+              </p>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <label className="field" style={{ flex: 1, margin: 0 }}>
+                  <input type="file" name="file" accept="application/pdf,.pdf" required />
+                </label>
+                <button className="button-primary" type="submit" disabled={pdfPending} style={{ opacity: pdfPending ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                  {pdfPending ? labels.importing : labels.importPdfButton}
+                </button>
+              </div>
+            </form>
+          </section>
+        </>
+      ) : null}
+
+      {activeTab === 'faqs' ? (
+        <section className="card stack">
+          <div className="section-heading-row">
+            <div>
+              <h2>{labels.officialAnswers}</h2>
+              <p className="muted">{labels.officialAnswersHelp}</p>
+            </div>
+          </div>
           <>
 
             <form action={formAction} className="stack">
@@ -212,72 +268,36 @@ export function KnowledgeForm({ tenantId, items, pagination, scrapeUrls, labels 
               <p className="muted">{labels.noItems}</p>
             )}
           </>
-        ) : null}
-      </section>
+        </section>
+      ) : null}
 
-      <section className="card stack">
-        <button
-          type="button"
-          className="collapsible-header"
-          aria-expanded={isPdfOpen}
-          onClick={() => setIsPdfOpen((open) => !open)}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <h2>{labels.importPdf}</h2>
-            <span className="tooltip-wrap" onClick={(e) => e.stopPropagation()}>
-              <Info size={15} strokeWidth={2} className="tooltip-icon" aria-label="Cómo funciona la importación PDF" />
-              <span className="tooltip-tip" role="tooltip">
-                {labels.importPdfHelp}
-              </span>
-            </span>
-          </span>
-          <ChevronDown className="collapsible-chevron" data-open={isPdfOpen} aria-hidden="true" size={20} strokeWidth={2} />
-        </button>
-
-        {isPdfOpen ? (
-          <form action={pdfFormAction} className="stack">
-            {pdfState.message ? (
-              <p role="status" className={`notice ${pdfState.ok ? 'notice-success' : 'notice-error'}`}>
-                {pdfState.message}
-              </p>
-            ) : null}
-
-            <p className="notice notice-warning">
-              {labels.importPdfWarning}
-            </p>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <label className="field" style={{ flex: 1, margin: 0 }}>
-                <input type="file" name="file" accept="application/pdf,.pdf" required />
-              </label>
-              <button className="button-primary" type="submit" disabled={pdfPending} style={{ opacity: pdfPending ? 0.7 : 1, whiteSpace: 'nowrap' }}>
-                {pdfPending ? labels.importing : labels.importPdfButton}
-              </button>
+      {activeTab === 'spreadsheets' ? (
+        <>
+          <section className="card stack">
+            <div className="section-heading-row">
+              <div>
+                <h2>Spreadsheets</h2>
+                <p className="muted">Archivos Excel o CSV importados como respuestas estructuradas.</p>
+              </div>
             </div>
-          </form>
-        ) : null}
-      </section>
+            {spreadsheetSources.length ? (
+              <div className="knowledge-files-list">
+                {spreadsheetSources.map((source) => (
+                  <KnowledgeSourceRow key={source.id} tenantId={tenantId} source={source} />
+                ))}
+              </div>
+            ) : (
+              <p className="muted">Aún no hay hojas de cálculo cargadas.</p>
+            )}
+          </section>
 
-      <section className="card stack">
-        <button
-          type="button"
-          className="collapsible-header"
-          aria-expanded={isImportOpen}
-          onClick={() => setIsImportOpen((open) => !open)}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <h2>{labels.importExcel}</h2>
-            <span className="tooltip-wrap" onClick={(e) => e.stopPropagation()}>
-              <Info size={15} strokeWidth={2} className="tooltip-icon" aria-label="Cómo funciona la importación" />
-              <span className="tooltip-tip" role="tooltip">
-                {labels.importHelp}
-              </span>
-            </span>
-          </span>
-          <ChevronDown className="collapsible-chevron" data-open={isImportOpen} aria-hidden="true" size={20} strokeWidth={2} />
-        </button>
-
-        {isImportOpen ? (
+          <section className="card stack">
+            <div className="section-heading-row">
+              <div>
+                <h2>{labels.importExcel}</h2>
+                <p className="muted">{labels.importHelp}</p>
+              </div>
+            </div>
           <form action={excelFormAction} className="stack">
             {excelState.message ? (
               <p role="status" className={`notice ${excelState.ok ? 'notice-success' : 'notice-error'}`}>
@@ -298,29 +318,18 @@ export function KnowledgeForm({ tenantId, items, pagination, scrapeUrls, labels 
               </button>
             </div>
           </form>
-        ) : null}
-      </section>
+          </section>
+        </>
+      ) : null}
 
-      <section className="card stack">
-        <button
-          type="button"
-          className="collapsible-header"
-          aria-expanded={isUrlsOpen}
-          onClick={() => setIsUrlsOpen((open) => !open)}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <h2>{labels.scrapeUrls}</h2>
-            <span className="tooltip-wrap" onClick={(e) => e.stopPropagation()}>
-              <Info size={15} strokeWidth={2} className="tooltip-icon" aria-label="Qué son las URLs scrapeables" />
-              <span className="tooltip-tip" role="tooltip">
-                {labels.scrapeHelp}
-              </span>
-            </span>
-          </span>
-          <ChevronDown className="collapsible-chevron" data-open={isUrlsOpen} aria-hidden="true" size={20} strokeWidth={2} />
-        </button>
-
-        {isUrlsOpen ? (
+      {activeTab === 'links' ? (
+        <section className="card stack">
+          <div className="section-heading-row">
+            <div>
+              <h2>{labels.scrapeUrls}</h2>
+              <p className="muted">{labels.scrapeHelp}</p>
+            </div>
+          </div>
           <form action={urlsFormAction} className="stack">
             {urlsState.message ? (
               <p role="status" className={`notice ${urlsState.ok ? 'notice-success' : 'notice-error'}`}>
@@ -367,13 +376,153 @@ export function KnowledgeForm({ tenantId, items, pagination, scrapeUrls, labels 
               </button>
             </div>
           </form>
-        ) : null}
-      </section>
+        </section>
+      ) : null}
+
+      {activeTab === 'apps' ? (
+        <section className="card stack">
+          <div className="section-heading-row">
+            <div>
+              <h2>Apps</h2>
+              <p className="muted">Conectores externos para importar conocimiento desde aplicaciones. Aún no está activo.</p>
+            </div>
+          </div>
+        </section>
+      ) : null}
     </>
   )
 }
 
 const SPRING = '600ms cubic-bezier(0.16, 1, 0.3, 1)'
+
+function KnowledgeSourceRow({ tenantId, source }: { tenantId: string; source: KnowledgeSource }) {
+  const fileName = getSourceFileName(source)
+  const actionableEmbeddingCount = source.embeddingCounts.pending + source.embeddingCounts.error
+
+  return (
+    <article className="knowledge-file-item">
+      <div className="knowledge-file-icon" aria-hidden="true">
+        {renderSourceIcon(source.type)}
+      </div>
+      <div className="knowledge-file-main">
+        <div className="knowledge-file-title-row">
+          <h3>{fileName}</h3>
+          <span className={`knowledge-file-status knowledge-file-status-${source.status}`}>
+            {getSourceStatusLabel(source.status)}
+          </span>
+        </div>
+        <div className="knowledge-file-meta">
+          <span>{getSourceTypeLabel(source.type)}</span>
+          {source.chunkCount > 0 ? <span>{source.chunkCount} fragmentos</span> : null}
+          {source.lastSyncedAt ? <span>Actualizado {formatDate(source.lastSyncedAt)}</span> : null}
+          {source.sourceUrl ? <span>{source.sourceUrl}</span> : null}
+        </div>
+        {source.chunkCount > 0 ? (
+          <div className="knowledge-embedding-stats" aria-label="Estado de embeddings">
+            <span className="knowledge-embedding-stat knowledge-embedding-stat-ready">
+              {source.embeddingCounts.ready} listos
+            </span>
+            {source.embeddingCounts.processing > 0 ? (
+              <span className="knowledge-embedding-stat">
+                {source.embeddingCounts.processing} procesando
+              </span>
+            ) : null}
+            {source.embeddingCounts.pending > 0 ? (
+              <span className="knowledge-embedding-stat knowledge-embedding-stat-pending">
+                {source.embeddingCounts.pending} pendientes
+              </span>
+            ) : null}
+            {source.embeddingCounts.error > 0 ? (
+              <span className="knowledge-embedding-stat knowledge-embedding-stat-error">
+                {source.embeddingCounts.error} error
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+        {source.lastError ? <p className="knowledge-file-error">{source.lastError}</p> : null}
+      </div>
+      <div className="knowledge-file-actions">
+        {actionableEmbeddingCount > 0 ? (
+          <RetryKnowledgeSourceButton tenantId={tenantId} sourceId={source.id} />
+        ) : null}
+        <DeleteKnowledgeSourceButton tenantId={tenantId} sourceId={source.id} sourceName={fileName} />
+      </div>
+    </article>
+  )
+}
+
+function RetryKnowledgeSourceButton({ tenantId, sourceId }: { tenantId: string; sourceId: string }) {
+  const [isPending, startTransition] = useTransition()
+  const [message, setMessage] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  function handleRetry() {
+    setMessage(null)
+    setFailed(false)
+    startTransition(async () => {
+      const result = await retryKnowledgeSourceEmbeddings(tenantId, sourceId)
+      setFailed(!result.ok)
+      setMessage(result.message ?? result.error ?? null)
+    })
+  }
+
+  return (
+    <div className="knowledge-retry-control">
+      <button
+        type="button"
+        className="knowledge-retry-button"
+        onClick={handleRetry}
+        disabled={isPending}
+      >
+        {isPending ? 'Reintentando...' : 'Reintentar embeddings'}
+      </button>
+      {message ? (
+        <span className={failed ? 'knowledge-retry-message knowledge-retry-message-error' : 'knowledge-retry-message'}>
+          {message}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
+function renderSourceIcon(type: string) {
+  if (type === 'url') return <LinkIcon size={20} strokeWidth={2} />
+  if (type === 'xlsx' || type === 'csv') return <Table2 size={20} strokeWidth={2} />
+  return <FileText size={20} strokeWidth={2} />
+}
+
+function getSourceTypeLabel(type: string) {
+  if (type === 'pdf') return 'PDF'
+  if (type === 'xlsx') return 'Excel'
+  if (type === 'csv') return 'CSV'
+  if (type === 'url') return 'URL'
+  return type
+}
+
+function getSourceStatusLabel(status: string) {
+  if (status === 'ready') return 'Listo'
+  if (status === 'processing') return 'Procesando'
+  if (status === 'error') return 'Error'
+  if (status === 'connected') return 'Conectado'
+  return 'Pendiente'
+}
+
+function getSourceFileName(source: KnowledgeSource) {
+  if (isRecord(source.config) && typeof source.config.file_name === 'string') {
+    return source.config.file_name
+  }
+  return source.name
+}
+
+function formatDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(date)
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
 
 function KnowledgeItemRow({ tenantId, item }: { tenantId: string; item: KnowledgeItem }) {
   const [expanded, setExpanded] = useState(false)
@@ -559,6 +708,61 @@ function DeleteKnowledgeItemButton({ tenantId, itemId }: { tenantId: string; ite
         onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-tertiary)' }}
       >
         <Trash2 size={14} strokeWidth={2} aria-hidden="true" />
+      </button>
+    </div>
+  )
+}
+
+function DeleteKnowledgeSourceButton({ tenantId, sourceId, sourceName }: { tenantId: string; sourceId: string; sourceName: string }) {
+  const [isPending, startTransition] = useTransition()
+  const [confirming, setConfirming] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!confirming) return
+    function onClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setConfirming(false)
+      }
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [confirming])
+
+  function handleConfirm() {
+    startTransition(async () => {
+      await deleteKnowledgeSource(tenantId, sourceId)
+      setConfirming(false)
+    })
+  }
+
+  return (
+    <div ref={containerRef} className="knowledge-delete-control">
+      <div className={confirming ? 'knowledge-delete-confirm knowledge-delete-confirm-open' : 'knowledge-delete-confirm'}>
+        <button
+          type="button"
+          className="knowledge-delete-secondary"
+          onClick={() => setConfirming(false)}
+          disabled={isPending}
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          className="knowledge-delete-danger"
+          onClick={handleConfirm}
+          disabled={isPending}
+        >
+          {isPending ? 'Eliminando...' : 'Confirmar'}
+        </button>
+      </div>
+      <button
+        type="button"
+        className="knowledge-delete-icon"
+        onClick={() => setConfirming(true)}
+        aria-label={`Eliminar ${sourceName}`}
+      >
+        <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
       </button>
     </div>
   )

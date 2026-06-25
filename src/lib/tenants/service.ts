@@ -46,6 +46,11 @@ export type PublicAccessibilityConfig = {
 export type TenantChatConfig = {
   tenantId: string
   n8nWebhookUrl: string | null
+  name: string
+  language: string
+  systemPrompt: string | null
+  fallbackEmail: string | null
+  fallbackPhone: string | null
 }
 
 export type KnowledgeFaqItem = {
@@ -142,7 +147,7 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
 export async function getTenantChatConfig(admin: AdminClient, tenantId: string) {
   const { data, error } = await admin
     .from('theatres')
-    .select('id, n8n_webhook_url, accounts(status, created_at, metadata)')
+    .select('id, name, primary_language, system_prompt, n8n_webhook_url, fallback_email, fallback_phone, accounts(status, created_at, metadata)')
     .eq('id', tenantId)
     .single()
 
@@ -159,6 +164,11 @@ export async function getTenantChatConfig(admin: AdminClient, tenantId: string) 
     config: {
       tenantId: data.id,
       n8nWebhookUrl: data.n8n_webhook_url,
+      name: data.name,
+      language: data.primary_language ?? 'es',
+      systemPrompt: data.system_prompt,
+      fallbackEmail: data.fallback_email,
+      fallbackPhone: data.fallback_phone,
     } satisfies TenantChatConfig,
   }
 }

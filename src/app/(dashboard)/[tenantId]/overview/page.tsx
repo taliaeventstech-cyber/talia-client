@@ -5,7 +5,7 @@ import { isTenantModuleEnabled } from '@/lib/auth/permissions'
 import { classifyConversationTopic } from '@/lib/analytics/topics'
 import { isChatbotSetupCompleted } from '@/lib/chatbot/setup-status'
 import { getDictionary, getLocale, getTopicLabel } from '@/lib/i18n/dictionaries'
-import { getActiveSubscription, getTenantUsageForPeriod } from '@/lib/usage/service'
+import { getActiveSubscription, getChatbotBillableMessagesForPeriod } from '@/lib/usage/service'
 import { Bot, CheckCircle2, Database, Mail, MessagesSquare, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
@@ -43,7 +43,6 @@ export default async function OverviewPage({ params }: Props) {
     { count: emailWaitingHuman },
     { data: emailDrafts },
     subscriptionResult,
-    usageResult,
   ] = await Promise.all([
       admin
         .from('theatres')
@@ -108,14 +107,21 @@ export default async function OverviewPage({ params }: Props) {
           .eq('theatre_id', tenantId)
         : Promise.resolve({ data: [] }),
       getActiveSubscription(admin, tenantId),
-      getTenantUsageForPeriod(admin, tenantId),
     ])
 
   const subscription = subscriptionResult.ok ? subscriptionResult.subscription : null
-  const usage = usageResult.ok ? usageResult.usage : null
   const chatLimit = subscription?.included_chat_conversations ?? 0
-  const chatUsed = usage?.conversations ?? 0
+  // Botsonic model: usage shown against the plan is billable assistant replies.
+  const billableResult = subscription
+    ? await getChatbotBillableMessagesForPeriod(admin, tenantId, {
+      startDate: subscription.billing_period_start,
+      endDate: subscription.billing_period_end,
+    })
+    : null
+  const chatUsed = billableResult?.ok ? billableResult.count : 0
   const chatUsagePercent = chatLimit > 0 ? Math.min(100, Math.round((chatUsed / chatLimit) * 100)) : null
+  const chatLimitReached = chatLimit > 0 && chatUsed >= chatLimit
+  const chatLimitNearing = chatLimit > 0 && !chatLimitReached && chatUsed / chatLimit >= 0.8
   const topTopics = getTopTopics(topics ?? [], 5)
   const latestTopics = (topics ?? [])
     .filter((item) => item.user_message)
@@ -164,6 +170,11 @@ export default async function OverviewPage({ params }: Props) {
               <div className="progress-fill" style={{ width: `${chatUsagePercent}%` }} />
             </div>
           )}
+          {chatLimitReached ? (
+            <p className="plan-usage-notice plan-usage-notice--reached" role="status">{copy.usage.limitReached}</p>
+          ) : chatLimitNearing ? (
+            <p className="plan-usage-notice plan-usage-notice--nearing" role="status">{copy.usage.nearingLimit}</p>
+          ) : null}
           <div className="summary-metric-row">
             <SummaryMetric label={copy.kpis.conversations} value={totalConversations ?? 0} />
             <SummaryMetric label={copy.kpis.messages} value={totalMessages ?? 0} />

@@ -1,0 +1,77 @@
+'use server'
+
+import { requirePlatformAdmin } from '@/lib/platform/auth'
+import { reprocessStoredKnowledgeSource } from '@/lib/knowledge/ingestion'
+import { embedKnowledgeSourceWithTaliaAi } from '@/lib/knowledge/talia-ai-embeddings'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { revalidatePath } from 'next/cache'
+
+export async function reprocessBackstageKnowledgeSource(
+  tenantId: string,
+  sourceId: string,
+): Promise<{ ok: boolean; message: string }> {
+  await requirePlatformAdmin()
+
+  const admin = createAdminClient()
+  const result = await reprocessStoredKnowledgeSource({ admin, tenantId, sourceId })
+
+  revalidatePath(`/backstage/tenants/${tenantId}`)
+  revalidatePath(`/${tenantId}/knowledge`)
+
+  if (!result.ok) return { ok: false, message: result.message }
+  return { ok: true, message: result.message }
+}
+
+export async function retryBackstageKnowledgeSourceEmbeddings(
+  tenantId: string,
+  sourceId: string,
+): Promise<{ ok: boolean; message: string }> {
+  await requirePlatformAdmin()
+
+  const admin = createAdminClient()
+  const { data: source, error: sourceError } = await admin
+    .from('knowledge_sources')
+    .select('id')
+    .eq('id', sourceId)
+    .eq('theatre_id', tenantId)
+    .maybeSingle()
+
+  if (sourceError) return { ok: false, message: sourceError.message }
+  if (!source) return { ok: false, message: 'Fuente no encontrada.' }
+
+  const { count, error: countError } = await admin
+    .from('knowledge_chunks')
+    .select('id', { count: 'exact', head: true })
+    .eq('source_id', sourceId)
+    .eq('theatre_id', tenantId)
+    .eq('active', true)
+    .in('embedding_status', ['pending', 'error'])
+
+  if (countError) return { ok: false, message: countError.message }
+
+  const result = await embedKnowledgeSourceWithTaliaAi({
+    tenantId,
+    sourceId,
+    limit: Math.max(1, count ?? 100),
+    retryErrors: true,
+  })
+
+  revalidatePath(`/backstage/tenants/${tenantId}`)
+  revalidatePath(`/${tenantId}/knowledge`)
+
+  if (!result) {
+    return { ok: false, message: 'TALIA AI no está configurado para generar embeddings.' }
+  }
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: `No se pudieron reintentar embeddings: ${result.error ?? 'error desconocido'}`,
+    }
+  }
+
+  return {
+    ok: true,
+    message: `Embeddings revisados: ${result.checked}. Generados: ${result.embedded}. Omitidos: ${result.skipped}. Errores: ${result.failed}.`,
+  }
+}
