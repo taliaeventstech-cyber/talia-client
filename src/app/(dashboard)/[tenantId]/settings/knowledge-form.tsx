@@ -74,6 +74,7 @@ type KnowledgeFormProps = {
     urlProcessing: string
     installedWeb: string
     installedWebHelp: string
+    noInstalledPagesTitle: string
     noInstalledPages: string
     refreshInstalled: string
     refreshingInstalled: string
@@ -358,11 +359,14 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination,
           {installedWebSources.length ? (
             <div className="knowledge-files-list">
               {installedWebSources.map((source) => (
-                <InstalledWebSourceRow key={source.id} source={source} labels={labels} />
+                <InstalledWebSourceRow key={source.id} tenantId={tenantId} source={source} labels={labels} />
               ))}
             </div>
           ) : (
-            <p className="muted">{labels.noInstalledPages}</p>
+            <div className="knowledge-installed-empty">
+              <strong>{labels.noInstalledPagesTitle}</strong>
+              <p>{labels.noInstalledPages}</p>
+            </div>
           )}
         </section>
       ) : null}
@@ -384,9 +388,11 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination,
 const SPRING = '600ms cubic-bezier(0.16, 1, 0.3, 1)'
 
 function InstalledWebSourceRow({
+  tenantId,
   source,
   labels,
 }: {
+  tenantId: string
   source: KnowledgeSource
   labels: KnowledgeFormProps['labels']
 }) {
@@ -409,10 +415,17 @@ function InstalledWebSourceRow({
       </div>
       <div className="knowledge-file-actions">
         {source.captureUrl ? (
-          <a className="button-outline button-fit" href={source.captureUrl} target="_blank" rel="noreferrer">
+          <a className="button-primary button-fit" href={source.captureUrl} target="_blank" rel="noreferrer">
             {labels.capturePage}
           </a>
         ) : null}
+        <DeleteKnowledgeSourceButton
+          tenantId={tenantId}
+          sourceId={source.id}
+          sourceName={source.name}
+          actionLabel="Desvincular"
+          ariaLabel={`Desvincular ${source.name}`}
+        />
       </div>
     </article>
   )
@@ -743,7 +756,22 @@ function DeleteKnowledgeItemButton({ tenantId, itemId }: { tenantId: string; ite
   )
 }
 
-function DeleteKnowledgeSourceButton({ tenantId, sourceId, sourceName }: { tenantId: string; sourceId: string; sourceName: string }) {
+function DeleteKnowledgeSourceButton({
+  tenantId,
+  sourceId,
+  sourceName,
+  actionLabel,
+  confirmLabel = 'Confirmar',
+  ariaLabel,
+}: {
+  tenantId: string
+  sourceId: string
+  sourceName: string
+  actionLabel?: string
+  confirmLabel?: string
+  ariaLabel?: string
+}) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [confirming, setConfirming] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -763,6 +791,7 @@ function DeleteKnowledgeSourceButton({ tenantId, sourceId, sourceName }: { tenan
     startTransition(async () => {
       await deleteKnowledgeSource(tenantId, sourceId)
       setConfirming(false)
+      router.refresh()
     })
   }
 
@@ -783,16 +812,16 @@ function DeleteKnowledgeSourceButton({ tenantId, sourceId, sourceName }: { tenan
           onClick={handleConfirm}
           disabled={isPending}
         >
-          {isPending ? 'Eliminando...' : 'Confirmar'}
+          {isPending ? 'Eliminando...' : confirmLabel}
         </button>
       </div>
       <button
         type="button"
-        className="knowledge-delete-icon"
+        className={actionLabel ? 'knowledge-delete-text-button' : 'knowledge-delete-icon'}
         onClick={() => setConfirming(true)}
-        aria-label={`Eliminar ${sourceName}`}
+        aria-label={ariaLabel ?? `Eliminar ${sourceName}`}
       >
-        <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
+        {actionLabel ? actionLabel : <Trash2 size={15} strokeWidth={2} aria-hidden="true" />}
       </button>
     </div>
   )

@@ -5951,6 +5951,25 @@ textarea {
   opacity: 0.48;
 }
 
+.section-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.section-heading-row > div {
+  min-width: 0;
+}
+
+.section-heading-row h2 {
+  margin: 0 0 6px;
+}
+
+.section-heading-row .muted {
+  max-width: 880px;
+}
+
 .knowledge-files-list {
   display: grid;
   gap: 10px;
@@ -5958,7 +5977,41 @@ textarea {
 
 .knowledge-installed-refresh,
 .knowledge-installed-refresh-active {
+  flex: 0 0 auto;
   min-width: 132px;
+  margin-top: 2px;
+}
+
+.knowledge-installed-empty {
+  border: 0.5px dashed var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface-2) 44%, transparent);
+  color: var(--color-text-secondary);
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+}
+
+.knowledge-installed-empty strong {
+  color: var(--color-text-primary);
+  font-size: 16px;
+}
+
+.knowledge-installed-empty p {
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .section-heading-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .knowledge-installed-refresh,
+  .knowledge-installed-refresh-active {
+    justify-content: center;
+    width: 100%;
+  }
 }
 
 .knowledge-file-item {
@@ -6133,9 +6186,10 @@ textarea {
 
 .knowledge-file-actions {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: flex-end;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -6243,6 +6297,23 @@ textarea {
 
 .knowledge-delete-icon:hover {
   background: color-mix(in srgb, #ef4444 10%, transparent);
+  color: #ef4444;
+}
+
+.knowledge-delete-text-button {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  padding: 8px 12px;
+}
+
+.knowledge-delete-text-button:hover {
+  border-color: color-mix(in srgb, #ef4444 45%, var(--color-border-subtle));
   color: #ef4444;
 }
 
