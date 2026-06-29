@@ -93,8 +93,8 @@ function parseResponse(text: string): TaliaAiIngestResponse | null {
 }
 
 function getErrorMessage(body: TaliaAiIngestResponse | null) {
-  if (typeof body?.error === 'string') return body.error
   if (typeof body?.details === 'string') return body.details
+  if (typeof body?.error === 'string') return body.error
   return null
 }
 

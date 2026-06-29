@@ -1,7 +1,8 @@
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
+import { createWebCaptureToken } from '@/lib/knowledge/web-capture-token'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { Bot, ChevronLeft, ChevronRight, FileText, Link as LinkIcon, Plug, Table2 } from 'lucide-react'
+import { Bot, ChevronLeft, ChevronRight, FileText, Globe2, Link as LinkIcon, Plug, Table2 } from 'lucide-react'
 import Link from 'next/link'
 import { KnowledgeForm } from '../settings/knowledge-form'
 
@@ -11,12 +12,13 @@ interface Props {
 }
 
 const ITEMS_PER_PAGE = 20
-const tabs = ['links', 'files', 'faqs', 'apps', 'spreadsheets'] as const
+const tabs = ['links', 'installed', 'files', 'faqs', 'apps', 'spreadsheets'] as const
 type KnowledgeTab = typeof tabs[number]
-type SourceType = 'pdf' | 'xlsx' | 'csv' | 'url'
+type SourceType = 'pdf' | 'xlsx' | 'csv' | 'url' | 'web_snapshot'
 
 const sourceTypes = [
   { key: 'links', label: 'Links', icon: LinkIcon },
+  { key: 'installed', label: 'Web instalada', icon: Globe2 },
   { key: 'files', label: 'Files', icon: FileText },
   { key: 'faqs', label: 'FAQs', icon: Bot },
   { key: 'apps', label: 'Apps', icon: Plug },
@@ -39,6 +41,14 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
   const admin = createAdminClient()
   const sourceTypesForTab = getSourceTypesForTab(activeTab)
   const shouldLoadSources = sourceTypesForTab.length > 0
+  const sourcesQuery = shouldLoadSources
+    ? admin
+      .from('knowledge_sources')
+      .select('id, type, name, status, config, source_url, last_synced_at, last_error, created_at', { count: 'exact' })
+      .eq('theatre_id', tenantId)
+      .in('type', sourceTypesForTab)
+      .order('created_at', { ascending: false })
+    : null
 
   const [{ data: theatre }, { data: manualSources }, sourcesResult] = await Promise.all([
     admin
@@ -51,14 +61,10 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
       .select('id')
       .eq('theatre_id', tenantId)
       .eq('type', 'manual'),
-    shouldLoadSources
-      ? admin
-        .from('knowledge_sources')
-        .select('id, type, name, status, config, source_url, last_synced_at, last_error, created_at', { count: 'exact' })
-        .eq('theatre_id', tenantId)
-        .in('type', sourceTypesForTab)
-        .order('created_at', { ascending: false })
-        .range(from, to)
+    sourcesQuery
+      ? activeTab === 'links'
+        ? sourcesQuery
+        : sourcesQuery.range(from, to)
       : Promise.resolve({ data: [], count: 0 }),
   ])
   const manualSourceIds = (manualSources ?? []).map((source) => source.id)
@@ -135,6 +141,13 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
             status: source.status,
             config: source.config,
             sourceUrl: source.source_url,
+            captureUrl: source.type === 'web_snapshot' && source.source_url
+              ? getCaptureUrl({
+                tenantId,
+                sourceId: source.id,
+                sourceUrl: source.source_url,
+              })
+              : null,
             lastSyncedAt: source.last_synced_at,
             lastError: source.last_error,
             chunkCount: chunkCounts.get(source.id) ?? 0,
@@ -160,9 +173,32 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
 }
 
 function getSourceTypesForTab(tab: KnowledgeTab): SourceType[] {
+  if (tab === 'links') return ['url']
+  if (tab === 'installed') return ['web_snapshot']
   if (tab === 'files') return ['pdf']
   if (tab === 'spreadsheets') return ['xlsx', 'csv']
   return []
+}
+
+function getCaptureUrl({
+  tenantId,
+  sourceId,
+  sourceUrl,
+}: {
+  tenantId: string
+  sourceId: string
+  sourceUrl: string
+}) {
+  const url = new URL(sourceUrl)
+  url.hash = ''
+  const signedUrl = url.toString()
+  url.searchParams.set('talia_capture', '1')
+  url.searchParams.set('talia_capture_token', createWebCaptureToken({
+    tenantId,
+    sourceId,
+    url: signedUrl,
+  }))
+  return url.toString()
 }
 
 function KnowledgePagination({

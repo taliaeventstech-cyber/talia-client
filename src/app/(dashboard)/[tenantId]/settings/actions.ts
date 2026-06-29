@@ -30,7 +30,10 @@ const settingsSchema = z.object({
   systemPrompt: z.string().trim().max(8000, 'El prompt no puede superar los 8000 caracteres').optional(),
 })
 
-const scrapeUrlsSchema = z.array(z.string().trim().url('Todas las URLs deben ser válidas')).max(4)
+const MAX_SCRAPE_URLS = 50
+
+const scrapeUrlsSchema = z.array(z.string().trim().url('Todas las URLs deben ser válidas'))
+  .max(MAX_SCRAPE_URLS, `Puedes guardar hasta ${MAX_SCRAPE_URLS} URLs por ahora.`)
 
 const knowledgeItemSchema = z.object({
   question: z.string().trim().min(4, 'La pregunta debe tener al menos 4 caracteres').max(500),
@@ -130,9 +133,12 @@ export async function updateScrapeUrls(
   const isAdmin = await assertTenantAdmin(admin, user.id, tenantId)
   if (!isAdmin) return { ok: false, message: 'No tienes permisos para editar esta configuración.' }
 
-  const urls = ['scrape_url_1', 'scrape_url_2', 'scrape_url_3', 'scrape_url_4']
-    .map((key) => String(formData.get(key) ?? '').trim())
+  const submittedUrls = formData.getAll('scrape_urls')
+  const legacyUrls = ['scrape_url_1', 'scrape_url_2', 'scrape_url_3', 'scrape_url_4'].map((key) => formData.get(key))
+  const urls = Array.from(new Set((submittedUrls.length ? submittedUrls : legacyUrls)
+    .map((value) => String(value ?? '').trim())
     .filter(Boolean)
+  ))
 
   const parsed = scrapeUrlsSchema.safeParse(urls)
   if (!parsed.success) {
@@ -158,7 +164,7 @@ export async function updateScrapeUrls(
     ok: true,
     message: indexed.ok
       ? 'URLs guardadas e indexadas correctamente.'
-      : `URLs guardadas. Pendiente de indexar en RAG: ${indexed.message}`,
+      : 'URLs guardadas. Algunas URLs no se han podido leer automáticamente. Revisa las URLs marcadas en la lista.',
   }
 }
 

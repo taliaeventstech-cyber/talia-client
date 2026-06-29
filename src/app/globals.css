@@ -6042,6 +6042,63 @@ textarea {
   color: #ef4444;
 }
 
+.knowledge-url-row {
+  display: grid;
+  gap: 6px;
+  border: 0.5px solid transparent;
+  border-radius: 12px;
+  padding: 8px;
+}
+
+.knowledge-url-row-error {
+  border-color: color-mix(in srgb, #ef4444 36%, var(--color-border));
+  background: color-mix(in srgb, #ef4444 8%, transparent);
+}
+
+.knowledge-url-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.knowledge-url-delete-button {
+  border: 0;
+  background: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0;
+}
+
+.knowledge-url-delete-button:hover,
+.knowledge-url-delete-button:focus-visible {
+  color: #ef4444;
+}
+
+.knowledge-url-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.knowledge-url-status-ready {
+  color: var(--color-brand);
+}
+
+.knowledge-url-status-processing {
+  color: var(--color-gold);
+}
+
+.knowledge-url-status-error {
+  color: #ef4444;
+}
+
 .knowledge-file-status {
   flex-shrink: 0;
   border: 0.5px solid var(--color-border);

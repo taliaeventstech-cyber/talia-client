@@ -316,6 +316,163 @@ export async function syncUrlKnowledgeSources({
   }
 }
 
+export async function registerInstalledWebPage({
+  admin,
+  tenantId,
+  url,
+  title,
+}: {
+  admin: AdminClient
+  tenantId: string
+  url: string
+  title?: string | null
+}): Promise<KnowledgeImportResult & { sourceId?: string }> {
+  const normalizedUrl = normalizeSourceUrl(url)
+  if (!normalizedUrl) return { ok: false, message: 'URL no válida.' }
+
+  const name = title?.trim() || getUrlSourceName(normalizedUrl)
+  const config = {
+    capture_url: normalizedUrl,
+    page_title: title?.trim() || null,
+    registered_at: new Date().toISOString(),
+  }
+
+  const existing = await admin
+    .from('knowledge_sources')
+    .select('id, status, config')
+    .eq('theatre_id', tenantId)
+    .eq('type', 'web_snapshot')
+    .eq('source_url', normalizedUrl)
+    .maybeSingle()
+
+  if (existing.error) return { ok: false, message: existing.error.message }
+
+  if (existing.data) {
+    const existingConfig = isRecord(existing.data.config) ? existing.data.config : {}
+    const update = await admin
+      .from('knowledge_sources')
+      .update({
+        name,
+        source_url: normalizedUrl,
+        status: existing.data.status === 'ready' ? 'ready' : 'connected',
+        last_error: null,
+        config: {
+          ...existingConfig,
+          ...config,
+          last_seen_at: new Date().toISOString(),
+        },
+      })
+      .eq('id', existing.data.id)
+      .eq('theatre_id', tenantId)
+
+    if (update.error) return { ok: false, message: update.error.message }
+    return { ok: true, message: 'Página instalada actualizada.', sourceId: existing.data.id }
+  }
+
+  const created = await admin
+    .from('knowledge_sources')
+    .insert({
+      theatre_id: tenantId,
+      type: 'web_snapshot',
+      name,
+      source_url: normalizedUrl,
+      status: 'connected',
+      config,
+    })
+    .select('id')
+    .single()
+
+  if (created.error || !created.data) {
+    return { ok: false, message: created.error?.message ?? 'No se pudo registrar la página instalada.' }
+  }
+
+  return { ok: true, message: 'Página instalada registrada.', sourceId: created.data.id }
+}
+
+export async function ingestWebSnapshotSource({
+  admin,
+  tenantId,
+  sourceId,
+  url,
+  title,
+  text,
+}: {
+  admin: AdminClient
+  tenantId: string
+  sourceId: string
+  url: string
+  title?: string | null
+  text: string
+}): Promise<KnowledgeImportResult> {
+  const normalizedUrl = normalizeSourceUrl(url)
+  if (!normalizedUrl) return { ok: false, message: 'URL no válida.' }
+
+  const cleanText = text.trim()
+  if (cleanText.length < 120) {
+    await markKnowledgeSourceError(admin, sourceId, 'La página no contiene texto suficiente para indexar.')
+    return { ok: false, message: 'La página no contiene texto suficiente para indexar.' }
+  }
+
+  const sourceUpdate = await admin
+    .from('knowledge_sources')
+    .update({
+      name: title?.trim() || getUrlSourceName(normalizedUrl),
+      source_url: normalizedUrl,
+      status: 'processing',
+      last_error: null,
+      config: {
+        capture_url: normalizedUrl,
+        page_title: title?.trim() || null,
+        source_type: 'web_snapshot',
+        capture_started_at: new Date().toISOString(),
+      },
+    })
+    .eq('id', sourceId)
+    .eq('theatre_id', tenantId)
+    .eq('type', 'web_snapshot')
+
+  if (sourceUpdate.error) {
+    return { ok: false, message: `No se pudo preparar la captura: ${sourceUpdate.error.message}` }
+  }
+
+  const ingest = await ingestKnowledgeTextWithTaliaAi({
+    tenantId,
+    sourceId,
+    sourceType: 'web_snapshot',
+    text: cleanText,
+    metadata: {
+      source_type: 'web_snapshot',
+      source_url: normalizedUrl,
+      page_title: title?.trim() || null,
+      capture_method: 'installed_widget',
+      language: 'es',
+      indexed_at: new Date().toISOString(),
+    },
+  })
+
+  if (!ingest) {
+    await markKnowledgeSourceError(admin, sourceId, 'TALIA AI no está configurado para ingestar capturas web.')
+    return { ok: false, message: 'TALIA AI no está configurado para ingestar capturas web.' }
+  }
+
+  if (!ingest.ok) {
+    await markKnowledgeSourceError(admin, sourceId, ingest.error ?? 'No se pudo ingestar la captura web.')
+    return { ok: false, message: `No se pudo ingestar la captura web: ${ingest.error ?? 'error desconocido'}` }
+  }
+
+  await embedInsertedChunks({
+    tenantId,
+    sourceId,
+    limit: ingest.chunks,
+  })
+
+  return {
+    ok: true,
+    count: ingest.chunks,
+    message: 'Captura web preparada para TALIA.',
+  }
+}
+
 export async function importPdfKnowledgeSource({
   admin,
   tenantId,
@@ -843,6 +1000,16 @@ function getUrlSourceName(value: string) {
     return `${url.hostname}${url.pathname === '/' ? '' : url.pathname}`.slice(0, 120)
   } catch {
     return value.slice(0, 120)
+  }
+}
+
+function normalizeSourceUrl(value: string) {
+  try {
+    const url = new URL(value)
+    url.hash = ''
+    return url.toString()
+  } catch {
+    return null
   }
 }
 

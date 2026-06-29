@@ -20,7 +20,9 @@
     .then(function (response) { return response.json(); })
     .then(function (config) {
       if (config.error) throw new Error(config.error);
+      registerInstalledPage();
       mountWidget(config);
+      maybeCaptureInstalledPage();
     })
     .catch(function (error) {
       console.warn('[TALIA] Could not load widget config', error);
@@ -125,6 +127,105 @@
   function removeTyping(container) {
     var typing = container.querySelector('[data-typing]');
     if (typing) typing.remove();
+  }
+
+  function registerInstalledPage() {
+    var pageUrl = getCurrentPageUrl();
+    var key = 'talia-installed-page-' + tenantId + '-' + pageUrl;
+    var lastSeen = Number(localStorage.getItem(key) || '0');
+    if (Date.now() - lastSeen < 24 * 60 * 60 * 1000) return;
+
+    fetch(baseUrl + '/api/widget/' + tenantId + '/installed-page', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: pageUrl,
+        title: document.title || '',
+      }),
+    })
+      .then(function (response) {
+        if (response.ok) localStorage.setItem(key, String(Date.now()));
+      })
+      .catch(function (error) {
+        console.warn('[TALIA] Could not register installed page', error);
+      });
+  }
+
+  function maybeCaptureInstalledPage() {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('talia_capture') !== '1') return;
+
+    var token = params.get('talia_capture_token');
+    if (!token) return;
+
+    notifyCapture('TALIA está capturando el contenido visible de esta página...');
+    fetch(baseUrl + '/api/widget/' + tenantId + '/capture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: token,
+        url: getCurrentPageUrl(),
+        title: document.title || '',
+        text: extractVisiblePageText(),
+      }),
+    })
+      .then(function (response) { return response.json().then(function (body) { return { response: response, body: body }; }); })
+      .then(function (result) {
+        if (!result.response.ok || result.body.error) {
+          notifyCapture('TALIA no ha podido capturar esta página. Revisa la fuente en Ágora.');
+          return;
+        }
+        notifyCapture('Contenido capturado. Ya puedes volver a Ágora.');
+      })
+      .catch(function () {
+        notifyCapture('TALIA no ha podido capturar esta página. Revisa la fuente en Ágora.');
+      });
+  }
+
+  function getCurrentPageUrl() {
+    var url = new URL(window.location.href);
+    url.hash = '';
+    url.searchParams.delete('talia_capture');
+    url.searchParams.delete('talia_capture_token');
+    return url.toString();
+  }
+
+  function extractVisiblePageText() {
+    var clone = document.body.cloneNode(true);
+    clone.querySelectorAll('script, style, noscript, svg, iframe, canvas, nav, footer, form, input, textarea, select, button, [aria-hidden="true"], #talia-widget-root').forEach(function (node) {
+      node.remove();
+    });
+
+    var text = clone.innerText || clone.textContent || '';
+    return text
+      .replace(/\r/g, '\n')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+      .slice(0, 200000);
+  }
+
+  function notifyCapture(message) {
+    var id = 'talia-capture-notice';
+    var notice = document.getElementById(id);
+    if (!notice) {
+      notice = document.createElement('div');
+      notice.id = id;
+      notice.style.position = 'fixed';
+      notice.style.left = '50%';
+      notice.style.bottom = '24px';
+      notice.style.transform = 'translateX(-50%)';
+      notice.style.zIndex = '2147483647';
+      notice.style.maxWidth = 'min(520px, calc(100vw - 32px))';
+      notice.style.borderRadius = '999px';
+      notice.style.background = '#111827';
+      notice.style.color = '#fff';
+      notice.style.boxShadow = '0 10px 30px rgba(0,0,0,.22)';
+      notice.style.font = '600 14px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      notice.style.padding = '12px 16px';
+      document.body.appendChild(notice);
+    }
+    notice.textContent = message;
   }
 
   function getTemplate(assistantName, initialMessage, primaryColor, position) {

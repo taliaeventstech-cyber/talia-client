@@ -1,6 +1,6 @@
 # Estado Actual de TALIA
 
-Ultima actualizacion: 19 junio 2026
+Ultima actualizacion: 29 junio 2026
 
 Este documento es la fuente rapida para entender en que punto esta la app antes de tocar codigo. Para decisiones mas profundas, ir a los documentos enlazados al final.
 
@@ -167,6 +167,7 @@ Implementado:
 - Backstage permite reindexar todo el conocimiento de un venue y reprocesar fuentes individuales de RAG.
 - Fallback local en Next solo textual sobre chunks/items.
 - Fuentes/scrape URLs conectadas a `knowledge_sources` tipo `url` e indexadas por `talia-ai`.
+- Fuentes de web instalada conectadas a `knowledge_sources` tipo `web_snapshot`: Agora genera una URL de captura firmada, el widget instalado extrae texto visible del DOM de la landing y `talia-ai` normaliza, trocea y genera embeddings.
 - Importacion estructurada segun pantalla de configuracion, ya conectada al RAG para FAQs manuales y Excel/CSV.
 
 Direccion de producto:
