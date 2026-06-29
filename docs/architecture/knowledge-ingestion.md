@@ -7,7 +7,7 @@ La base de conocimiento debe aceptar varias fuentes sin acoplar el producto a n8
 - FAQs manuales.
 - Excel/CSV.
 - PDFs.
-- URLs scrapeables.
+- Web instalada con capturas firmadas desde el widget.
 - Google Sheets y otras apps mas adelante.
 
 ## Estado actual
@@ -61,18 +61,18 @@ La decision es mantener `knowledge_items` de momento porque:
 
 Cuando el RAG este consolidado, `knowledge_items` podra convertirse en una vista editorial o desaparecer del runtime.
 
-## URLs
+## Web instalada
 
-Las URLs de conocimiento ya se sincronizan como fuentes RAG:
+Las paginas propias del cliente se incorporan como fuentes RAG sin lectura server-side de URLs desde `talia-client`:
 
-1. El usuario guarda URLs desde Conocimiento o añade la primera URL durante el onboarding del chatbot.
-2. `talia-client` mantiene `theatres.scrape_urls` por compatibilidad con flujos legacy.
-3. `talia-client` crea/actualiza `knowledge_sources` tipo `url` y elimina fuentes URL obsoletas.
-4. `talia-client` llama a `talia-ai /v1/knowledge/ingest` con la URL.
-5. `talia-ai` valida que la URL sea HTTP/HTTPS, bloquea hosts locales/redes privadas, descarga HTML/texto con limite de tamano y extrae texto legible.
-6. `talia-ai` escribe `knowledge_chunks`; `talia-client` solicita embeddings.
+1. El cliente instala el script del widget en su web.
+2. El widget registra la pagina detectada como `knowledge_sources.type = web_snapshot`.
+3. Agora genera una URL de captura firmada para esa pagina.
+4. El widget, ejecutado en el navegador del usuario autorizado, extrae texto visible del DOM.
+5. `talia-client` recibe la captura, valida tenant/token y llama a `talia-ai /v1/knowledge/ingest` con `source_type = web_snapshot`.
+6. `talia-ai` normaliza, divide en chunks, actualiza `knowledge_chunks` y deja la fuente lista para embeddings/retrieval.
 
-Esta pieza sustituye el scraping implícito de n8n para el runtime RAG. El scraping sigue siendo deliberadamente acotado: una URL equivale a una fuente, no a un crawler recursivo.
+La web oficial del tenant queda como dato administrativo. No se usa para crear fuentes URL automaticamente.
 
 ## Seams hacia RAG
 
@@ -238,4 +238,4 @@ Cuando desacoplemos backend/IA:
 
 ## n8n
 
-El workflow actual puede seguir funcionando si trata `knowledge_items` como conocimiento general, no solo como FAQs. Conviene renombrar mentalmente la seccion de prompt de `FAQs OFICIALES` a `CONOCIMIENTO OFICIAL` y priorizar esos items antes del scraping.
+El workflow legacy puede seguir funcionando si trata `knowledge_items` como conocimiento general, no solo como FAQs. Conviene renombrar mentalmente la seccion de prompt de `FAQs OFICIALES` a `CONOCIMIENTO OFICIAL` y priorizar esos items como fuente oficial mientras termina la migracion a `talia-ai`.

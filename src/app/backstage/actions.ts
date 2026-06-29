@@ -2,7 +2,6 @@
 
 import { requirePlatformAdmin } from '@/lib/platform/auth'
 import { emailAgentSettingsToMetadata, normalizeEmailAgentSettings } from '@/lib/email/settings'
-import { syncUrlKnowledgeSources } from '@/lib/knowledge/ingestion'
 import { createSignupInvite } from '@/lib/platform/invites'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getActiveSubscription } from '@/lib/usage/service'
@@ -103,7 +102,6 @@ const updateTenantSchema = createTenantSchema.extend({
   voiceOperationalStatus: z.enum(['draft', 'provisioning', 'active', 'paused', 'error']),
   chatbotWebhookUrl: z.string().trim().url('El webhook del chatbot debe ser una URL válida.').optional().or(z.literal('')),
   chatbotSystemPrompt: z.string().trim().max(4000, 'El prompt del chatbot es demasiado largo.').optional(),
-  chatbotScrapeUrls: z.string().trim().max(3000, 'Las fuentes web del chatbot son demasiado largas.').optional(),
   emailMailboxEmail: z.string().trim().email('El buzón de email no es válido.').optional().or(z.literal('')),
   emailProvider: z.enum(['google', 'microsoft', 'imap', 'forwarding']),
   emailStatus: z.enum(['draft', 'connected', 'syncing', 'error', 'revoked', 'disabled']),
@@ -200,7 +198,6 @@ async function createVenueForAccount(
   }
 ) {
   const slug = await getAvailableSlug(admin, input.name)
-  const scrapeUrls = input.websiteUrl ? [input.websiteUrl] : []
 
   const { data: tenant, error: tenantError } = await admin
     .from('theatres')
@@ -214,7 +211,6 @@ async function createVenueForAccount(
       website_url: input.websiteUrl || null,
       fallback_email: input.fallbackEmail || null,
       fallback_phone: input.fallbackPhone || null,
-      scrape_urls: scrapeUrls,
       widget_config: {
         assistantName: 'TALÍA',
         initialMessage:
@@ -267,16 +263,6 @@ async function createVenueForAccount(
       syncMode: 'polling',
     }),
   ])
-
-  if (scrapeUrls.length) {
-    const urlsSynced = await syncUrlKnowledgeSources({ admin, tenantId: tenant.id, urls: scrapeUrls })
-    if (!urlsSynced.ok) {
-      console.warn('[backstage-create-venue] URL knowledge sync failed', {
-        tenantId: tenant.id,
-        error: urlsSynced.message,
-      })
-    }
-  }
 
   return { ok: true as const, message: 'Venue creada correctamente.', tenantId: tenant.id }
 }
@@ -512,7 +498,6 @@ export async function updateTenantAction(
     voiceOperationalStatus: formData.get('voice_operational_status') || 'draft',
     chatbotWebhookUrl: formData.get('chatbot_webhook_url') || '',
     chatbotSystemPrompt: formData.get('chatbot_system_prompt') || '',
-    chatbotScrapeUrls: formData.get('chatbot_scrape_urls') || '',
     emailMailboxEmail: formData.get('email_mailbox_email') || '',
     emailProvider: formData.get('email_provider') || 'google',
     emailStatus: formData.get('email_status') || 'draft',
@@ -548,7 +533,6 @@ export async function updateTenantAction(
   const selectedModules = new Set(data.modules)
   selectedModules.add('chatbot')
   selectedModules.add('data')
-  const chatbotScrapeUrls = parseUrlList(data.chatbotScrapeUrls)
 
   const { data: tenantForAccount } = await admin
     .from('theatres')
@@ -591,7 +575,6 @@ export async function updateTenantAction(
       voice_operational_status: data.voiceOperationalStatus,
       n8n_webhook_url: data.chatbotWebhookUrl || null,
       system_prompt: data.chatbotSystemPrompt || null,
-      scrape_urls: chatbotScrapeUrls,
     })
     .eq('id', data.tenantId)
 
@@ -654,14 +637,6 @@ export async function updateTenantAction(
       }),
     }),
   ])
-
-  const urlsSynced = await syncUrlKnowledgeSources({ admin, tenantId: data.tenantId, urls: chatbotScrapeUrls })
-  if (!urlsSynced.ok) {
-    return {
-      ok: false,
-      message: `Cliente actualizado, pero no se pudieron indexar las URLs: ${urlsSynced.message}`,
-    }
-  }
 
   revalidatePath('/backstage')
   revalidatePath(`/backstage/tenants/${data.tenantId}`)
@@ -819,16 +794,6 @@ function parseEmailRuleList(value: string | undefined) {
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean)
     .slice(0, 50)
-}
-
-function parseUrlList(value: string | undefined) {
-  if (!value) return []
-
-  return value
-    .split(/[\n,]/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .slice(0, 20)
 }
 
 function getDefaultModuleLimits(moduleKey: (typeof moduleKeys)[number]) {

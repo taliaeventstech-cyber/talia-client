@@ -58,21 +58,20 @@ No auto-enviar en primera versión.
 
 ## Knowledge Base
 
-La base de conocimiento debe tener prioridad sobre scraping.
+La base de conocimiento debe tener prioridad sobre cualquier fallback generativo.
 
 Fuentes:
 
 - FAQs manuales.
 - CSV/XLSX.
 - Google Sheets más adelante.
-- URLs/scraping como fallback.
+- PDFs y capturas de web instalada.
 
 Regla:
 
 1. Buscar respuesta determinista.
 2. Si hay match fiable, responder con fuente.
-3. Si no, usar herramientas/scraping.
-4. Si no hay respuesta, fallback humano.
+3. Si no hay respuesta, fallback humano.
 
 ## Proveedor Temporal vs Backend Propio
 

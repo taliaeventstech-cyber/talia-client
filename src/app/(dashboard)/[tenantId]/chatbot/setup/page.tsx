@@ -23,7 +23,7 @@ export default async function ChatbotSetupPage({ params }: Props) {
   const admin = createAdminClient()
   const { data: theatre } = await admin
     .from('theatres')
-    .select('name, system_prompt, scrape_urls, widget_config')
+    .select('name, system_prompt, widget_config')
     .eq('id', tenantId)
     .single()
 
@@ -32,9 +32,6 @@ export default async function ChatbotSetupPage({ params }: Props) {
   const copy = dictionary.chatbotSetup
   const formCopy = getFormCopy(copy)
   const widgetConfig = getWidgetConfig(theatre?.widget_config, copy.defaultInitialMessage)
-  const scrapeUrls = Array.isArray(theatre?.scrape_urls)
-    ? theatre.scrape_urls.filter((url): url is string => typeof url === 'string')
-    : []
   const isOnboardingFlow = !access.chatbotSetupCompleted
 
   return (
@@ -72,7 +69,6 @@ export default async function ChatbotSetupPage({ params }: Props) {
           primaryColor: widgetConfig.primaryColor,
           tone: widgetConfig.tone,
           fallbackBehavior: widgetConfig.fallbackBehavior,
-          sourceUrl: scrapeUrls[0] ?? '',
           systemPrompt: theatre?.system_prompt ?? '',
         }}
       />

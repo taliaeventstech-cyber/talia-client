@@ -54,7 +54,7 @@ export async function getTenantAccess(tenantId: string): Promise<TenantAccess> {
       .maybeSingle(),
     admin
       .from('theatres')
-      .select('system_prompt, scrape_urls, widget_config, accounts(status, created_at, metadata)')
+      .select('system_prompt, widget_config, accounts(status, created_at, metadata)')
       .eq('id', tenantId)
       .maybeSingle(),
   ])

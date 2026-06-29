@@ -5956,6 +5956,11 @@ textarea {
   gap: 10px;
 }
 
+.knowledge-installed-refresh,
+.knowledge-installed-refresh-active {
+  min-width: 132px;
+}
+
 .knowledge-file-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

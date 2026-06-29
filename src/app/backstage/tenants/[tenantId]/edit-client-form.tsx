@@ -19,7 +19,6 @@ type Client = {
   fallback_phone: string | null
   n8n_webhook_url: string | null
   system_prompt: string | null
-  scrape_urls: unknown
   widget_config: unknown
   voice_phone_number: string | null
   voice_phone_provider: string
@@ -365,7 +364,6 @@ function ModulePlaceholderPanel({
 
 function ChatbotOperationsPanel({ client }: { client: Client }) {
   const widgetConfig = getWidgetConfig(client.widget_config)
-  const scrapeUrls = getStringList(client.scrape_urls)
 
   return (
     <>
@@ -415,7 +413,7 @@ function ChatbotOperationsPanel({ client }: { client: Client }) {
           </label>
           <div className="compact-status-row">
             <span>Prompt {client.system_prompt ? 'personalizado' : 'por defecto'}</span>
-            <span>{scrapeUrls.length} fuentes web</span>
+            <span>Conocimiento gestionado desde Agora</span>
           </div>
         </div>
       </div>
@@ -429,17 +427,6 @@ function ChatbotOperationsPanel({ client }: { client: Client }) {
           placeholder="Instrucciones operativas internas para el comportamiento del chatbot."
         />
         <span className="field-hint">Campo técnico de soporte. El tono visible y el contenido deben seguir gestionándose desde el panel cliente.</span>
-      </label>
-
-      <label className="field">
-        Fuentes web de conocimiento
-        <textarea
-          name="chatbot_scrape_urls"
-          defaultValue={scrapeUrls.join('\n')}
-          rows={4}
-          placeholder="https://venue.com/programacion&#10;https://venue.com/entradas"
-        />
-        <span className="field-hint">Una URL por línea. Se usan como fuentes para la base de conocimiento del chatbot.</span>
       </label>
     </>
   )

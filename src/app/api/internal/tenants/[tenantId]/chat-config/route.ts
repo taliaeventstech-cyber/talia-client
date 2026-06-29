@@ -33,7 +33,6 @@ export async function GET(
     system_prompt: result.config.systemPrompt,
     fallback_email: result.config.fallbackEmail,
     fallback_phone: result.config.fallbackPhone,
-    scrape_urls: result.config.scrapeUrls,
     topic_categories: result.config.topicCategories,
     knowledge_items: result.config.knowledgeItems,
   })

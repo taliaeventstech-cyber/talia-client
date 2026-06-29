@@ -102,7 +102,7 @@ export function CreateVenueForm({ accountId }: { accountId: string }) {
             <label className="field">
               Web oficial
               <input name="website_url" type="url" placeholder="https://www.venue.com" />
-              <span className="field-hint">Se usará también como primera URL de scraping.</span>
+              <span className="field-hint">Se usará como web pública de referencia.</span>
             </label>
             <label className="field">
               Email fallback

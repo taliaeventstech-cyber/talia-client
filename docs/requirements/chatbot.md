@@ -21,7 +21,7 @@ Permitir que una venue instale TALIA en su web mediante un script y responda pre
 - Instalar con script simple.
 - Identificar `tenantId`.
 - Responder en la lengua configurada.
-- Usar base de conocimiento antes que scraping.
+- Usar base de conocimiento antes que respuestas generativas.
 - Guardar historial.
 - Permitir configurar:
   - prompt base;

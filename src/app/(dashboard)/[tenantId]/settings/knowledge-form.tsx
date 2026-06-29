@@ -1,9 +1,10 @@
 'use client'
 
-import { ChevronDown, FileText, Link as LinkIcon, Table2, Trash2 } from 'lucide-react'
+import { ChevronDown, FileText, Link as LinkIcon, RefreshCw, Table2, Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useActionState, useState, useTransition, useEffect, useRef } from 'react'
-import type { ClipboardEvent, ReactNode } from 'react'
-import { createKnowledgeItem, uploadKnowledgeExcel, uploadKnowledgePdf, updateScrapeUrls, updateKnowledgeItem, deleteKnowledgeItem, deleteKnowledgeSource, retryKnowledgeSourceEmbeddings, type SettingsFormState, type ExcelUploadState, type PdfUploadState } from './actions'
+import type { ReactNode } from 'react'
+import { createKnowledgeItem, uploadKnowledgeExcel, uploadKnowledgePdf, updateKnowledgeItem, deleteKnowledgeItem, deleteKnowledgeSource, retryKnowledgeSourceEmbeddings, type SettingsFormState, type ExcelUploadState, type PdfUploadState } from './actions'
 
 type KnowledgeItem = {
   id: string
@@ -35,11 +36,10 @@ type KnowledgeSource = {
 
 type KnowledgeFormProps = {
   tenantId: string
-  activeTab: 'links' | 'installed' | 'files' | 'faqs' | 'apps' | 'spreadsheets'
+  activeTab: 'installed' | 'files' | 'faqs' | 'apps' | 'spreadsheets'
   sources: KnowledgeSource[]
   items: KnowledgeItem[]
   pagination?: ReactNode
-  scrapeUrls: string[]
   labels: {
     officialAnswers: string
     officialAnswersHelp: string
@@ -71,18 +71,12 @@ type KnowledgeFormProps = {
     importPdfHelp: string
     importPdfWarning: string
     importPdfButton: string
-    scrapeUrls: string
-    scrapeHelp: string
-    deleteUrl: string
-    addUrl: string
-    saveUrls: string
-    saving: string
-    urlIndexed: string
     urlProcessing: string
-    urlNotIndexed: string
     installedWeb: string
     installedWebHelp: string
     noInstalledPages: string
+    refreshInstalled: string
+    refreshingInstalled: string
     capturePage: string
     capturedPageReady: string
     capturedPageConnected: string
@@ -120,52 +114,15 @@ const pdfInitialState: PdfUploadState = {
   message: '',
 }
 
-export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination, scrapeUrls, labels }: KnowledgeFormProps) {
+export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination, labels }: KnowledgeFormProps) {
+  const router = useRouter()
   const [state, formAction, pending] = useActionState(createKnowledgeItem.bind(null, tenantId), initialState)
   const [excelState, excelFormAction, excelPending] = useActionState(uploadKnowledgeExcel.bind(null, tenantId), excelInitialState)
   const [pdfState, pdfFormAction, pdfPending] = useActionState(uploadKnowledgePdf.bind(null, tenantId), pdfInitialState)
-  const [urlsState, urlsFormAction, urlsPending] = useActionState(updateScrapeUrls.bind(null, tenantId), initialState)
-  const [urls, setUrls] = useState<string[]>(scrapeUrls.length ? scrapeUrls : [''])
+  const [isRefreshingInstalled, startInstalledRefresh] = useTransition()
   const fileSources = sources.filter((source) => source.type === 'pdf')
   const spreadsheetSources = sources.filter((source) => source.type === 'xlsx' || source.type === 'csv')
   const installedWebSources = sources.filter((source) => source.type === 'web_snapshot')
-  const urlSources = new Map(
-    sources
-      .filter((source) => source.type === 'url' && source.sourceUrl)
-      .map((source) => [source.sourceUrl as string, source])
-  )
-
-  function updateUrl(index: number, value: string) {
-    setUrls((current) => current.map((url, i) => (i === index ? value : url)))
-  }
-
-  function addUrl() {
-    setUrls((current) => [...current, ''])
-  }
-
-  function removeUrl(index: number) {
-    setUrls((current) => {
-      const next = current.filter((_, i) => i !== index)
-      return next.length ? next : ['']
-    })
-  }
-
-  function handleUrlPaste(event: ClipboardEvent<HTMLInputElement>, index: number) {
-    const pastedUrls = event.clipboardData
-      .getData('text')
-      .split(/[\s,]+/)
-      .map((value) => value.trim())
-      .filter(Boolean)
-
-    if (pastedUrls.length <= 1) return
-
-    event.preventDefault()
-    setUrls((current) => {
-      const next = [...current]
-      next.splice(index, 1, ...pastedUrls)
-      return next
-    })
-  }
 
   return (
     <>
@@ -371,67 +328,6 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination,
         </>
       ) : null}
 
-      {activeTab === 'links' ? (
-        <section className="card stack">
-          <div className="section-heading-row">
-            <div>
-              <h2>{labels.scrapeUrls}</h2>
-              <p className="muted">{labels.scrapeHelp}</p>
-            </div>
-          </div>
-          <form action={urlsFormAction} className="stack">
-            {urlsState.message ? (
-              <p role="status" className={`notice ${urlsState.ok ? 'notice-success' : 'notice-error'}`}>
-                {urlsState.message}
-              </p>
-            ) : null}
-
-            <div className="stack" style={{ gap: 8 }}>
-              {urls.map((url, index) => (
-                <div
-                  key={index}
-                  className={getUrlSourceStatus(urlSources.get(url)) === 'error' ? 'knowledge-url-row knowledge-url-row-error' : 'knowledge-url-row'}
-                >
-                  <div className="knowledge-url-input-row">
-                    <input
-                      name="scrape_urls"
-                      value={url}
-                      onChange={(e) => updateUrl(index, e.target.value)}
-                      onPaste={(event) => handleUrlPaste(event, index)}
-                      placeholder="https://..."
-                      style={{ flex: 1 }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeUrl(index)}
-                      className="knowledge-url-delete-button"
-                      aria-label={labels.deleteUrl}
-                      title={labels.deleteUrl}
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <UrlSourceStatus source={urlSources.get(url)} labels={labels} />
-                </div>
-              ))}
-            </div>
-
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <button
-                type="button"
-                className="button-outline"
-                onClick={addUrl}
-              >
-                {labels.addUrl}
-              </button>
-              <button className="button-primary" type="submit" disabled={urlsPending} style={{ opacity: urlsPending ? 0.7 : 1 }}>
-                {urlsPending ? labels.saving : labels.saveUrls}
-              </button>
-            </div>
-          </form>
-        </section>
-      ) : null}
-
       {activeTab === 'installed' ? (
         <section className="card stack">
           <div className="section-heading-row">
@@ -439,6 +335,24 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination,
               <h2>{labels.installedWeb}</h2>
               <p className="muted">{labels.installedWebHelp}</p>
             </div>
+            <button
+              type="button"
+              className={`button-outline button-fit knowledge-installed-refresh ${isRefreshingInstalled ? 'knowledge-installed-refresh-active' : ''}`}
+              disabled={isRefreshingInstalled}
+              onClick={() => startInstalledRefresh(() => router.refresh())}
+            >
+              {isRefreshingInstalled ? (
+                <>
+                  <span>{labels.refreshingInstalled}</span>
+                  <span className="processing-line" aria-hidden="true" />
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={15} strokeWidth={2} aria-hidden="true" />
+                  <span>{labels.refreshInstalled}</span>
+                </>
+              )}
+            </button>
           </div>
 
           {installedWebSources.length ? (
@@ -468,47 +382,6 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination,
 }
 
 const SPRING = '600ms cubic-bezier(0.16, 1, 0.3, 1)'
-
-function UrlSourceStatus({
-  source,
-  labels,
-}: {
-  source?: KnowledgeSource
-  labels: KnowledgeFormProps['labels']
-}) {
-  const status = getUrlSourceStatus(source)
-  if (!status) return null
-
-  if (status === 'error') {
-    return (
-      <p className="knowledge-url-status knowledge-url-status-error">
-        {labels.urlNotIndexed}
-      </p>
-    )
-  }
-
-  if (status === 'processing') {
-    return (
-      <p className="knowledge-url-status knowledge-url-status-processing">
-        {labels.urlProcessing}
-      </p>
-    )
-  }
-
-  return (
-    <p className="knowledge-url-status knowledge-url-status-ready">
-      {labels.urlIndexed}
-    </p>
-  )
-}
-
-function getUrlSourceStatus(source?: KnowledgeSource) {
-  if (!source) return null
-  if (source.status === 'error') return 'error'
-  if (source.status === 'processing' || source.status === 'pending') return 'processing'
-  if (source.status === 'ready' || source.status === 'connected') return 'ready'
-  return null
-}
 
 function InstalledWebSourceRow({
   source,

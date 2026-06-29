@@ -31,16 +31,11 @@ export type CreateTenantInput = {
   chatbotInitialMessage?: string
   chatbotTone?: string
   fallbackBehavior?: string
-  knowledgeUrls?: string[]
 }
 
 export async function createTenantForUser(admin: AdminClient, input: CreateTenantInput) {
   const now = new Date()
   const slug = await getAvailableSlug(admin, slugify(input.theatreName))
-  const scrapeUrls = Array.from(new Set([
-    input.websiteUrl,
-    ...(input.knowledgeUrls ?? []),
-  ].filter((url): url is string => Boolean(url))))
   const widgetConfig = {
     assistantName: 'TALIA',
     initialMessage: input.chatbotInitialMessage || getInitialMessage(input.primaryLanguage, input.entityType),
@@ -106,7 +101,6 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
       plan: 'essential',
       fallback_email: input.fallbackEmail || input.userEmail,
       fallback_phone: input.fallbackPhone || null,
-      scrape_urls: scrapeUrls,
       widget_config: widgetConfig,
       system_prompt: buildInitialSystemPrompt(input),
       n8n_webhook_url: getDefaultN8nWebhookUrl(),

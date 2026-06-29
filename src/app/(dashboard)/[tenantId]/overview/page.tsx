@@ -46,7 +46,7 @@ export default async function OverviewPage({ params }: Props) {
   ] = await Promise.all([
       admin
         .from('theatres')
-        .select('name, n8n_webhook_url, scrape_urls, widget_config, system_prompt, fallback_email, fallback_phone, onboarding_completed')
+        .select('name, n8n_webhook_url, widget_config, system_prompt, fallback_email, fallback_phone, onboarding_completed')
         .eq('id', tenantId)
         .single(),
       admin
@@ -140,9 +140,9 @@ export default async function OverviewPage({ params }: Props) {
     labels: copy.checklist,
     hasWebhook: Boolean(theatre?.n8n_webhook_url),
     hasSystemPrompt: Boolean(theatre?.system_prompt?.trim()),
-    hasScrapeUrls: Array.isArray(theatre?.scrape_urls) && theatre.scrape_urls.length > 0,
     hasFallbackContact: Boolean(theatre?.fallback_email || theatre?.fallback_phone),
     knowledgeItems: knowledgeItems ?? 0,
+    knowledgeSources: knowledgeSources ?? 0,
   })
 
   return (
@@ -468,29 +468,27 @@ function buildChecklist({
   labels,
   hasWebhook,
   hasSystemPrompt,
-  hasScrapeUrls,
   hasFallbackContact,
   knowledgeItems,
+  knowledgeSources,
 }: {
   tenantId: string
   labels: {
     webhook: string
     prompt: string
-    scrapeUrls: string
     knowledge: string
     fallback: string
   }
   hasWebhook: boolean
   hasSystemPrompt: boolean
-  hasScrapeUrls: boolean
   hasFallbackContact: boolean
   knowledgeItems: number
+  knowledgeSources: number
 }) {
   const items = [
     { label: labels.webhook, done: hasWebhook, href: `/${tenantId}/settings` },
     { label: labels.prompt, done: hasSystemPrompt, href: `/${tenantId}/settings` },
-    { label: labels.scrapeUrls, done: hasScrapeUrls, href: `/${tenantId}/settings` },
-    { label: labels.knowledge, done: knowledgeItems > 0, href: `/${tenantId}/settings` },
+    { label: labels.knowledge, done: knowledgeItems > 0 || knowledgeSources > 0, href: `/${tenantId}/knowledge` },
     { label: labels.fallback, done: hasFallbackContact, href: `/${tenantId}/settings` },
   ]
 

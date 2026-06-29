@@ -55,17 +55,9 @@ export async function reindexTenantKnowledgeSources({
   const orphanResult = await attachOrphanKnowledgeItemsToManualSource({ admin, tenantId })
   if (!orphanResult.ok) errors.push(orphanResult.message)
 
-  const { data: theatre, error: theatreError } = await admin
-    .from('theatres')
-    .select('scrape_urls')
-    .eq('id', tenantId)
-    .maybeSingle()
-
-  if (theatreError) errors.push(`No se pudieron leer URLs del tenant: ${theatreError.message}`)
-
   const { data: sources, error: sourcesError } = await admin
     .from('knowledge_sources')
-    .select('id, type, name, source_url')
+    .select('id, type, name')
     .eq('theatre_id', tenantId)
     .order('created_at', { ascending: true })
 
@@ -81,28 +73,8 @@ export async function reindexTenantKnowledgeSources({
     }
   }
 
-  const urlSources = (sources ?? []).filter((source) => source.type === 'url')
-  const configuredUrls = Array.isArray(theatre?.scrape_urls)
-    ? theatre.scrape_urls.filter((url): url is string => typeof url === 'string' && Boolean(url.trim()))
-    : []
-  const existingUrls = urlSources
-    .map((source) => source.source_url)
-    .filter((url): url is string => Boolean(url))
-  const urls = Array.from(new Set([...configuredUrls, ...existingUrls]))
-
-  if (urls.length) {
-    checked += urls.length
-    const urlResult = await syncUrlKnowledgeSources({ admin, tenantId, urls })
-    if (urlResult.ok) {
-      reindexed += urls.length
-      chunks += urlResult.count ?? 0
-    } else {
-      errors.push(urlResult.message)
-    }
-  }
-
   for (const source of sources ?? []) {
-    if (source.type === 'url') continue
+    if (source.type === 'url' || source.type === 'web_snapshot') continue
 
     checked += 1
     let result: KnowledgeImportResult
@@ -238,84 +210,6 @@ export async function reindexStructuredKnowledgeSource({
   }
 }
 
-export async function syncUrlKnowledgeSources({
-  admin,
-  tenantId,
-  urls,
-}: {
-  admin: AdminClient
-  tenantId: string
-  urls: string[]
-}): Promise<KnowledgeImportResult> {
-  const uniqueUrls = Array.from(new Set(urls.map((url) => url.trim()).filter(Boolean)))
-
-  const { data: existingSources, error: existingError } = await admin
-    .from('knowledge_sources')
-    .select('id, source_url')
-    .eq('theatre_id', tenantId)
-    .eq('type', 'url')
-
-  if (existingError) {
-    return { ok: false, message: `No se pudieron leer las fuentes URL: ${existingError.message}` }
-  }
-
-  const removedSources = (existingSources ?? []).filter((source) => !source.source_url || !uniqueUrls.includes(source.source_url))
-  for (const source of removedSources) {
-    const removed = await admin
-      .from('knowledge_sources')
-      .delete()
-      .eq('id', source.id)
-      .eq('theatre_id', tenantId)
-      .eq('type', 'url')
-
-    if (removed.error) {
-      return { ok: false, message: `No se pudo eliminar una fuente URL obsoleta: ${removed.error.message}` }
-    }
-  }
-
-  let indexed = 0
-  let chunks = 0
-  const failures: string[] = []
-
-  for (const url of uniqueUrls) {
-    const source = await upsertUrlSource({ admin, tenantId, url })
-    if (!source.ok) {
-      failures.push(source.message)
-      continue
-    }
-
-    const ingested = await ingestUrlKnowledgeSource({
-      admin,
-      tenantId,
-      sourceId: source.sourceId,
-      url,
-    })
-
-    if (ingested.ok) {
-      indexed += 1
-      chunks += ingested.count ?? 0
-    } else {
-      failures.push(`${url}: ${ingested.message}`)
-    }
-  }
-
-  if (failures.length) {
-    return {
-      ok: false,
-      count: chunks,
-      message: `${indexed}/${uniqueUrls.length} URLs indexadas. Errores: ${failures.join(' · ')}`,
-    }
-  }
-
-  return {
-    ok: true,
-    count: chunks,
-    message: uniqueUrls.length
-      ? `${uniqueUrls.length} URLs indexadas en ${chunks} fragmentos RAG.`
-      : 'URLs limpiadas correctamente.',
-  }
-}
-
 export async function registerInstalledWebPage({
   admin,
   tenantId,
@@ -330,7 +224,7 @@ export async function registerInstalledWebPage({
   const normalizedUrl = normalizeSourceUrl(url)
   if (!normalizedUrl) return { ok: false, message: 'URL no válida.' }
 
-  const name = title?.trim() || getUrlSourceName(normalizedUrl)
+  const name = title?.trim() || getPageSourceName(normalizedUrl)
   const config = {
     capture_url: normalizedUrl,
     page_title: title?.trim() || null,
@@ -416,7 +310,7 @@ export async function ingestWebSnapshotSource({
   const sourceUpdate = await admin
     .from('knowledge_sources')
     .update({
-      name: title?.trim() || getUrlSourceName(normalizedUrl),
+      name: title?.trim() || getPageSourceName(normalizedUrl),
       source_url: normalizedUrl,
       status: 'processing',
       last_error: null,
@@ -548,73 +442,6 @@ export async function importPdfKnowledgeSource({
   }
 }
 
-async function upsertUrlSource({
-  admin,
-  tenantId,
-  url,
-}: {
-  admin: AdminClient
-  tenantId: string
-  url: string
-}): Promise<KnowledgeImportResult & { sourceId: string }> {
-  const existing = await admin
-    .from('knowledge_sources')
-    .select('id')
-    .eq('theatre_id', tenantId)
-    .eq('type', 'url')
-    .eq('source_url', url)
-    .maybeSingle()
-
-  const config = {
-    source_url: url,
-  }
-  const name = getUrlSourceName(url)
-
-  if (existing.error) {
-    return { ok: false, message: `No se pudo leer la fuente URL: ${existing.error.message}`, sourceId: '' }
-  }
-
-  if (existing.data) {
-    const { error } = await admin
-      .from('knowledge_sources')
-      .update({
-        name,
-        source_url: url,
-        status: 'processing',
-        config,
-        last_error: null,
-      })
-      .eq('id', existing.data.id)
-      .eq('theatre_id', tenantId)
-
-    if (error) return { ok: false, message: `No se pudo actualizar la fuente URL: ${error.message}`, sourceId: '' }
-    return { ok: true, message: '', sourceId: existing.data.id, replaced: true }
-  }
-
-  const created = await admin
-    .from('knowledge_sources')
-    .insert({
-      theatre_id: tenantId,
-      type: 'url',
-      name,
-      source_url: url,
-      status: 'processing',
-      config,
-    })
-    .select('id')
-    .single()
-
-  if (created.error || !created.data) {
-    return {
-      ok: false,
-      message: `No se pudo crear la fuente URL: ${created.error?.message ?? 'error desconocido'}`,
-      sourceId: '',
-    }
-  }
-
-  return { ok: true, message: '', sourceId: created.data.id, replaced: false }
-}
-
 async function attachOrphanKnowledgeItemsToManualSource({
   admin,
   tenantId,
@@ -688,53 +515,6 @@ async function getOrCreateManualKnowledgeSource({
   }
 
   return { ok: true, message: '', sourceId: created.data.id }
-}
-
-async function ingestUrlKnowledgeSource({
-  admin,
-  tenantId,
-  sourceId,
-  url,
-}: {
-  admin: AdminClient
-  tenantId: string
-  sourceId: string
-  url: string
-}): Promise<KnowledgeImportResult> {
-  const ingest = await ingestKnowledgeTextWithTaliaAi({
-    tenantId,
-    sourceId,
-    sourceType: 'url',
-    url,
-    metadata: {
-      source_type: 'url',
-      source_url: url,
-      language: 'es',
-      indexed_at: new Date().toISOString(),
-    },
-  })
-
-  if (!ingest) {
-    await markKnowledgeSourceError(admin, sourceId, 'TALIA AI no está configurado para ingestar URLs.')
-    return { ok: false, message: 'TALIA AI no está configurado para ingestar URLs.' }
-  }
-
-  if (!ingest.ok) {
-    await markKnowledgeSourceError(admin, sourceId, ingest.error ?? 'No se pudo ingestar la URL.')
-    return { ok: false, message: `No se pudo ingestar la URL: ${ingest.error ?? 'error desconocido'}` }
-  }
-
-  await embedInsertedChunks({
-    tenantId,
-    sourceId,
-    limit: ingest.chunks,
-  })
-
-  return {
-    ok: true,
-    count: ingest.chunks,
-    message: `${ingest.chunks} fragmentos de URL importados correctamente.`,
-  }
 }
 
 export async function reprocessStoredKnowledgeSource({
@@ -994,7 +774,7 @@ function getDominantLanguage(items: StructuredKnowledgeItem[]) {
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'es'
 }
 
-function getUrlSourceName(value: string) {
+function getPageSourceName(value: string) {
   try {
     const url = new URL(value)
     return `${url.hostname}${url.pathname === '/' ? '' : url.pathname}`.slice(0, 120)

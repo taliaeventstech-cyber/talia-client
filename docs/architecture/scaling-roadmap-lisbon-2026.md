@@ -66,14 +66,14 @@ Locality:
 
 Interface:
 
-- recibe una fuente: manual, Excel, PDF, URL, Google Sheet;
+- recibe una fuente: manual, Excel, PDF, web instalada, Google Sheet;
 - produce fuentes y chunks normalizados;
 - expone estado: pending, processing, ready, error.
 
 Implementacion inicial:
 
-- Excel/PDF dentro de TALIA App.
-- URLs via scraping actual.
+- Excel/PDF via TALIA App delegando parsing/chunking en `talia-ai`.
+- Capturas de web instalada via widget y `talia-ai`.
 
 Implementacion futura:
 

@@ -1,7 +1,7 @@
 'use client'
 
-import { startTransition, useActionState, useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, Bot, Check, Database, Link2, MessageSquare, Palette } from 'lucide-react'
+import { startTransition, useActionState, useState } from 'react'
+import { ArrowLeft, ArrowRight, Bot, Check, Database, MessageSquare, Palette } from 'lucide-react'
 import Link from 'next/link'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { saveChatbotSetup, type ChatbotSetupState } from './actions'
@@ -15,7 +15,6 @@ type InitialValues = {
   primaryColor: string
   tone: Tone
   fallbackBehavior: FallbackBehavior
-  sourceUrl: string
   systemPrompt: string
 }
 
@@ -43,9 +42,7 @@ export function ChatbotSetupForm({
   const [step, setStep] = useState<Step>(0)
   const [values, setValues] = useState(initialValues)
   const [previewOpen, setPreviewOpen] = useState(true)
-  const normalizedSourceUrl = useMemo(() => normalizeUrl(values.sourceUrl), [values.sourceUrl])
-  const sourceUrlError = getUrlError(values.sourceUrl, copy)
-  const canContinue = isStepValid(step, values, sourceUrlError)
+  const canContinue = isStepValid(step, values)
 
   function update<K extends keyof InitialValues>(key: K, value: InitialValues[K]) {
     setValues((current) => ({ ...current, [key]: value }))
@@ -81,7 +78,6 @@ export function ChatbotSetupForm({
       onSubmit={handleSubmit}
     >
       <input type="hidden" name="initial_message" value={values.initialMessage} />
-      <input type="hidden" name="source_url" value={normalizedSourceUrl} />
       <input type="hidden" name="system_prompt" value={values.systemPrompt} />
       <input type="hidden" name="primary_color" value={values.primaryColor} />
       <input type="hidden" name="tone" value={values.tone} />
@@ -103,7 +99,6 @@ export function ChatbotSetupForm({
               copy={copy}
               values={values}
               update={update}
-              sourceUrlError={sourceUrlError}
             />
           ) : null}
           {step === 2 ? <WidgetStep copy={copy} values={values} update={update} /> : null}
@@ -272,12 +267,10 @@ function KnowledgeStep({
   copy,
   values,
   update,
-  sourceUrlError,
 }: {
   copy: ChatbotSetupFormCopy
   values: InitialValues
   update: <K extends keyof InitialValues>(key: K, value: InitialValues[K]) => void
-  sourceUrlError: string
 }) {
   const knowledge = copy.knowledge
   return (
@@ -286,27 +279,6 @@ function KnowledgeStep({
       <p className="section-label">{copy.stepLabels[1]}</p>
       <h2>{knowledge.title}</h2>
       <p className="muted">{knowledge.description}</p>
-
-      <label className="field">
-        {knowledge.sourceLabel}
-        <div className="chatbot-setup-url-row">
-          <Link2 size={18} strokeWidth={2} aria-hidden="true" />
-          <input
-            value={values.sourceUrl}
-            onChange={(event) => update('sourceUrl', event.target.value)}
-            type="text"
-            inputMode="url"
-            placeholder={knowledge.sourcePlaceholder}
-            aria-invalid={Boolean(sourceUrlError)}
-            aria-describedby={sourceUrlError ? 'chatbot-source-url-error' : undefined}
-          />
-        </div>
-        {sourceUrlError ? (
-          <span className="field-error" id="chatbot-source-url-error">{sourceUrlError}</span>
-        ) : (
-          <span className="field-hint">{knowledge.sourceHint}</span>
-        )}
-      </label>
 
       <label className="field">
         {knowledge.promptLabel}
@@ -437,33 +409,8 @@ function ChoiceButton({
   )
 }
 
-function isStepValid(step: Step, values: InitialValues, sourceUrlError: string) {
+function isStepValid(step: Step, values: InitialValues) {
   if (step === 0) return values.initialMessage.trim().length > 0
-  if (step === 1) return !sourceUrlError
+  if (step === 1) return true
   return /^#[0-9a-fA-F]{6}$/.test(values.primaryColor)
-}
-
-function normalizeUrl(value: string) {
-  const trimmed = value.trim()
-  if (!trimmed) return ''
-  if (/^https?:\/\//i.test(trimmed)) return trimmed
-  return `https://${trimmed}`
-}
-
-function getUrlError(value: string, copy: ChatbotSetupFormCopy) {
-  const url = normalizeUrl(value)
-  if (!url) return ''
-
-  try {
-    const parsed = new URL(url)
-    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-      return copy.knowledge.protocolError
-    }
-    if (!parsed.hostname.includes('.')) {
-      return copy.knowledge.domainError
-    }
-    return ''
-  } catch {
-    return copy.knowledge.urlError
-  }
 }

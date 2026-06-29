@@ -16,7 +16,7 @@ export default async function BackstageClientPage({ params }: Props) {
   const [{ data: client }, { data: modules }, { data: emailConnections }, subscriptionResult, usageResult, { data: traceMessages }, { data: knowledgeSources }] = await Promise.all([
     admin
       .from('theatres')
-      .select('id, name, slug, entity_type, primary_language, plan, website_url, fallback_email, fallback_phone, n8n_webhook_url, system_prompt, scrape_urls, widget_config, voice_phone_number, voice_phone_provider, voice_phone_mode, voice_public_phone_number, voice_forwarding_notes, voice_operational_status')
+      .select('id, name, slug, entity_type, primary_language, plan, website_url, fallback_email, fallback_phone, n8n_webhook_url, system_prompt, widget_config, voice_phone_number, voice_phone_provider, voice_phone_mode, voice_public_phone_number, voice_forwarding_notes, voice_operational_status')
       .eq('id', tenantId)
       .single(),
     admin

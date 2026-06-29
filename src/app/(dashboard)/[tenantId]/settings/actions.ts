@@ -2,7 +2,7 @@
 
 import * as XLSX from 'xlsx'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
-import { importPdfKnowledgeSource, reindexStructuredKnowledgeSource, syncUrlKnowledgeSources } from '@/lib/knowledge/ingestion'
+import { importPdfKnowledgeSource, reindexStructuredKnowledgeSource } from '@/lib/knowledge/ingestion'
 import { embedKnowledgeSourceWithTaliaAi } from '@/lib/knowledge/talia-ai-embeddings'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -29,11 +29,6 @@ const settingsSchema = z.object({
   autoOpenDelay: z.coerce.number().int().min(0).max(60),
   systemPrompt: z.string().trim().max(8000, 'El prompt no puede superar los 8000 caracteres').optional(),
 })
-
-const MAX_SCRAPE_URLS = 50
-
-const scrapeUrlsSchema = z.array(z.string().trim().url('Todas las URLs deben ser válidas'))
-  .max(MAX_SCRAPE_URLS, `Puedes guardar hasta ${MAX_SCRAPE_URLS} URLs por ahora.`)
 
 const knowledgeItemSchema = z.object({
   question: z.string().trim().min(4, 'La pregunta debe tener al menos 4 caracteres').max(500),
@@ -117,55 +112,6 @@ async function getExistingWidgetConfig(admin: ReturnType<typeof createAdminClien
 
 function isPlainObject(value: unknown): value is Record<string, Json> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
-}
-
-export async function updateScrapeUrls(
-  tenantId: string,
-  _previousState: SettingsFormState,
-  formData: FormData
-): Promise<SettingsFormState> {
-  await requireTenantProductAccess(tenantId, 'manage_knowledge', 'data')
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const admin = createAdminClient()
-  const isAdmin = await assertTenantAdmin(admin, user.id, tenantId)
-  if (!isAdmin) return { ok: false, message: 'No tienes permisos para editar esta configuración.' }
-
-  const submittedUrls = formData.getAll('scrape_urls')
-  const legacyUrls = ['scrape_url_1', 'scrape_url_2', 'scrape_url_3', 'scrape_url_4'].map((key) => formData.get(key))
-  const urls = Array.from(new Set((submittedUrls.length ? submittedUrls : legacyUrls)
-    .map((value) => String(value ?? '').trim())
-    .filter(Boolean)
-  ))
-
-  const parsed = scrapeUrlsSchema.safeParse(urls)
-  if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? 'Las URLs no son válidas.' }
-  }
-
-  const { error } = await admin
-    .from('theatres')
-    .update({ scrape_urls: parsed.data })
-    .eq('id', tenantId)
-
-  if (error) return { ok: false, message: `No se pudo guardar: ${error.message}` }
-
-  const indexed = await syncUrlKnowledgeSources({
-    admin,
-    tenantId,
-    urls: parsed.data,
-  })
-
-  revalidatePath(`/${tenantId}/knowledge`)
-  revalidatePath(`/${tenantId}/overview`)
-  return {
-    ok: true,
-    message: indexed.ok
-      ? 'URLs guardadas e indexadas correctamente.'
-      : 'URLs guardadas. Algunas URLs no se han podido leer automáticamente. Revisa las URLs marcadas en la lista.',
-  }
 }
 
 export async function createKnowledgeItem(

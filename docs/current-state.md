@@ -116,7 +116,7 @@ Implementado:
 Pendiente:
 
 - Validar en produccion que `metadata.retrieval.chunks` aparece en Backstage tras desplegar `talia-ai`.
-- Consolidar conocimiento como fuente primaria antes que scraping o prompts libres.
+- Consolidar conocimiento como fuente primaria antes que prompts libres.
 - Mejorar preview/test integrado.
 - Estabilizar `/v1/chat/respond` en el repo externo `talia-ai` para reducir dependencia de n8n.
 
@@ -166,8 +166,8 @@ Implementado:
 - PDFs reprocesables desde Storage: Backstage puede pedir a `talia-ai` regenerar chunks y embeddings sin volver a subir el archivo.
 - Backstage permite reindexar todo el conocimiento de un venue y reprocesar fuentes individuales de RAG.
 - Fallback local en Next solo textual sobre chunks/items.
-- Fuentes/scrape URLs conectadas a `knowledge_sources` tipo `url` e indexadas por `talia-ai`.
 - Fuentes de web instalada conectadas a `knowledge_sources` tipo `web_snapshot`: Agora genera una URL de captura firmada, el widget instalado extrae texto visible del DOM de la landing y `talia-ai` normaliza, trocea y genera embeddings.
+- La ingesta por URLs externas queda fuera del flujo principal de Agora para clientes; el camino recomendado es instalar el script en la web propia y capturar paginas detectadas.
 - Importacion estructurada segun pantalla de configuracion, ya conectada al RAG para FAQs manuales y Excel/CSV.
 
 Direccion de producto:
@@ -175,7 +175,7 @@ Direccion de producto:
 - Mantener Conocimiento como nucleo comun para chatbot, email, voz y futuros canales.
 - Ampliar en el futuro hacia Sources, Guidelines, Workflows y Actions.
 - Evolucion recomendada: seguir moviendo ingestion/retrieval/IA a `talia-ai` manteniendo estable el contrato interno de TALIA.
-- Pendiente clave: cron/worker desplegado en Fly para `/v1/knowledge/embed/pending` y endurecer scraping con sitemap/crawling controlado.
+- Pendiente clave: cron/worker desplegado en Fly para `/v1/knowledge/embed/pending` y mejorar la captura de web instalada con exploracion controlada de paginas propias.
 
 ### Agente de Email
 

@@ -69,7 +69,6 @@ export type TenantRuntimeChatConfig = {
   systemPrompt: string
   fallbackEmail: string | null
   fallbackPhone: string | null
-  scrapeUrls: string[]
   topicCategories: string[]
   knowledgeItems: KnowledgeFaqItem[]
 }
@@ -257,7 +256,7 @@ export async function getTenantRuntimeChatConfig(admin: AdminClient, tenantId: s
   const [theatreResult, knowledgeResult] = await Promise.all([
     admin
       .from('theatres')
-      .select('id, name, system_prompt, fallback_email, fallback_phone, scrape_urls, widget_config')
+      .select('id, name, system_prompt, fallback_email, fallback_phone, widget_config')
       .eq('id', tenantId)
       .single(),
     admin
@@ -275,9 +274,6 @@ export async function getTenantRuntimeChatConfig(admin: AdminClient, tenantId: s
 
   const data = theatreResult.data
   const widgetConfig = getWidgetConfig(data.widget_config)
-  const scrapeUrls = Array.isArray(data.scrape_urls)
-    ? data.scrape_urls.filter((url): url is string => typeof url === 'string')
-    : []
   const knowledgeItems: KnowledgeFaqItem[] = (knowledgeResult.data ?? []).map((item) => ({
     question: item.question,
     answer: item.answer,
@@ -296,7 +292,6 @@ export async function getTenantRuntimeChatConfig(admin: AdminClient, tenantId: s
       systemPrompt: data.system_prompt || buildDefaultSystemPrompt(data.name, data.fallback_email, data.fallback_phone),
       fallbackEmail: data.fallback_email,
       fallbackPhone: data.fallback_phone,
-      scrapeUrls,
       topicCategories: ['agenda', 'precios', 'horarios', 'ubicacion', 'visita', 'entradas', 'accesibilidad', 'otro'],
       knowledgeItems,
     } satisfies TenantRuntimeChatConfig,

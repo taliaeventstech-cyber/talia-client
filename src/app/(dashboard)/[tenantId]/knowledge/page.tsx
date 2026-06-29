@@ -2,7 +2,7 @@ import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { createWebCaptureToken } from '@/lib/knowledge/web-capture-token'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { Bot, ChevronLeft, ChevronRight, FileText, Globe2, Link as LinkIcon, Plug, Table2 } from 'lucide-react'
+import { Bot, ChevronLeft, ChevronRight, FileText, Globe2, Plug, Table2 } from 'lucide-react'
 import Link from 'next/link'
 import { KnowledgeForm } from '../settings/knowledge-form'
 
@@ -12,25 +12,24 @@ interface Props {
 }
 
 const ITEMS_PER_PAGE = 20
-const tabs = ['links', 'installed', 'files', 'faqs', 'apps', 'spreadsheets'] as const
+const tabs = ['installed', 'files', 'faqs', 'apps', 'spreadsheets'] as const
 type KnowledgeTab = typeof tabs[number]
-type SourceType = 'pdf' | 'xlsx' | 'csv' | 'url' | 'web_snapshot'
+type SourceType = 'pdf' | 'xlsx' | 'csv' | 'web_snapshot'
 
 const sourceTypes = [
-  { key: 'links', label: 'Links', icon: LinkIcon },
   { key: 'installed', label: 'Web instalada', icon: Globe2 },
   { key: 'files', label: 'Files', icon: FileText },
   { key: 'faqs', label: 'FAQs', icon: Bot },
   { key: 'apps', label: 'Apps', icon: Plug },
   { key: 'spreadsheets', label: 'Spreadsheets', icon: Table2 },
-] satisfies Array<{ key: KnowledgeTab; label: string; icon: typeof LinkIcon }>
+] satisfies Array<{ key: KnowledgeTab; label: string; icon: typeof Globe2 }>
 
 export default async function KnowledgePage({ params, searchParams }: Props) {
   const { tenantId } = await params
   const query = searchParams ? await searchParams : {}
   const pageParam = Array.isArray(query.page) ? query.page[0] : query.page
   const tabParam = Array.isArray(query.tab) ? query.tab[0] : query.tab
-  const activeTab = tabs.includes(tabParam as KnowledgeTab) ? tabParam as KnowledgeTab : 'files'
+  const activeTab = tabs.includes(tabParam as KnowledgeTab) ? tabParam as KnowledgeTab : 'installed'
   const requestedPage = Number.parseInt(pageParam ?? '1', 10)
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1
   const from = (page - 1) * ITEMS_PER_PAGE
@@ -50,22 +49,13 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
       .order('created_at', { ascending: false })
     : null
 
-  const [{ data: theatre }, { data: manualSources }, sourcesResult] = await Promise.all([
-    admin
-      .from('theatres')
-      .select('scrape_urls')
-      .eq('id', tenantId)
-      .single(),
+  const [{ data: manualSources }, sourcesResult] = await Promise.all([
     admin
       .from('knowledge_sources')
       .select('id')
       .eq('theatre_id', tenantId)
       .eq('type', 'manual'),
-    sourcesQuery
-      ? activeTab === 'links'
-        ? sourcesQuery
-        : sourcesQuery.range(from, to)
-      : Promise.resolve({ data: [], count: 0 }),
+    sourcesQuery ? sourcesQuery.range(from, to) : Promise.resolve({ data: [], count: 0 }),
   ])
   const manualSourceIds = (manualSources ?? []).map((source) => source.id)
   const knowledgeItemsQuery = admin
@@ -106,10 +96,6 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
     else current.pending += 1
     embeddingCounts.set(chunk.source_id, current)
   }
-
-  const scrapeUrls = Array.isArray(theatre?.scrape_urls)
-    ? theatre.scrape_urls.filter((url): url is string => typeof url === 'string')
-    : []
 
   return (
     <main className="page-shell">
@@ -164,7 +150,6 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
               pageSize={ITEMS_PER_PAGE}
             />
           }
-          scrapeUrls={scrapeUrls}
           labels={dictionary.settings.knowledge}
         />
       </section>
@@ -173,7 +158,6 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
 }
 
 function getSourceTypesForTab(tab: KnowledgeTab): SourceType[] {
-  if (tab === 'links') return ['url']
   if (tab === 'installed') return ['web_snapshot']
   if (tab === 'files') return ['pdf']
   if (tab === 'spreadsheets') return ['xlsx', 'csv']
