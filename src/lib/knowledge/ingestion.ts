@@ -27,8 +27,122 @@ export type StructuredKnowledgeItem = {
   priority: number
 }
 
+export type TenantKnowledgeReindexResult = {
+  ok: boolean
+  checked: number
+  reindexed: number
+  failed: number
+  chunks: number
+  message: string
+  errors: string[]
+}
+
 const MAX_PDF_SIZE_BYTES = 8 * 1024 * 1024
 const KNOWLEDGE_FILES_BUCKET = process.env.KNOWLEDGE_FILES_BUCKET || 'knowledge-files'
+
+export async function reindexTenantKnowledgeSources({
+  admin,
+  tenantId,
+}: {
+  admin: AdminClient
+  tenantId: string
+}): Promise<TenantKnowledgeReindexResult> {
+  const errors: string[] = []
+  let checked = 0
+  let reindexed = 0
+  let chunks = 0
+
+  const orphanResult = await attachOrphanKnowledgeItemsToManualSource({ admin, tenantId })
+  if (!orphanResult.ok) errors.push(orphanResult.message)
+
+  const { data: theatre, error: theatreError } = await admin
+    .from('theatres')
+    .select('scrape_urls')
+    .eq('id', tenantId)
+    .maybeSingle()
+
+  if (theatreError) errors.push(`No se pudieron leer URLs del tenant: ${theatreError.message}`)
+
+  const { data: sources, error: sourcesError } = await admin
+    .from('knowledge_sources')
+    .select('id, type, name, source_url')
+    .eq('theatre_id', tenantId)
+    .order('created_at', { ascending: true })
+
+  if (sourcesError) {
+    return {
+      ok: false,
+      checked: 0,
+      reindexed: 0,
+      failed: 1,
+      chunks: 0,
+      errors: [sourcesError.message],
+      message: `No se pudieron leer las fuentes: ${sourcesError.message}`,
+    }
+  }
+
+  const urlSources = (sources ?? []).filter((source) => source.type === 'url')
+  const configuredUrls = Array.isArray(theatre?.scrape_urls)
+    ? theatre.scrape_urls.filter((url): url is string => typeof url === 'string' && Boolean(url.trim()))
+    : []
+  const existingUrls = urlSources
+    .map((source) => source.source_url)
+    .filter((url): url is string => Boolean(url))
+  const urls = Array.from(new Set([...configuredUrls, ...existingUrls]))
+
+  if (urls.length) {
+    checked += urls.length
+    const urlResult = await syncUrlKnowledgeSources({ admin, tenantId, urls })
+    if (urlResult.ok) {
+      reindexed += urls.length
+      chunks += urlResult.count ?? 0
+    } else {
+      errors.push(urlResult.message)
+    }
+  }
+
+  for (const source of sources ?? []) {
+    if (source.type === 'url') continue
+
+    checked += 1
+    let result: KnowledgeImportResult
+
+    if (source.type === 'pdf') {
+      result = await reprocessStoredKnowledgeSource({ admin, tenantId, sourceId: source.id })
+    } else if (source.type === 'manual' || source.type === 'xlsx' || source.type === 'csv') {
+      result = await reindexStructuredKnowledgeSource({
+        admin,
+        tenantId,
+        sourceId: source.id,
+        sourceType: source.type,
+        sourceName: source.name,
+      })
+    } else {
+      continue
+    }
+
+    if (result.ok) {
+      reindexed += 1
+      chunks += result.count ?? 0
+    } else {
+      errors.push(`${source.name}: ${result.message}`)
+    }
+  }
+
+  const failed = errors.length
+
+  return {
+    ok: failed === 0,
+    checked,
+    reindexed,
+    failed,
+    chunks,
+    errors,
+    message: failed === 0
+      ? `Reindexado completo: ${reindexed}/${checked} fuentes, ${chunks} fragmentos.`
+      : `Reindexado parcial: ${reindexed}/${checked} fuentes, ${chunks} fragmentos. Errores: ${errors.join(' · ')}`,
+  }
+}
 
 export async function reindexStructuredKnowledgeSource({
   admin,
@@ -342,6 +456,81 @@ async function upsertUrlSource({
   }
 
   return { ok: true, message: '', sourceId: created.data.id, replaced: false }
+}
+
+async function attachOrphanKnowledgeItemsToManualSource({
+  admin,
+  tenantId,
+}: {
+  admin: AdminClient
+  tenantId: string
+}): Promise<KnowledgeImportResult> {
+  const { count, error: countError } = await admin
+    .from('knowledge_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('theatre_id', tenantId)
+    .is('source_id', null)
+
+  if (countError) return { ok: false, message: countError.message }
+  if (!count) return { ok: true, count: 0, message: 'Sin FAQs huérfanas.' }
+
+  const source = await getOrCreateManualKnowledgeSource({ admin, tenantId })
+  if (!source.ok) return source
+
+  const updated = await admin
+    .from('knowledge_items')
+    .update({ source_id: source.sourceId })
+    .eq('theatre_id', tenantId)
+    .is('source_id', null)
+
+  if (updated.error) {
+    return { ok: false, message: `No se pudieron asociar FAQs huérfanas: ${updated.error.message}` }
+  }
+
+  return { ok: true, count, message: `${count} FAQs huérfanas asociadas a la fuente manual.` }
+}
+
+async function getOrCreateManualKnowledgeSource({
+  admin,
+  tenantId,
+}: {
+  admin: AdminClient
+  tenantId: string
+}): Promise<KnowledgeImportResult & { sourceId: string }> {
+  const existing = await admin
+    .from('knowledge_sources')
+    .select('id')
+    .eq('theatre_id', tenantId)
+    .eq('type', 'manual')
+    .eq('name', 'FAQs manuales')
+    .maybeSingle()
+
+  if (existing.error) {
+    return { ok: false, message: `No se pudo leer la fuente manual: ${existing.error.message}`, sourceId: '' }
+  }
+
+  if (existing.data) return { ok: true, message: '', sourceId: existing.data.id }
+
+  const created = await admin
+    .from('knowledge_sources')
+    .insert({
+      theatre_id: tenantId,
+      type: 'manual',
+      name: 'FAQs manuales',
+      status: 'ready',
+    })
+    .select('id')
+    .single()
+
+  if (created.error || !created.data) {
+    return {
+      ok: false,
+      message: `No se pudo crear la fuente manual: ${created.error?.message ?? 'error desconocido'}`,
+      sourceId: '',
+    }
+  }
+
+  return { ok: true, message: '', sourceId: created.data.id }
 }
 
 async function ingestUrlKnowledgeSource({

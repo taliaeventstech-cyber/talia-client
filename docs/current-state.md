@@ -164,6 +164,7 @@ Implementado:
 - Embeddings delegados a `talia-ai` por HTTP server-to-server; Next no genera embeddings localmente.
 - Retrieval semantico delegado a `talia-ai`; en el flujo principal de chatbot con `CHAT_AGENT_PROVIDER=talia-ai`, el retrieval ocurre dentro de `/v1/chat/respond`.
 - PDFs reprocesables desde Storage: Backstage puede pedir a `talia-ai` regenerar chunks y embeddings sin volver a subir el archivo.
+- Backstage permite reindexar todo el conocimiento de un venue y reprocesar fuentes individuales de RAG.
 - Fallback local en Next solo textual sobre chunks/items.
 - Fuentes/scrape URLs conectadas a `knowledge_sources` tipo `url` e indexadas por `talia-ai`.
 - Importacion estructurada segun pantalla de configuracion, ya conectada al RAG para FAQs manuales y Excel/CSV.
@@ -173,7 +174,7 @@ Direccion de producto:
 - Mantener Conocimiento como nucleo comun para chatbot, email, voz y futuros canales.
 - Ampliar en el futuro hacia Sources, Guidelines, Workflows y Actions.
 - Evolucion recomendada: seguir moviendo ingestion/retrieval/IA a `talia-ai` manteniendo estable el contrato interno de TALIA.
-- Pendiente clave: cron/worker desplegado en Fly para `/v1/knowledge/embed/pending`, estado de procesamiento por fuente y endurecer scraping con sitemap/crawling controlado.
+- Pendiente clave: cron/worker desplegado en Fly para `/v1/knowledge/embed/pending` y endurecer scraping con sitemap/crawling controlado.
 
 ### Agente de Email
 

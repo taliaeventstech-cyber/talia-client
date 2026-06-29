@@ -4,7 +4,7 @@ import { ToastNotice } from '@/components/ui/toast-notice'
 import { RefreshCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
-import { reprocessBackstageKnowledgeSource, retryBackstageKnowledgeSourceEmbeddings } from './actions'
+import { reindexBackstageTenantKnowledge, reprocessBackstageKnowledgeSource, retryBackstageKnowledgeSourceEmbeddings } from './actions'
 
 type ToastState = {
   id: number
@@ -15,9 +15,11 @@ type ToastState = {
 export function BackstageReprocessSourceButton({
   tenantId,
   sourceId,
+  sourceType = 'pdf',
 }: {
   tenantId: string
   sourceId: string
+  sourceType?: string
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -45,7 +47,44 @@ export function BackstageReprocessSourceButton({
         disabled={isPending}
       >
         <RefreshCw size={13} strokeWidth={2.2} aria-hidden="true" />
-        {isPending ? 'Reprocesando...' : 'Reprocesar PDF'}
+        {isPending ? 'Reprocesando...' : getReprocessLabel(sourceType)}
+      </button>
+    </>
+  )
+}
+
+export function BackstageReindexTenantKnowledgeButton({
+  tenantId,
+}: {
+  tenantId: string
+}) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [toast, setToast] = useState<ToastState | null>(null)
+
+  function handleReindex() {
+    startTransition(async () => {
+      const result = await reindexBackstageTenantKnowledge(tenantId)
+      setToast({
+        id: Date.now(),
+        message: result.message,
+        tone: result.ok ? 'success' : 'error',
+      })
+      router.refresh()
+    })
+  }
+
+  return (
+    <>
+      {toast ? <ToastNotice key={toast.id} message={toast.message} tone={toast.tone} /> : null}
+      <button
+        type="button"
+        className="button-outline"
+        onClick={handleReindex}
+        disabled={isPending}
+      >
+        <RefreshCw size={14} strokeWidth={2.2} aria-hidden="true" />
+        {isPending ? 'Reindexando...' : 'Reindexar conocimiento'}
       </button>
     </>
   )
@@ -88,4 +127,12 @@ export function BackstageRetryEmbeddingsButton({
       </button>
     </>
   )
+}
+
+function getReprocessLabel(sourceType: string) {
+  if (sourceType === 'pdf') return 'Reprocesar PDF'
+  if (sourceType === 'url') return 'Releer URL'
+  if (sourceType === 'manual') return 'Reindexar FAQs'
+  if (sourceType === 'xlsx' || sourceType === 'csv') return 'Reindexar archivo'
+  return 'Reindexar fuente'
 }

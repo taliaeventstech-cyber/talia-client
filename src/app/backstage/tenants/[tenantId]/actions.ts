@@ -1,7 +1,7 @@
 'use server'
 
 import { requirePlatformAdmin } from '@/lib/platform/auth'
-import { reprocessStoredKnowledgeSource } from '@/lib/knowledge/ingestion'
+import { reindexStructuredKnowledgeSource, reindexTenantKnowledgeSources, syncUrlKnowledgeSources, reprocessStoredKnowledgeSource } from '@/lib/knowledge/ingestion'
 import { embedKnowledgeSourceWithTaliaAi } from '@/lib/knowledge/talia-ai-embeddings'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
@@ -13,13 +13,77 @@ export async function reprocessBackstageKnowledgeSource(
   await requirePlatformAdmin()
 
   const admin = createAdminClient()
-  const result = await reprocessStoredKnowledgeSource({ admin, tenantId, sourceId })
+  const { data: source, error: sourceError } = await admin
+    .from('knowledge_sources')
+    .select('id, type, name, source_url')
+    .eq('id', sourceId)
+    .eq('theatre_id', tenantId)
+    .maybeSingle()
+
+  if (sourceError) return { ok: false, message: sourceError.message }
+  if (!source) return { ok: false, message: 'Fuente no encontrada.' }
+
+  const result = source.type === 'pdf'
+    ? await reprocessStoredKnowledgeSource({ admin, tenantId, sourceId })
+    : source.type === 'manual' || source.type === 'xlsx' || source.type === 'csv'
+      ? await reindexStructuredKnowledgeSource({
+        admin,
+        tenantId,
+        sourceId,
+        sourceType: source.type,
+        sourceName: source.name,
+      })
+      : source.type === 'url' && source.source_url
+        ? await syncUrlKnowledgeSources({ admin, tenantId, urls: await getTenantKnowledgeUrls(admin, tenantId, source.source_url) })
+        : { ok: false, message: 'Este tipo de fuente todavía no se puede reprocesar.' }
 
   revalidatePath(`/backstage/tenants/${tenantId}`)
   revalidatePath(`/${tenantId}/knowledge`)
 
   if (!result.ok) return { ok: false, message: result.message }
   return { ok: true, message: result.message }
+}
+
+export async function reindexBackstageTenantKnowledge(
+  tenantId: string,
+): Promise<{ ok: boolean; message: string }> {
+  await requirePlatformAdmin()
+
+  const admin = createAdminClient()
+  const result = await reindexTenantKnowledgeSources({ admin, tenantId })
+
+  revalidatePath(`/backstage/tenants/${tenantId}`)
+  revalidatePath(`/${tenantId}/knowledge`)
+
+  return { ok: result.ok, message: result.message }
+}
+
+async function getTenantKnowledgeUrls(
+  admin: ReturnType<typeof createAdminClient>,
+  tenantId: string,
+  currentUrl: string,
+) {
+  const [{ data: theatre }, { data: urlSources }] = await Promise.all([
+    admin
+      .from('theatres')
+      .select('scrape_urls')
+      .eq('id', tenantId)
+      .maybeSingle(),
+    admin
+      .from('knowledge_sources')
+      .select('source_url')
+      .eq('theatre_id', tenantId)
+      .eq('type', 'url'),
+  ])
+
+  const configuredUrls = Array.isArray(theatre?.scrape_urls)
+    ? theatre.scrape_urls.filter((url): url is string => typeof url === 'string' && Boolean(url.trim()))
+    : []
+  const sourceUrls = (urlSources ?? [])
+    .map((source) => source.source_url)
+    .filter((url): url is string => Boolean(url))
+
+  return Array.from(new Set([...configuredUrls, ...sourceUrls, currentUrl]))
 }
 
 export async function retryBackstageKnowledgeSourceEmbeddings(

@@ -4,7 +4,7 @@ import { FileText, LayoutDashboard, MailPlus } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { EditClientForm } from './edit-client-form'
-import { BackstageReprocessSourceButton, BackstageRetryEmbeddingsButton } from './knowledge-source-actions'
+import { BackstageReindexTenantKnowledgeButton, BackstageReprocessSourceButton, BackstageRetryEmbeddingsButton } from './knowledge-source-actions'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -42,7 +42,6 @@ export default async function BackstageClientPage({ params }: Props) {
       .from('knowledge_sources')
       .select('id, name, type, status, config, source_url, last_synced_at, last_error, created_at')
       .eq('theatre_id', tenantId)
-      .eq('type', 'pdf')
       .order('created_at', { ascending: false }),
   ])
 
@@ -154,12 +153,15 @@ export default async function BackstageClientPage({ params }: Props) {
             <p className="eyebrow">RAG</p>
             <h2>Salud del conocimiento</h2>
           </div>
-          <span className={`status-pill ${ragHealth.statusClass}`}>{ragHealth.statusLabel}</span>
+          <div className="header-actions">
+            <BackstageReindexTenantKnowledgeButton tenantId={tenantId} />
+            <span className={`status-pill ${ragHealth.statusClass}`}>{ragHealth.statusLabel}</span>
+          </div>
         </div>
 
         <div className="rag-health-grid">
           <div className="rag-health-card">
-            <span>PDFs</span>
+            <span>Fuentes</span>
             <strong>{ragHealth.sourceCount}</strong>
             <small>{ragHealth.readySources} listos · {ragHealth.errorSources} con error</small>
           </div>
@@ -312,9 +314,9 @@ export default async function BackstageClientPage({ params }: Props) {
         <div className="section-title-row">
           <div>
             <p className="eyebrow">Conocimiento</p>
-            <h2>Archivos procesados</h2>
+            <h2>Fuentes procesadas</h2>
           </div>
-          <span className="status-pill status-pill-muted">{knowledgeSources?.length ?? 0} PDFs</span>
+          <span className="status-pill status-pill-muted">{knowledgeSources?.length ?? 0} fuentes</span>
         </div>
 
         {(knowledgeSources ?? []).length ? (
@@ -336,8 +338,9 @@ export default async function BackstageClientPage({ params }: Props) {
                       </span>
                     </div>
                     <div className="knowledge-file-meta">
-                      <span>PDF</span>
+                      <span>{getSourceTypeLabel(source.type)}</span>
                       <span>{stats.total} fragmentos</span>
+                      {source.source_url ? <span>{source.source_url}</span> : null}
                       {source.last_synced_at ? <span>Actualizado {formatDate(source.last_synced_at)}</span> : null}
                       <span className="mono">{shortId(source.id)}</span>
                     </div>
@@ -355,14 +358,14 @@ export default async function BackstageClientPage({ params }: Props) {
                     {stats.pending + stats.error > 0 ? (
                       <BackstageRetryEmbeddingsButton tenantId={tenantId} sourceId={source.id} />
                     ) : null}
-                    <BackstageReprocessSourceButton tenantId={tenantId} sourceId={source.id} />
+                    <BackstageReprocessSourceButton tenantId={tenantId} sourceId={source.id} sourceType={source.type} />
                   </div>
                 </article>
               )
             })}
           </div>
         ) : (
-          <p className="muted">Este venue todavía no tiene PDFs cargados como base de conocimiento.</p>
+          <p className="muted">Este venue todavía no tiene fuentes cargadas como base de conocimiento.</p>
         )}
       </section>
 
@@ -636,8 +639,8 @@ function getRagHealth(sources: KnowledgeSourceSummary[], chunkStatsBySource: Map
       sourceCount: 0,
       readinessPercent,
       statusClass: 'status-pill-muted',
-      statusLabel: 'sin PDFs',
-      notice: 'Este venue todavía no tiene documentos PDF para retrieval.',
+      statusLabel: 'sin fuentes',
+      notice: 'Este venue todavía no tiene fuentes preparadas para retrieval.',
       noticeTone: 'rag-health-notice-muted',
     }
   }
@@ -649,7 +652,7 @@ function getRagHealth(sources: KnowledgeSourceSummary[], chunkStatsBySource: Map
       readinessPercent,
       statusClass: 'status-pill-danger',
       statusLabel: 'revisar',
-      notice: 'Hay fuentes o embeddings con error. Reintenta embeddings o reprocesa el PDF desde Storage.',
+      notice: 'Hay fuentes o embeddings con error. Reintenta embeddings o reprocesa la fuente desde Backstage.',
       noticeTone: 'rag-health-notice-error',
     }
   }
@@ -711,6 +714,15 @@ function getSourceStatusLabel(status: string) {
   if (status === 'processing') return 'Procesando'
   if (status === 'error') return 'Error'
   return 'Pendiente'
+}
+
+function getSourceTypeLabel(type: string) {
+  if (type === 'pdf') return 'PDF'
+  if (type === 'manual') return 'FAQs'
+  if (type === 'xlsx') return 'Excel'
+  if (type === 'csv') return 'CSV'
+  if (type === 'url') return 'URL'
+  return type
 }
 
 function getRetrievalStatusLabel(status: string) {

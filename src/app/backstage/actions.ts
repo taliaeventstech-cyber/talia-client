@@ -2,6 +2,7 @@
 
 import { requirePlatformAdmin } from '@/lib/platform/auth'
 import { emailAgentSettingsToMetadata, normalizeEmailAgentSettings } from '@/lib/email/settings'
+import { syncUrlKnowledgeSources } from '@/lib/knowledge/ingestion'
 import { createSignupInvite } from '@/lib/platform/invites'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getActiveSubscription } from '@/lib/usage/service'
@@ -266,6 +267,16 @@ async function createVenueForAccount(
       syncMode: 'polling',
     }),
   ])
+
+  if (scrapeUrls.length) {
+    const urlsSynced = await syncUrlKnowledgeSources({ admin, tenantId: tenant.id, urls: scrapeUrls })
+    if (!urlsSynced.ok) {
+      console.warn('[backstage-create-venue] URL knowledge sync failed', {
+        tenantId: tenant.id,
+        error: urlsSynced.message,
+      })
+    }
+  }
 
   return { ok: true as const, message: 'Venue creada correctamente.', tenantId: tenant.id }
 }
@@ -537,6 +548,7 @@ export async function updateTenantAction(
   const selectedModules = new Set(data.modules)
   selectedModules.add('chatbot')
   selectedModules.add('data')
+  const chatbotScrapeUrls = parseUrlList(data.chatbotScrapeUrls)
 
   const { data: tenantForAccount } = await admin
     .from('theatres')
@@ -579,7 +591,7 @@ export async function updateTenantAction(
       voice_operational_status: data.voiceOperationalStatus,
       n8n_webhook_url: data.chatbotWebhookUrl || null,
       system_prompt: data.chatbotSystemPrompt || null,
-      scrape_urls: parseUrlList(data.chatbotScrapeUrls),
+      scrape_urls: chatbotScrapeUrls,
     })
     .eq('id', data.tenantId)
 
@@ -642,6 +654,14 @@ export async function updateTenantAction(
       }),
     }),
   ])
+
+  const urlsSynced = await syncUrlKnowledgeSources({ admin, tenantId: data.tenantId, urls: chatbotScrapeUrls })
+  if (!urlsSynced.ok) {
+    return {
+      ok: false,
+      message: `Cliente actualizado, pero no se pudieron indexar las URLs: ${urlsSynced.message}`,
+    }
+  }
 
   revalidatePath('/backstage')
   revalidatePath(`/backstage/tenants/${data.tenantId}`)
