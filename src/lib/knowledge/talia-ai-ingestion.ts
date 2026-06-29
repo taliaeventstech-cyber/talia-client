@@ -18,6 +18,7 @@ export async function ingestKnowledgeTextWithTaliaAi({
   sourceId,
   sourceType,
   text,
+  url,
   storage,
   metadata,
 }: {
@@ -25,6 +26,7 @@ export async function ingestKnowledgeTextWithTaliaAi({
   sourceId: string
   sourceType: string
   text?: string
+  url?: string
   storage?: {
     bucket: string
     path: string
@@ -48,6 +50,7 @@ export async function ingestKnowledgeTextWithTaliaAi({
         source_id: sourceId,
         source_type: sourceType,
         ...(text ? { text } : {}),
+        ...(url ? { url } : {}),
         ...(storage ? { storage } : {}),
         metadata,
       }),

@@ -157,22 +157,23 @@ Implementado:
 - Base de conocimiento compartida por venue.
 - FAQs/respuestas oficiales.
 - Importacion de PDFs con extraccion de texto y fragmentos de conocimiento.
+- FAQs manuales y Excel/CSV se guardan como `knowledge_items` para UI/fallback, pero se reindexan como `knowledge_chunks` via `talia-ai`.
 - Tabla `knowledge_chunks` para fragmentos documentales preparados para retrieval y embeddings.
-- Seam interno de ingestion en `src/lib/knowledge/ingestion.ts`, que sube PDFs a Storage y delega parsing/chunking en `talia-ai`.
+- Seam interno de ingestion en `src/lib/knowledge/ingestion.ts`, que sube PDFs a Storage y delega parsing/chunking en `talia-ai`; para fuentes estructuradas normaliza texto y delega chunking/embeddings en `talia-ai`.
 - Seam interno de retrieval en `src/lib/knowledge/retrieval.ts`.
 - Embeddings delegados a `talia-ai` por HTTP server-to-server; Next no genera embeddings localmente.
 - Retrieval semantico delegado a `talia-ai`; en el flujo principal de chatbot con `CHAT_AGENT_PROVIDER=talia-ai`, el retrieval ocurre dentro de `/v1/chat/respond`.
 - PDFs reprocesables desde Storage: Backstage puede pedir a `talia-ai` regenerar chunks y embeddings sin volver a subir el archivo.
 - Fallback local en Next solo textual sobre chunks/items.
-- Fuentes/scrape URLs.
-- Importacion estructurada segun pantalla de configuracion.
+- Fuentes/scrape URLs conectadas a `knowledge_sources` tipo `url` e indexadas por `talia-ai`.
+- Importacion estructurada segun pantalla de configuracion, ya conectada al RAG para FAQs manuales y Excel/CSV.
 
 Direccion de producto:
 
 - Mantener Conocimiento como nucleo comun para chatbot, email, voz y futuros canales.
 - Ampliar en el futuro hacia Sources, Guidelines, Workflows y Actions.
 - Evolucion recomendada: seguir moviendo ingestion/retrieval/IA a `talia-ai` manteniendo estable el contrato interno de TALIA.
-- Pendiente clave: cron/worker desplegado en Fly para `/v1/knowledge/embed/pending`, estado de procesamiento por fuente y UI separada para FAQs manuales vs documentos.
+- Pendiente clave: cron/worker desplegado en Fly para `/v1/knowledge/embed/pending`, estado de procesamiento por fuente y endurecer scraping con sitemap/crawling controlado.
 
 ### Agente de Email
 

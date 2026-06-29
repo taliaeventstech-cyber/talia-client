@@ -18,9 +18,9 @@ TALIA guarda conocimiento normalizado en:
 - `knowledge_items`: unidades consumibles por chatbot, email y futuros canales.
 - `knowledge_chunks`: fragmentos documentales preparados para retrieval y futuros embeddings.
 
-La ingesta empieza detras del modulo interno `src/lib/knowledge/ingestion.ts`, pero el parsing PDF, chunking y escritura documental ya viven en `talia-ai`. Agora solo valida permisos/formulario y llama a ese modulo.
+La ingesta empieza detras del modulo interno `src/lib/knowledge/ingestion.ts`. Agora valida permisos/formulario y coordina la fuente, pero el parsing PDF, chunking, escritura documental y embeddings viven en `talia-ai`.
 
-El chatbot sigue consumiendo `/api/internal/tenants/:tenantId/chat-config`, que devuelve `knowledge_items` junto con la configuracion del tenant. n8n actua como orquestador temporal.
+El chatbot nuevo consume `talia-ai` cuando `CHAT_AGENT_PROVIDER=talia-ai`. `knowledge_items` sigue existiendo para UI, edicion y fallback textual, pero las fuentes estructuradas tambien se reflejan en `knowledge_chunks` para retrieval semantico.
 
 ## PDFs
 
@@ -35,6 +35,44 @@ En el MVP actual, un PDF se procesa de forma hibrida:
 7. `talia-client` solicita embeddings a `talia-ai /v1/knowledge/embed`; si falla, los chunks quedan `pending` para el worker.
 
 Este enfoque es deliberadamente simple: permite que el producto funcione ya, pero no sustituye a un RAG definitivo.
+
+## FAQs manuales y Excel/CSV
+
+Las fuentes estructuradas ya siguen el mismo camino RAG que los PDFs:
+
+1. El usuario crea/edita/elimina una FAQ o importa un Excel/CSV desde Conocimiento.
+2. `talia-client` mantiene `knowledge_items` como modelo editable y fallback.
+3. `talia-client` recompone la fuente completa como texto normalizado:
+   - pregunta del visitante;
+   - respuesta oficial;
+   - idioma;
+   - prioridad/confianza;
+   - tema si existe.
+4. `talia-client` llama a `talia-ai /v1/knowledge/ingest` con `source_type` `manual`, `xlsx` o `csv` y el texto normalizado.
+5. `talia-ai` divide la fuente en `knowledge_chunks`, elimina chunks obsoletos y marca la fuente como `ready`.
+6. `talia-client` solicita embeddings a `talia-ai /v1/knowledge/embed`.
+
+La decision es mantener `knowledge_items` de momento porque:
+
+- la UI de Agora edita FAQs fila a fila;
+- Backstage y partes legacy aun pueden leer items;
+- permite fallback textual si `talia-ai` no esta disponible;
+- evita una migracion destructiva mientras se estabiliza el RAG.
+
+Cuando el RAG este consolidado, `knowledge_items` podra convertirse en una vista editorial o desaparecer del runtime.
+
+## URLs
+
+Las URLs de conocimiento ya se sincronizan como fuentes RAG:
+
+1. El usuario guarda URLs desde Conocimiento o añade la primera URL durante el onboarding del chatbot.
+2. `talia-client` mantiene `theatres.scrape_urls` por compatibilidad con flujos legacy.
+3. `talia-client` crea/actualiza `knowledge_sources` tipo `url` y elimina fuentes URL obsoletas.
+4. `talia-client` llama a `talia-ai /v1/knowledge/ingest` con la URL.
+5. `talia-ai` valida que la URL sea HTTP/HTTPS, bloquea hosts locales/redes privadas, descarga HTML/texto con limite de tamano y extrae texto legible.
+6. `talia-ai` escribe `knowledge_chunks`; `talia-client` solicita embeddings.
+
+Esta pieza sustituye el scraping implícito de n8n para el runtime RAG. El scraping sigue siendo deliberadamente acotado: una URL equivale a una fuente, no a un crawler recursivo.
 
 ## Seams hacia RAG
 
@@ -55,11 +93,33 @@ Interface actual:
 - delega parsing/chunking/escritura documental en `talia-ai`;
 - solicita embeddings a `talia-ai`.
 
+Para fuentes estructuradas, el seam actual es:
+
+```ts
+reindexStructuredKnowledgeSource({
+  admin,
+  tenantId,
+  sourceId,
+  sourceType,
+  sourceName,
+})
+```
+
+Este seam:
+
+- lee los `knowledge_items` activos de la fuente;
+- borra chunks si la fuente queda vacia;
+- normaliza el contenido a texto oficial;
+- delega chunking y escritura de chunks en `talia-ai`;
+- solicita embeddings a `talia-ai`;
+- mantiene `knowledge_items` como fuente editable.
+
 Implementacion actual:
 
 - no usa `pdf-parse` dentro de Next;
-- no parsea, trocea ni escribe `knowledge_chunks` localmente;
+- no parsea PDFs, no trocea y no escribe `knowledge_chunks` localmente;
 - llama a `talia-ai /v1/knowledge/ingest` para chunking y escritura documental;
+- delega lectura de URL, limpieza HTML y bloqueo SSRF basico en `talia-ai`;
 - solicita embeddings a `talia-ai` por HTTP server-to-server si el servicio esta configurado;
 - deja chunks en `pending` si el paso de embeddings falla;
 - limita tamano del PDF.
@@ -153,7 +213,7 @@ Implementacion futura:
 ## Limitaciones del MVP
 
 - No hay worker de embeddings ni backfill automatico de chunks antiguos.
-- Los fragmentos de PDF se envian al flujo como conocimiento textual normal.
+- Las URLs se ingieren una a una; no hay crawler recursivo ni sitemap automatico.
 - Hay limite de tamano y numero de chunks para evitar prompts enormes.
 - Los PDFs escaneados sin texto seleccionable no se procesan.
 

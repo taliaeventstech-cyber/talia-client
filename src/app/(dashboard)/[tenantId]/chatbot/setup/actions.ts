@@ -1,6 +1,7 @@
 'use server'
 
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
+import { syncUrlKnowledgeSources } from '@/lib/knowledge/ingestion'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { assertTenantAdmin } from '@/lib/tenants/service'
@@ -97,6 +98,21 @@ export async function saveChatbotSetup(
 
   if (error) {
     return { ok: false, message: `No se pudo guardar: ${error.message}` }
+  }
+
+  if (sourceUrl) {
+    const indexed = await syncUrlKnowledgeSources({
+      admin,
+      tenantId,
+      urls: scrapeUrls,
+    })
+
+    if (!indexed.ok) {
+      console.warn('[chatbot-setup] URL knowledge sync failed after setup', {
+        tenantId,
+        error: indexed.message,
+      })
+    }
   }
 
   revalidatePath(`/${tenantId}/chatbot/setup`)

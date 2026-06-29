@@ -81,4 +81,30 @@ describe('ingestKnowledgeTextWithTaliaAi', () => {
       metadata: { file_name: 'info.pdf', language: 'es' },
     })
   })
+
+  it('can send a URL source for remote ingestion', async () => {
+    process.env.TALIA_AI_BASE_URL = 'https://talia-ai.example.test/'
+    process.env.TALIA_AI_INTERNAL_API_KEY = 'secret'
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ ok: true, source_id: 'source-url', chunks: 2 }),
+    }))
+
+    await ingestKnowledgeTextWithTaliaAi({
+      tenantId: 'tenant-1',
+      sourceId: 'source-url',
+      sourceType: 'url',
+      url: 'https://example.org/programacion',
+      metadata: { source_url: 'https://example.org/programacion', language: 'es' },
+    })
+
+    const [, init] = vi.mocked(fetch).mock.calls[0]
+    expect(JSON.parse(String(init?.body))).toEqual({
+      tenant_id: 'tenant-1',
+      source_id: 'source-url',
+      source_type: 'url',
+      url: 'https://example.org/programacion',
+      metadata: { source_url: 'https://example.org/programacion', language: 'es' },
+    })
+  })
 })

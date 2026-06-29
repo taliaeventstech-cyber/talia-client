@@ -2,7 +2,7 @@
 
 import * as XLSX from 'xlsx'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
-import { importPdfKnowledgeSource } from '@/lib/knowledge/ingestion'
+import { importPdfKnowledgeSource, reindexStructuredKnowledgeSource, syncUrlKnowledgeSources } from '@/lib/knowledge/ingestion'
 import { embedKnowledgeSourceWithTaliaAi } from '@/lib/knowledge/talia-ai-embeddings'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -146,9 +146,20 @@ export async function updateScrapeUrls(
 
   if (error) return { ok: false, message: `No se pudo guardar: ${error.message}` }
 
+  const indexed = await syncUrlKnowledgeSources({
+    admin,
+    tenantId,
+    urls: parsed.data,
+  })
+
   revalidatePath(`/${tenantId}/knowledge`)
   revalidatePath(`/${tenantId}/overview`)
-  return { ok: true, message: 'URLs guardadas correctamente.' }
+  return {
+    ok: true,
+    message: indexed.ok
+      ? 'URLs guardadas e indexadas correctamente.'
+      : `URLs guardadas. Pendiente de indexar en RAG: ${indexed.message}`,
+  }
 }
 
 export async function createKnowledgeItem(
@@ -203,9 +214,22 @@ export async function createKnowledgeItem(
     return { ok: false, message: `No se pudo guardar la FAQ: ${error.message}` }
   }
 
+  const indexed = await reindexStructuredKnowledgeSource({
+    admin,
+    tenantId,
+    sourceId: source.id,
+    sourceType: 'manual',
+    sourceName: 'FAQs manuales',
+  })
+
   revalidatePath(`/${tenantId}/knowledge`)
   revalidatePath(`/${tenantId}/overview`)
-  return { ok: true, message: 'FAQ añadida correctamente.' }
+  return {
+    ok: true,
+    message: indexed.ok
+      ? 'FAQ añadida e indexada correctamente.'
+      : `FAQ añadida. Pendiente de indexar en RAG: ${indexed.message}`,
+  }
 }
 
 export type ExcelUploadState = {
@@ -329,15 +353,31 @@ export async function uploadKnowledgeExcel(
 
   if (error) return { ok: false, message: `Error al guardar: ${error.message}` }
 
+  const indexed = await reindexStructuredKnowledgeSource({
+    admin,
+    tenantId,
+    sourceId,
+    sourceType: 'xlsx',
+    sourceName: file.name,
+    metadata: {
+      file_name: file.name,
+      imported_rows: items.length,
+    },
+  })
+
   revalidatePath(`/${tenantId}/knowledge`)
   revalidatePath(`/${tenantId}/overview`)
   return {
     ok: true,
     count: items.length,
     replaced,
-    message: replaced
-      ? `${items.length} respuestas importadas. Las anteriores han sido reemplazadas.`
-      : `${items.length} respuestas importadas correctamente.`,
+    message: indexed.ok
+      ? (replaced
+        ? `${items.length} respuestas importadas e indexadas. Las anteriores han sido reemplazadas.`
+        : `${items.length} respuestas importadas e indexadas correctamente.`)
+      : (replaced
+        ? `${items.length} respuestas importadas. Las anteriores han sido reemplazadas. Pendiente de indexar en RAG: ${indexed.message}`
+        : `${items.length} respuestas importadas. Pendiente de indexar en RAG: ${indexed.message}`),
   }
 }
 
@@ -396,7 +436,7 @@ export async function updateKnowledgeItem(
   }
 
   const { data } = parsed
-  const { error } = await admin
+  const updated = await admin
     .from('knowledge_items')
     .update({
       question: data.question,
@@ -407,12 +447,30 @@ export async function updateKnowledgeItem(
     })
     .eq('id', itemId)
     .eq('theatre_id', tenantId)
+    .select('source_id')
+    .maybeSingle()
 
-  if (error) return { ok: false, message: `No se pudo guardar: ${error.message}` }
+  if (updated.error) return { ok: false, message: `No se pudo guardar: ${updated.error.message}` }
+
+  const sourceId = updated.data?.source_id
+  const indexed = sourceId
+    ? await reindexStructuredKnowledgeSource({
+      admin,
+      tenantId,
+      sourceId,
+      sourceType: 'manual',
+      sourceName: 'FAQs manuales',
+    })
+    : null
 
   revalidatePath(`/${tenantId}/knowledge`)
   revalidatePath(`/${tenantId}/overview`)
-  return { ok: true, message: 'FAQ actualizada.' }
+  return {
+    ok: true,
+    message: !indexed || indexed.ok
+      ? 'FAQ actualizada e indexada.'
+      : `FAQ actualizada. Pendiente de indexar en RAG: ${indexed.message}`,
+  }
 }
 
 export async function deleteKnowledgeItem(
@@ -428,6 +486,15 @@ export async function deleteKnowledgeItem(
   const isAdmin = await assertTenantAdmin(admin, user.id, tenantId)
   if (!isAdmin) return { ok: false, error: 'Sin permisos.' }
 
+  const { data: item, error: itemError } = await admin
+    .from('knowledge_items')
+    .select('source_id')
+    .eq('id', itemId)
+    .eq('theatre_id', tenantId)
+    .maybeSingle()
+
+  if (itemError) return { ok: false, error: itemError.message }
+
   const { error } = await admin
     .from('knowledge_items')
     .delete()
@@ -435,6 +502,18 @@ export async function deleteKnowledgeItem(
     .eq('theatre_id', tenantId)
 
   if (error) return { ok: false, error: error.message }
+
+  if (item?.source_id) {
+    const indexed = await reindexStructuredKnowledgeSource({
+      admin,
+      tenantId,
+      sourceId: item.source_id,
+      sourceType: 'manual',
+      sourceName: 'FAQs manuales',
+    })
+
+    if (!indexed.ok) return { ok: false, error: indexed.message }
+  }
 
   revalidatePath(`/${tenantId}/knowledge`)
   revalidatePath(`/${tenantId}/overview`)
