@@ -5970,6 +5970,14 @@ textarea {
   max-width: 880px;
 }
 
+.section-heading-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .knowledge-files-list {
   display: grid;
   gap: 10px;
@@ -6001,10 +6009,44 @@ textarea {
   margin: 0;
 }
 
+.knowledge-installed-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.knowledge-installed-signal {
+  border: 0.5px solid var(--color-border-subtle);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1;
+  padding: 7px 9px;
+}
+
+.knowledge-installed-signal-ok {
+  border-color: color-mix(in srgb, var(--color-brand) 38%, var(--color-border-subtle));
+  color: var(--color-brand);
+}
+
+.knowledge-installed-signal-muted {
+  color: var(--color-text-tertiary);
+}
+
 @media (max-width: 720px) {
   .section-heading-row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .section-heading-actions {
+    justify-content: stretch;
+  }
+
+  .section-heading-actions > * {
+    flex: 1 1 160px;
   }
 
   .knowledge-installed-refresh,
@@ -6194,6 +6236,13 @@ textarea {
 }
 
 .knowledge-retry-control {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  max-width: 240px;
+}
+
+.knowledge-capture-control {
   display: grid;
   justify-items: end;
   gap: 6px;

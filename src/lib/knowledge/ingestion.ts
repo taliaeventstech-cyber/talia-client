@@ -307,6 +307,16 @@ export async function ingestWebSnapshotSource({
     return { ok: false, message: 'La página no contiene texto suficiente para indexar.' }
   }
 
+  const { data: existingSource } = await admin
+    .from('knowledge_sources')
+    .select('config')
+    .eq('id', sourceId)
+    .eq('theatre_id', tenantId)
+    .eq('type', 'web_snapshot')
+    .maybeSingle()
+  const existingConfig = isRecord(existingSource?.config) ? existingSource.config : {}
+  const captureStartedAt = new Date().toISOString()
+
   const sourceUpdate = await admin
     .from('knowledge_sources')
     .update({
@@ -315,10 +325,11 @@ export async function ingestWebSnapshotSource({
       status: 'processing',
       last_error: null,
       config: {
+        ...existingConfig,
         capture_url: normalizedUrl,
         page_title: title?.trim() || null,
         source_type: 'web_snapshot',
-        capture_started_at: new Date().toISOString(),
+        capture_started_at: captureStartedAt,
       },
     })
     .eq('id', sourceId)
@@ -359,6 +370,27 @@ export async function ingestWebSnapshotSource({
     sourceId,
     limit: ingest.chunks,
   })
+
+  const captureCompletedAt = new Date().toISOString()
+  await admin
+    .from('knowledge_sources')
+    .update({
+      status: 'ready',
+      last_error: null,
+      last_synced_at: captureCompletedAt,
+      config: {
+        ...existingConfig,
+        capture_url: normalizedUrl,
+        page_title: title?.trim() || null,
+        source_type: 'web_snapshot',
+        capture_started_at: captureStartedAt,
+        capture_completed_at: captureCompletedAt,
+        chunk_count: ingest.chunks,
+      },
+    })
+    .eq('id', sourceId)
+    .eq('theatre_id', tenantId)
+    .eq('type', 'web_snapshot')
 
   return {
     ok: true,

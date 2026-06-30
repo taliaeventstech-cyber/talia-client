@@ -22,7 +22,6 @@ type KnowledgeSource = {
   status: string
   config: unknown
   sourceUrl: string | null
-  captureUrl?: string | null
   lastSyncedAt: string | null
   lastError: string | null
   chunkCount: number
@@ -79,9 +78,20 @@ type KnowledgeFormProps = {
     refreshInstalled: string
     refreshingInstalled: string
     capturePage: string
+    openingCapture: string
+    captureAllPages: string
+    capturingAllPages: string
+    captureBlocked: string
+    captureSomeBlocked: string
+    captureOpenError: string
     capturedPageReady: string
     capturedPageConnected: string
     capturedPageError: string
+    installedScriptDetected: string
+    lastVisitDetected: string
+    lastCapture: string
+    contentReady: string
+    contentPending: string
     table: {
       question: string
       topic: string
@@ -336,24 +346,35 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination,
               <h2>{labels.installedWeb}</h2>
               <p className="muted">{labels.installedWebHelp}</p>
             </div>
-            <button
-              type="button"
-              className={`button-outline button-fit knowledge-installed-refresh ${isRefreshingInstalled ? 'knowledge-installed-refresh-active' : ''}`}
-              disabled={isRefreshingInstalled}
-              onClick={() => startInstalledRefresh(() => router.refresh())}
-            >
-              {isRefreshingInstalled ? (
-                <>
-                  <span>{labels.refreshingInstalled}</span>
-                  <span className="processing-line" aria-hidden="true" />
-                </>
-              ) : (
-                <>
-                  <RefreshCw size={15} strokeWidth={2} aria-hidden="true" />
-                  <span>{labels.refreshInstalled}</span>
-                </>
-              )}
-            </button>
+            <div className="section-heading-actions">
+              {installedWebSources.length > 1 ? (
+                <CaptureAllInstalledWebButton
+                  tenantId={tenantId}
+                  sources={installedWebSources
+                    .filter((source) => source.sourceUrl)
+                    .map((source) => ({ id: source.id }))}
+                  labels={labels}
+                />
+              ) : null}
+              <button
+                type="button"
+                className={`button-outline button-fit knowledge-installed-refresh ${isRefreshingInstalled ? 'knowledge-installed-refresh-active' : ''}`}
+                disabled={isRefreshingInstalled}
+                onClick={() => startInstalledRefresh(() => router.refresh())}
+              >
+                {isRefreshingInstalled ? (
+                  <>
+                    <span>{labels.refreshingInstalled}</span>
+                    <span className="processing-line" aria-hidden="true" />
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={15} strokeWidth={2} aria-hidden="true" />
+                    <span>{labels.refreshInstalled}</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {installedWebSources.length ? (
@@ -396,6 +417,7 @@ function InstalledWebSourceRow({
   source: KnowledgeSource
   labels: KnowledgeFormProps['labels']
 }) {
+  const meta = getInstalledWebMeta(source)
   return (
     <article className="knowledge-file-item">
       <div className="knowledge-file-icon" aria-hidden="true">
@@ -410,14 +432,33 @@ function InstalledWebSourceRow({
         </div>
         <div className="knowledge-file-meta">
           {source.sourceUrl ? <span>{source.sourceUrl}</span> : null}
-          {source.lastSyncedAt ? <span>Actualizado {formatDate(source.lastSyncedAt)}</span> : null}
+        </div>
+        <div className="knowledge-installed-signals" aria-label="Estado de la web instalada">
+          <span className="knowledge-installed-signal knowledge-installed-signal-ok">
+            {labels.installedScriptDetected}
+          </span>
+          {meta.lastSeenAt ? (
+            <span className="knowledge-installed-signal">
+              {labels.lastVisitDetected}: {formatDate(meta.lastSeenAt)}
+            </span>
+          ) : null}
+          {source.lastSyncedAt ? (
+            <span className="knowledge-installed-signal">
+              {labels.lastCapture}: {formatDate(source.lastSyncedAt)}
+            </span>
+          ) : null}
+          <span className={`knowledge-installed-signal ${source.chunkCount > 0 ? 'knowledge-installed-signal-ok' : 'knowledge-installed-signal-muted'}`}>
+            {source.chunkCount > 0 ? labels.contentReady : labels.contentPending}
+          </span>
         </div>
       </div>
       <div className="knowledge-file-actions">
-        {source.captureUrl ? (
-          <a className="button-primary button-fit" href={source.captureUrl} target="_blank" rel="noreferrer">
-            {labels.capturePage}
-          </a>
+        {source.sourceUrl ? (
+          <CaptureInstalledWebButton
+            tenantId={tenantId}
+            sourceId={source.id}
+            labels={labels}
+          />
         ) : null}
         <DeleteKnowledgeSourceButton
           tenantId={tenantId}
@@ -431,11 +472,140 @@ function InstalledWebSourceRow({
   )
 }
 
+function CaptureAllInstalledWebButton({
+  tenantId,
+  sources,
+  labels,
+}: {
+  tenantId: string
+  sources: Array<{ id: string }>
+  labels: KnowledgeFormProps['labels']
+}) {
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+
+  function handleCaptureAll() {
+    setError(null)
+    const captureWindow = window.open('', '_blank', 'noopener,noreferrer')
+    if (!captureWindow) {
+      setError(labels.captureBlocked)
+      return
+    }
+
+    startTransition(async () => {
+      try {
+        const response = await fetch(`/api/knowledge/${tenantId}/capture-url`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceIds: sources.slice(0, 20).map((source) => source.id) }),
+        })
+        const body = await response.json().catch(() => null) as {
+          captureUrl?: string
+          error?: string
+        } | null
+
+        if (!response.ok || !body?.captureUrl) {
+          captureWindow.close()
+          setError(body?.error ?? labels.captureOpenError)
+          return
+        }
+
+        captureWindow.opener = null
+        captureWindow.location.href = body.captureUrl
+      } catch {
+        captureWindow.close()
+        setError(labels.captureOpenError)
+      }
+    })
+  }
+
+  return (
+    <div className="knowledge-capture-control">
+      <button
+        type="button"
+        className="button-primary button-fit"
+        onClick={handleCaptureAll}
+        disabled={isPending || sources.length === 0}
+      >
+        {isPending ? labels.capturingAllPages : labels.captureAllPages}
+      </button>
+      {error ? <p className="knowledge-file-error">{error}</p> : null}
+    </div>
+  )
+}
+
+function CaptureInstalledWebButton({
+  tenantId,
+  sourceId,
+  labels,
+}: {
+  tenantId: string
+  sourceId: string
+  labels: KnowledgeFormProps['labels']
+}) {
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+
+  function handleCapture() {
+    setError(null)
+    const captureWindow = window.open('', '_blank', 'noopener,noreferrer')
+    if (!captureWindow) {
+      setError(labels.captureBlocked)
+      return
+    }
+
+    startTransition(async () => {
+      try {
+        const response = await fetch(`/api/knowledge/${tenantId}/capture-url?sourceId=${sourceId}`, {
+          credentials: 'same-origin',
+        })
+        const body = await response.json().catch(() => null) as { captureUrl?: string; error?: string } | null
+        if (!response.ok || !body?.captureUrl) {
+          captureWindow.close()
+          setError(body?.error ?? labels.captureOpenError)
+          return
+        }
+        captureWindow.opener = null
+        captureWindow.location.href = body.captureUrl
+      } catch {
+        captureWindow.close()
+        setError(labels.captureOpenError)
+      }
+    })
+  }
+
+  return (
+    <div className="knowledge-capture-control">
+      <button
+        type="button"
+        className="button-primary button-fit"
+        onClick={handleCapture}
+        disabled={isPending}
+      >
+        {isPending ? labels.openingCapture : labels.capturePage}
+      </button>
+      {error ? <p className="knowledge-file-error">{error}</p> : null}
+    </div>
+  )
+}
+
 function getInstalledWebStatusLabel(status: string, labels: KnowledgeFormProps['labels']) {
   if (status === 'ready') return labels.capturedPageReady
   if (status === 'error') return labels.capturedPageError
   if (status === 'processing' || status === 'pending') return labels.urlProcessing
   return labels.capturedPageConnected
+}
+
+function getInstalledWebMeta(source: KnowledgeSource) {
+  const config = isRecord(source.config) ? source.config : {}
+  return {
+    lastSeenAt: typeof config.last_seen_at === 'string'
+      ? config.last_seen_at
+      : typeof config.registered_at === 'string'
+        ? config.registered_at
+        : null,
+  }
 }
 
 function KnowledgeSourceRow({ tenantId, source }: { tenantId: string; source: KnowledgeSource }) {

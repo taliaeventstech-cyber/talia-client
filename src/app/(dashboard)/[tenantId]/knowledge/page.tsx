@@ -1,6 +1,5 @@
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
-import { createWebCaptureToken } from '@/lib/knowledge/web-capture-token'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { Bot, ChevronLeft, ChevronRight, FileText, Globe2, Plug, Table2 } from 'lucide-react'
 import Link from 'next/link'
@@ -127,13 +126,6 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
             status: source.status,
             config: source.config,
             sourceUrl: source.source_url,
-            captureUrl: source.type === 'web_snapshot' && source.source_url
-              ? getCaptureUrl({
-                tenantId,
-                sourceId: source.id,
-                sourceUrl: source.source_url,
-              })
-              : null,
             lastSyncedAt: source.last_synced_at,
             lastError: source.last_error,
             chunkCount: chunkCounts.get(source.id) ?? 0,
@@ -162,27 +154,6 @@ function getSourceTypesForTab(tab: KnowledgeTab): SourceType[] {
   if (tab === 'files') return ['pdf']
   if (tab === 'spreadsheets') return ['xlsx', 'csv']
   return []
-}
-
-function getCaptureUrl({
-  tenantId,
-  sourceId,
-  sourceUrl,
-}: {
-  tenantId: string
-  sourceId: string
-  sourceUrl: string
-}) {
-  const url = new URL(sourceUrl)
-  url.hash = ''
-  const signedUrl = url.toString()
-  url.searchParams.set('talia_capture', '1')
-  url.searchParams.set('talia_capture_token', createWebCaptureToken({
-    tenantId,
-    sourceId,
-    url: signedUrl,
-  }))
-  return url.toString()
 }
 
 function KnowledgePagination({

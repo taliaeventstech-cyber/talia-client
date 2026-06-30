@@ -157,8 +157,14 @@
 
     var token = params.get('talia_capture_token');
     if (!token) return;
+    var batchToken = params.get('talia_capture_batch');
+    var batchIndex = Number(params.get('talia_capture_index') || '0');
+    var batchTotal = Number(params.get('talia_capture_total') || '0');
+    var batchPosition = batchToken && batchTotal > 1
+      ? ' (' + Math.min(batchIndex + 1, batchTotal) + '/' + batchTotal + ')'
+      : '';
 
-    notifyCapture('TALIA está capturando el contenido visible de esta página...');
+    notifyCapture('TALIA está capturando el contenido visible de esta página' + batchPosition + '...');
     fetch(baseUrl + '/api/widget/' + tenantId + '/capture', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -175,10 +181,43 @@
           notifyCapture('TALIA no ha podido capturar esta página. Revisa la fuente en Ágora.');
           return;
         }
+        if (batchToken) {
+          continueCaptureBatch(batchToken, batchIndex, batchTotal);
+          return;
+        }
         notifyCapture('Contenido capturado. Ya puedes volver a Ágora.');
       })
       .catch(function () {
         notifyCapture('TALIA no ha podido capturar esta página. Revisa la fuente en Ágora.');
+      });
+  }
+
+  function continueCaptureBatch(batchToken, batchIndex, batchTotal) {
+    notifyCapture('Página capturada. Preparando la siguiente...');
+    fetch(baseUrl + '/api/widget/' + tenantId + '/capture-next', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        batchToken: batchToken,
+        currentIndex: batchIndex,
+      }),
+    })
+      .then(function (response) { return response.json().then(function (body) { return { response: response, body: body }; }); })
+      .then(function (result) {
+        if (!result.response.ok || result.body.error) {
+          notifyCapture('Captura parcial completada. Revisa la fuente en Ágora.');
+          return;
+        }
+        if (result.body.done) {
+          notifyCapture('Captura completada. TALIA ya está preparando el contenido.');
+          cleanCaptureParams();
+          return;
+        }
+        notifyCapture('Abriendo página ' + (Number(result.body.nextIndex || 0) + 1) + '/' + (result.body.total || batchTotal) + '...');
+        window.location.href = result.body.captureUrl;
+      })
+      .catch(function () {
+        notifyCapture('Captura parcial completada. Revisa la fuente en Ágora.');
       });
   }
 
@@ -187,7 +226,22 @@
     url.hash = '';
     url.searchParams.delete('talia_capture');
     url.searchParams.delete('talia_capture_token');
+    url.searchParams.delete('talia_capture_batch');
+    url.searchParams.delete('talia_capture_index');
+    url.searchParams.delete('talia_capture_total');
     return url.toString();
+  }
+
+  function cleanCaptureParams() {
+    try {
+      var url = new URL(window.location.href);
+      url.searchParams.delete('talia_capture');
+      url.searchParams.delete('talia_capture_token');
+      url.searchParams.delete('talia_capture_batch');
+      url.searchParams.delete('talia_capture_index');
+      url.searchParams.delete('talia_capture_total');
+      window.history.replaceState({}, document.title, url.toString());
+    } catch {}
   }
 
   function extractVisiblePageText() {
