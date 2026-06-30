@@ -302,7 +302,7 @@ export async function ingestWebSnapshotSource({
   if (!normalizedUrl) return { ok: false, message: 'URL no válida.' }
 
   const cleanText = text.trim()
-  if (cleanText.length < 120) {
+  if (cleanText.length < 40) {
     await markKnowledgeSourceError(admin, sourceId, 'La página no contiene texto suficiente para indexar.')
     return { ok: false, message: 'La página no contiene texto suficiente para indexar.' }
   }

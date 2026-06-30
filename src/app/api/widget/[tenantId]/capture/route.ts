@@ -6,12 +6,13 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getPublicWidgetConfig } from '@/lib/tenants/service'
 
 const MAX_CAPTURE_TEXT_LENGTH = 200_000
+const MIN_CAPTURE_TEXT_LENGTH = 40
 
 const captureSchema = z.object({
   token: z.string().min(20).max(5_000),
   url: z.string().url().max(2_000),
   title: z.string().trim().max(200).optional(),
-  text: z.string().trim().min(120).max(MAX_CAPTURE_TEXT_LENGTH),
+  text: z.string().trim().min(MIN_CAPTURE_TEXT_LENGTH).max(MAX_CAPTURE_TEXT_LENGTH),
 })
 
 export async function POST(
@@ -35,11 +36,17 @@ export async function POST(
     return corsJson({ error: 'capture_token_mismatch' }, { status: 403 })
   }
 
-  if (!originMatchesUrl(request, parsed.data.url)) {
+  const admin = createAdminClient()
+  const { data: theatre } = await admin
+    .from('theatres')
+    .select('website_url')
+    .eq('id', tenantId)
+    .maybeSingle()
+
+  if (!originMatchesUrl(request, parsed.data.url) && !matchesOfficialWebsite(parsed.data.url, theatre?.website_url)) {
     return corsJson({ error: 'origin_mismatch' }, { status: 403 })
   }
 
-  const admin = createAdminClient()
   const tenant = await getPublicWidgetConfig(admin, tenantId)
   if (!tenant.ok) return corsJson({ error: tenant.error }, { status: 404 })
 
@@ -86,4 +93,14 @@ function stripHash(value: string) {
   const url = new URL(value)
   url.hash = ''
   return url.toString()
+}
+
+function matchesOfficialWebsite(value: string, officialWebsite?: string | null) {
+  if (!officialWebsite) return false
+
+  try {
+    return new URL(value).origin === new URL(officialWebsite).origin
+  } catch {
+    return false
+  }
 }

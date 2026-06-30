@@ -169,21 +169,34 @@
       : '';
 
     notifyCapture('TALIA está capturando el contenido visible de esta página' + batchPosition + '...');
-    fetch(captureApiBase + '/api/widget/' + tenantId + '/capture', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token: token,
-        url: getCurrentPageUrl(),
-        title: document.title || '',
-        text: extractVisiblePageText(),
-      }),
-    })
-      .then(function (response) { return response.json().then(function (body) { return { response: response, body: body }; }); })
+    waitForCapturableText()
+      .then(function (pageText) {
+        if (!pageText || pageText.length < 40) {
+          cleanCaptureParams();
+          notifyCapture('TALIA no ha encontrado contenido visible suficiente en esta página.');
+          return;
+        }
+
+        return fetch(captureApiBase + '/api/widget/' + tenantId + '/capture', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: token,
+            url: getCurrentPageUrl(),
+            title: document.title || '',
+            text: pageText,
+          }),
+        });
+      })
+      .then(function (response) {
+        if (!response) return null;
+        return response.json().then(function (body) { return { response: response, body: body }; });
+      })
       .then(function (result) {
+        if (!result) return;
         if (!result.response.ok || result.body.error) {
           cleanCaptureParams();
-          notifyCapture('TALIA no ha podido capturar esta página. Revisa la fuente en Ágora.');
+          notifyCapture(getCaptureErrorMessage(result.body.error));
           return;
         }
         if (batchToken) {
@@ -196,6 +209,49 @@
         cleanCaptureParams();
         notifyCapture('TALIA no ha podido capturar esta página. Revisa la fuente en Ágora.');
       });
+  }
+
+  function waitForCapturableText() {
+    var startedAt = Date.now();
+    var timeoutMs = 10000;
+    var intervalMs = 300;
+    var bestText = '';
+
+    return new Promise(function (resolve) {
+      function tick() {
+        var text = extractVisiblePageText();
+        if (text.length > bestText.length) bestText = text;
+        if (text.length >= 120 && document.readyState === 'complete') {
+          resolve(text);
+          return;
+        }
+        if (text.length >= 240) {
+          resolve(text);
+          return;
+        }
+        if (Date.now() - startedAt >= timeoutMs) {
+          resolve(bestText || text);
+          return;
+        }
+        window.setTimeout(tick, intervalMs);
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+          window.setTimeout(tick, 250);
+        }, { once: true });
+      } else {
+        window.setTimeout(tick, 250);
+      }
+    });
+  }
+
+  function getCaptureErrorMessage(error) {
+    if (error === 'origin_mismatch') return 'TALIA no ha podido validar el dominio de esta página.';
+    if (error === 'capture_token_mismatch') return 'La URL de captura ya no coincide con esta página. Vuelve a abrir la captura desde Ágora.';
+    if (error === 'expired_capture_token') return 'La captura ha caducado. Vuelve a abrirla desde Ágora.';
+    if (error === 'La página no contiene texto suficiente para indexar.') return error;
+    return 'TALIA no ha podido capturar esta página. Revisa la fuente en Ágora.';
   }
 
   function continueCaptureBatch(captureApiBase, batchToken, batchIndex, batchTotal) {
