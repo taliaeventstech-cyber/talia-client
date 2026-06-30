@@ -18,8 +18,8 @@
     localStorage.setItem(sessionKey, sessionId);
   }
 
-  registerInstalledPage();
-  maybeCaptureInstalledPage();
+  installNavigationObserver();
+  schedulePageContextSync(0);
 
   fetch(baseUrl + '/api/widget/' + tenantId)
     .then(function (response) { return response.json(); })
@@ -130,6 +130,44 @@
   function removeTyping(container) {
     var typing = container.querySelector('[data-typing]');
     if (typing) typing.remove();
+  }
+
+  function installNavigationObserver() {
+    if (window.__taliaNavigationObserverInstalled) return;
+    window.__taliaNavigationObserverInstalled = true;
+
+    var originalPushState = history.pushState;
+    var originalReplaceState = history.replaceState;
+
+    history.pushState = function () {
+      var result = originalPushState.apply(this, arguments);
+      schedulePageContextSync(450);
+      schedulePageContextSync(1400);
+      return result;
+    };
+
+    history.replaceState = function () {
+      var result = originalReplaceState.apply(this, arguments);
+      schedulePageContextSync(450);
+      return result;
+    };
+
+    window.addEventListener('popstate', function () {
+      schedulePageContextSync(450);
+      schedulePageContextSync(1400);
+    });
+
+    window.addEventListener('hashchange', function () {
+      schedulePageContextSync(250);
+      schedulePageContextSync(1000);
+    });
+  }
+
+  function schedulePageContextSync(delay) {
+    window.setTimeout(function () {
+      registerInstalledPage();
+      maybeCaptureInstalledPage();
+    }, delay);
   }
 
   function registerInstalledPage() {
