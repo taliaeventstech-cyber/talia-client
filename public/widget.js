@@ -16,13 +16,14 @@
     localStorage.setItem(sessionKey, sessionId);
   }
 
+  registerInstalledPage();
+  maybeCaptureInstalledPage();
+
   fetch(baseUrl + '/api/widget/' + tenantId)
     .then(function (response) { return response.json(); })
     .then(function (config) {
       if (config.error) throw new Error(config.error);
-      registerInstalledPage();
       mountWidget(config);
-      maybeCaptureInstalledPage();
     })
     .catch(function (error) {
       console.warn('[TALIA] Could not load widget config', error);
@@ -133,7 +134,7 @@
     var pageUrl = getCurrentPageUrl();
     var key = 'talia-installed-page-' + tenantId + '-' + pageUrl;
     var lastSeen = Number(localStorage.getItem(key) || '0');
-    if (Date.now() - lastSeen < 24 * 60 * 60 * 1000) return;
+    if (Date.now() - lastSeen < 10 * 60 * 1000) return;
 
     fetch(baseUrl + '/api/widget/' + tenantId + '/installed-page', {
       method: 'POST',
@@ -179,6 +180,7 @@
       .then(function (response) { return response.json().then(function (body) { return { response: response, body: body }; }); })
       .then(function (result) {
         if (!result.response.ok || result.body.error) {
+          cleanCaptureParams();
           notifyCapture('TALIA no ha podido capturar esta página. Revisa la fuente en Ágora.');
           return;
         }
@@ -189,6 +191,7 @@
         notifyCapture('Contenido capturado. Ya puedes volver a Ágora.');
       })
       .catch(function () {
+        cleanCaptureParams();
         notifyCapture('TALIA no ha podido capturar esta página. Revisa la fuente en Ágora.');
       });
   }
@@ -206,6 +209,7 @@
       .then(function (response) { return response.json().then(function (body) { return { response: response, body: body }; }); })
       .then(function (result) {
         if (!result.response.ok || result.body.error) {
+          cleanCaptureParams();
           notifyCapture('Captura parcial completada. Revisa la fuente en Ágora.');
           return;
         }
@@ -218,6 +222,7 @@
         window.location.href = result.body.captureUrl;
       })
       .catch(function () {
+        cleanCaptureParams();
         notifyCapture('Captura parcial completada. Revisa la fuente en Ágora.');
       });
   }

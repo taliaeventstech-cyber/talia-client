@@ -348,13 +348,14 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination,
             </div>
             <div className="section-heading-actions">
               {installedWebSources.length > 1 ? (
-                <CaptureAllInstalledWebButton
-                  tenantId={tenantId}
-                  sources={installedWebSources
-                    .filter((source) => source.sourceUrl)
-                    .map((source) => ({ id: source.id }))}
-                  labels={labels}
-                />
+                <a
+                  className="button-primary button-fit"
+                  href={getCaptureAllHref(tenantId, installedWebSources)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {labels.captureAllPages}
+                </a>
               ) : null}
               <button
                 type="button"
@@ -454,11 +455,14 @@ function InstalledWebSourceRow({
       </div>
       <div className="knowledge-file-actions">
         {source.sourceUrl ? (
-          <CaptureInstalledWebButton
-            tenantId={tenantId}
-            sourceId={source.id}
-            labels={labels}
-          />
+          <a
+            className="button-primary button-fit"
+            href={getCaptureHref(tenantId, source.id)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {labels.capturePage}
+          </a>
         ) : null}
         <DeleteKnowledgeSourceButton
           tenantId={tenantId}
@@ -469,124 +473,6 @@ function InstalledWebSourceRow({
         />
       </div>
     </article>
-  )
-}
-
-function CaptureAllInstalledWebButton({
-  tenantId,
-  sources,
-  labels,
-}: {
-  tenantId: string
-  sources: Array<{ id: string }>
-  labels: KnowledgeFormProps['labels']
-}) {
-  const [isPending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
-
-  function handleCaptureAll() {
-    setError(null)
-    const captureWindow = window.open('', '_blank', 'noopener,noreferrer')
-    if (!captureWindow) {
-      setError(labels.captureBlocked)
-      return
-    }
-
-    startTransition(async () => {
-      try {
-        const response = await fetch(`/api/knowledge/${tenantId}/capture-url`, {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sourceIds: sources.slice(0, 20).map((source) => source.id) }),
-        })
-        const body = await response.json().catch(() => null) as {
-          captureUrl?: string
-          error?: string
-        } | null
-
-        if (!response.ok || !body?.captureUrl) {
-          captureWindow.close()
-          setError(body?.error ?? labels.captureOpenError)
-          return
-        }
-
-        captureWindow.opener = null
-        captureWindow.location.href = body.captureUrl
-      } catch {
-        captureWindow.close()
-        setError(labels.captureOpenError)
-      }
-    })
-  }
-
-  return (
-    <div className="knowledge-capture-control">
-      <button
-        type="button"
-        className="button-primary button-fit"
-        onClick={handleCaptureAll}
-        disabled={isPending || sources.length === 0}
-      >
-        {isPending ? labels.capturingAllPages : labels.captureAllPages}
-      </button>
-      {error ? <p className="knowledge-file-error">{error}</p> : null}
-    </div>
-  )
-}
-
-function CaptureInstalledWebButton({
-  tenantId,
-  sourceId,
-  labels,
-}: {
-  tenantId: string
-  sourceId: string
-  labels: KnowledgeFormProps['labels']
-}) {
-  const [isPending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
-
-  function handleCapture() {
-    setError(null)
-    const captureWindow = window.open('', '_blank', 'noopener,noreferrer')
-    if (!captureWindow) {
-      setError(labels.captureBlocked)
-      return
-    }
-
-    startTransition(async () => {
-      try {
-        const response = await fetch(`/api/knowledge/${tenantId}/capture-url?sourceId=${sourceId}`, {
-          credentials: 'same-origin',
-        })
-        const body = await response.json().catch(() => null) as { captureUrl?: string; error?: string } | null
-        if (!response.ok || !body?.captureUrl) {
-          captureWindow.close()
-          setError(body?.error ?? labels.captureOpenError)
-          return
-        }
-        captureWindow.opener = null
-        captureWindow.location.href = body.captureUrl
-      } catch {
-        captureWindow.close()
-        setError(labels.captureOpenError)
-      }
-    })
-  }
-
-  return (
-    <div className="knowledge-capture-control">
-      <button
-        type="button"
-        className="button-primary button-fit"
-        onClick={handleCapture}
-        disabled={isPending}
-      >
-        {isPending ? labels.openingCapture : labels.capturePage}
-      </button>
-      {error ? <p className="knowledge-file-error">{error}</p> : null}
-    </div>
   )
 }
 
@@ -606,6 +492,19 @@ function getInstalledWebMeta(source: KnowledgeSource) {
         ? config.registered_at
         : null,
   }
+}
+
+function getCaptureHref(tenantId: string, sourceId: string) {
+  return `/api/knowledge/${tenantId}/capture-url?sourceId=${encodeURIComponent(sourceId)}&redirect=1`
+}
+
+function getCaptureAllHref(tenantId: string, sources: KnowledgeSource[]) {
+  const sourceIds = sources
+    .filter((source) => source.sourceUrl)
+    .slice(0, 20)
+    .map((source) => source.id)
+    .join(',')
+  return `/api/knowledge/${tenantId}/capture-url?sourceIds=${encodeURIComponent(sourceIds)}&redirect=1`
 }
 
 function KnowledgeSourceRow({ tenantId, source }: { tenantId: string; source: KnowledgeSource }) {

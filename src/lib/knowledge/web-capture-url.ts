@@ -1,5 +1,7 @@
 import { createWebCaptureToken } from './web-capture-token'
 
+const CAPTURE_URL_TOKEN_TTL_SECONDS = 15 * 60
+
 export function getSignedCaptureUrl({
   tenantId,
   sourceId,
@@ -25,6 +27,7 @@ export function getSignedCaptureUrl({
     tenantId,
     sourceId,
     url: signedUrl,
+    expiresInSeconds: CAPTURE_URL_TOKEN_TTL_SECONDS,
   }))
   if (captureApiBase) {
     url.searchParams.set('talia_capture_api_base', captureApiBase)
