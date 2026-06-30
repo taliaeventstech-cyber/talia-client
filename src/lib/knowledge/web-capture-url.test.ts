@@ -13,7 +13,7 @@ describe('getSignedCaptureUrl', () => {
     delete process.env.WEB_CAPTURE_TOKEN_SECRET
   })
 
-  it('signs the clean landing URL and carries the capture API base separately', () => {
+  it('signs the clean landing URL and carries capture params in the hash', () => {
     const captureUrl = getSignedCaptureUrl({
       tenantId: 'tenant-1',
       sourceId: 'source-1',
@@ -22,10 +22,12 @@ describe('getSignedCaptureUrl', () => {
     })
 
     const url = new URL(captureUrl)
-    const token = verifyWebCaptureToken(url.searchParams.get('talia_capture_token') ?? '')
+    const hashParams = new URLSearchParams(url.hash.slice(1))
+    const token = verifyWebCaptureToken(hashParams.get('talia_capture_token') ?? '')
 
-    expect(url.hash).toBe('')
-    expect(url.searchParams.get('talia_capture_api_base')).toBe('https://agora.example.test')
+    expect(url.search).toBe('')
+    expect(hashParams.get('talia_capture')).toBe('1')
+    expect(hashParams.get('talia_capture_api_base')).toBe('https://agora.example.test')
     expect(token.url).toBe('https://example.com/programa')
   })
 })

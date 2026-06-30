@@ -9,6 +9,8 @@
   }
 
   var baseUrl = (script.getAttribute('data-api-base') || new URL(script.src).origin).replace(/\/$/, '');
+  var pageUrlOverride = script.getAttribute('data-page-url') || '';
+  var siteOriginOverride = script.getAttribute('data-site-origin') || '';
   var sessionKey = 'talia-session-' + tenantId;
   var sessionId = localStorage.getItem(sessionKey);
   if (!sessionId) {
@@ -153,7 +155,7 @@
   }
 
   function maybeCaptureInstalledPage() {
-    var params = new URLSearchParams(window.location.search);
+    var params = getCaptureParams();
     if (params.get('talia_capture') !== '1') return;
 
     var token = params.get('talia_capture_token');
@@ -228,6 +230,9 @@
   }
 
   function getCurrentPageUrl() {
+    var resolvedUrl = getCanonicalPageUrl();
+    if (resolvedUrl) return resolvedUrl;
+
     var url = new URL(window.location.href);
     url.hash = '';
     url.searchParams.delete('talia_capture');
@@ -239,6 +244,63 @@
     return url.toString();
   }
 
+  function getCanonicalPageUrl() {
+    var explicitUrl = normalizePublicPageUrl(pageUrlOverride);
+    if (explicitUrl) return explicitUrl;
+
+    var mappedUrl = getMappedSiteOriginUrl(siteOriginOverride);
+    if (mappedUrl) return mappedUrl;
+
+    var canonical = document.querySelector('link[rel="canonical"]');
+    var canonicalUrl = canonical ? normalizePublicPageUrl(canonical.getAttribute('href')) : null;
+    if (canonicalUrl) return canonicalUrl;
+
+    var ogUrl = document.querySelector('meta[property="og:url"], meta[name="og:url"]');
+    var openGraphUrl = ogUrl ? normalizePublicPageUrl(ogUrl.getAttribute('content')) : null;
+    if (openGraphUrl) return openGraphUrl;
+
+    return null;
+  }
+
+  function getMappedSiteOriginUrl(originValue) {
+    if (!originValue) return null;
+    try {
+      var origin = new URL(originValue);
+      var current = new URL(window.location.href);
+      var url = new URL(origin.origin);
+      url.pathname = current.pathname;
+      url.search = current.search;
+      url.searchParams.delete('talia_capture');
+      url.searchParams.delete('talia_capture_token');
+      url.searchParams.delete('talia_capture_api_base');
+      url.searchParams.delete('talia_capture_batch');
+      url.searchParams.delete('talia_capture_index');
+      url.searchParams.delete('talia_capture_total');
+      url.hash = '';
+      return url.toString();
+    } catch {
+      return null;
+    }
+  }
+
+  function normalizePublicPageUrl(value) {
+    if (!value) return null;
+    try {
+      var url = new URL(value, window.location.href);
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+      url.hash = '';
+      url.searchParams.delete('talia_capture');
+      url.searchParams.delete('talia_capture_token');
+      url.searchParams.delete('talia_capture_api_base');
+      url.searchParams.delete('talia_capture_batch');
+      url.searchParams.delete('talia_capture_index');
+      url.searchParams.delete('talia_capture_total');
+      return url.toString();
+    } catch {
+      return null;
+    }
+  }
+
   function cleanCaptureParams() {
     try {
       var url = new URL(window.location.href);
@@ -248,8 +310,35 @@
       url.searchParams.delete('talia_capture_batch');
       url.searchParams.delete('talia_capture_index');
       url.searchParams.delete('talia_capture_total');
+      if (url.hash) {
+        var hashParams = getHashSearchParams(url.hash);
+        if (hashParams.get('talia_capture') === '1') {
+          hashParams.delete('talia_capture');
+          hashParams.delete('talia_capture_token');
+          hashParams.delete('talia_capture_api_base');
+          hashParams.delete('talia_capture_batch');
+          hashParams.delete('talia_capture_index');
+          hashParams.delete('talia_capture_total');
+          var nextHash = hashParams.toString();
+          url.hash = nextHash ? nextHash : '';
+        }
+      }
       window.history.replaceState({}, document.title, url.toString());
     } catch {}
+  }
+
+  function getCaptureParams() {
+    var hashParams = getHashSearchParams(window.location.hash);
+    if (hashParams.get('talia_capture') === '1') return hashParams;
+    return new URLSearchParams(window.location.search);
+  }
+
+  function getHashSearchParams(hash) {
+    var value = hash || '';
+    if (value.charAt(0) === '#') value = value.slice(1);
+    if (value.charAt(0) === '?') value = value.slice(1);
+    if (value.indexOf('talia_capture=') === -1) return new URLSearchParams();
+    return new URLSearchParams(value);
   }
 
   function extractVisiblePageText() {

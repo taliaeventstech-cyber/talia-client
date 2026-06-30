@@ -22,20 +22,22 @@ export function getSignedCaptureUrl({
   const url = new URL(sourceUrl)
   url.hash = ''
   const signedUrl = url.toString()
-  url.searchParams.set('talia_capture', '1')
-  url.searchParams.set('talia_capture_token', createWebCaptureToken({
+  const captureParams = new URLSearchParams()
+  captureParams.set('talia_capture', '1')
+  captureParams.set('talia_capture_token', createWebCaptureToken({
     tenantId,
     sourceId,
     url: signedUrl,
     expiresInSeconds: CAPTURE_URL_TOKEN_TTL_SECONDS,
   }))
   if (captureApiBase) {
-    url.searchParams.set('talia_capture_api_base', captureApiBase)
+    captureParams.set('talia_capture_api_base', captureApiBase)
   }
   if (batchToken && typeof batchIndex === 'number' && typeof batchTotal === 'number') {
-    url.searchParams.set('talia_capture_batch', batchToken)
-    url.searchParams.set('talia_capture_index', String(batchIndex))
-    url.searchParams.set('talia_capture_total', String(batchTotal))
+    captureParams.set('talia_capture_batch', batchToken)
+    captureParams.set('talia_capture_index', String(batchIndex))
+    captureParams.set('talia_capture_total', String(batchTotal))
   }
+  url.hash = captureParams.toString()
   return url.toString()
 }

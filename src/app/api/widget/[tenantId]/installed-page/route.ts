@@ -19,11 +19,17 @@ export async function POST(
     return corsJson({ error: parsed.error.issues[0]?.message ?? 'invalid_request' }, { status: 400 })
   }
 
-  if (!originMatchesUrl(request, parsed.data.url)) {
+  const admin = createAdminClient()
+  const { data: theatre } = await admin
+    .from('theatres')
+    .select('website_url')
+    .eq('id', tenantId)
+    .maybeSingle()
+
+  if (!originMatchesUrl(request, parsed.data.url) && !matchesOfficialWebsite(parsed.data.url, theatre?.website_url)) {
     return corsJson({ error: 'origin_mismatch' }, { status: 403 })
   }
 
-  const admin = createAdminClient()
   const tenant = await getPublicWidgetConfig(admin, tenantId)
   if (!tenant.ok) return corsJson({ error: tenant.error }, { status: 404 })
 
@@ -56,6 +62,16 @@ function originMatchesUrl(request: Request, value: string) {
 
   try {
     return new URL(origin).origin === new URL(value).origin
+  } catch {
+    return false
+  }
+}
+
+function matchesOfficialWebsite(value: string, officialWebsite?: string | null) {
+  if (!officialWebsite) return false
+
+  try {
+    return new URL(value).origin === new URL(officialWebsite).origin
   } catch {
     return false
   }

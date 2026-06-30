@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import Link from 'next/link'
+import { CopyScriptButton } from './copy-script-button'
 import { SettingsForm } from './settings-form'
 
 interface Props {
@@ -27,7 +28,7 @@ export default async function SettingsPage({ params, searchParams }: Props) {
 
   const { data: theatre } = await admin
     .from('theatres')
-    .select('name, slug, plan, system_prompt, fallback_email, fallback_phone, widget_config, n8n_webhook_url')
+    .select('name, slug, plan, system_prompt, fallback_email, fallback_phone, website_url, widget_config, n8n_webhook_url')
     .eq('id', tenantId)
     .single()
 
@@ -77,6 +78,7 @@ export default async function SettingsPage({ params, searchParams }: Props) {
       {activeTab === 'preview' ? (
         <PreviewTab
           tenantId={tenantId}
+          websiteUrl={theatre?.website_url ?? null}
           widgetConfig={widgetConfig}
           dictionary={dictionary}
           hasScriptAccess={hasScriptAccess}
@@ -88,16 +90,18 @@ export default async function SettingsPage({ params, searchParams }: Props) {
 
 function PreviewTab({
   tenantId,
+  websiteUrl,
   widgetConfig,
   dictionary,
   hasScriptAccess,
 }: {
   tenantId: string
+  websiteUrl: string | null
   widgetConfig: ReturnType<typeof getWidgetConfig>
   dictionary: Awaited<ReturnType<typeof getDictionary>>
   hasScriptAccess: boolean
 }) {
-  const embedCode = getEmbedCode(tenantId)
+  const embedCode = getEmbedCode(tenantId, websiteUrl)
 
   return (
     <div className="two-column-grid">
@@ -109,7 +113,14 @@ function PreviewTab({
               className="muted"
               dangerouslySetInnerHTML={{ __html: dictionary.settings.integrationHelp }}
             />
-            <pre className="ai-output" style={{ whiteSpace: 'pre-wrap' }}>{embedCode}</pre>
+            <div className="script-code-panel">
+              <CopyScriptButton
+                value={embedCode}
+                label={dictionary.settings.copyScript}
+                copiedLabel={dictionary.settings.copiedScript}
+              />
+              <pre className="ai-output script-code-block">{embedCode}</pre>
+            </div>
           </>
         ) : (
           <div className="locked-panel">
@@ -174,14 +185,25 @@ function getWidgetPosition(value: unknown) {
   return 'bottom-right'
 }
 
-function getEmbedCode(tenantId: string) {
+function getEmbedCode(tenantId: string, websiteUrl: string | null) {
   const appUrl = getAppUrl()
+  const siteOrigin = getSiteOrigin(websiteUrl)
 
   return `<script
   src="${appUrl}/widget.js"
   crossorigin="anonymous"
   data-tenant="${tenantId}"
-></script>`
+  data-api-base="${appUrl}"
+${siteOrigin ? `  data-site-origin="${siteOrigin}"\n` : ''}</script>`
+}
+
+function getSiteOrigin(value: string | null) {
+  if (!value) return null
+  try {
+    return new URL(value).origin
+  } catch {
+    return null
+  }
 }
 
 function getAppUrl() {

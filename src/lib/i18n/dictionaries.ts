@@ -452,6 +452,8 @@ const es = {
     },
     integrationCode: 'Código de integración',
     integrationHelp: 'Pega este script antes del cierre de <code>&lt;/body&gt;</code> en tu web.',
+    copyScript: 'Copiar script',
+    copiedScript: 'Copiado',
     preview: 'Preview',
     form: {
       chatbot: 'Chatbot',
@@ -1304,6 +1306,8 @@ const ca: Dictionary = {
     },
     integrationCode: 'Codi d’integració',
     integrationHelp: 'Enganxa aquest script abans del tancament de <code>&lt;/body&gt;</code> al teu web.',
+    copyScript: 'Copiar script',
+    copiedScript: 'Copiat',
     preview: 'Vista prèvia',
     form: {
       chatbot: 'Chatbot',
@@ -2087,6 +2091,8 @@ const en: Dictionary = {
     },
     integrationCode: 'Integration code',
     integrationHelp: 'Paste this script before the closing <code>&lt;/body&gt;</code> tag on your website.',
+    copyScript: 'Copy script',
+    copiedScript: 'Copied',
     preview: 'Preview',
     form: {
       chatbot: 'Chatbot',

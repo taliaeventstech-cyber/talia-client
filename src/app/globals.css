@@ -5836,6 +5836,51 @@ textarea {
   padding: 14px 18px;
 }
 
+.script-code-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.script-code-block {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.script-copy-button {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0.5px solid var(--color-border-strong);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-surface-2) 72%, transparent);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1;
+  padding: 9px 12px;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.script-copy-button:hover {
+  border-color: color-mix(in srgb, var(--color-brand) 46%, var(--color-border-strong));
+  background: color-mix(in srgb, var(--color-brand) 12%, var(--color-surface-2));
+  color: var(--color-brand);
+}
+
+.script-copy-button-copied {
+  border-color: color-mix(in srgb, var(--color-brand) 54%, var(--color-border-strong));
+  background: color-mix(in srgb, var(--color-brand) 14%, var(--color-surface-2));
+  color: var(--color-brand);
+}
+
 .channel-tabs {
   display: flex;
   gap: 4px;
