@@ -42,6 +42,7 @@ export async function GET(
     tenantId,
     sourceId: source.id,
     sourceUrl: source.source_url,
+    captureApiBase: request.nextUrl.origin,
   }) })
 }
 
@@ -89,6 +90,7 @@ export async function POST(
       tenantId,
       sourceId: firstSource.id,
       sourceUrl: firstSource.source_url,
+      captureApiBase: request.nextUrl.origin,
       batchToken,
       batchIndex: 0,
       batchTotal: orderedSourceIds.length,

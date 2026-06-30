@@ -160,12 +160,13 @@
     var batchToken = params.get('talia_capture_batch');
     var batchIndex = Number(params.get('talia_capture_index') || '0');
     var batchTotal = Number(params.get('talia_capture_total') || '0');
+    var captureApiBase = (params.get('talia_capture_api_base') || baseUrl).replace(/\/$/, '');
     var batchPosition = batchToken && batchTotal > 1
       ? ' (' + Math.min(batchIndex + 1, batchTotal) + '/' + batchTotal + ')'
       : '';
 
     notifyCapture('TALIA está capturando el contenido visible de esta página' + batchPosition + '...');
-    fetch(baseUrl + '/api/widget/' + tenantId + '/capture', {
+    fetch(captureApiBase + '/api/widget/' + tenantId + '/capture', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -182,7 +183,7 @@
           return;
         }
         if (batchToken) {
-          continueCaptureBatch(batchToken, batchIndex, batchTotal);
+          continueCaptureBatch(captureApiBase, batchToken, batchIndex, batchTotal);
           return;
         }
         notifyCapture('Contenido capturado. Ya puedes volver a Ágora.');
@@ -192,9 +193,9 @@
       });
   }
 
-  function continueCaptureBatch(batchToken, batchIndex, batchTotal) {
+  function continueCaptureBatch(captureApiBase, batchToken, batchIndex, batchTotal) {
     notifyCapture('Página capturada. Preparando la siguiente...');
-    fetch(baseUrl + '/api/widget/' + tenantId + '/capture-next', {
+    fetch(captureApiBase + '/api/widget/' + tenantId + '/capture-next', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -226,6 +227,7 @@
     url.hash = '';
     url.searchParams.delete('talia_capture');
     url.searchParams.delete('talia_capture_token');
+    url.searchParams.delete('talia_capture_api_base');
     url.searchParams.delete('talia_capture_batch');
     url.searchParams.delete('talia_capture_index');
     url.searchParams.delete('talia_capture_total');
@@ -237,6 +239,7 @@
       var url = new URL(window.location.href);
       url.searchParams.delete('talia_capture');
       url.searchParams.delete('talia_capture_token');
+      url.searchParams.delete('talia_capture_api_base');
       url.searchParams.delete('talia_capture_batch');
       url.searchParams.delete('talia_capture_index');
       url.searchParams.delete('talia_capture_total');

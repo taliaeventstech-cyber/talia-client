@@ -4,6 +4,7 @@ export function getSignedCaptureUrl({
   tenantId,
   sourceId,
   sourceUrl,
+  captureApiBase,
   batchToken,
   batchIndex,
   batchTotal,
@@ -11,6 +12,7 @@ export function getSignedCaptureUrl({
   tenantId: string
   sourceId: string
   sourceUrl: string
+  captureApiBase?: string
   batchToken?: string
   batchIndex?: number
   batchTotal?: number
@@ -24,6 +26,9 @@ export function getSignedCaptureUrl({
     sourceId,
     url: signedUrl,
   }))
+  if (captureApiBase) {
+    url.searchParams.set('talia_capture_api_base', captureApiBase)
+  }
   if (batchToken && typeof batchIndex === 'number' && typeof batchTotal === 'number') {
     url.searchParams.set('talia_capture_batch', batchToken)
     url.searchParams.set('talia_capture_index', String(batchIndex))

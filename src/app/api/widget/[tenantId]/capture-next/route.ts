@@ -61,6 +61,7 @@ export async function POST(
       tenantId,
       sourceId: source.id,
       sourceUrl: source.source_url,
+      captureApiBase: new URL(request.url).origin,
       batchToken: parsed.data.batchToken,
       batchIndex: nextIndex,
       batchTotal: batch.sourceIds.length,
