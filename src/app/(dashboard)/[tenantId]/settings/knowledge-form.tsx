@@ -427,17 +427,11 @@ function InstalledWebSourceRow({
       <div className="knowledge-file-main">
         <div className="knowledge-file-title-row">
           <h3>{source.name}</h3>
-          <span className={`knowledge-file-status knowledge-file-status-${source.status}`}>
-            {getInstalledWebStatusLabel(source.status, labels)}
-          </span>
         </div>
         <div className="knowledge-file-meta">
           {source.sourceUrl ? <span>{source.sourceUrl}</span> : null}
         </div>
         <div className="knowledge-installed-signals" aria-label="Estado de la web instalada">
-          <span className="knowledge-installed-signal knowledge-installed-signal-ok">
-            {labels.installedScriptDetected}
-          </span>
           {meta.lastSeenAt ? (
             <span className="knowledge-installed-signal">
               {labels.lastVisitDetected}: {formatDate(meta.lastSeenAt)}
@@ -448,22 +442,23 @@ function InstalledWebSourceRow({
               {labels.lastCapture}: {formatDate(source.lastSyncedAt)}
             </span>
           ) : null}
-          <span className={`knowledge-installed-signal ${source.chunkCount > 0 ? 'knowledge-installed-signal-ok' : 'knowledge-installed-signal-muted'}`}>
-            {source.chunkCount > 0 ? labels.contentReady : labels.contentPending}
-          </span>
+          {source.chunkCount > 0 ? (
+            <span className="knowledge-installed-signal knowledge-installed-signal-ok">
+              {labels.contentReady}
+            </span>
+          ) : source.sourceUrl ? (
+            <a
+              className="button-primary button-fit knowledge-installed-capture-action"
+              href={getCaptureHref(tenantId, source.id)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {labels.capturePage}
+            </a>
+          ) : null}
         </div>
       </div>
       <div className="knowledge-file-actions">
-        {source.sourceUrl ? (
-          <a
-            className="button-primary button-fit"
-            href={getCaptureHref(tenantId, source.id)}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {labels.capturePage}
-          </a>
-        ) : null}
         <DeleteKnowledgeSourceButton
           tenantId={tenantId}
           sourceId={source.id}
@@ -474,13 +469,6 @@ function InstalledWebSourceRow({
       </div>
     </article>
   )
-}
-
-function getInstalledWebStatusLabel(status: string, labels: KnowledgeFormProps['labels']) {
-  if (status === 'ready') return labels.capturedPageReady
-  if (status === 'error') return labels.capturedPageError
-  if (status === 'processing' || status === 'pending') return labels.urlProcessing
-  return labels.capturedPageConnected
 }
 
 function getInstalledWebMeta(source: KnowledgeSource) {
@@ -629,7 +617,14 @@ function getSourceFileName(source: KnowledgeSource) {
 function formatDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(date)
+  return new Intl.DateTimeFormat('es-ES', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Europe/Madrid',
+  }).format(date)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

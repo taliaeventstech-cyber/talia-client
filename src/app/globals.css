@@ -6035,6 +6035,11 @@ textarea {
   color: var(--color-text-tertiary);
 }
 
+.knowledge-installed-capture-action {
+  min-height: 30px;
+  padding: 7px 12px;
+}
+
 @media (max-width: 720px) {
   .section-heading-row {
     align-items: stretch;
@@ -6229,7 +6234,8 @@ textarea {
 .knowledge-file-actions {
   display: flex;
   flex-direction: row;
-  align-items: flex-end;
+  align-items: flex-start;
+  align-self: start;
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 8px;
