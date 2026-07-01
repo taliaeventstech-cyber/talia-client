@@ -33,6 +33,7 @@ type RetrievalTraceChunk = {
   source_type: string | null
   score: number | null
   rank: number | null
+  used: boolean | null
   language: string | null
   preview: string | null
 }
@@ -241,6 +242,7 @@ export async function POST(
       systemPrompt: tenant.config.systemPrompt,
       fallbackEmail: tenant.config.fallbackEmail,
       fallbackPhone: tenant.config.fallbackPhone,
+      aiSettings: tenant.config.aiSettings,
     },
     relevantKnowledge: shouldDelegateKnowledgeToTaliaAi ? [] : buildRelevantKnowledgeHints(knowledge.matches),
   })
@@ -504,6 +506,7 @@ function summarizeRetrievalChunk(chunk: unknown, fallbackIndex: number): Retriev
   const sourceType = typeof chunk.source_type === 'string' ? chunk.source_type : null
   const score = typeof chunk.score === 'number' && Number.isFinite(chunk.score) ? chunk.score : null
   const rank = typeof chunk.rank === 'number' && Number.isFinite(chunk.rank) ? chunk.rank : fallbackIndex + 1
+  const used = typeof chunk.used === 'boolean' ? chunk.used : null
   const language = typeof chunk.language === 'string' ? chunk.language : null
   const preview = typeof chunk.preview === 'string' ? truncateForMetadata(chunk.preview, 360) : null
 
@@ -515,6 +518,7 @@ function summarizeRetrievalChunk(chunk: unknown, fallbackIndex: number): Retriev
     source_type: sourceType,
     score,
     rank,
+    used,
     language,
     preview,
   }

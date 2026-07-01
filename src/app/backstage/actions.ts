@@ -1,6 +1,10 @@
 'use server'
 
 import { requirePlatformAdmin } from '@/lib/platform/auth'
+import {
+  chatbotAiSettingsToWidgetConfig,
+  normalizeChatbotAiSettings,
+} from '@/lib/chatbot/ai-settings'
 import { emailAgentSettingsToMetadata, normalizeEmailAgentSettings } from '@/lib/email/settings'
 import { createSignupInvite } from '@/lib/platform/invites'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -102,6 +106,11 @@ const updateTenantSchema = createTenantSchema.extend({
   voiceOperationalStatus: z.enum(['draft', 'provisioning', 'active', 'paused', 'error']),
   chatbotWebhookUrl: z.string().trim().url('El webhook del chatbot debe ser una URL válida.').optional().or(z.literal('')),
   chatbotSystemPrompt: z.string().trim().max(4000, 'El prompt del chatbot es demasiado largo.').optional(),
+  chatbotTemperature: z.coerce.number().min(0).max(1),
+  chatbotGroundingMode: z.enum(['strict', 'balanced']),
+  chatbotMinContextScore: z.coerce.number().min(0).max(1),
+  chatbotMaxContextItems: z.coerce.number().int().min(1).max(10),
+  chatbotFallbackContacts: z.boolean().default(true),
   emailMailboxEmail: z.string().trim().email('El buzón de email no es válido.').optional().or(z.literal('')),
   emailProvider: z.enum(['google', 'microsoft', 'imap', 'forwarding']),
   emailStatus: z.enum(['draft', 'connected', 'syncing', 'error', 'revoked', 'disabled']),
@@ -498,6 +507,11 @@ export async function updateTenantAction(
     voiceOperationalStatus: formData.get('voice_operational_status') || 'draft',
     chatbotWebhookUrl: formData.get('chatbot_webhook_url') || '',
     chatbotSystemPrompt: formData.get('chatbot_system_prompt') || '',
+    chatbotTemperature: formData.get('chatbot_temperature') || '0.2',
+    chatbotGroundingMode: formData.get('chatbot_grounding_mode') || 'strict',
+    chatbotMinContextScore: formData.get('chatbot_min_context_score') || '0.3',
+    chatbotMaxContextItems: formData.get('chatbot_max_context_items') || '5',
+    chatbotFallbackContacts: formData.get('chatbot_fallback_contacts') === 'on',
     emailMailboxEmail: formData.get('email_mailbox_email') || '',
     emailProvider: formData.get('email_provider') || 'google',
     emailStatus: formData.get('email_status') || 'draft',
@@ -536,7 +550,7 @@ export async function updateTenantAction(
 
   const { data: tenantForAccount } = await admin
     .from('theatres')
-    .select('account_id')
+    .select('account_id, widget_config')
     .eq('id', data.tenantId)
     .maybeSingle()
 
@@ -575,6 +589,15 @@ export async function updateTenantAction(
       voice_operational_status: data.voiceOperationalStatus,
       n8n_webhook_url: data.chatbotWebhookUrl || null,
       system_prompt: data.chatbotSystemPrompt || null,
+      widget_config: mergeWidgetConfig(tenantForAccount?.widget_config, {
+        chatbotAi: chatbotAiSettingsToWidgetConfig(normalizeChatbotAiSettings({
+          temperature: data.chatbotTemperature,
+          groundingMode: data.chatbotGroundingMode,
+          minContextScore: data.chatbotMinContextScore,
+          maxContextItems: data.chatbotMaxContextItems,
+          fallbackContacts: data.chatbotFallbackContacts,
+        })),
+      }),
     })
     .eq('id', data.tenantId)
 
@@ -784,6 +807,17 @@ function buildEmailConnectionMetadata(
     gmail_sync_query: advancedQuery || null,
     email_agent_settings: emailAgentSettingsToMetadata(input.agentSettings ?? normalizeEmailAgentSettings({})),
   } satisfies Json
+}
+
+function mergeWidgetConfig(current: Json | undefined, next: Record<string, unknown>): Json {
+  const currentRecord = current && typeof current === 'object' && !Array.isArray(current)
+    ? current as Record<string, Json>
+    : {}
+
+  return {
+    ...currentRecord,
+    ...next,
+  } as Json
 }
 
 function parseEmailRuleList(value: string | undefined) {
