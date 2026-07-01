@@ -1,4 +1,5 @@
 import { sendChatMessageToN8n } from '@/lib/chat/n8n'
+import type { ChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import type { RelevantKnowledgeHint } from '@/lib/knowledge/retrieval'
 import { TaliaAiChatAgentProvider } from './talia-ai'
 
@@ -15,6 +16,7 @@ export type ChatAgentRuntimeInput = {
     systemPrompt: string | null
     fallbackEmail: string | null
     fallbackPhone: string | null
+    aiSettings?: ChatbotAiSettings
   }
   relevantKnowledge?: RelevantKnowledgeHint[]
 }

@@ -3,6 +3,7 @@
 import { Bot, Cable, ListChecks, RefreshCw } from 'lucide-react'
 import { useActionState, useState } from 'react'
 import { ActionToast } from '@/components/ui/action-toast'
+import { normalizeChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import { defaultEmailClassificationTopics, getEmailAgentSettings } from '@/lib/email/settings'
 import { updateTenantAction, type UpdateTenantState } from '../../actions'
 
@@ -364,6 +365,7 @@ function ModulePlaceholderPanel({
 
 function ChatbotOperationsPanel({ client }: { client: Client }) {
   const widgetConfig = getWidgetConfig(client.widget_config)
+  const aiSettings = normalizeChatbotAiSettings(widgetConfig.chatbotAi)
 
   return (
     <>
@@ -416,6 +418,68 @@ function ChatbotOperationsPanel({ client }: { client: Client }) {
             <span>Conocimiento gestionado desde Agora</span>
           </div>
         </div>
+      </div>
+
+      <div className="chatbot-config-card">
+        <p className="eyebrow">Seguridad de respuesta</p>
+        <div className="form-row">
+          <label className="field">
+            Temperatura
+            <input
+              name="chatbot_temperature"
+              type="number"
+              min="0"
+              max="1"
+              step="0.05"
+              defaultValue={aiSettings.temperature}
+            />
+            <span className="field-hint">0.1-0.2 para respuestas deterministas. Subirlo aumenta variación, no conocimiento.</span>
+          </label>
+          <label className="field">
+            Modo de grounding
+            <select name="chatbot_grounding_mode" defaultValue={aiSettings.groundingMode}>
+              <option value="strict">Estricto</option>
+              <option value="balanced">Equilibrado</option>
+            </select>
+            <span className="field-hint">Estricto no responde hechos sin fuente. Equilibrado permite reformular más, sin inventar datos críticos.</span>
+          </label>
+        </div>
+
+        <div className="form-row">
+          <label className="field">
+            Umbral mínimo de fuente
+            <input
+              name="chatbot_min_context_score"
+              type="number"
+              min="0"
+              max="1"
+              step="0.05"
+              defaultValue={aiSettings.minContextScore}
+            />
+            <span className="field-hint">Si está alto, TALIA responde menos. Si está bajo, usará más fragmentos con menor confianza.</span>
+          </label>
+          <label className="field">
+            Fragmentos máximos
+            <input
+              name="chatbot_max_context_items"
+              type="number"
+              min="1"
+              max="10"
+              step="1"
+              defaultValue={aiSettings.maxContextItems}
+            />
+            <span className="field-hint">Controla cuánto contexto RAG entra al modelo en cada respuesta.</span>
+          </label>
+        </div>
+
+        <label className="checkbox-row checkbox-row-card">
+          <input
+            type="checkbox"
+            name="chatbot_fallback_contacts"
+            defaultChecked={aiSettings.fallbackContacts}
+          />
+          Usar contactos fallback cuando no haya fuentes suficientes
+        </label>
       </div>
 
       <label className="field">
@@ -1007,6 +1071,7 @@ function getWidgetConfig(value: unknown) {
       primaryColor: '#000000',
       autoOpen: false,
       autoOpenDelay: 3,
+      chatbotAi: undefined,
     }
   }
 
@@ -1016,6 +1081,8 @@ function getWidgetConfig(value: unknown) {
     primaryColor?: unknown
     autoOpen?: unknown
     autoOpenDelay?: unknown
+    chatbotAi?: unknown
+    chatbot_ai?: unknown
   }
 
   return {
@@ -1024,6 +1091,7 @@ function getWidgetConfig(value: unknown) {
     primaryColor: typeof config.primaryColor === 'string' ? config.primaryColor : '#000000',
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
+    chatbotAi: config.chatbotAi ?? config.chatbot_ai,
   }
 }
 
