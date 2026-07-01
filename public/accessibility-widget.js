@@ -172,7 +172,7 @@
 
     if (increase) {
       increase.addEventListener('click', function () {
-        state.textScale = Math.min(2, state.textScale + 1);
+        state.textScale = Math.min(4, state.textScale + 1);
         saveState(config.tenantId, state);
         applyState(state);
         renderState();
@@ -279,6 +279,7 @@
       previousFocus = root.activeElement || toggle;
       panel.classList.add('panel--open');
       panel.setAttribute('aria-hidden', 'false');
+      panel.inert = false;
       toggle.setAttribute('aria-expanded', 'true');
       setTimeout(function () {
         var firstControl = root.querySelector('[data-tab-controls]') || root.querySelector('[data-text-increase]') || root.querySelector('[data-control]') || reset;
@@ -289,6 +290,7 @@
     function closePanel() {
       panel.classList.remove('panel--open');
       panel.setAttribute('aria-hidden', 'true');
+      panel.inert = true;
       toggle.setAttribute('aria-expanded', 'false');
       if (clearViewButton) clearViewButton.setAttribute('aria-expanded', 'false');
     }
@@ -373,7 +375,7 @@
 
     function renderState() {
       if (increase) {
-        increase.disabled = state.textScale >= 2;
+        increase.disabled = state.textScale >= 4;
         increase.setAttribute('aria-pressed', state.textScale > 0 ? 'true' : 'false');
       }
 
@@ -531,8 +533,10 @@
     var style = document.createElement('style');
     style.id = 'talia-accessibility-styles';
     style.textContent = '\
-      html.talia-a11y-text-lg body :where(p, li, a, button, input, textarea, select, label, span, dd, dt, figcaption, blockquote) { font-size: 112.5% !important; }\
-      html.talia-a11y-text-xl body :where(p, li, a, button, input, textarea, select, label, span, dd, dt, figcaption, blockquote) { font-size: 125% !important; }\
+      html.talia-a11y-text-1 body :where(p, li, a, button, input, textarea, select, label, span, dd, dt, figcaption, blockquote) { font-size: 125% !important; }\
+      html.talia-a11y-text-2 body :where(p, li, a, button, input, textarea, select, label, span, dd, dt, figcaption, blockquote) { font-size: 150% !important; }\
+      html.talia-a11y-text-3 body :where(p, li, a, button, input, textarea, select, label, span, dd, dt, figcaption, blockquote) { font-size: 175% !important; }\
+      html.talia-a11y-text-4 body :where(p, li, a, button, input, textarea, select, label, span, dd, dt, figcaption, blockquote) { font-size: 200% !important; }\
       html.talia-a11y-contrast body { background: #000 !important; color: #fff !important; }\
       html.talia-a11y-contrast body :where(main, section, article, aside, header, footer, nav, div, p, li, h1, h2, h3, h4, h5, h6, label, span) { background-color: #000 !important; color: #fff !important; border-color: #fff !important; }\
       html.talia-a11y-contrast body :where(a, button) { color: #ffff00 !important; }\
@@ -561,8 +565,10 @@
   function applyState(state) {
     var root = document.documentElement;
     var classes = [
-      'talia-a11y-text-lg',
-      'talia-a11y-text-xl',
+      'talia-a11y-text-1',
+      'talia-a11y-text-2',
+      'talia-a11y-text-3',
+      'talia-a11y-text-4',
       'talia-a11y-contrast',
       'talia-a11y-grayscale',
       'talia-a11y-highlight-links',
@@ -578,8 +584,7 @@
       root.classList.remove(className);
     });
 
-    if (state.textScale === 1) root.classList.add('talia-a11y-text-lg');
-    if (state.textScale === 2) root.classList.add('talia-a11y-text-xl');
+    if (state.textScale >= 1 && state.textScale <= 4) root.classList.add('talia-a11y-text-' + state.textScale);
     if (state.contrast) root.classList.add('talia-a11y-contrast');
     if (state.grayscale) root.classList.add('talia-a11y-grayscale');
     if (state.highlightLinks) root.classList.add('talia-a11y-highlight-links');
@@ -662,8 +667,9 @@
         .clear-action:focus-visible { outline: 3px solid #111827; outline-offset: 3px; }\
         .branding { margin: 0; color: #6b7280; text-align: center; font: 600 11px/1.2 Arial, Helvetica, system-ui, sans-serif; }\
         @media (max-width: 420px) { .panel { width: calc(100vw - 24px); max-height: calc(100vh - 168px); } .grid { grid-template-columns: 1fr; } }\
+        @media (prefers-reduced-motion: reduce) { .toggle, .panel, .clear-launch { transition: none !important; } .toggle:hover, .toggle:active, .clear-launch:hover { transform: none !important; } }\
       </style>\
-      <section class="panel" data-panel id="talia-a11y-panel" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="talia-a11y-title" aria-describedby="talia-a11y-description" tabindex="-1">\
+      <section class="panel" data-panel id="talia-a11y-panel" role="dialog" aria-modal="true" aria-hidden="true" inert aria-labelledby="talia-a11y-title" aria-describedby="talia-a11y-description" tabindex="-1">\
         <div class="header">\
           <div class="header-main">\
             <span class="header-mark" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="1.2" fill="currentColor" stroke="none"></circle><path d="M7.5 10.5h9"></path><path d="M12 10.5v4"></path><path d="m9 19 3-4.5 3 4.5"></path></svg></span>\
@@ -1149,7 +1155,7 @@
           contact: 'Contacto',
           other: 'Info',
         },
-        textLevel: function (value) { return value === 0 ? 'Texto normal' : value === 1 ? 'Texto grande' : 'Texto muy grande'; },
+        textLevel: function (value) { return value === 0 ? 'Texto normal' : 'Texto ' + ['', '125%', '150%', '175%', '200%'][value]; },
       },
       ca: {
         title: 'Accessibilitat',
@@ -1194,7 +1200,7 @@
           contact: 'Contacte',
           other: 'Info',
         },
-        textLevel: function (value) { return value === 0 ? 'Text normal' : value === 1 ? 'Text gran' : 'Text molt gran'; },
+        textLevel: function (value) { return value === 0 ? 'Text normal' : 'Text ' + ['', '125%', '150%', '175%', '200%'][value]; },
       },
       en: {
         title: 'Accessibility',
@@ -1239,7 +1245,7 @@
           contact: 'Contact',
           other: 'Info',
         },
-        textLevel: function (value) { return value === 0 ? 'Normal text' : value === 1 ? 'Large text' : 'Very large text'; },
+        textLevel: function (value) { return value === 0 ? 'Normal text' : 'Text ' + ['', '125%', '150%', '175%', '200%'][value]; },
       },
     };
 
@@ -1362,7 +1368,7 @@
       if (!stored) return getDefaultState();
       var parsed = JSON.parse(stored);
       var state = getDefaultState();
-      state.textScale = parsed.textScale === 1 || parsed.textScale === 2 ? parsed.textScale : 0;
+      state.textScale = parsed.textScale >= 1 && parsed.textScale <= 4 ? Math.round(parsed.textScale) : 0;
       state.contrast = parsed.contrast === true;
       state.grayscale = parsed.grayscale === true;
       state.highlightLinks = parsed.highlightLinks === true;
