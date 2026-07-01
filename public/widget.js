@@ -437,7 +437,7 @@
 
   function extractVisiblePageText() {
     var clone = document.body.cloneNode(true);
-    clone.querySelectorAll('script, style, noscript, svg, iframe, canvas, nav, footer, form, input, textarea, select, button, [aria-hidden="true"], #talia-widget-root').forEach(function (node) {
+    clone.querySelectorAll('script, style, noscript, svg, iframe, canvas, nav, footer, form, input, textarea, select, button, [aria-hidden="true"], #talia-widget-root, #talia-capture-notice').forEach(function (node) {
       node.remove();
     });
 
