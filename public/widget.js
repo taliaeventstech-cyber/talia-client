@@ -105,7 +105,11 @@
     fetch(baseUrl + '/api/chat/' + tenantId, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId, message: text }),
+      body: JSON.stringify({
+        session_id: sessionId,
+        message: text,
+        page_url: getCurrentPageUrl(),
+      }),
     })
       .then(function (response) { return response.json(); })
       .then(function (data) {

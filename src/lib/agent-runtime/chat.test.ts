@@ -114,6 +114,7 @@ describe('TaliaAiChatAgentProvider', () => {
     const provider = new TaliaAiChatAgentProvider()
     const result = await provider.respond({
       ...runtimeInput,
+      pageUrl: 'https://talia.events/pricing',
       relevantKnowledge: [{
         id: 'chunk-1',
         sourceId: 'source-1',
@@ -146,6 +147,7 @@ describe('TaliaAiChatAgentProvider', () => {
     expect(JSON.parse(String(requestInit?.body))).toMatchObject({
       tenant_id: 'tenant-1',
       session_id: 'session-1',
+      page_url: 'https://talia.events/pricing',
       language: 'es',
       tenant: {
         name: 'Sala Test',

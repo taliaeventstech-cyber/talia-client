@@ -62,6 +62,9 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
         readingMask: true,
         readingLine: true,
         highlightContent: true,
+        readAloud: true,
+        dyslexiaFont: true,
+        profiles: true,
       },
     },
   } satisfies Json

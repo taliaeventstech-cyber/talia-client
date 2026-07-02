@@ -9,6 +9,7 @@ export type ChatAgentRuntimeInput = {
   tenantId: string
   sessionId: string
   message: string
+  pageUrl?: string
   n8nWebhookUrl: string | null
   tenant: {
     name: string
