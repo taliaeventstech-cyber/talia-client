@@ -1,12 +1,12 @@
 import type { NextRequest } from 'next/server'
 
-export function getAuthCallbackUrl(request: NextRequest) {
+export function getAuthCallbackUrl(request: NextRequest, path = '/auth/callback') {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, '')
   const origin = shouldUseRequestOrigin(request.nextUrl.origin, appUrl)
     ? request.nextUrl.origin
     : appUrl || request.nextUrl.origin
 
-  return `${origin}/auth/callback`
+  return `${origin}${path}`
 }
 
 function shouldUseRequestOrigin(requestOrigin: string, appUrl?: string) {
