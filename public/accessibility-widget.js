@@ -72,6 +72,9 @@
         readingMask: controls.readingMask !== false && controls.focusReading !== false,
         readingLine: controls.readingLine !== false,
         highlightContent: controls.highlightContent !== false,
+        readAloud: controls.readAloud !== false,
+        dyslexiaFont: controls.dyslexiaFont !== false,
+        profiles: controls.profiles !== false,
       },
     };
   }
@@ -135,7 +138,11 @@
     var clearViewContent = root.querySelector('[data-clear-view-content]');
     var clearViewBack = root.querySelector('[data-clear-view-back]');
     var clearViewRefresh = root.querySelector('[data-clear-view-refresh]');
+    var readAloudButton = root.querySelector('[data-read-aloud]');
+    var profileButtons = Array.prototype.slice.call(root.querySelectorAll('[data-profile]'));
     var controlButtons = Array.prototype.slice.call(root.querySelectorAll('[data-control]'));
+    var speaking = false;
+    var speechKeepAlive = 0;
     var focusTop = overlayElements.focusTop;
     var focusBand = overlayElements.focusBand;
     var focusBottom = overlayElements.focusBottom;
@@ -164,10 +171,27 @@
     });
 
     reset.addEventListener('click', function () {
+      stopSpeaking();
       state = getDefaultState();
       saveState(config.tenantId, state);
       applyState(state);
       renderState();
+    });
+
+    if (readAloudButton) {
+      readAloudButton.addEventListener('click', function () {
+        if (speaking) {
+          stopSpeaking();
+        } else {
+          startSpeaking();
+        }
+      });
+    }
+
+    profileButtons.forEach(function (button) {
+      button.addEventListener('click', function () {
+        applyProfile(button.getAttribute('data-profile'));
+      });
     });
 
     if (increase) {
@@ -274,6 +298,69 @@
         focusPanelReturnTarget();
       }
     });
+
+    function applyProfile(name) {
+      var presets = {
+        dyslexia: { dyslexiaFont: true, lineSpacing: true, readingLine: true, textScale: 1 },
+        adhd: { lowStimulation: true, pauseAnimations: true, readingMask: true },
+        lowvision: { textScale: 3, contrast: true, readableFont: true },
+        calm: { lowStimulation: true, pauseAnimations: true, grayscale: true },
+      };
+      var preset = presets[name];
+      if (!preset) return;
+
+      stopSpeaking();
+      state = getDefaultState();
+      Object.keys(preset).forEach(function (key) {
+        state[key] = preset[key];
+      });
+      saveState(config.tenantId, state);
+      applyState(state);
+      renderState();
+    }
+
+    function startSpeaking() {
+      if (!('speechSynthesis' in window) || !readAloudButton) return;
+      stopSpeaking();
+
+      var chunks = collectSpeechChunks();
+      if (!chunks.length) return;
+
+      var lang = getSpeechLang(config.language);
+      var voice = pickSpeechVoice(lang);
+      speaking = true;
+      readAloudButton.setAttribute('aria-pressed', 'true');
+      readAloudButton.classList.add('control--active');
+
+      chunks.forEach(function (text, index) {
+        var utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = lang;
+        if (voice) utterance.voice = voice;
+        if (index === chunks.length - 1) {
+          utterance.onend = function () { if (speaking) stopSpeaking(); };
+        }
+        window.speechSynthesis.speak(utterance);
+      });
+
+      // Chrome pauses long synthesis queues after ~15s; keep it alive while active.
+      speechKeepAlive = window.setInterval(function () {
+        if (!speaking || !window.speechSynthesis.speaking) return;
+        window.speechSynthesis.resume();
+      }, 10000);
+    }
+
+    function stopSpeaking() {
+      speaking = false;
+      if (speechKeepAlive) {
+        window.clearInterval(speechKeepAlive);
+        speechKeepAlive = 0;
+      }
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      if (readAloudButton) {
+        readAloudButton.setAttribute('aria-pressed', 'false');
+        readAloudButton.classList.remove('control--active');
+      }
+    }
 
     function openPanel() {
       previousFocus = root.activeElement || toggle;
@@ -545,6 +632,7 @@
       html.talia-a11y-pause-animations *, html.talia-a11y-pause-animations *::before, html.talia-a11y-pause-animations *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .001ms !important; }\
       html.talia-a11y-line-spacing body :where(p, li, blockquote, dd, dt) { line-height: 1.75 !important; letter-spacing: .02em !important; margin-bottom: 1em !important; }\
       html.talia-a11y-readable-font body :where(p, li, a, button, input, textarea, select, label, span, dd, dt, h1, h2, h3, h4, h5, h6, blockquote) { font-family: Arial, Helvetica, system-ui, sans-serif !important; }\
+      html.talia-a11y-dyslexia-font body :where(p, li, a, button, input, textarea, select, label, span, dd, dt, h1, h2, h3, h4, h5, h6, blockquote) { font-family: "OpenDyslexic", "Comic Sans MS", "Comic Sans", Verdana, Tahoma, sans-serif !important; letter-spacing: .06em !important; word-spacing: .16em !important; line-height: 1.6 !important; }\
       html.talia-a11y-reading-mask body :where(p, li, dd, dt, blockquote):not(#talia-accessibility-root *):not(#talia-widget-root *) { line-height: 1.68 !important; }\
       html.talia-a11y-low-stimulation, html.talia-a11y-low-stimulation body { scroll-behavior: auto !important; }\
       html.talia-a11y-low-stimulation body { background: #f7f6f0 !important; color: #1f2933 !important; }\
@@ -575,6 +663,7 @@
       'talia-a11y-pause-animations',
       'talia-a11y-line-spacing',
       'talia-a11y-readable-font',
+      'talia-a11y-dyslexia-font',
       'talia-a11y-low-stimulation',
       'talia-a11y-reading-mask',
       'talia-a11y-reading-line',
@@ -591,6 +680,7 @@
     if (state.pauseAnimations) root.classList.add('talia-a11y-pause-animations');
     if (state.lineSpacing) root.classList.add('talia-a11y-line-spacing');
     if (state.readableFont) root.classList.add('talia-a11y-readable-font');
+    if (state.dyslexiaFont) root.classList.add('talia-a11y-dyslexia-font');
     if (state.lowStimulation) root.classList.add('talia-a11y-low-stimulation');
     if (state.readingMask) root.classList.add('talia-a11y-reading-mask');
     if (state.readingLine) root.classList.add('talia-a11y-reading-line');
@@ -642,6 +732,9 @@
         .icon-button { width: 40px; height: 40px; border: 1px solid #cfd5df; border-radius: 8px; background: #fff; color: #111827; cursor: pointer; font: 800 20px/1 Arial, Helvetica, system-ui, sans-serif; box-shadow: 0 1px 2px rgba(15,23,42,.04); }\
         .icon-button:hover { border-color: #9aa4b2; background: #f8fafc; }\
         .icon-button:disabled { opacity: .45; cursor: not-allowed; }\
+        .profiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }\
+        .profile { min-height: 44px; border: 1px solid #e1e5ec; border-radius: 8px; background: #f6f7f9; color: #111827; cursor: pointer; padding: 8px 10px; text-align: left; font: 800 13px/1.15 Arial, Helvetica, system-ui, sans-serif; box-shadow: 0 1px 2px rgba(15,23,42,.04); }\
+        .profile:hover { background: var(--talia-a11y-primary-soft); border-color: var(--talia-a11y-primary-border); }\
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }\
         .control { min-height: 54px; border: 1px solid #d5dae4; border-radius: 8px; background: #fff; color: #111827; cursor: pointer; display: grid; grid-template-columns: auto 1fr; gap: 9px; align-items: center; padding: 10px; text-align: left; font: 800 13px/1.18 Arial, Helvetica, system-ui, sans-serif; box-shadow: 0 1px 2px rgba(15,23,42,.035); }\
         .control:hover { border-color: #9aa4b2; background: #fbfcfe; }\
@@ -683,14 +776,22 @@
             <button class="tab" id="talia-a11y-tab-ai" data-tab-ai type="button" role="tab" aria-selected="false" aria-controls="talia-a11y-ai">' + escapeHtml(copy.aiTab) + '</button>\
           </div>' : '') + '\
           <div class="view" data-controls-view id="talia-a11y-controls"' + (config.clearViewEnabled ? ' role="tabpanel" aria-labelledby="talia-a11y-tab-controls" aria-hidden="false"' : '') + '>\
+            ' + (controls.profiles ? '<div class="profiles" role="group" aria-label="' + escapeHtml(copy.profilesLabel) + '">\
+              <button class="profile" data-profile="dyslexia" type="button">' + escapeHtml(copy.profileDyslexia) + '</button>\
+              <button class="profile" data-profile="adhd" type="button">' + escapeHtml(copy.profileAdhd) + '</button>\
+              <button class="profile" data-profile="lowvision" type="button">' + escapeHtml(copy.profileLowVision) + '</button>\
+              <button class="profile" data-profile="calm" type="button">' + escapeHtml(copy.profileCalm) + '</button>\
+            </div>' : '') + '\
             ' + (controls.textSize ? '<div class="text-row"><span class="text-level" data-text-level aria-live="polite"></span><button class="icon-button" data-text-decrease type="button" aria-label="' + escapeHtml(copy.decreaseText) + '">A-</button><button class="icon-button" data-text-increase type="button" aria-label="' + escapeHtml(copy.increaseText) + '">A+</button></div>' : '') + '\
             <div class="grid">\
+              ' + (controls.readAloud && ('speechSynthesis' in window) ? '<button class="control" data-read-aloud type="button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"></path><path d="M15.5 8.8a4 4 0 0 1 0 6.4"></path><path d="M18 6.5a8 8 0 0 1 0 11"></path></svg><span>' + escapeHtml(copy.readAloud) + '</span></button>' : '') + '\
               ' + controlTemplate(controls.contrast, 'contrast', copy.contrast, 'M4 4h16v16H4z M8 8h8v8H8z') + '\
               ' + controlTemplate(controls.grayscale, 'grayscale', copy.grayscale, 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 3v18') + '\
               ' + controlTemplate(controls.highlightLinks, 'highlightLinks', copy.highlightLinks, 'M10 13a5 5 0 0 0 7.07 0l2.12-2.12a5 5 0 0 0-7.07-7.07L11 4.93 M14 11a5 5 0 0 0-7.07 0L4.81 13.12a5 5 0 0 0 7.07 7.07L13 19.07') + '\
               ' + controlTemplate(controls.pauseAnimations, 'pauseAnimations', copy.pauseAnimations, 'M8 5h3v14H8z M15 5h3v14h-3z') + '\
               ' + controlTemplate(controls.lineSpacing, 'lineSpacing', copy.lineSpacing, 'M7 6h13 M7 12h13 M7 18h13 M4 5v14') + '\
               ' + controlTemplate(controls.readableFont, 'readableFont', copy.readableFont, 'M4 19 10 5h4l6 14 M7 14h10') + '\
+              ' + controlTemplate(controls.dyslexiaFont, 'dyslexiaFont', copy.dyslexiaFont, 'M6 5h9a3 3 0 0 1 0 6H6z M6 11h10a3 3 0 0 1 0 6H6z M6 5v12') + '\
               ' + controlTemplate(controls.lowStimulation, 'lowStimulation', copy.lowStimulation, 'M5 6h14 M7 12h10 M9 18h6') + '\
               ' + controlTemplate(controls.readingMask, 'readingMask', copy.readingMask, 'M4 7h16 M4 17h16 M4 12h16') + '\
               ' + controlTemplate(controls.readingLine, 'readingLine', copy.readingLine, 'M3 12h18') + '\
@@ -1046,6 +1147,52 @@
     return String(value || '').replace(/\s+/g, ' ').trim();
   }
 
+  function collectSpeechChunks() {
+    var scope = document.querySelector('main') || document.body;
+    if (!scope) return [];
+
+    var selector = 'h1, h2, h3, h4, h5, h6, p, li, dd, dt, blockquote, figcaption';
+    var chunks = [];
+    var seen = {};
+
+    Array.prototype.forEach.call(scope.querySelectorAll(selector), function (node) {
+      if (!isUsableContentElement(node)) return;
+      // Only read leaf text blocks so a container is not spoken together with its children.
+      if (node.querySelector(selector)) return;
+      var text = getText(node);
+      if (text.length < 2) return;
+      var key = text.toLowerCase();
+      if (seen[key]) return;
+      seen[key] = true;
+      chunks.push(text);
+    });
+
+    if (!chunks.length && document.title) chunks.push(normalizeText(document.title));
+    return chunks.slice(0, 300);
+  }
+
+  function getSpeechLang(language) {
+    if (language === 'ca') return 'ca-ES';
+    if (language === 'en') return 'en-US';
+    return 'es-ES';
+  }
+
+  function pickSpeechVoice(lang) {
+    if (!('speechSynthesis' in window)) return null;
+    var voices = window.speechSynthesis.getVoices() || [];
+    var base = lang.slice(0, 2).toLowerCase();
+    var exact = null;
+    var partial = null;
+
+    voices.forEach(function (voice) {
+      var voiceLang = String(voice.lang || '').toLowerCase();
+      if (voiceLang === lang.toLowerCase() && !exact) exact = voice;
+      else if (voiceLang.slice(0, 2) === base && !partial) partial = voice;
+    });
+
+    return exact || partial || null;
+  }
+
   function uniqueText(items) {
     var seen = {};
     return items.filter(function (item) {
@@ -1132,6 +1279,13 @@
         readingMask: 'Máscara de lectura',
         readingLine: 'Línea de lectura',
         highlightContent: 'Resaltar contenido',
+        readAloud: 'Leer en voz alta',
+        dyslexiaFont: 'Fuente para dislexia',
+        profilesLabel: 'Perfiles rápidos',
+        profileDyslexia: 'Dislexia',
+        profileAdhd: 'Concentración',
+        profileLowVision: 'Baja visión',
+        profileCalm: 'Bajo estímulo',
         reset: 'Restablecer',
         clearView: 'Vista clara',
         clearViewDescription: 'Resume esta página en una lectura simple y ordenada.',
@@ -1177,6 +1331,13 @@
         readingMask: 'Màscara de lectura',
         readingLine: 'Línia de lectura',
         highlightContent: 'Ressalta contingut',
+        readAloud: 'Llegir en veu alta',
+        dyslexiaFont: 'Font per a dislèxia',
+        profilesLabel: 'Perfils ràpids',
+        profileDyslexia: 'Dislèxia',
+        profileAdhd: 'Concentració',
+        profileLowVision: 'Baixa visió',
+        profileCalm: 'Baix estímul',
         reset: 'Restableix',
         clearView: 'Vista clara',
         clearViewDescription: 'Resumeix aquesta pàgina en una lectura simple i ordenada.',
@@ -1222,6 +1383,13 @@
         readingMask: 'Reading mask',
         readingLine: 'Reading line',
         highlightContent: 'Highlight content',
+        readAloud: 'Read aloud',
+        dyslexiaFont: 'Dyslexia font',
+        profilesLabel: 'Quick profiles',
+        profileDyslexia: 'Dyslexia',
+        profileAdhd: 'Focus',
+        profileLowVision: 'Low vision',
+        profileCalm: 'Low stimulation',
         reset: 'Reset',
         clearView: 'Clear view',
         clearViewDescription: 'Summarize this page into a simple, ordered reading view.',
@@ -1355,6 +1523,7 @@
       pauseAnimations: false,
       lineSpacing: false,
       readableFont: false,
+      dyslexiaFont: false,
       lowStimulation: false,
       readingMask: false,
       readingLine: false,
@@ -1375,6 +1544,7 @@
       state.pauseAnimations = parsed.pauseAnimations === true;
       state.lineSpacing = parsed.lineSpacing === true;
       state.readableFont = parsed.readableFont === true;
+      state.dyslexiaFont = parsed.dyslexiaFont === true;
       state.lowStimulation = parsed.lowStimulation === true;
       state.readingMask = parsed.readingMask === true || parsed.focusReading === true;
       state.readingLine = parsed.readingLine === true;

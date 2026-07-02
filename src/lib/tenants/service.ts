@@ -41,6 +41,9 @@ export type PublicAccessibilityConfig = {
     readingMask: boolean
     readingLine: boolean
     highlightContent: boolean
+    readAloud: boolean
+    dyslexiaFont: boolean
+    profiles: boolean
   }
 }
 
@@ -379,6 +382,9 @@ function getAccessibilityConfig(value: unknown, fallbackColor: string): PublicAc
       readingMask: controls.readingMask !== false && controls.focusReading !== false,
       readingLine: controls.readingLine !== false,
       highlightContent: controls.highlightContent !== false,
+      readAloud: controls.readAloud !== false,
+      dyslexiaFont: controls.dyslexiaFont !== false,
+      profiles: controls.profiles !== false,
     },
   }
 }

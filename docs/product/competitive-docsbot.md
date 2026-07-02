@@ -185,6 +185,84 @@ fuentes. El resto del catálogo de DocsBot es, en su mayoría, ruido para el mer
 
 ---
 
+## Apéndice A — Fuentes de conocimiento de DocsBot ("37+")
+
+DocsBot no publica una tabla oficial única numerada. El "37+" es una cifra de marketing
+(en otras páginas cita 28+ o 40+). Esta lista está **reconstruida** cruzando su homepage,
+el artículo de source types y la documentación de API (jul 2026); da ~38 ítems, coherente
+con su cifra, pero el número exacto y el estado *beta* de algunos conectores varían.
+
+**Web y feeds**
+
+1. Website (crawler de sitio completo)
+2. URL individual / página web
+3. Sitemap (XML)
+4. RSS feed
+5. Vídeo de YouTube (individual)
+6. Playlist de YouTube (hasta 100 vídeos)
+
+**Documentos y archivos**
+
+7. PDF
+8. Word (DOCX)
+9. Markdown
+10. HTML
+11. Texto plano (TXT)
+12. CSV
+13. TSV
+14. Email (EML)
+15. Imágenes con OCR (documentos escaneados, capturas, infografías)
+16. Archivos de audio (transcripción IA)
+17. Archivos de vídeo (transcripción IA)
+
+**Entrada manual**
+
+18. Q&A / pares pregunta-respuesta
+19. Texto pegado directamente
+
+**Almacenamiento en la nube**
+
+20. Google Drive
+21. Microsoft SharePoint
+22. OneDrive
+23. Dropbox
+24. Box
+25. Amazon S3
+26. Google Cloud Storage
+27. DigitalOcean Spaces
+
+**Colaboración / conocimiento**
+
+28. Notion
+29. Confluence
+30. Slack
+
+**Help desk / ticketing**
+
+31. Zendesk
+32. Intercom
+33. Freshdesk
+34. Help Scout
+35. Zoho Desk
+36. FreeScout
+
+**Repositorios de código**
+
+37. GitHub
+38. Bitbucket (beta)
+
+**Lectura para TALIA:** igualar los 38 no es el objetivo. La mayoría (help desks, repos de
+código, S3, Confluence) son irrelevantes para venues culturales. Los de alto valor cultural
+—y por tanto los candidatos a cerrar el gap de §7— son **Website/Sitemap, PDF, Google Drive
+y Notion**. Para cifras exactas en material comercial o legal, confirmar en el panel/documentación
+en vivo de DocsBot.
+
+Fuentes: homepage (https://docsbot.ai/), artículo de source types
+(https://docsbot.ai/article/new-flexible-source-types-and-40-powerful-use-cases),
+docs de API (https://docsbot.ai/documentation/developer/source-api).
+
+---
+
 ## Referencias
 
 - DocsBot AI: https://docsbot.ai · https://docsbot.ai/pricing

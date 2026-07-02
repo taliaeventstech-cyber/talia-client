@@ -82,7 +82,10 @@ El MVP debe ser pequeno, reversible y seguro en webs externas.
 
 ### Fuera del MVP
 
-- Text-to-speech.
+Nota (jul 2026): Text-to-speech se implemento despues del MVP (ver auditoria); el resto
+sigue fuera de alcance.
+
+- Text-to-speech. (implementado en jul 2026, ya no aplica)
 - Auditoria automatica WCAG.
 - Generador legal de declaracion de accesibilidad.
 - Crawling de paginas.
@@ -232,7 +235,10 @@ Propuesta de `widget_config`:
       "lowStimulation": true,
       "readingMask": true,
       "readingLine": true,
-      "highlightContent": true
+      "highlightContent": true,
+      "readAloud": true,
+      "dyslexiaFont": true,
+      "profiles": true
     }
   }
 }
@@ -552,21 +558,24 @@ Leyenda: ✅ bien servido · 🟡 parcial · ❌ no servido / no puede
 
 | Perfil | Estado | Detalle |
 |--------|:------:|---------|
-| **Dislexia / dificultad lectora** | ✅ | Fuente legible, mas espaciado (line-height 1.75 + letter-spacing, alineado a WCAG 1.4.12), **mascara y linea de lectura**, y Clear View. Es de los perfiles mejor servidos. Falta fuente especifica de dislexia (OpenDyslexic). |
+| **Dislexia / dificultad lectora** | ✅ | Fuente legible, **fuente para dislexia** (jul 2026), mas espaciado (WCAG 1.4.12), **mascara y linea de lectura**, lectura en voz alta, Clear View y **perfil "Dislexia" de 1 clic**. Es de los perfiles mejor servidos. |
 | **TDAH / atencion** | ✅ | **Baja estimulacion** (quita animaciones, gradientes, urgencia, lineariza layout), pausar animaciones, mascara/linea de lectura, Clear View. Buen encaje real. |
 | **Neurodivergencia / sensibilidad sensorial** | 🟡 | Baja estimulacion y pausar animaciones ayudan. Falta **silenciar sonidos** (autoplay) y **ocultar imagenes**. |
 | **Personas mayores** | ✅ | Combinacion texto + contraste + fuente legible + espaciado. Targets grandes (>=54px) facilitan el uso. |
-| **Baja vision** | 🟡 | Alto contraste y fuente legible ayudan. **Debilidad clave: el texto solo escala a 125% (2 pasos)**; WCAG 1.4.4 pide 200%. Falta lupa/magnificador y cursor grande. |
+| **Baja vision** | 🟡 | Alto contraste, fuente legible, **escalado hasta 200%** (jul 2026) y **lectura en voz alta** ayudan bastante. Queda pendiente lupa/magnificador y cursor grande. |
 | **Daltonismo** | 🟡 | Escala de grises y "resaltar enlaces" (subrayado + outline, no depende del color, WCAG 1.4.1). Sin filtros especificos por tipo. |
 | **Epilepsia / fotosensibilidad** | 🟡 | Pausar animaciones + baja estimulacion (reduce saturacion de medios) mitigan, pero no hay un "modo seguro" de un clic que detenga parpadeos/GIF/video. WCAG 2.3.1 depende del sitio. |
 | **Motor / solo teclado / temblor** | 🟡 | Panel operable por teclado y targets grandes (supera WCAG 2.5.8). Pero (a) el widget **no** aporta navegacion por teclado al sitio host, y (b) hay un bug de foco (Hallazgo 1). |
 | **Ceguera / lector de pantalla** | ❌ | Un overlay **no puede** mejorar la semantica del sitio host; estos usuarios se benefician del HTML/ARIA propio, no de la barra. No debe comunicarse como solucion para ceguera. TALIA hace bien en **no** inyectar un lector alternativo (los overlays que lo hacen interfieren con la tecnologia asistiva del usuario). |
-| **Baja alfabetizacion / audio** | ❌ | **Sin text-to-speech.** Es una de las ayudas de mayor valor para el publico objetivo y hoy esta fuera del MVP. |
+| **Baja alfabetizacion / audio** | ✅ | Cubierto (jul 2026) con **"Leer en voz alta"** (Web Speech API): lee el contenido principal en el idioma detectado, sin datos fuera del navegador. Tambien beneficia a baja vision y dislexia. |
 
 Lectura: el widget sirve **bien** a dislexia, TDAH, neurodivergencia y mayores; **parcialmente**
-a baja vision, daltonismo, epilepsia y motor; y **no puede** servir a lectores de pantalla
-(ni debe pretenderlo). Las dos carencias de mayor impacto para el publico objetivo son el
-**escalado de texto limitado (125%)** y la **ausencia de text-to-speech**.
+a baja vision, daltonismo, epilepsia y motor; y **no puede** servir a lectores de pantalla (ni debe
+pretenderlo). Las dos carencias de mayor impacto que se senalaron para el publico objetivo
+—**escalado de texto limitado (125%)** y **ausencia de text-to-speech**— ya estan **resueltas**
+(jul 2026), junto con la **fuente para dislexia** y los **perfiles de 1 clic**. Con esto, el
+Bloque 1 y el Bloque 2 del roadmap estan completos; los **perfiles** ademas mejoran la
+descubribilidad para usuarios que no saben que ajuste concreto necesitan.
 
 ## 3. Hallazgos WCAG 2.2 del propio widget
 
@@ -592,8 +601,8 @@ a baja vision, daltonismo, epilepsia y motor; y **no puede** servir a lectores d
 | 1 | **Alta** | Con el panel cerrado, sus controles siguen siendo **focusables** (solo `opacity:0` + `pointer-events:none` + `aria-hidden`, sin `display/visibility/inert`). Un usuario de teclado/lector tabula dentro de controles invisibles. | 1.3.1, 2.4.3, 4.1.2 | `panel.inert = true` al cerrar y `false` al abrir (o `visibility:hidden`). |
 | 2 | Media | El widget no respeta `prefers-reduced-motion` en **sus propias** animaciones (panel/lanzador). Ironico para el publico vestibular/epilepsia. | 2.3.3 | `@media (prefers-reduced-motion: reduce)` que anule transiciones. |
 | 3 | Media | Escalado de texto tope 125% (2 pasos). Insuficiente para baja vision. | 1.4.4 | Ampliar a 150-200% (3-4 pasos). |
-| 4 | Media | Sin **text-to-speech**. Alto valor para el publico objetivo. | — (mejora) | Anadir lectura en voz (Web Speech API o proveedor). |
-| 5 | Media | Sin **fuente para dislexia** real (solo Arial). | — (mejora) | Anadir toggle OpenDyslexic/fuente especifica. |
+| 4 | ~~Media~~ **HECHO** | Sin **text-to-speech**. Alto valor para el publico objetivo. | — (mejora) | Aplicado (jul 2026): control "Leer en voz alta" con Web Speech API del navegador, lee el contenido principal en el idioma detectado, se detiene al re-pulsar, nunca auto-arranca (cumple 1.4.2). Sin datos fuera del navegador. |
+| 5 | ~~Media~~ **HECHO** | Sin **fuente para dislexia** real (solo Arial). | — (mejora) | Aplicado (jul 2026): control "Fuente para dislexia" con stack `OpenDyslexic → Comic Sans MS → Verdana` (sin peticiones externas) + espaciado de letra/palabra/linea segun guia BDA. |
 | 6 | Baja | Etiqueta de pestana "IA" poco clara para usuarios con dificultad cognitiva; Clear View poco descubrible. | 3.2.4 | Renombrar a "Lectura facil"/"Vista clara" y subir su visibilidad. |
 | 7 | Baja | Preferencias por-tenant/por-navegador en `localStorage`: el usuario debe reconfigurar en cada venue. | — (UX) | Valorar clave compartida por dominio del script. |
 | 8 | Baja | Sin atajo de teclado para abrir (paridad OneTap Alt+.). | 2.1.4 si se anade | Atajo configurable con posibilidad de desactivar. |
@@ -606,10 +615,10 @@ Leyenda: ✅ presente · 🟡 parcial · ❌ ausente
 
 | Modulo OneTap | TALIA | Nota |
 |---------------|:-----:|------|
-| Text Size | 🟡 | Solo 125% (Hallazgo 3) |
+| Text Size | ✅ | Escalado hasta 200% en 4 pasos (jul 2026) |
 | Line Height / Spacing | ✅ | `lineSpacing` combina interlineado + espaciado |
 | Readable Font | ✅ | Arial/system |
-| Dyslexic Font | ❌ | Hallazgo 5 |
+| Dyslexic Font | ✅ | Aplicado: "Fuente para dislexia" (OpenDyslexic/Comic Sans/Verdana + espaciado BDA) |
 | Letter Spacing (aparte) | 🟡 | Incluido en `lineSpacing`, no separado |
 | Font Weight / Align Text | ❌ | — |
 | Highlight Links | ✅ | Subrayado + outline |
@@ -622,11 +631,11 @@ Leyenda: ✅ presente · 🟡 parcial · ❌ ausente
 | Keyboard Navigation (host) | ❌ | Un overlay no puede garantizarlo |
 | Highlight Titles | 🟡 | Hay `highlightContent`, no titulos aparte |
 | Highlight Content | ✅ | Overlay semantico propio |
-| Text-to-Speech | ❌ | Hallazgo 4 |
+| Text-to-Speech | ✅ | Aplicado: "Leer en voz alta" (Web Speech API, sin datos fuera del navegador) |
 | Mute Sounds | ❌ | Util neurodivergencia |
 | Hide Images | ❌ | Util TDAH/cognitivo |
 | Stop Animations | ✅ | `pauseAnimations` |
-| Perfiles (Vision/Seizure/ADHD/Epilepsy/Blind) | ❌ | TALIA usa toggles sueltos; sin perfiles de 1 clic |
+| Perfiles (Vision/Seizure/ADHD/Epilepsy/Blind) | ✅ | Aplicado (jul 2026): 4 perfiles de 1 clic — Dislexia, Concentracion (TDAH), Baja vision, Bajo estimulo. Sin perfil que simule lector de pantalla (a proposito) |
 | Baja estimulacion / neurodivergente | ✅⭐ | Diferenciador propio, OneTap no lo tiene igual |
 | Clear View (lectura IA) | ✅⭐ | Diferenciador propio |
 | +40 idiomas | 🟡 | Solo es/ca/en |
@@ -647,10 +656,16 @@ Leyenda: ✅ presente · 🟡 parcial · ❌ ausente
 
 **Bloque 2 - eficacia para el publico objetivo (alto valor):**
 
-4. Text-to-speech (Hallazgo 4).
-5. Fuente de dislexia (Hallazgo 5).
-6. Perfiles de 1 clic (dislexia, TDAH, baja vision, seguro para epilepsia) agrupando
-   toggles existentes; mejora la usabilidad para quien no sabe que ajuste necesita.
+4. Text-to-speech (Hallazgo 4) — **HECHO (jul 2026)**: control "Leer en voz alta"
+   con Web Speech API, lectura del contenido principal en el idioma detectado,
+   play/stop por toggle, sin auto-arranque, sin datos fuera del navegador.
+5. Fuente de dislexia (Hallazgo 5) — **HECHO (jul 2026)**: control "Fuente para dislexia"
+   con stack `OpenDyslexic → Comic Sans MS → Verdana` (sin peticiones externas) y espaciado
+   de letra/palabra/linea segun guia de la British Dyslexia Association.
+6. Perfiles de 1 clic — **HECHO (jul 2026)**: 4 perfiles (Dislexia, Concentracion/TDAH,
+   Baja vision, Bajo estimulo) que aplican una combinacion predefinida de ajustes sobre un
+   estado limpio; mejora la usabilidad para quien no sabe que ajuste necesita. Sin perfil
+   que simule lector de pantalla (contraproducente y arriesgado, ver §3 Hallazgo 9).
 
 **Bloque 3 - paridad y cumplimiento comercial:**
 

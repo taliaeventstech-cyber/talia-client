@@ -18,6 +18,8 @@ type ChatPayload = {
   session_id?: string
   sessionId?: string
   message?: string
+  page_url?: string
+  pageUrl?: string
 }
 
 type AgentSourceSummary = {
@@ -53,6 +55,7 @@ export async function POST(
   const payload = await request.json() as ChatPayload
   const sessionId = payload.session_id ?? payload.sessionId
   const message = payload.message?.trim()
+  const pageUrl = normalizePageUrl(payload.page_url ?? payload.pageUrl)
 
   if (!sessionId || !message) {
     return corsJson({ error: 'session_id and message are required' }, { status: 400 })
@@ -236,6 +239,7 @@ export async function POST(
     tenantId,
     sessionId,
     message,
+    pageUrl,
     tenant: {
       name: tenant.config.name,
       language: responseLanguage,
@@ -272,6 +276,7 @@ export async function POST(
     requested_provider: requestedProvider,
     model: response.model ?? null,
     user_message: message,
+    page_url: pageUrl ?? null,
     response_language: responseLanguage,
     retrieval_status: retrievalStatus,
     low_confidence: lowConfidence,
@@ -337,6 +342,25 @@ export async function POST(
       metadata: agentMetadata,
     },
   })
+}
+
+function normalizePageUrl(value: unknown) {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  if (!trimmed) return undefined
+
+  try {
+    const url = new URL(trimmed)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined
+    url.hash = ''
+    for (const key of Array.from(url.searchParams.keys())) {
+      if (key.startsWith('talia_')) url.searchParams.delete(key)
+    }
+    url.search = url.searchParams.toString()
+    return url.toString()
+  } catch {
+    return undefined
+  }
 }
 
 function getKnowledgeSourceType(metadata: Record<string, unknown> | null) {

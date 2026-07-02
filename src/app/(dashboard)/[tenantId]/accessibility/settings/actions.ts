@@ -106,6 +106,9 @@ function getDefaultAccessibilityConfig() {
       readingMask: true,
       readingLine: true,
       highlightContent: true,
+      readAloud: true,
+      dyslexiaFont: true,
+      profiles: true,
     },
   }
 }
