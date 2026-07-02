@@ -13,6 +13,8 @@ type SettingsFormLabels = {
   fallbackPhone: string
   autoOpen: string
   delay: string
+  allowedDomains: string
+  allowedDomainsHint: string
   position: string
   channelPrompt: string
   channelPromptHint: string
@@ -34,6 +36,7 @@ type SettingsFormProps = {
     position: string
     autoOpen: boolean
     autoOpenDelay: number
+    allowedDomains: string[]
   }
   labels: SettingsFormLabels
 }
@@ -115,6 +118,18 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels }: Settin
             />
           </label>
         </div>
+      </section>
+
+      <section className="card stack">
+        <h2>{labels.allowedDomains}</h2>
+        <p className="muted">{labels.allowedDomainsHint}</p>
+        <textarea
+          name="allowed_domains"
+          defaultValue={widgetConfig.allowedDomains.join('\n')}
+          rows={4}
+          className="mono"
+          placeholder="staging.example.com&#10;preview.example.com"
+        />
       </section>
 
       <section className="card stack">

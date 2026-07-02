@@ -413,6 +413,16 @@ function ChatbotOperationsPanel({ client }: { client: Client }) {
             />
             <span className="field-hint">Endpoint técnico que recibe los mensajes del widget.</span>
           </label>
+          <label className="field">
+            Dominios autorizados adicionales
+            <textarea
+              name="chatbot_allowed_domains"
+              defaultValue={widgetConfig.allowedDomains.join('\n')}
+              rows={4}
+              placeholder="staging.cliente.com&#10;preview.cliente.com"
+            />
+            <span className="field-hint">La web oficial ya se autoriza automáticamente. Usa esto para staging, previews o dominios temporales.</span>
+          </label>
           <div className="compact-status-row">
             <span>Prompt {client.system_prompt ? 'personalizado' : 'por defecto'}</span>
             <span>Conocimiento gestionado desde Agora</span>
@@ -1072,6 +1082,7 @@ function getWidgetConfig(value: unknown) {
       autoOpen: false,
       autoOpenDelay: 3,
       chatbotAi: undefined,
+      allowedDomains: [],
     }
   }
 
@@ -1083,6 +1094,8 @@ function getWidgetConfig(value: unknown) {
     autoOpenDelay?: unknown
     chatbotAi?: unknown
     chatbot_ai?: unknown
+    allowedDomains?: unknown
+    allowed_domains?: unknown
   }
 
   return {
@@ -1092,6 +1105,7 @@ function getWidgetConfig(value: unknown) {
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
     chatbotAi: config.chatbotAi ?? config.chatbot_ai,
+    allowedDomains: getStringList(config.allowedDomains ?? config.allowed_domains),
   }
 }
 

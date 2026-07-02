@@ -2,6 +2,7 @@ import { corsJson, corsNoContent } from '@/lib/http/cors'
 import { verifyWebCaptureBatchToken } from '@/lib/knowledge/web-capture-token'
 import { getSignedCaptureUrl } from '@/lib/knowledge/web-capture-url'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/lib/widget/domain-allowlist'
 import { z } from 'zod'
 
 const nextCaptureSchema = z.object({
@@ -37,20 +38,37 @@ export async function POST(
   }
 
   const admin = createAdminClient()
-  const { data: source, error } = await admin
-    .from('knowledge_sources')
-    .select('id, source_url')
-    .eq('id', nextSourceId)
-    .eq('theatre_id', tenantId)
-    .eq('type', 'web_snapshot')
-    .maybeSingle()
+  const [domainSettings, sourceResult] = await Promise.all([
+    getTenantWidgetDomainSettings(admin, tenantId),
+    admin
+      .from('knowledge_sources')
+      .select('id, source_url')
+      .eq('id', nextSourceId)
+      .eq('theatre_id', tenantId)
+      .eq('type', 'web_snapshot')
+      .maybeSingle(),
+  ])
 
-  if (error) {
-    return corsJson({ error: error.message }, { status: 500 })
+  if (!domainSettings.ok) {
+    return corsJson({ error: domainSettings.error }, { status: 404 })
   }
 
+  if (sourceResult.error) {
+    return corsJson({ error: sourceResult.error.message }, { status: 500 })
+  }
+
+  const source = sourceResult.data
   if (!source?.source_url) {
     return corsJson({ error: 'source_not_found' }, { status: 404 })
+  }
+
+  const domain = validateWidgetRequestDomain({
+    request,
+    pageUrl: source.source_url,
+    ...domainSettings.settings,
+  })
+  if (!domain.ok) {
+    return corsJson({ error: domain.error }, { status: 403 })
   }
 
   return corsJson({
