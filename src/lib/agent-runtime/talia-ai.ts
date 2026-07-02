@@ -1,4 +1,5 @@
 import type { ChatAgentProvider, ChatAgentRuntimeInput, ChatAgentRuntimeResult } from './chat'
+import { chatbotAiSettingsToRuntime, normalizeChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 
 type TaliaAiChatResponse = {
   ok?: unknown
@@ -19,6 +20,7 @@ export class TaliaAiChatAgentProvider implements ChatAgentProvider {
     const baseUrl = process.env.TALIA_AI_BASE_URL?.replace(/\/$/, '')
     const apiKey = process.env.TALIA_AI_INTERNAL_API_KEY
     const includeFallbackContacts = !input.relevantKnowledge?.some((item) => item.score >= 4)
+    const aiSettings = normalizeChatbotAiSettings(input.tenant.aiSettings)
 
     if (!baseUrl || !apiKey) {
       return {
@@ -40,12 +42,14 @@ export class TaliaAiChatAgentProvider implements ChatAgentProvider {
           tenant_id: input.tenantId,
           session_id: input.sessionId,
           message: input.message,
+          ...(input.pageUrl ? { page_url: input.pageUrl } : {}),
           language: input.tenant.language,
           tenant: {
             name: input.tenant.name,
             system_prompt: input.tenant.systemPrompt ?? '',
-            ...(includeFallbackContacts && input.tenant.fallbackEmail ? { fallback_email: input.tenant.fallbackEmail } : {}),
-            ...(includeFallbackContacts && input.tenant.fallbackPhone ? { fallback_phone: input.tenant.fallbackPhone } : {}),
+            ai_settings: chatbotAiSettingsToRuntime(aiSettings),
+            ...(aiSettings.fallbackContacts && includeFallbackContacts && input.tenant.fallbackEmail ? { fallback_email: input.tenant.fallbackEmail } : {}),
+            ...(aiSettings.fallbackContacts && includeFallbackContacts && input.tenant.fallbackPhone ? { fallback_phone: input.tenant.fallbackPhone } : {}),
           },
           relevant_knowledge: input.relevantKnowledge?.map((item) => ({
             id: item.id,

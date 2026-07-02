@@ -70,6 +70,7 @@ export default async function SettingsPage({ params, searchParams }: Props) {
             position: widgetConfig.position,
             autoOpen: widgetConfig.autoOpen,
             autoOpenDelay: widgetConfig.autoOpenDelay,
+            allowedDomains: widgetConfig.allowedDomains,
           }}
           labels={dictionary.settings.form}
         />
@@ -150,6 +151,7 @@ function getWidgetConfig(value: unknown) {
       position: 'bottom-right',
       autoOpen: false,
       autoOpenDelay: 3,
+      allowedDomains: [],
     }
   }
 
@@ -160,6 +162,8 @@ function getWidgetConfig(value: unknown) {
     position?: unknown
     autoOpen?: unknown
     autoOpenDelay?: unknown
+    allowedDomains?: unknown
+    allowed_domains?: unknown
   }
 
   return {
@@ -169,7 +173,14 @@ function getWidgetConfig(value: unknown) {
     position: getWidgetPosition(config.position),
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
+    allowedDomains: getAllowedDomains(config.allowedDomains ?? config.allowed_domains),
   }
+}
+
+function getAllowedDomains(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : []
 }
 
 function getWidgetPosition(value: unknown) {

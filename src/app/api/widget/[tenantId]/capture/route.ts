@@ -4,6 +4,7 @@ import { ingestWebSnapshotSource } from '@/lib/knowledge/ingestion'
 import { verifyWebCaptureToken } from '@/lib/knowledge/web-capture-token'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPublicWidgetConfig } from '@/lib/tenants/service'
+import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/lib/widget/domain-allowlist'
 
 const MAX_CAPTURE_TEXT_LENGTH = 200_000
 const MIN_CAPTURE_TEXT_LENGTH = 40
@@ -37,14 +38,18 @@ export async function POST(
   }
 
   const admin = createAdminClient()
-  const { data: theatre } = await admin
-    .from('theatres')
-    .select('website_url')
-    .eq('id', tenantId)
-    .maybeSingle()
+  const domainSettings = await getTenantWidgetDomainSettings(admin, tenantId)
+  if (!domainSettings.ok) {
+    return corsJson({ error: domainSettings.error }, { status: 404 })
+  }
 
-  if (!originMatchesUrl(request, parsed.data.url) && !matchesOfficialWebsite(parsed.data.url, theatre?.website_url)) {
-    return corsJson({ error: 'origin_mismatch' }, { status: 403 })
+  const domain = validateWidgetRequestDomain({
+    request,
+    pageUrl: parsed.data.url,
+    ...domainSettings.settings,
+  })
+  if (!domain.ok) {
+    return corsJson({ error: domain.error }, { status: 403 })
   }
 
   const tenant = await getPublicWidgetConfig(admin, tenantId)
@@ -78,29 +83,8 @@ async function safeJson(request: Request) {
   }
 }
 
-function originMatchesUrl(request: Request, value: string) {
-  const origin = request.headers.get('origin')
-  if (!origin) return true
-
-  try {
-    return new URL(origin).origin === new URL(value).origin
-  } catch {
-    return false
-  }
-}
-
 function stripHash(value: string) {
   const url = new URL(value)
   url.hash = ''
   return url.toString()
-}
-
-function matchesOfficialWebsite(value: string, officialWebsite?: string | null) {
-  if (!officialWebsite) return false
-
-  try {
-    return new URL(value).origin === new URL(officialWebsite).origin
-  } catch {
-    return false
-  }
 }

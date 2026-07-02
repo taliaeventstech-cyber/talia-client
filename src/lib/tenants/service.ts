@@ -1,5 +1,6 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
 import { getBillingAccess } from '@/lib/billing/access'
+import { normalizeChatbotAiSettings, type ChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import type { Json } from '@/types/database.types'
 
 type AdminClient = ReturnType<typeof createAdminClient>
@@ -40,6 +41,9 @@ export type PublicAccessibilityConfig = {
     readingMask: boolean
     readingLine: boolean
     highlightContent: boolean
+    readAloud: boolean
+    dyslexiaFont: boolean
+    profiles: boolean
   }
 }
 
@@ -51,6 +55,7 @@ export type TenantChatConfig = {
   systemPrompt: string | null
   fallbackEmail: string | null
   fallbackPhone: string | null
+  aiSettings: ChatbotAiSettings
 }
 
 export type KnowledgeFaqItem = {
@@ -146,7 +151,7 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
 export async function getTenantChatConfig(admin: AdminClient, tenantId: string) {
   const { data, error } = await admin
     .from('theatres')
-    .select('id, name, primary_language, system_prompt, n8n_webhook_url, fallback_email, fallback_phone, accounts(status, created_at, metadata)')
+    .select('id, name, primary_language, system_prompt, n8n_webhook_url, fallback_email, fallback_phone, widget_config, accounts(status, created_at, metadata)')
     .eq('id', tenantId)
     .single()
 
@@ -158,6 +163,8 @@ export async function getTenantChatConfig(admin: AdminClient, tenantId: string) 
     return { ok: false as const, error: 'Trial expired or subscription inactive' }
   }
 
+  const widgetConfig = getWidgetConfig(data.widget_config)
+
   return {
     ok: true as const,
     config: {
@@ -168,6 +175,7 @@ export async function getTenantChatConfig(admin: AdminClient, tenantId: string) 
       systemPrompt: data.system_prompt,
       fallbackEmail: data.fallback_email,
       fallbackPhone: data.fallback_phone,
+      aiSettings: widgetConfig.aiSettings,
     } satisfies TenantChatConfig,
   }
 }
@@ -308,6 +316,7 @@ function getWidgetConfig(value: unknown) {
       autoOpen: false,
       autoOpenDelay: 3,
       accessibility: getAccessibilityConfig(undefined, '#000000'),
+      aiSettings: normalizeChatbotAiSettings(undefined),
     }
   }
 
@@ -319,6 +328,8 @@ function getWidgetConfig(value: unknown) {
     autoOpen?: unknown
     autoOpenDelay?: unknown
     accessibility?: unknown
+    chatbotAi?: unknown
+    chatbot_ai?: unknown
   }
   const primaryColor = typeof config.primaryColor === 'string' ? config.primaryColor : '#000000'
 
@@ -330,6 +341,7 @@ function getWidgetConfig(value: unknown) {
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
     accessibility: getAccessibilityConfig(config.accessibility, primaryColor),
+    aiSettings: normalizeChatbotAiSettings(config.chatbotAi ?? config.chatbot_ai),
   }
 }
 
@@ -370,6 +382,9 @@ function getAccessibilityConfig(value: unknown, fallbackColor: string): PublicAc
       readingMask: controls.readingMask !== false && controls.focusReading !== false,
       readingLine: controls.readingLine !== false,
       highlightContent: controls.highlightContent !== false,
+      readAloud: controls.readAloud !== false,
+      dyslexiaFont: controls.dyslexiaFont !== false,
+      profiles: controls.profiles !== false,
     },
   }
 }

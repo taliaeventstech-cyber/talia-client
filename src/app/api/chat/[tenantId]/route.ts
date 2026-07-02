@@ -6,6 +6,7 @@ import { buildRelevantKnowledgeHints, retrieveTenantKnowledge } from '@/lib/know
 import { detectChatLanguage } from '@/lib/chat/language'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getTenantChatConfig } from '@/lib/tenants/service'
+import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/lib/widget/domain-allowlist'
 import type { Json } from '@/types/database.types'
 import {
   checkTenantLimit,
@@ -18,6 +19,8 @@ type ChatPayload = {
   session_id?: string
   sessionId?: string
   message?: string
+  page_url?: string
+  pageUrl?: string
 }
 
 type AgentSourceSummary = {
@@ -33,6 +36,7 @@ type RetrievalTraceChunk = {
   source_type: string | null
   score: number | null
   rank: number | null
+  used: boolean | null
   language: string | null
   preview: string | null
 }
@@ -52,6 +56,7 @@ export async function POST(
   const payload = await request.json() as ChatPayload
   const sessionId = payload.session_id ?? payload.sessionId
   const message = payload.message?.trim()
+  const pageUrl = normalizePageUrl(payload.page_url ?? payload.pageUrl)
 
   if (!sessionId || !message) {
     return corsJson({ error: 'session_id and message are required' }, { status: 400 })
@@ -62,6 +67,20 @@ export async function POST(
 
   if (!tenant.ok) {
     return corsJson({ error: tenant.error }, { status: 404 })
+  }
+
+  const domainSettings = await getTenantWidgetDomainSettings(admin, tenantId)
+  if (!domainSettings.ok) {
+    return corsJson({ error: domainSettings.error }, { status: 404 })
+  }
+
+  const domain = validateWidgetRequestDomain({
+    request,
+    pageUrl,
+    ...domainSettings.settings,
+  })
+  if (!domain.ok) {
+    return corsJson({ error: domain.error }, { status: 403 })
   }
 
   // Botsonic model: the reply we are about to generate is the billable unit, so
@@ -235,12 +254,14 @@ export async function POST(
     tenantId,
     sessionId,
     message,
+    pageUrl,
     tenant: {
       name: tenant.config.name,
       language: responseLanguage,
       systemPrompt: tenant.config.systemPrompt,
       fallbackEmail: tenant.config.fallbackEmail,
       fallbackPhone: tenant.config.fallbackPhone,
+      aiSettings: tenant.config.aiSettings,
     },
     relevantKnowledge: shouldDelegateKnowledgeToTaliaAi ? [] : buildRelevantKnowledgeHints(knowledge.matches),
   })
@@ -256,6 +277,11 @@ export async function POST(
   const agentSources = summarizeAgentSources(response.sources)
   const agentMetadata = summarizeAgentMetadata(response.metadata)
   const retrievalTrace = summarizeRetrievalTrace(response.metadata)
+  const contactGuard = enforceAllowedContactEmails(response.reply, {
+    fallbackEmail: tenant.config.fallbackEmail,
+    fallbackContacts: tenant.config.aiSettings.fallbackContacts,
+  })
+  const safeReply = contactGuard.reply
   const requestedProvider = shouldDelegateKnowledgeToTaliaAi ? 'talia-ai' : 'n8n'
   const retrievalStatus = getRetrievalStatus({
     delegatedToTaliaAi: shouldDelegateKnowledgeToTaliaAi,
@@ -270,10 +296,15 @@ export async function POST(
     requested_provider: requestedProvider,
     model: response.model ?? null,
     user_message: message,
+    page_url: pageUrl ?? null,
     response_language: responseLanguage,
     retrieval_status: retrievalStatus,
     low_confidence: lowConfidence,
     fallback_reason: fallbackReason,
+    contact_guard: {
+      redacted_emails: contactGuard.redactedEmails,
+      allowed_emails: contactGuard.allowedEmails,
+    },
     agent_sources: agentSources,
     retrieval: retrievalTrace,
     agent_metadata: agentMetadata,
@@ -284,7 +315,7 @@ export async function POST(
     sessionId,
     messages: [
       { role: 'user', content: message },
-      { role: 'assistant', content: response.reply, metadata: assistantTraceMetadata },
+      { role: 'assistant', content: safeReply, metadata: assistantTraceMetadata },
     ],
     metadata: assistantTraceMetadata,
   })
@@ -306,7 +337,7 @@ export async function POST(
   await recordChatbotUsage(admin, {
     tenantId,
     sessionId,
-    message: response.reply,
+    message: safeReply,
     phase: 'assistant_message',
     inputText: message,
     metadata: {
@@ -318,6 +349,10 @@ export async function POST(
       retrieval_status: retrievalStatus,
       low_confidence: lowConfidence,
       fallback_reason: fallbackReason,
+      contact_guard: {
+        redacted_emails: contactGuard.redactedEmails,
+        allowed_emails: contactGuard.allowedEmails,
+      },
       agent_sources: agentSources,
       retrieval: retrievalTrace,
       agent_metadata: agentMetadata,
@@ -325,7 +360,7 @@ export async function POST(
   })
 
   return corsJson({
-    reply: response.reply,
+    reply: safeReply,
     session_id: sessionId,
     source: {
       type: 'agent_runtime',
@@ -337,10 +372,55 @@ export async function POST(
   })
 }
 
+function normalizePageUrl(value: unknown) {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  if (!trimmed) return undefined
+
+  try {
+    const url = new URL(trimmed)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined
+    url.hash = ''
+    for (const key of Array.from(url.searchParams.keys())) {
+      if (key.startsWith('talia_')) url.searchParams.delete(key)
+    }
+    url.search = url.searchParams.toString()
+    return url.toString()
+  } catch {
+    return undefined
+  }
+}
+
+function enforceAllowedContactEmails(
+  reply: string,
+  config: { fallbackEmail: string | null; fallbackContacts: boolean }
+) {
+  const allowedEmails = config.fallbackContacts && config.fallbackEmail
+    ? [config.fallbackEmail.trim().toLowerCase()]
+    : []
+  const fallback = allowedEmails[0]
+  const redactedEmails = new Set<string>()
+
+  const safeReply = reply.replace(EMAIL_PATTERN, (match) => {
+    const normalized = match.trim().toLowerCase()
+    if (allowedEmails.includes(normalized)) return match
+    redactedEmails.add(normalized)
+    return fallback ?? 'el contacto oficial configurado'
+  })
+
+  return {
+    reply: safeReply,
+    allowedEmails,
+    redactedEmails: Array.from(redactedEmails),
+  }
+}
+
 function getKnowledgeSourceType(metadata: Record<string, unknown> | null) {
   const sourceType = metadata?.source_type
   return typeof sourceType === 'string' ? sourceType : 'knowledge_item'
 }
+
+const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi
 
 function buildLimitFallbackMessage(config: { name: string; fallbackEmail: string | null; fallbackPhone: string | null }) {
   const contactParts = [
@@ -504,6 +584,7 @@ function summarizeRetrievalChunk(chunk: unknown, fallbackIndex: number): Retriev
   const sourceType = typeof chunk.source_type === 'string' ? chunk.source_type : null
   const score = typeof chunk.score === 'number' && Number.isFinite(chunk.score) ? chunk.score : null
   const rank = typeof chunk.rank === 'number' && Number.isFinite(chunk.rank) ? chunk.rank : fallbackIndex + 1
+  const used = typeof chunk.used === 'boolean' ? chunk.used : null
   const language = typeof chunk.language === 'string' ? chunk.language : null
   const preview = typeof chunk.preview === 'string' ? truncateForMetadata(chunk.preview, 360) : null
 
@@ -515,6 +596,7 @@ function summarizeRetrievalChunk(chunk: unknown, fallbackIndex: number): Retriev
     source_type: sourceType,
     score,
     rank,
+    used,
     language,
     preview,
   }
