@@ -4,6 +4,7 @@ import { createClearViewProviderFromEnv } from '@/lib/accessibility/openai-clear
 import { corsJson, corsNoContent } from '@/lib/http/cors'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPublicWidgetConfig } from '@/lib/tenants/service'
+import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/lib/widget/domain-allowlist'
 
 export async function POST(request: Request) {
   let body: unknown
@@ -43,6 +44,20 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient()
+  const domainSettings = await getTenantWidgetDomainSettings(admin, input.tenantId)
+  if (!domainSettings.ok) {
+    return corsJson({ error: domainSettings.error }, { status: 404 })
+  }
+
+  const domain = validateWidgetRequestDomain({
+    request,
+    pageUrl: input.url,
+    ...domainSettings.settings,
+  })
+  if (!domain.ok) {
+    return corsJson({ error: domain.error }, { status: 403 })
+  }
+
   const tenantResult = await getPublicWidgetConfig(admin, input.tenantId)
 
   if (!tenantResult.ok) {

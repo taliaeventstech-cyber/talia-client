@@ -114,7 +114,7 @@
       .then(function (response) { return response.json(); })
       .then(function (data) {
         removeTyping(messages);
-        appendMessage(messages, data.reply || data.error || 'No he podido responder ahora mismo.', 'assistant');
+        appendMessage(messages, data.reply || getChatErrorMessage(data.error) || 'No he podido responder ahora mismo.', 'assistant');
       })
       .catch(function () {
         removeTyping(messages);
@@ -134,6 +134,11 @@
   function removeTyping(container) {
     var typing = container.querySelector('[data-typing]');
     if (typing) typing.remove();
+  }
+
+  function getChatErrorMessage(error) {
+    if (error === 'domain_not_allowed') return 'Este dominio no está autorizado para usar este asistente de TALIA.';
+    return error || null;
   }
 
   function installNavigationObserver() {
@@ -290,6 +295,7 @@
 
   function getCaptureErrorMessage(error) {
     if (error === 'origin_mismatch') return 'TALIA no ha podido validar el dominio de esta página.';
+    if (error === 'domain_not_allowed') return 'Este dominio no está autorizado para capturar contenido con TALIA.';
     if (error === 'capture_token_mismatch') return 'La URL de captura ya no coincide con esta página. Vuelve a abrir la captura desde Ágora.';
     if (error === 'expired_capture_token') return 'La captura ha caducado. Vuelve a abrirla desde Ágora.';
     if (error === 'La página no contiene texto suficiente para indexar.') return error;

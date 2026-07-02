@@ -8,6 +8,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { assertTenantAdmin } from '@/lib/tenants/service'
 import { updateTenantSettings as updateTenantSettingsRecord } from '@/lib/tenants/settings'
+import { normalizeAllowedWidgetDomains } from '@/lib/widget/domain-allowlist'
 import type { Json } from '@/types/database.types'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -27,6 +28,7 @@ const settingsSchema = z.object({
   fallbackPhone: z.string().trim().max(40).optional(),
   autoOpen: z.boolean(),
   autoOpenDelay: z.coerce.number().int().min(0).max(60),
+  allowedDomains: z.string().trim().max(2000).optional(),
   systemPrompt: z.string().trim().max(8000, 'El prompt no puede superar los 8000 caracteres').optional(),
 })
 
@@ -64,6 +66,7 @@ export async function updateTenantSettings(
     fallbackPhone: String(formData.get('fallback_phone') ?? '').trim(),
     autoOpen: formData.get('auto_open') === 'on',
     autoOpenDelay: formData.get('auto_open_delay') ?? 3,
+    allowedDomains: String(formData.get('allowed_domains') ?? '').trim(),
     systemPrompt: String(formData.get('system_prompt') ?? '').trim(),
   })
 
@@ -86,6 +89,7 @@ export async function updateTenantSettings(
       position: data.position,
       autoOpen: data.autoOpen,
       autoOpenDelay: data.autoOpenDelay,
+      allowedDomains: normalizeAllowedWidgetDomains(data.allowedDomains ?? ''),
     },
   })
 

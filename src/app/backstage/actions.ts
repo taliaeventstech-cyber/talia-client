@@ -9,6 +9,7 @@ import { emailAgentSettingsToMetadata, normalizeEmailAgentSettings } from '@/lib
 import { createSignupInvite } from '@/lib/platform/invites'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getActiveSubscription } from '@/lib/usage/service'
+import { normalizeAllowedWidgetDomains } from '@/lib/widget/domain-allowlist'
 import type { Json } from '@/types/database.types'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -106,6 +107,7 @@ const updateTenantSchema = createTenantSchema.extend({
   voiceOperationalStatus: z.enum(['draft', 'provisioning', 'active', 'paused', 'error']),
   chatbotWebhookUrl: z.string().trim().url('El webhook del chatbot debe ser una URL válida.').optional().or(z.literal('')),
   chatbotSystemPrompt: z.string().trim().max(4000, 'El prompt del chatbot es demasiado largo.').optional(),
+  chatbotAllowedDomains: z.string().trim().max(2000, 'La lista de dominios autorizados es demasiado larga.').optional(),
   chatbotTemperature: z.coerce.number().min(0).max(1),
   chatbotGroundingMode: z.enum(['strict', 'balanced']),
   chatbotMinContextScore: z.coerce.number().min(0).max(1),
@@ -507,6 +509,7 @@ export async function updateTenantAction(
     voiceOperationalStatus: formData.get('voice_operational_status') || 'draft',
     chatbotWebhookUrl: formData.get('chatbot_webhook_url') || '',
     chatbotSystemPrompt: formData.get('chatbot_system_prompt') || '',
+    chatbotAllowedDomains: formData.get('chatbot_allowed_domains') || '',
     chatbotTemperature: formData.get('chatbot_temperature') || '0.2',
     chatbotGroundingMode: formData.get('chatbot_grounding_mode') || 'strict',
     chatbotMinContextScore: formData.get('chatbot_min_context_score') || '0.3',
@@ -590,6 +593,7 @@ export async function updateTenantAction(
       n8n_webhook_url: data.chatbotWebhookUrl || null,
       system_prompt: data.chatbotSystemPrompt || null,
       widget_config: mergeWidgetConfig(tenantForAccount?.widget_config, {
+        allowedDomains: normalizeAllowedWidgetDomains(data.chatbotAllowedDomains ?? ''),
         chatbotAi: chatbotAiSettingsToWidgetConfig(normalizeChatbotAiSettings({
           temperature: data.chatbotTemperature,
           groundingMode: data.chatbotGroundingMode,
