@@ -493,21 +493,21 @@
     return '\
       <style>\
         :host { all: initial; font-family: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }\
-        .toggle { position: fixed; ' + togglePosition + ' z-index: 2147483647; width: 56px; height: 56px; border: 0; border-radius: 999px; background: ' + primaryColor + '; color: white; cursor: pointer; display: grid; place-items: center; box-shadow: 0 4px 16px rgba(0,0,0,.18); transition: transform 150ms ease, box-shadow 150ms ease; }\
+        .toggle { position: fixed; ' + togglePosition + ' z-index: 2147483647; width: 64px; height: 64px; border: 0; border-radius: 999px; background: ' + primaryColor + '; color: white; cursor: pointer; display: grid; place-items: center; box-shadow: 0 4px 16px rgba(0,0,0,.18); transition: transform 150ms ease, box-shadow 150ms ease; }\
         .toggle:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,.22); }\
         .toggle:active { transform: scale(0.94); }\
-        .toggle svg { width: 28px; height: 28px; display: block; }\
-        .panel { position: fixed; ' + panelPosition + ' z-index: 2147483647; width: min(360px, calc(100vw - 40px)); height: 520px; max-height: calc(100vh - 120px); background: white; color: #1A1A2E; border: .5px solid rgba(26,26,46,.12); border-radius: 12px; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; opacity: 0; transform: translateY(14px) scale(0.97); transform-origin: ' + transformOrigin + '; pointer-events: none; transition: opacity 280ms cubic-bezier(0.16,1,0.3,1), transform 280ms cubic-bezier(0.16,1,0.3,1), box-shadow 280ms cubic-bezier(0.16,1,0.3,1); box-shadow: 0 0 0 rgba(0,0,0,0); }\
+        .toggle svg { width: 31px; height: 31px; display: block; }\
+        .panel { position: fixed; ' + panelPosition + ' z-index: 2147483647; width: min(400px, calc(100vw - 32px)); height: min(580px, calc(100vh - 112px)); max-height: calc(100vh - 112px); background: white; color: #1A1A2E; border: .5px solid rgba(26,26,46,.12); border-radius: 12px; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; opacity: 0; transform: translateY(14px) scale(0.97); transform-origin: ' + transformOrigin + '; pointer-events: none; transition: opacity 280ms cubic-bezier(0.16,1,0.3,1), transform 280ms cubic-bezier(0.16,1,0.3,1), box-shadow 280ms cubic-bezier(0.16,1,0.3,1); box-shadow: 0 0 0 rgba(0,0,0,0); }\
         .panel--open { opacity: 1 !important; transform: translateY(0) scale(1) !important; pointer-events: auto !important; box-shadow: 0 12px 40px rgba(0,0,0,.16) !important; }\
-        .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: ' + primaryColor + '; color: white; font: 500 16px "Space Grotesk", system-ui; }\
+        .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px; background: ' + primaryColor + '; color: white; font: 600 17px "Space Grotesk", system-ui; }\
         .close { border: 0; background: transparent; color: white; font-size: 22px; cursor: pointer; line-height: 1; }\
-        .messages { padding: 14px; overflow: auto; display: flex; flex-direction: column; gap: 10px; background: #F5F2EC; }\
-        .message { max-width: 82%; border-radius: 12px; padding: 10px 12px; font: 14px/1.4 "Space Grotesk", system-ui; white-space: pre-wrap; }\
+        .messages { padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 11px; background: #F5F2EC; }\
+        .message { max-width: 84%; border-radius: 13px; padding: 11px 13px; font: 15px/1.45 "Space Grotesk", system-ui; white-space: pre-wrap; }\
         .assistant { align-self: flex-start; background: #fff; color: #1A1A2E; }\
         .user { align-self: flex-end; background: ' + primaryColor + '; color: white; }\
-        .form { display: flex; gap: 8px; padding: 12px; border-top: .5px solid rgba(26,26,46,.12); }\
-        .input { min-width: 0; flex: 1; border: .5px solid rgba(26,26,46,.25); border-radius: 6px; padding: 10px; font: 14px "Space Grotesk", system-ui; }\
-        .send { border: 0; border-radius: 6px; padding: 0 12px; background: ' + primaryColor + '; color: white; font: 500 13px "Space Grotesk", system-ui; cursor: pointer; }\
+        .form { display: flex; gap: 9px; padding: 13px; border-top: .5px solid rgba(26,26,46,.12); }\
+        .input { min-width: 0; flex: 1; border: .5px solid rgba(26,26,46,.25); border-radius: 7px; padding: 11px; font: 15px "Space Grotesk", system-ui; }\
+        .send { border: 0; border-radius: 7px; padding: 0 14px; background: ' + primaryColor + '; color: white; font: 600 14px "Space Grotesk", system-ui; cursor: pointer; }\
       </style>\
       <section class="panel" data-panel>\
         <div class="header"><span>' + escapeHtml(assistantName) + '</span><button class="close" data-close aria-label="Cerrar">×</button></div>\
@@ -565,7 +565,7 @@
 
   function updateFloatingWidgets(registry) {
     var baseOffset = 20;
-    var widgetSize = 56;
+    var widgetSize = 64;
     var gap = 12;
     var panelGap = 12;
     var priority = { chatbot: 0, accessibility: 1 };

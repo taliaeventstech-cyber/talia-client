@@ -199,13 +199,14 @@ function getWidgetPosition(value: unknown) {
 function getEmbedCode(tenantId: string, websiteUrl: string | null) {
   const appUrl = getAppUrl()
   const siteOrigin = getSiteOrigin(websiteUrl)
+  const siteOriginAttribute = siteOrigin ? `\n  data-site-origin="${siteOrigin}"` : ''
 
   return `<script
   src="${appUrl}/widget.js"
   crossorigin="anonymous"
   data-tenant="${tenantId}"
-  data-api-base="${appUrl}"
-${siteOrigin ? `  data-site-origin="${siteOrigin}"\n` : ''}</script>`
+  data-api-base="${appUrl}"${siteOriginAttribute}
+></script>`
 }
 
 function getSiteOrigin(value: string | null) {
