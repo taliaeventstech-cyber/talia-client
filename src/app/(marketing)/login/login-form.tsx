@@ -89,6 +89,9 @@ export function LoginForm({
         </button>
       </form>
       <p className="muted" style={{ marginTop: 16, fontSize: 13 }}>
+        <Link className="link-accent" href="/forgot-password">{copy.forgotPassword}</Link>
+      </p>
+      <p className="muted" style={{ marginTop: 8, fontSize: 13 }}>
         {copy.noAccount} <Link className="link-accent" href={signupHref}>{copy.createAccount}</Link>
       </p>
     </>
