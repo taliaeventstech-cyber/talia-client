@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getAuthCallbackUrl } from '@/lib/auth/callback-url'
+import { getLocale } from '@/lib/i18n/dictionaries'
 import { checkRateLimit, getClientIp, getInternalRedirect, normalizeEmail, passwordSchema } from '@/lib/auth/security'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -37,11 +38,15 @@ export async function POST(request: NextRequest) {
   const emailRedirectTo = redirectTo
     ? `${callbackUrl}?next=${encodeURIComponent(redirectTo)}`
     : callbackUrl
+  // Persist the locale the user picked in the signup UI (LOCALE_COOKIE) as user
+  // metadata so Supabase email templates can branch on {{ .Data.lang }}.
+  const lang = await getLocale()
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo,
+      data: { lang },
     },
   })
 
