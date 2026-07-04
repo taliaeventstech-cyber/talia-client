@@ -1,6 +1,7 @@
 import { sendChatMessageToN8n } from '@/lib/chat/n8n'
 import type { ChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import type { RelevantKnowledgeHint } from '@/lib/knowledge/retrieval'
+import type { ChatbotResponseTone } from '@/lib/tenants/service'
 import { TaliaAiChatAgentProvider } from './talia-ai'
 
 export type ChatAgentProviderName = 'n8n' | 'talia-ai'
@@ -14,6 +15,7 @@ export type ChatAgentRuntimeInput = {
   tenant: {
     name: string
     language: string
+    responseTone: ChatbotResponseTone
     systemPrompt: string | null
     fallbackEmail: string | null
     fallbackPhone: string | null
