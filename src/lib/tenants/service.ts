@@ -26,6 +26,7 @@ export type PublicWidgetConfig = {
 export type WidgetPosition = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
 export type WidgetCollisionStrategy = 'auto' | 'none'
 export type WidgetSize = 'small' | 'medium' | 'large'
+export type ChatbotResponseTone = 'close' | 'formal' | 'brief'
 
 export type PublicAccessibilityConfig = {
   enabled: boolean
@@ -59,6 +60,7 @@ export type TenantChatConfig = {
   n8nWebhookUrl: string | null
   name: string
   language: string
+  responseTone: ChatbotResponseTone
   systemPrompt: string | null
   fallbackEmail: string | null
   fallbackPhone: string | null
@@ -183,6 +185,7 @@ export async function getTenantChatConfig(admin: AdminClient, tenantId: string) 
       n8nWebhookUrl: data.n8n_webhook_url,
       name: data.name,
       language: data.primary_language ?? 'es',
+      responseTone: widgetConfig.tone,
       systemPrompt: data.system_prompt,
       fallbackEmail: data.fallback_email,
       fallbackPhone: data.fallback_phone,
@@ -330,6 +333,7 @@ function getWidgetConfig(value: unknown) {
       collisionStrategy: 'auto' as const,
       autoOpen: false,
       autoOpenDelay: 3,
+      tone: 'close' as const,
       accessibility: getAccessibilityConfig(undefined, '#000000'),
       aiSettings: normalizeChatbotAiSettings(undefined),
     }
@@ -351,6 +355,7 @@ function getWidgetConfig(value: unknown) {
     collision_strategy?: unknown
     autoOpen?: unknown
     autoOpenDelay?: unknown
+    tone?: unknown
     accessibility?: unknown
     chatbotAi?: unknown
     chatbot_ai?: unknown
@@ -368,6 +373,7 @@ function getWidgetConfig(value: unknown) {
     collisionStrategy: getCollisionStrategy(config.collisionStrategy ?? config.collision_strategy),
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
+    tone: getChatbotResponseTone(config.tone),
     accessibility: getAccessibilityConfig(config.accessibility, primaryColor),
     aiSettings: normalizeChatbotAiSettings(config.chatbotAi ?? config.chatbot_ai),
   }
@@ -386,6 +392,11 @@ function getCollisionStrategy(value: unknown): WidgetCollisionStrategy {
 function getWidgetSize(value: unknown): WidgetSize {
   if (value === 'small' || value === 'large') return value
   return 'medium'
+}
+
+function getChatbotResponseTone(value: unknown): ChatbotResponseTone {
+  if (value === 'formal' || value === 'brief' || value === 'close') return value
+  return 'close'
 }
 
 function getAccessibilityConfig(value: unknown, fallbackColor: string): PublicAccessibilityConfig {
