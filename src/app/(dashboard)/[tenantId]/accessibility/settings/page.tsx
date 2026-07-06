@@ -69,6 +69,9 @@ function getWidgetConfig(value: unknown) {
       enabled?: unknown
       clearViewEnabled?: unknown
       position?: unknown
+      widgetSize?: unknown
+      widget_size?: unknown
+      size?: unknown
       language?: unknown
       primaryColor?: unknown
       highlightColor?: unknown
@@ -80,11 +83,17 @@ function getWidgetConfig(value: unknown) {
       enabled: accessibility.enabled === true,
       clearViewEnabled: accessibility.clearViewEnabled !== false,
       position: getPosition(accessibility.position),
+      widgetSize: getWidgetSize(accessibility.widgetSize ?? accessibility.widget_size ?? accessibility.size),
       language: getLanguage(accessibility.language),
       primaryColor: typeof accessibility.primaryColor === 'string' ? accessibility.primaryColor : primaryColor,
       highlightColor: typeof accessibility.highlightColor === 'string' ? accessibility.highlightColor : '#fffb00',
     },
   }
+}
+
+function getWidgetSize(value: unknown): 'small' | 'medium' | 'large' {
+  if (value === 'small' || value === 'large') return value
+  return 'medium'
 }
 
 function getPosition(value: unknown) {
@@ -127,12 +136,14 @@ function AccessibilityPreview({
     enabled: boolean
     clearViewEnabled: boolean
     position: string
+    widgetSize: 'small' | 'medium' | 'large'
     primaryColor: string
     highlightColor: string
   }
 }) {
   const position = getPreviewPosition(values.position, 16)
   const widgetOpacity = values.enabled ? 1 : 0.46
+  const widgetSize = getPreviewWidgetSize(values.widgetSize)
 
   return (
     <div style={{ minHeight: 360, position: 'relative', border: '1px solid var(--color-border)', borderRadius: 8, background: 'linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018))', overflow: 'hidden' }}>
@@ -170,8 +181,8 @@ function AccessibilityPreview({
 
       <div style={{ position: 'absolute', left: 26, right: 34, top: 128, height: 72, border: `3px solid ${values.highlightColor}`, borderRadius: 10, background: 'rgba(255,255,255,.08)', boxShadow: '0 0 0 2px rgba(17,24,39,.72), 0 10px 28px rgba(0,0,0,.22)', pointerEvents: 'none' }} />
 
-      <div aria-hidden="true" style={{ position: 'absolute', ...position, width: 56, height: 56, borderRadius: 999, background: values.primaryColor, color: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 6px 20px rgba(0,0,0,.18)', opacity: widgetOpacity }}>
-        <svg viewBox="0 0 24 24" focusable="false" width="38" height="38" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <div aria-hidden="true" style={{ position: 'absolute', ...position, width: widgetSize, height: widgetSize, borderRadius: 999, background: values.primaryColor, color: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 6px 20px rgba(0,0,0,.18)', opacity: widgetOpacity }}>
+        <svg viewBox="0 0 24 24" focusable="false" width={Math.round(widgetSize * 0.68)} height={Math.round(widgetSize * 0.68)} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="7.5" r="1.2" fill="currentColor" stroke="none" />
           <path d="M7.5 10.5h9" />
           <path d="M12 10.5v4" />
@@ -180,6 +191,12 @@ function AccessibilityPreview({
       </div>
     </div>
   )
+}
+
+function getPreviewWidgetSize(size: 'small' | 'medium' | 'large') {
+  if (size === 'small') return 56
+  if (size === 'large') return 72
+  return 64
 }
 
 function getPreviewPosition(position: string, offset: number) {

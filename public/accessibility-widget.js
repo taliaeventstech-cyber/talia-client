@@ -57,7 +57,13 @@
       language: language,
       primaryColor: primaryColor,
       highlightColor: highlightColor,
-      position: readString(remote.position) || script.getAttribute('data-position') || 'bottom-right',
+      position: getPosition(readString(remote.position) || script.getAttribute('data-position') || 'bottom-right'),
+      widgetSize: getWidgetSize(
+        readString(remote.widgetSize) ||
+        readString(remote.widget_size) ||
+        readString(remote.size) ||
+        script.getAttribute('data-size')
+      ),
       showBranding: fromAccessibilityConfig ? remote.showBranding !== false : script.getAttribute('data-branding') !== 'false',
       clearViewEnabled: fromAccessibilityConfig ? remote.clearViewEnabled !== false : script.getAttribute('data-clear-view') !== 'false',
       controls: {
@@ -114,7 +120,7 @@
     host.style.position = 'relative';
     host.style.zIndex = '2147483647';
     document.body.appendChild(host);
-    registerFloatingWidget(host, 'accessibility', config.position);
+    registerFloatingWidget(host, 'accessibility', config.position, config.widgetSize);
 
     var root = host.attachShadow({ mode: 'open' });
     var copy = getCopy(config.language);
@@ -692,6 +698,8 @@
     var panelPosition = getAccessibilityPanelPositionCss(config.position);
     var primaryTextColor = getReadableTextColor(config.primaryColor);
     var primaryBorderColor = getAccessibleBorderColor(config.primaryColor);
+    var toggleSize = getWidgetSizePixels(config.widgetSize);
+    var toggleIconSize = Math.round(toggleSize * 0.68);
     var transformOrigin = config.position.indexOf('left') >= 0
       ? (config.position.indexOf('top') >= 0 ? 'top left' : 'bottom left')
       : (config.position.indexOf('top') >= 0 ? 'top right' : 'bottom right');
@@ -700,11 +708,11 @@
       <style>\
         :host { all: initial; color-scheme: light; font-family: Arial, Helvetica, system-ui, sans-serif; --talia-a11y-primary: ' + config.primaryColor + '; --talia-a11y-primary-text: ' + primaryTextColor + '; --talia-a11y-primary-border: ' + primaryBorderColor + '; --talia-a11y-primary-soft: ' + hexToRgba(config.primaryColor, 0.16) + '; --talia-a11y-highlight: ' + config.highlightColor + '; --talia-a11y-highlight-soft: ' + hexToRgba(config.highlightColor, 0.12) + '; }\
         *, *::before, *::after { box-sizing: border-box; }\
-        .toggle { position: fixed; ' + togglePosition + ' z-index: 2147483647; width: 56px; height: 56px; border: 2px solid rgba(17,24,39,.18); border-radius: 999px; background: ' + config.primaryColor + '; color: var(--talia-a11y-primary-text); cursor: pointer; display: grid; place-items: center; box-shadow: 0 6px 20px rgba(0,0,0,.22); transition: transform 150ms ease, box-shadow 150ms ease; }\
+        .toggle { position: fixed; ' + togglePosition + ' z-index: 2147483647; width: ' + toggleSize + 'px; height: ' + toggleSize + 'px; border: 2px solid rgba(17,24,39,.18); border-radius: 999px; background: ' + config.primaryColor + '; color: var(--talia-a11y-primary-text); cursor: pointer; display: grid; place-items: center; box-shadow: 0 6px 20px rgba(0,0,0,.22); transition: transform 150ms ease, box-shadow 150ms ease; }\
         .toggle:hover { transform: scale(1.06); box-shadow: 0 8px 24px rgba(0,0,0,.26); }\
         .toggle:active { transform: scale(.96); }\
         .toggle:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid #111827; outline-offset: 3px; box-shadow: 0 0 0 6px rgba(255,255,255,.92), 0 0 0 9px #111827; }\
-        .toggle svg { width: 38px; height: 38px; display: block; }\
+        .toggle svg { width: ' + toggleIconSize + 'px; height: ' + toggleIconSize + 'px; display: block; }\
         .panel { position: fixed; ' + panelPosition + ' z-index: 2147483647; width: min(390px, calc(100vw - 32px)); max-height: min(680px, calc(100vh - 136px)); overflow: auto; border: 1px solid #d9dde6; border-radius: 8px; background: #fff; color: #111827; box-shadow: 0 22px 64px rgba(15,23,42,.24); opacity: 0; transform: translateY(10px) scale(.98); transform-origin: ' + transformOrigin + '; pointer-events: none; transition: opacity 180ms ease, transform 180ms ease; }\
         .panel--open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }\
         .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 16px 14px; border-bottom: 1px solid #e7eaf0; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); }\
@@ -1455,6 +1463,34 @@
     return candidate === 'ca' || candidate === 'en' || candidate === 'es' ? candidate : '';
   }
 
+  function getPosition(value) {
+    return value === 'bottom-left' || value === 'top-right' || value === 'top-left'
+      ? value
+      : 'bottom-right';
+  }
+
+  function getWidgetSize(value) {
+    return value === 'small' || value === 'large' ? value : 'medium';
+  }
+
+  function getWidgetSizePixels(value) {
+    if (value === 'small') return 56;
+    if (value === 'large') return 72;
+    return 64;
+  }
+
+  function getPixelOffset(value, fallback) {
+    var numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return fallback;
+    return Math.min(320, Math.max(12, Math.round(numericValue)));
+  }
+
+  function getCollisionPixelOffset(value) {
+    var numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return 0;
+    return Math.min(320, Math.max(0, Math.round(numericValue)));
+  }
+
   function getAccessibilityTogglePositionCss(position) {
     if (position === 'bottom-left') return 'left: var(--talia-floating-inline-offset, 20px); bottom: var(--talia-floating-toggle-offset, 20px);';
     if (position === 'top-right') return 'right: var(--talia-floating-inline-offset, 20px); top: var(--talia-floating-toggle-offset, 20px);';
@@ -1469,12 +1505,21 @@
     return 'right: var(--talia-floating-inline-offset, 20px); bottom: var(--talia-floating-panel-offset, 88px);';
   }
 
-  function registerFloatingWidget(host, type, position) {
+  function registerFloatingWidget(host, type, position, widgetSize) {
     var registry = getFloatingRegistry();
     registry.items = registry.items.filter(function (item) {
       return item.host && item.host.isConnected && item.type !== type;
     });
-    registry.items.push({ host: host, type: type, position: position });
+    registry.items.push({
+      host: host,
+      type: type,
+      position: getPosition(position),
+      widgetSize: getWidgetSize(widgetSize),
+      inlineOffset: 20,
+      blockOffset: 20,
+      collisionStrategy: 'auto',
+      collisionOffset: 0
+    });
     updateFloatingWidgets(registry);
   }
 
@@ -1485,8 +1530,6 @@
   }
 
   function updateFloatingWidgets(registry) {
-    var baseOffset = 20;
-    var widgetSize = 56;
     var gap = 12;
     var panelGap = 12;
     var priority = { chatbot: 0, accessibility: 1 };
@@ -1505,9 +1548,13 @@
       groups[position]
         .sort(function (a, b) { return (priority[a.type] || 9) - (priority[b.type] || 9); })
         .forEach(function (item, index) {
-          var toggleOffset = baseOffset + (index * (widgetSize + gap));
+          var inlineOffset = getPixelOffset(item.inlineOffset, 20);
+          var baseBlockOffset = getPixelOffset(item.blockOffset, 20);
+          var collisionOffset = getCollisionPixelOffset(item.collisionOffset);
+          var widgetSize = getWidgetSizePixels(item.widgetSize);
+          var toggleOffset = Math.max(baseBlockOffset, collisionOffset) + (index * (widgetSize + gap));
           var panelOffset = toggleOffset + widgetSize + panelGap;
-          item.host.style.setProperty('--talia-floating-inline-offset', baseOffset + 'px');
+          item.host.style.setProperty('--talia-floating-inline-offset', inlineOffset + 'px');
           item.host.style.setProperty('--talia-floating-toggle-offset', toggleOffset + 'px');
           item.host.style.setProperty('--talia-floating-panel-offset', panelOffset + 'px');
         });
