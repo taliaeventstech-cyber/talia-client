@@ -1,10 +1,10 @@
 // @vitest-environment node
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createChatAgentProvider, N8nChatAgentProvider } from './chat'
+import { createChatAgentProvider, N8nChatAgentProvider, type ChatAgentRuntimeInput } from './chat'
 import { TaliaAiChatAgentProvider } from './talia-ai'
 
-const runtimeInput = {
+const runtimeInput: ChatAgentRuntimeInput = {
   tenantId: 'tenant-1',
   sessionId: 'session-1',
   message: 'Hola',
@@ -12,6 +12,7 @@ const runtimeInput = {
   tenant: {
     name: 'Sala Test',
     language: 'es',
+    responseTone: 'close',
     systemPrompt: 'Responde como TALIA.',
     fallbackEmail: 'info@example.test',
     fallbackPhone: '+34000000000',
@@ -151,6 +152,7 @@ describe('TaliaAiChatAgentProvider', () => {
       language: 'es',
       tenant: {
         name: 'Sala Test',
+        response_tone: 'close',
         system_prompt: 'Responde como TALIA.',
       },
       relevant_knowledge: [{

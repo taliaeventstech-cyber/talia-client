@@ -258,6 +258,7 @@ export async function POST(
     tenant: {
       name: tenant.config.name,
       language: responseLanguage,
+      responseTone: tenant.config.responseTone,
       systemPrompt: tenant.config.systemPrompt,
       fallbackEmail: tenant.config.fallbackEmail,
       fallbackPhone: tenant.config.fallbackPhone,
