@@ -39,10 +39,10 @@ export function CopyScriptButton({
       type="button"
       className={copied ? 'script-copy-button script-copy-button-copied' : 'script-copy-button'}
       onClick={handleCopy}
-      aria-live="polite"
+      aria-label={copied ? copiedLabel : label}
+      title={copied ? copiedLabel : label}
     >
       {copied ? <Check size={16} strokeWidth={2.2} aria-hidden="true" /> : <Copy size={16} strokeWidth={2.2} aria-hidden="true" />}
-      <span>{copied ? copiedLabel : label}</span>
     </button>
   )
 }

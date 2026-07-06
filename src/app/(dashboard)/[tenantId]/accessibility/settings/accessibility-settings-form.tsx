@@ -13,6 +13,7 @@ type Labels = {
   highlightColor: string
   saving: string
   save: string
+  widgetSize: string
 }
 
 type Props = {
@@ -24,6 +25,7 @@ type Props = {
     language: string
     primaryColor: string
     highlightColor: string
+    widgetSize: 'small' | 'medium' | 'large'
   }
   labels: Labels
 }
@@ -72,6 +74,15 @@ export function AccessibilitySettingsForm({ tenantId, values, labels }: Props) {
               <option value="bottom-left">Abajo izquierda</option>
               <option value="top-right">Arriba derecha</option>
               <option value="top-left">Arriba izquierda</option>
+            </select>
+          </label>
+
+          <label className="field">
+            {labels.widgetSize}
+            <select name="widget_size" defaultValue={values.widgetSize}>
+              <option value="small">Pequeño</option>
+              <option value="medium">Mediano</option>
+              <option value="large">Grande</option>
             </select>
           </label>
 

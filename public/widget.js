@@ -36,13 +36,22 @@
     var initialMessage = config.initialMessage || script.getAttribute('data-initial-message') || 'Hola, soc TALIA. En què et puc ajudar?';
     var primaryColor = config.primaryColor || script.getAttribute('data-color') || '#000000';
     var position = getPosition(config.position || script.getAttribute('data-position') || 'bottom-right');
+    var widgetSize = getWidgetSize(config.widgetSize || config.size || script.getAttribute('data-size'));
+    var inlineOffset = getPixelOffset(config.inlineOffset || script.getAttribute('data-inline-offset'), 20);
+    var blockOffset = getPixelOffset(config.blockOffset || script.getAttribute('data-block-offset'), 20);
+    var collisionStrategy = getCollisionStrategy(config.collisionStrategy || script.getAttribute('data-collision-strategy'));
     var host = document.createElement('div');
     host.id = 'talia-widget-root';
     document.body.appendChild(host);
-    registerFloatingWidget(host, 'chatbot', position);
+    registerFloatingWidget(host, 'chatbot', position, {
+      widgetSize: widgetSize,
+      inlineOffset: inlineOffset,
+      blockOffset: blockOffset,
+      collisionStrategy: collisionStrategy
+    });
 
     var root = host.attachShadow({ mode: 'open' });
-    root.innerHTML = getTemplate(assistantName, initialMessage, primaryColor, position);
+    root.innerHTML = getTemplate(assistantName, initialMessage, primaryColor, position, widgetSize);
 
     var panel = root.querySelector('[data-panel]');
     var toggle = root.querySelector('[data-toggle]');
@@ -483,9 +492,11 @@
     notice.textContent = message;
   }
 
-  function getTemplate(assistantName, initialMessage, primaryColor, position) {
+  function getTemplate(assistantName, initialMessage, primaryColor, position, widgetSize) {
     var togglePosition = getTogglePositionCss(position);
     var panelPosition = getPanelPositionCss(position);
+    var toggleSize = getWidgetSizePixels(widgetSize);
+    var toggleIconSize = Math.round(toggleSize * 0.48);
     var transformOrigin = position.indexOf('left') >= 0
       ? (position.indexOf('top') >= 0 ? 'top left' : 'bottom left')
       : (position.indexOf('top') >= 0 ? 'top right' : 'bottom right');
@@ -493,10 +504,10 @@
     return '\
       <style>\
         :host { all: initial; font-family: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }\
-        .toggle { position: fixed; ' + togglePosition + ' z-index: 2147483647; width: 64px; height: 64px; border: 0; border-radius: 999px; background: ' + primaryColor + '; color: white; cursor: pointer; display: grid; place-items: center; box-shadow: 0 4px 16px rgba(0,0,0,.18); transition: transform 150ms ease, box-shadow 150ms ease; }\
+        .toggle { position: fixed; ' + togglePosition + ' z-index: 2147483647; width: ' + toggleSize + 'px; height: ' + toggleSize + 'px; border: 0; border-radius: 999px; background: ' + primaryColor + '; color: white; cursor: pointer; display: grid; place-items: center; box-shadow: 0 4px 16px rgba(0,0,0,.18); transition: transform 150ms ease, box-shadow 150ms ease; }\
         .toggle:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,.22); }\
         .toggle:active { transform: scale(0.94); }\
-        .toggle svg { width: 31px; height: 31px; display: block; }\
+        .toggle svg { width: ' + toggleIconSize + 'px; height: ' + toggleIconSize + 'px; display: block; }\
         .panel { position: fixed; ' + panelPosition + ' z-index: 2147483647; width: min(400px, calc(100vw - 32px)); height: min(580px, calc(100vh - 112px)); max-height: calc(100vh - 112px); background: white; color: #1A1A2E; border: .5px solid rgba(26,26,46,.12); border-radius: 12px; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; opacity: 0; transform: translateY(14px) scale(0.97); transform-origin: ' + transformOrigin + '; pointer-events: none; transition: opacity 280ms cubic-bezier(0.16,1,0.3,1), transform 280ms cubic-bezier(0.16,1,0.3,1), box-shadow 280ms cubic-bezier(0.16,1,0.3,1); box-shadow: 0 0 0 rgba(0,0,0,0); }\
         .panel--open { opacity: 1 !important; transform: translateY(0) scale(1) !important; pointer-events: auto !important; box-shadow: 0 12px 40px rgba(0,0,0,.16) !important; }\
         .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px; background: ' + primaryColor + '; color: white; font: 600 17px "Space Grotesk", system-ui; }\
@@ -534,6 +545,32 @@
       : 'bottom-right';
   }
 
+  function getPixelOffset(value, fallback) {
+    var numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return fallback;
+    return Math.min(320, Math.max(12, Math.round(numericValue)));
+  }
+
+  function getCollisionStrategy(value) {
+    return value === 'none' ? 'none' : 'auto';
+  }
+
+  function getWidgetSize(value) {
+    return value === 'small' || value === 'large' ? value : 'medium';
+  }
+
+  function getWidgetSizePixels(value) {
+    if (value === 'small') return 56;
+    if (value === 'large') return 72;
+    return 64;
+  }
+
+  function getCollisionPixelOffset(value) {
+    var numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return 0;
+    return Math.min(320, Math.max(0, Math.round(numericValue)));
+  }
+
   function getTogglePositionCss(position) {
     if (position === 'bottom-left') return 'left: var(--talia-floating-inline-offset, 20px); bottom: var(--talia-floating-toggle-offset, 20px);';
     if (position === 'top-right') return 'right: var(--talia-floating-inline-offset, 20px); top: var(--talia-floating-toggle-offset, 20px);';
@@ -548,13 +585,23 @@
     return 'right: var(--talia-floating-inline-offset, 20px); bottom: var(--talia-floating-panel-offset, 88px);';
   }
 
-  function registerFloatingWidget(host, type, position) {
+  function registerFloatingWidget(host, type, position, options) {
     var registry = getFloatingRegistry();
     registry.items = registry.items.filter(function (item) {
       return item.host && item.host.isConnected && item.type !== type;
     });
-    registry.items.push({ host: host, type: type, position: position });
+    registry.items.push({
+      host: host,
+      type: type,
+      position: position,
+      widgetSize: getWidgetSize(options && options.widgetSize),
+      inlineOffset: getPixelOffset(options && options.inlineOffset, 20),
+      blockOffset: getPixelOffset(options && options.blockOffset, 20),
+      collisionStrategy: getCollisionStrategy(options && options.collisionStrategy),
+      collisionOffset: 0
+    });
     updateFloatingWidgets(registry);
+    installFloatingCollisionObserver(registry);
   }
 
   function getFloatingRegistry() {
@@ -564,8 +611,6 @@
   }
 
   function updateFloatingWidgets(registry) {
-    var baseOffset = 20;
-    var widgetSize = 64;
     var gap = 12;
     var panelGap = 12;
     var priority = { chatbot: 0, accessibility: 1 };
@@ -584,12 +629,108 @@
       groups[position]
         .sort(function (a, b) { return (priority[a.type] || 9) - (priority[b.type] || 9); })
         .forEach(function (item, index) {
-          var toggleOffset = baseOffset + (index * (widgetSize + gap));
+          var inlineOffset = getPixelOffset(item.inlineOffset, 20);
+          var baseBlockOffset = getPixelOffset(item.blockOffset, 20);
+          var collisionOffset = getCollisionPixelOffset(item.collisionOffset);
+          var widgetSize = getWidgetSizePixels(item.widgetSize);
+          var toggleOffset = Math.max(baseBlockOffset, collisionOffset) + (index * (widgetSize + gap));
           var panelOffset = toggleOffset + widgetSize + panelGap;
-          item.host.style.setProperty('--talia-floating-inline-offset', baseOffset + 'px');
+          item.host.style.setProperty('--talia-floating-inline-offset', inlineOffset + 'px');
           item.host.style.setProperty('--talia-floating-toggle-offset', toggleOffset + 'px');
           item.host.style.setProperty('--talia-floating-panel-offset', panelOffset + 'px');
         });
     });
+  }
+
+  function installFloatingCollisionObserver(registry) {
+    if (registry.collisionObserverInstalled) {
+      scheduleFloatingCollisionCheck(registry, 80);
+      return;
+    }
+    registry.collisionObserverInstalled = true;
+    var schedule = function () { scheduleFloatingCollisionCheck(registry, 120); };
+    window.addEventListener('resize', schedule, { passive: true });
+    window.addEventListener('scroll', schedule, { passive: true });
+    scheduleFloatingCollisionCheck(registry, 80);
+    scheduleFloatingCollisionCheck(registry, 800);
+    scheduleFloatingCollisionCheck(registry, 1800);
+  }
+
+  function scheduleFloatingCollisionCheck(registry, delay) {
+    window.clearTimeout(registry.collisionTimer);
+    registry.collisionTimer = window.setTimeout(function () {
+      updateFloatingCollisionOffsets(registry);
+      updateFloatingWidgets(registry);
+    }, delay);
+  }
+
+  function updateFloatingCollisionOffsets(registry) {
+    registry.items = registry.items.filter(function (item) {
+      return item.host && item.host.isConnected;
+    });
+
+    registry.items.forEach(function (item) {
+      if (item.collisionStrategy === 'none') {
+        item.collisionOffset = 0;
+        return;
+      }
+      item.collisionOffset = getCollisionOffsetForPosition(item.position, item.host);
+    });
+  }
+
+  function getCollisionOffsetForPosition(position, ownHost) {
+    if (!window.innerWidth || !window.innerHeight || !document.body) return 0;
+
+    var viewportWidth = window.innerWidth;
+    var viewportHeight = window.innerHeight;
+    var cornerSize = 190;
+    var clearance = 14;
+    var maxOffset = 320;
+    var nextOffset = 0;
+    var nodes = Array.prototype.slice.call(document.body.querySelectorAll('body *'));
+
+    nodes.forEach(function (node) {
+      if (!isExternalFloatingElement(node, ownHost)) return;
+      var rect = node.getBoundingClientRect();
+      if (!isInSameCorner(rect, position, viewportWidth, viewportHeight, cornerSize)) return;
+
+      if (position.indexOf('bottom') === 0) {
+        nextOffset = Math.max(nextOffset, viewportHeight - rect.top + clearance);
+      } else {
+        nextOffset = Math.max(nextOffset, rect.bottom + clearance);
+      }
+    });
+
+    return Math.min(maxOffset, Math.max(0, Math.round(nextOffset)));
+  }
+
+  function isExternalFloatingElement(node, ownHost) {
+    if (!node || node === ownHost) return false;
+    if (node.id === 'talia-widget-root' || node.id === 'talia-accessibility-widget-root') return false;
+    if (ownHost && ownHost.contains && ownHost.contains(node)) return false;
+
+    var rect = node.getBoundingClientRect();
+    if (rect.width < 32 || rect.height < 32) return false;
+    if (rect.width > 260 || rect.height > 260) return false;
+    if (rect.right <= 0 || rect.bottom <= 0 || rect.left >= window.innerWidth || rect.top >= window.innerHeight) return false;
+
+    var styles = window.getComputedStyle(node);
+    if (styles.visibility === 'hidden' || styles.display === 'none' || Number(styles.opacity) === 0) return false;
+    if (styles.position !== 'fixed' && styles.position !== 'sticky') return false;
+    if (styles.pointerEvents === 'none') return false;
+
+    return true;
+  }
+
+  function isInSameCorner(rect, position, viewportWidth, viewportHeight, cornerSize) {
+    var nearLeft = rect.left < cornerSize;
+    var nearRight = rect.right > viewportWidth - cornerSize;
+    var nearTop = rect.top < cornerSize;
+    var nearBottom = rect.bottom > viewportHeight - cornerSize;
+
+    if (position === 'bottom-left') return nearLeft && nearBottom;
+    if (position === 'top-right') return nearRight && nearTop;
+    if (position === 'top-left') return nearLeft && nearTop;
+    return nearRight && nearBottom;
   }
 })();

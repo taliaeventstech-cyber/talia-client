@@ -12,6 +12,10 @@ export type PublicWidgetConfig = {
   initialMessage: string
   primaryColor: string
   position: WidgetPosition
+  widgetSize: WidgetSize
+  inlineOffset: number
+  blockOffset: number
+  collisionStrategy: WidgetCollisionStrategy
   fallbackEmail: string | null
   fallbackPhone: string | null
   autoOpen: boolean
@@ -20,11 +24,14 @@ export type PublicWidgetConfig = {
 }
 
 export type WidgetPosition = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
+export type WidgetCollisionStrategy = 'auto' | 'none'
+export type WidgetSize = 'small' | 'medium' | 'large'
 
 export type PublicAccessibilityConfig = {
   enabled: boolean
   clearViewEnabled: boolean
   position: WidgetPosition
+  widgetSize: WidgetSize
   language: 'auto' | 'es' | 'ca' | 'en'
   primaryColor: string
   highlightColor: string
@@ -139,6 +146,10 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
       initialMessage: widgetConfig.initialMessage,
       primaryColor: widgetConfig.primaryColor,
       position: widgetConfig.position,
+      widgetSize: widgetConfig.widgetSize,
+      inlineOffset: widgetConfig.inlineOffset,
+      blockOffset: widgetConfig.blockOffset,
+      collisionStrategy: widgetConfig.collisionStrategy,
       fallbackEmail: data.fallback_email,
       fallbackPhone: data.fallback_phone,
       autoOpen: widgetConfig.autoOpen,
@@ -313,6 +324,10 @@ function getWidgetConfig(value: unknown) {
       initialMessage: 'Hola, soc TALIA. En què et puc ajudar?',
       primaryColor: '#000000',
       position: 'bottom-right' as const,
+      widgetSize: 'medium' as const,
+      inlineOffset: 20,
+      blockOffset: 20,
+      collisionStrategy: 'auto' as const,
       autoOpen: false,
       autoOpenDelay: 3,
       accessibility: getAccessibilityConfig(undefined, '#000000'),
@@ -325,6 +340,15 @@ function getWidgetConfig(value: unknown) {
     initialMessage?: unknown
     primaryColor?: unknown
     position?: unknown
+    widgetSize?: unknown
+    widget_size?: unknown
+    size?: unknown
+    inlineOffset?: unknown
+    inline_offset?: unknown
+    blockOffset?: unknown
+    block_offset?: unknown
+    collisionStrategy?: unknown
+    collision_strategy?: unknown
     autoOpen?: unknown
     autoOpenDelay?: unknown
     accessibility?: unknown
@@ -338,11 +362,30 @@ function getWidgetConfig(value: unknown) {
     initialMessage: typeof config.initialMessage === 'string' ? config.initialMessage : 'Hola, soc TALIA. En què et puc ajudar?',
     primaryColor,
     position: getWidgetPosition(config.position, 'bottom-right'),
+    widgetSize: getWidgetSize(config.widgetSize ?? config.widget_size ?? config.size),
+    inlineOffset: getPixelOffset(config.inlineOffset ?? config.inline_offset, 20),
+    blockOffset: getPixelOffset(config.blockOffset ?? config.block_offset, 20),
+    collisionStrategy: getCollisionStrategy(config.collisionStrategy ?? config.collision_strategy),
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
     accessibility: getAccessibilityConfig(config.accessibility, primaryColor),
     aiSettings: normalizeChatbotAiSettings(config.chatbotAi ?? config.chatbot_ai),
   }
+}
+
+function getPixelOffset(value: unknown, fallback: number) {
+  const numericValue = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(numericValue)) return fallback
+  return Math.min(320, Math.max(12, Math.round(numericValue)))
+}
+
+function getCollisionStrategy(value: unknown): WidgetCollisionStrategy {
+  return value === 'none' ? 'none' : 'auto'
+}
+
+function getWidgetSize(value: unknown): WidgetSize {
+  if (value === 'small' || value === 'large') return value
+  return 'medium'
 }
 
 function getAccessibilityConfig(value: unknown, fallbackColor: string): PublicAccessibilityConfig {
@@ -351,6 +394,9 @@ function getAccessibilityConfig(value: unknown, fallbackColor: string): PublicAc
       enabled?: unknown
       clearViewEnabled?: unknown
       position?: unknown
+      widgetSize?: unknown
+      widget_size?: unknown
+      size?: unknown
       language?: unknown
       primaryColor?: unknown
       highlightColor?: unknown
@@ -366,6 +412,7 @@ function getAccessibilityConfig(value: unknown, fallbackColor: string): PublicAc
     enabled: config.enabled === true,
     clearViewEnabled: config.clearViewEnabled !== false,
     position: getWidgetPosition(config.position, 'bottom-right'),
+    widgetSize: getWidgetSize(config.widgetSize ?? config.widget_size ?? config.size),
     language: getAccessibilityLanguage(config.language),
     primaryColor: typeof config.primaryColor === 'string' ? config.primaryColor : fallbackColor,
     highlightColor: typeof config.highlightColor === 'string' ? config.highlightColor : '#fffb00',

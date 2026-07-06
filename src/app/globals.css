@@ -2615,6 +2615,14 @@ textarea {
   gap: 24px;
 }
 
+.chatbot-settings-header {
+  text-align: left;
+}
+
+.chatbot-settings-header .muted {
+  margin: 6px 0 0;
+}
+
 .page-title-row {
   display: flex;
   align-items: center;
@@ -2787,8 +2795,9 @@ textarea {
 
 .two-column-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 13fr) minmax(320px, 7fr);
   gap: 24px;
+  align-items: start;
 }
 
 .kpi-row {
@@ -5837,31 +5846,30 @@ textarea {
 }
 
 .script-code-panel {
-  display: grid;
-  gap: 10px;
+  position: relative;
 }
 
 .script-code-block {
   margin: 0;
+  padding-right: 54px;
   white-space: pre-wrap;
 }
 
 .script-copy-button {
-  justify-self: end;
+  position: absolute;
+  top: 10px;
+  right: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  width: 34px;
+  height: 34px;
   border: 0.5px solid var(--color-border-strong);
   border-radius: 8px;
   background: color-mix(in srgb, var(--color-surface-2) 72%, transparent);
   color: var(--color-text-primary);
   cursor: pointer;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 750;
-  line-height: 1;
-  padding: 9px 12px;
+  padding: 0;
   transition:
     border-color 180ms ease,
     background 180ms ease,

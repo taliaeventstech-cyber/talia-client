@@ -33,12 +33,12 @@ export const FREE_TRIAL_DAYS = 14
 export const BILLING_PLANS: BillingPlan[] = [
   {
     key: 'chatbot_web',
-    title: 'Chatbot Web',
+    title: 'Asistente de IA',
     priceMonthly: 19,
     includedLabel: '1.000 missatges / mes',
-    description: 'Chatbot 24/7 para web.',
+    description: 'Asistente 24/7 para web.',
     features: [
-      'Chatbot 24/7 en catalán, castellano e inglés',
+      'Asistente 24/7 en catalán, castellano e inglés',
       'Dashboard Àgora incluido',
       'Informe mensual de actividad',
       'Supervisión humana continua',
@@ -50,12 +50,12 @@ export const BILLING_PLANS: BillingPlan[] = [
   },
   {
     key: 'chatbot_email',
-    title: 'Chatbot + Correu',
+    title: 'Asistente de IA + Correo',
     priceMonthly: 39,
     includedLabel: '1.000 missatges / canal',
-    description: 'Chatbot web y agente de correo.',
+    description: 'Asistente web y agente de correo.',
     features: [
-      'Todo lo incluido en Chatbot',
+      'Todo lo incluido en Asistente de IA',
       'Agente de correo para buzón info@',
       'Respuestas automáticas por mail',
       'Informes y supervisión continua',
