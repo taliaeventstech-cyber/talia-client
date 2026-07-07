@@ -6,8 +6,14 @@ import { getPublicWidgetConfig } from '@/lib/tenants/service'
 import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/lib/widget/domain-allowlist'
 
 const installedPageSchema = z.object({
-  url: z.string().url().max(2_000),
-  title: z.string().trim().max(200).optional(),
+  url: z.string().trim().url().max(4_096),
+  title: z
+    .string()
+    .optional()
+    .transform((value) => {
+      const title = value?.trim()
+      return title ? title.slice(0, 200) : undefined
+    }),
 })
 
 export async function POST(

@@ -199,15 +199,29 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         url: pageUrl,
-        title: document.title || '',
+        title: getSafeDocumentTitle(),
       }),
     })
       .then(function (response) {
         if (response.ok) localStorage.setItem(key, String(Date.now()));
+        if (!response.ok) {
+          response.json()
+            .then(function (data) {
+              console.warn('[TALIA] Could not register installed page', data);
+            })
+            .catch(function () {
+              console.warn('[TALIA] Could not register installed page', response.status);
+            });
+        }
       })
       .catch(function (error) {
         console.warn('[TALIA] Could not register installed page', error);
       });
+  }
+
+  function getSafeDocumentTitle() {
+    var title = (document.title || '').trim();
+    return title.length > 200 ? title.slice(0, 200) : title;
   }
 
   function maybeCaptureInstalledPage() {
