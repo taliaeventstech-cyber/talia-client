@@ -57,28 +57,37 @@ MCP (Model Context Protocol) is an open standard — the same Linear/GitHub serv
 | VS Code | `.vscode/mcp.json` |
 | Others | check the tool's own MCP docs |
 
-A project-scoped [`.mcp.json`](.mcp.json) now exists at the repo root, pointing at Linear's and GitHub's official hosted MCP servers:
+A project-scoped [`.mcp.json`](.mcp.json) now exists at the repo root:
 
 ```json
 {
   "mcpServers": {
-    "linear": { "type": "sse", "url": "https://mcp.linear.app/sse" },
-    "github": { "type": "http", "url": "https://api.githubcopilot.com/mcp/" }
+    "linear": { "type": "http", "url": "https://mcp.linear.app/mcp" },
+    "github": {
+      "command": "github-mcp-server",
+      "args": ["stdio"],
+      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}" }
+    }
   }
 }
 ```
 
-⚠️ **Status: config exists, but not yet verified end-to-end by anyone on the team.** No tokens are committed — each dev authenticates on first use (OAuth login flow prompted by their tool, e.g. `/mcp` in Claude Code). If a URL below is stale by the time you read this (these endpoints can change), fix it here and note the correction:
+✅ **Status: both confirmed working (2026-07-07).** No tokens are committed — `${GITHUB_PERSONAL_ACCESS_TOKEN}` is expanded from each dev's own shell environment, never written to this file.
 
-- **Linear**: first connection should trigger an OAuth prompt in your tool. If it doesn't, check Linear's current MCP docs for the right URL/transport.
-- **GitHub**: same — first connection should trigger GitHub OAuth (or ask for a PAT, depending on the tool). Scope it to `talia-client` + `talia-ai`.
-
-**TODO:** once someone actually completes the OAuth flow and confirms both servers work, remove this warning and replace it with "confirmed working as of `<date>`."
+- **Linear** uses Linear's hosted remote MCP server, OAuth-authenticated per user. Originally configured as `{ "type": "sse", "url": "https://mcp.linear.app/sse" }`, which failed with `SDK auth failed: Protected resource https://mcp.linear.app/mcp does not match expected https://mcp.linear.app/sse` — Linear's OAuth protected-resource metadata declares the canonical resource as `/mcp` (Streamable HTTP), not `/sse`. Fixed to `{ "type": "http", "url": "https://mcp.linear.app/mcp" }`; the OAuth prompt (click **Authenticate** in the MCP servers panel, or `/mcp` → linear → Authenticate) then completes normally.
+- **GitHub** does **not** use the hosted `api.githubcopilot.com/mcp/` endpoint — two things went wrong there, in order:
+  1. Plain OAuth failed with `SDK auth failed: Incompatible auth server: does not support dynamic client registration` — that endpoint doesn't support the dynamic client registration (RFC 7591) that Claude Code's generic OAuth flow expects.
+  2. Switching to a static `Authorization: Bearer <PAT>` header against the same hosted endpoint failed differently: `Streamable HTTP error: ... bad request: Authorization header is badly formatted` — the endpoint appears to only accept tokens issued by its own OAuth flow, not a raw personal access token, regardless of header formatting.
+  - **Fix**: use GitHub's official `github-mcp-server` **locally** instead of the remote endpoint (installed via `brew install github-mcp-server`; also distributable via Docker, see the project's own docs). Running locally in `stdio` mode, it accepts a plain PAT via the `GITHUB_PERSONAL_ACCESS_TOKEN` env var directly — no OAuth involved at all. Config above. Smoke-tested locally (server starts and connects cleanly with the token, no auth error in its logs).
+  - To use it: `brew install github-mcp-server`, create a fine-grained GitHub PAT scoped to `culturactivaxfourdevs/talia-client` (+ `talia-ai`) with Contents, Pull requests and Issues read/write permissions, then export it in your own shell profile (never in the repo):
+    ```bash
+    export GITHUB_PERSONAL_ACCESS_TOKEN="github_pat_..."
+    ```
+  - **macOS gotcha**: if your AI tool is launched as a GUI app (not from a terminal), it won't inherit variables exported in `~/.zshrc` — that file is only sourced by interactive shells. Run `launchctl setenv GITHUB_PERSONAL_ACCESS_TOKEN "..."` too, then fully quit and reopen the app (a "Reconnect" click alone won't reload `.mcp.json` or pick up a newly-set env var — the app needs to restart).
 
 ---
 
 ## Known gaps in this file (v0)
 
-- [ ] `.mcp.json` (Linear + GitHub) exists but the OAuth flow hasn't been completed/verified by anyone yet, on any tool.
 - [ ] Tool-specific rule supplements for non-Claude-Code tools that don't read `AGENTS.md` natively (e.g. `.github/copilot-instructions.md`), if we decide we need them.
-- [ ] Same setup (CI, Husky, MCP, harness docs, skills) still needs replicating in `talia-ai` — done separately.
+- [ ] Same setup (CI, Husky, MCP, harness docs, skills) still needs replicating in `talia-ai` — done separately. Note `github-mcp-server` is now a machine-level Homebrew install, not repo-specific, so it doesn't need reinstalling per repo.

@@ -7,11 +7,11 @@ How work actually moves through this repo — for humans and for AI coding agent
 One branch per Linear issue, prefixed by type (all of these are already in use, per `git log`):
 
 ```
-feature/LIN-XX-short-description
-fix/LIN-XX-short-description
-bug/LIN-XX-short-description
-subtask/LIN-XX-short-description
-security/LIN-XX-short-description
+feature/TAL-XX-short-description
+fix/TAL-XX-short-description
+bug/TAL-XX-short-description
+subtask/TAL-XX-short-description
+security/TAL-XX-short-description
 ```
 
 Reference the Linear issue ID in the branch name and in the PR description.
@@ -20,6 +20,7 @@ Reference the Linear issue ID in the branch name and in the PR description.
 
 - Open PRs **against `develop`**, never against `main`.
 - `develop` is merged into `main` periodically as a release — that's a manual, deliberate step, not automatic per-PR.
+- The Linear↔GitHub integration is connected: a branch containing `TAL-123` (or `Closes TAL-123` in the PR description) auto-links to the issue and can move its status automatically.
 - Before opening a PR, run the pre-PR check (the `/check` recipe if you're on Claude Code, or by hand):
   ```bash
   npm run typecheck
@@ -37,5 +38,4 @@ Reference the Linear issue ID in the branch name and in the PR description.
 
 ## What's still missing
 
-- Linear/GitHub MCP servers are configured in `.mcp.json` but not yet verified end-to-end by anyone on the team — see `HARNESS.md` gaps.
 - No formal release process for `develop` → `main` beyond "merge when ready" — fine for a solo dev, worth revisiting once there's more than one person merging.
