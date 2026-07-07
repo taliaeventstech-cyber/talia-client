@@ -1,76 +1,76 @@
-# Checklist de Lanzamiento de Cliente
+# Client Launch Checklist
 
-Checklist interno para activar un cliente en TALIA.
+Internal checklist for activating a client in TALIA.
 
 ## 1. Account
 
-- Crear account en Backstage.
-- Validar nombre comercial.
-- Añadir email de facturación.
-- Definir estado: trialing o active.
+- Create account in Backstage.
+- Validate business name.
+- Add billing email.
+- Define status: trialing or active.
 
 ## 2. Venues
 
-Por cada venue:
+For each venue:
 
-- Crear venue.
-- Definir tipo.
-- Definir idioma principal.
-- Definir web oficial.
-- Definir email fallback.
-- Definir teléfono fallback.
-- Seleccionar plan.
-- Activar módulos contratados.
+- Create venue.
+- Define type.
+- Define primary language.
+- Define official website.
+- Define fallback email.
+- Define fallback phone number.
+- Select plan.
+- Activate contracted modules.
 
 ## 3. Chatbot
 
-- Configurar color del widget.
-- Configurar mensaje inicial.
-- Definir prompt base.
-- Añadir URLs permitidas.
-- Cargar FAQs o fuentes.
-- Probar demo local/landing.
-- Insertar script en la web del cliente.
-- Verificar CORS y respuesta.
+- Configure widget color.
+- Configure initial message.
+- Define base prompt.
+- Add allowed URLs.
+- Load FAQs or sources.
+- Test demo locally/on landing page.
+- Insert script on the client's website.
+- Verify CORS and response.
 
-## 4. Voz
+## 4. Voice
 
-Si aplica:
+If applicable:
 
-- Activar módulo voz.
-- Crear agente ElevenLabs.
-- Guardar `elevenlabs_agent_id`.
-- Guardar `voice_id`.
-- Elegir modelo de telefonía.
-- Configurar número TALIA o desvío.
-- Guardar notas operativas.
-- Hacer llamada de prueba.
-- Verificar transcript y uso.
+- Activate voice module.
+- Create ElevenLabs agent.
+- Save `elevenlabs_agent_id`.
+- Save `voice_id`.
+- Choose telephony model.
+- Configure TALIA number or call forwarding.
+- Save operational notes.
+- Make a test call.
+- Verify transcript and usage.
 
 ## 5. Email
 
-Si aplica:
+If applicable:
 
-- Confirmar proveedor: Google o Microsoft.
-- Validar buzón a conectar.
-- Definir modo: borradores o revisión en Àgora.
-- Revisar permisos OAuth.
-- Hacer prueba con email entrante.
-- Confirmar que aparece borrador.
+- Confirm provider: Google or Microsoft.
+- Validate mailbox to connect.
+- Define mode: drafts or review in Àgora.
+- Review OAuth permissions.
+- Test with an incoming email.
+- Confirm that a draft appears.
 
-## 6. Accesos
+## 6. Access
 
-- Crear invitación por account si el cliente tiene varias venues.
-- Crear invitación por venue si solo necesita una venue.
-- Asignar rol correcto.
-- Confirmar que el usuario entra al dashboard correcto.
-- Revocar invitaciones sobrantes.
+- Create an invitation per account if the client has multiple venues.
+- Create an invitation per venue if only one venue is needed.
+- Assign the correct role.
+- Confirm that the user lands on the correct dashboard.
+- Revoke leftover invitations.
 
-## 7. Validación Final
+## 7. Final Validation
 
-- Conversaciones guardan correctamente.
-- Temas/intenciones clasifican.
-- Uso del plan registra eventos.
-- Cliente ve solo módulos contratados.
-- Backstage puede editar y desactivar.
-- Documentar configuración final.
+- Conversations are saved correctly.
+- Topics/intents are classified.
+- Plan usage logs events.
+- Client sees only contracted modules.
+- Backstage can edit and deactivate.
+- Document final configuration.

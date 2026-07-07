@@ -1,41 +1,40 @@
-# Plantillas de email de Auth (multi-idioma)
+# Auth email templates (multi-language)
 
-Cómo TALIA localiza los emails de autenticación de Supabase (confirmación de cuenta,
-recuperación de contraseña) según el idioma que el usuario eligió en la UI.
+How TALIA localizes Supabase authentication emails (account confirmation,
+password recovery) based on the language the user selected in the UI.
 
-## Cómo funciona
+## How it works
 
-Supabase Auth tiene **una plantilla global por tipo de email**; no localiza por el idioma
-del navegador. Para localizarla:
+Supabase Auth has **one global template per email type**; it does not localize based on
+the browser language. To localize it:
 
-1. **Código (ya implementado):** en el signup guardamos el locale elegido en la UI como
-   metadata del usuario. Ver `src/app/auth/signup/route.ts`:
+1. **Code (already implemented):** on signup we save the locale chosen in the UI as
+   user metadata. See `src/app/auth/signup/route.ts`:
 
    ```ts
-   const lang = await getLocale()           // lee LOCALE_COOKIE
+   const lang = await getLocale()           // read LOCALE_COOKIE
    await supabase.auth.signUp({
      email, password,
      options: { emailRedirectTo, data: { lang } },
    })
    ```
 
-   Esto deja `lang` (`es` | `ca` | `en`) en `raw_user_meta_data`, accesible en las
-   plantillas como `{{ .Data.lang }}`.
+   This leaves `lang` (`es` | `ca` | `en`) in `raw_user_meta_data`, accessible in the
+   templates as `{{ .Data.lang }}`.
 
-2. **Plantilla (este documento):** una sola plantilla por tipo que ramifica con Go
-   templating sobre `{{ .Data.lang }}`. El email `resend` reutiliza este metadata
-   automáticamente.
+2. **Template (this document):** a single template per type that branches with Go
+   templating on `{{ .Data.lang }}`. The `resend` email automatically reuses this metadata.
 
-## Dónde se configura
+## Where it's configured
 
-Supabase Dashboard → **Authentication → Emails → Templates**. Editar *Subject* y *Message body*.
-No vive en el repo; este documento es la fuente versionada para copiar/pegar.
+Supabase Dashboard → **Authentication → Emails → Templates**. Edit *Subject* and *Message body*.
+It does not live in the repo; this document is the versioned source to copy/paste from.
 
-También, en **Authentication → URL Configuration → Redirect URLs**, añadir:
+Also, under **Authentication → URL Configuration → Redirect URLs**, add:
 
 ```
-https://<tu-dominio>/auth/callback
-https://<tu-dominio>/auth/reset-callback
+https://<your-domain>/auth/callback
+https://<your-domain>/auth/reset-callback
 ```
 
 ## Confirm signup
@@ -96,17 +95,17 @@ https://<tu-dominio>/auth/reset-callback
 {{ end }}
 ```
 
-## Notas y límites
+## Notes and limitations
 
-- **Usuarios sin `lang`:** los creados antes de este cambio no tienen `lang` en metadata;
-  la rama `{{ else }}` (castellano) actúa como fallback. Correcto por diseño.
-- **Reset en el idioma del signup:** el email de recuperación se envía a un usuario sin
-  sesión, así que la plantilla solo puede leer el `lang` **guardado en el signup**, no el
-  idioma actual de la pestaña. Si en el futuro se quiere el idioma "en vivo", habría que
-  actualizar el metadata del usuario antes de enviar (vía admin) o pasar al **Send Email Hook**.
-- **Invitaciones:** el email de *Invite user* usa su propia plantilla y un flujo distinto
-  (`src/app/auth/accept-invite`). No se cubre aquí; si se quiere localizar, se guarda `lang`
-  al generar la invitación y se aplica el mismo patrón.
-- **Flujo relacionado:** recuperación de contraseña implementada en `/auth/forgot-password`,
-  `/auth/reset-callback`, `/auth/update-password` y las páginas `(marketing)/forgot-password`
-  y `(marketing)/reset-password`.
+- **Users without `lang`:** users created before this change do not have `lang` in metadata;
+  the `{{ else }}` branch (Spanish) acts as the fallback. Correct by design.
+- **Reset in the signup language:** the recovery email is sent to a user without a
+  session, so the template can only read the `lang` **saved at signup**, not the
+  current tab's language. If a "live" language is desired in the future, the user's metadata
+  would need to be updated before sending (via admin) or the **Send Email Hook** would need to be used.
+- **Invitations:** the *Invite user* email uses its own template and a different flow
+  (`src/app/auth/accept-invite`). Not covered here; if localization is desired, `lang` is saved
+  when the invitation is generated and the same pattern is applied.
+- **Related flow:** password recovery implemented in `/auth/forgot-password`,
+  `/auth/reset-callback`, `/auth/update-password`, and the `(marketing)/forgot-password`
+  and `(marketing)/reset-password` pages.

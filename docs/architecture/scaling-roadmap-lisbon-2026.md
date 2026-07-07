@@ -1,29 +1,29 @@
-# Roadmap de Arquitectura Escalable hacia Lisboa 2026
+# Scalable Architecture Roadmap toward Lisbon 2026
 
-Fecha: 19 junio 2026
+Date: 19 June 2026
 
-## Contexto
+## Context
 
-TALIA va a empezar a venderse con un MVP funcional para primeros usuarios. El objetivo no es reescribir ahora, sino evitar que el MVP se convierta en una trampa cuando aumenten clientes, documentos, conversaciones y canales.
+TALIA is about to start selling with a functional MVP for early users. The goal isn't to rewrite now, but to prevent the MVP from becoming a trap as customers, documents, conversations and channels grow.
 
-Principio:
+Principle:
 
-- El widget, Agora y el modelo de datos deben mantener un contrato estable.
-- n8n puede seguir como adapter temporal.
-- La IA, ingestion, retrieval y orquestacion deben poder moverse a backend propio sin romper el producto.
+- The widget, Agora and the data model must keep a stable contract.
+- n8n can keep going as a temporary adapter.
+- AI, ingestion, retrieval and orchestration must be movable to our own backend without breaking the product.
 
-## Objetivo para noviembre
+## Goal for November
 
-Antes del Web Summit de Lisboa en noviembre de 2026, TALIA deberia poder soportar:
+Before Web Summit Lisbon in November 2026, TALIA should be able to support:
 
-- Multiples tenants reales con configuracion aislada.
-- Chatbot web estable y medible.
-- Conocimiento con FAQs, Excel/CSV, PDFs y URLs.
-- Agente de email supervisado cuando Google apruebe OAuth.
-- Observabilidad minima de errores, coste y uso.
-- Capacidad de reemplazar n8n por backend propio por partes.
+- Multiple real tenants with isolated configuration.
+- A stable, measurable web chatbot.
+- Knowledge with FAQs, Excel/CSV, PDFs and URLs.
+- A supervised email agent once Google approves OAuth.
+- Minimal observability of errors, cost and usage.
+- The ability to replace n8n with our own backend, piece by piece.
 
-## Arquitectura objetivo
+## Target architecture
 
 ```txt
 Widget / Agora
@@ -36,281 +36,281 @@ Widget / Agora
     -> Storage
 ```
 
-### Modulos profundos a crear
+### Deep modules to build
 
 #### 1. Attention Core
 
 Interface:
 
-- recibe una interaccion normalizada;
-- conoce tenant, canal, usuario/session, mensaje y contexto;
-- devuelve respuesta, accion, estado, fuentes y uso.
+- receives a normalized interaction;
+- knows tenant, channel, user/session, message and context;
+- returns response, action, status, sources and usage.
 
-Implementacion inicial:
+Initial implementation:
 
-- puede seguir llamando a n8n.
+- can keep calling n8n.
 
-Implementacion futura:
+Future implementation:
 
-- runtime propio con providers OpenAI/otros.
+- own runtime with OpenAI/other providers.
 
 Leverage:
 
-- chatbot, email, voz y futuros canales usan una misma logica central.
+- chatbot, email, voice and future channels use the same central logic.
 
 Locality:
 
-- reglas de fallback, trazabilidad, costes y fuentes viven en un sitio.
+- fallback rules, traceability, cost and sources live in one place.
 
 #### 2. Knowledge Ingestion
 
 Interface:
 
-- recibe una fuente: manual, Excel, PDF, web instalada, Google Sheet;
-- produce fuentes y chunks normalizados;
-- expone estado: pending, processing, ready, error.
+- receives a source: manual, Excel, PDF, installed web, Google Sheet;
+- produces normalized sources and chunks;
+- exposes status: pending, processing, ready, error.
 
-Implementacion inicial:
+Initial implementation:
 
-- Excel/PDF via TALIA App delegando parsing/chunking en `talia-ai`.
-- Capturas de web instalada via widget y `talia-ai`.
+- Excel/PDF via the TALIA App, delegating parsing/chunking to `talia-ai`.
+- Installed-web captures via the widget and `talia-ai`.
 
-Implementacion futura:
+Future implementation:
 
-- worker/backend propio con OCR, embeddings y retries.
+- own worker/backend with OCR, embeddings and retries.
 
 Leverage:
 
-- todos los canales consumen la misma base.
+- all channels consume the same knowledge base.
 
 Locality:
 
-- errores de parsing, chunking, OCR y reintentos no contaminan pantallas ni agentes.
+- parsing, chunking, OCR and retry errors don't leak into screens or agents.
 
 #### 3. Knowledge Retrieval
 
 Interface:
 
-- recibe tenant, canal, pregunta y limites;
-- devuelve chunks relevantes con score, source_id, source_type y snippet.
+- receives tenant, channel, question and limits;
+- returns relevant chunks with score, source_id, source_type and snippet.
 
-Implementacion inicial:
+Initial implementation:
 
-- top items por prioridad/categoria.
+- top items by priority/category.
 
-Implementacion futura:
+Future implementation:
 
-- embeddings/vector store + filtros por tenant/canal/idioma.
+- embeddings/vector store + filters by tenant/channel/language.
 
 Leverage:
 
-- mejora respuestas sin cambiar widget, email ni workflows.
+- improves answers without changing the widget, email or workflows.
 
 Locality:
 
-- ranking y citacion de fuentes se corrigen en un modulo.
+- ranking and source citation are fixed in a single module.
 
 #### 4. Agent Runtime
 
 Interface:
 
-- recibe tarea normalizada: chat reply, email classify, email draft, clear view;
-- devuelve contrato JSON estable;
-- registra coste, latencia, modelo, errores y tokens.
+- receives a normalized task: chat reply, email classify, email draft, clear view;
+- returns a stable JSON contract;
+- logs cost, latency, model, errors and tokens.
 
-Implementacion inicial:
+Initial implementation:
 
-- adapter n8n.
+- n8n adapter.
 
-Implementacion futura:
+Future implementation:
 
-- backend propio con provider adapters.
+- own backend with provider adapters.
 
 Leverage:
 
-- cambiar modelo/proveedor no afecta Agora ni widget.
+- changing model/provider doesn't affect Agora or the widget.
 
 Locality:
 
-- prompts tecnicos, safety, retries y observabilidad viven juntos.
+- technical prompts, safety, retries and observability live together.
 
 #### 5. Channel Adapters
 
 Interface:
 
-- traducen cada canal al contrato comun del Attention Core.
+- translate each channel into the Attention Core's common contract.
 
 Adapters:
 
 - Web Chat adapter.
 - Gmail adapter.
-- Outlook adapter futuro.
-- Voice adapter futuro.
+- Future Outlook adapter.
+- Future Voice adapter.
 
 Leverage:
 
-- añadir canales no duplica IA ni conocimiento.
+- adding channels doesn't duplicate AI or knowledge.
 
 Locality:
 
-- OAuth, Gmail drafts, widget sessions y telefonia quedan aislados por canal.
+- OAuth, Gmail drafts, widget sessions and telephony stay isolated per channel.
 
-## Plan por fases
+## Phase plan
 
-### Fase 0 - MVP vendible
+### Phase 0 - Sellable MVP
 
-Objetivo: desplegar lo ya funcional sin bloquear ventas.
+Goal: ship what's already functional without blocking sales.
 
-Incluye:
+Includes:
 
-- Chatbot web.
-- Conocimiento manual, Excel/CSV, PDFs basicos y URLs.
-- Accesibilidad MVP.
+- Web chatbot.
+- Manual knowledge, Excel/CSV, basic PDFs and URLs.
+- Accessibility MVP.
 - Trial/upgrade.
-- Email agent oculto o en beta controlada hasta OAuth.
+- Email agent hidden or in controlled beta until OAuth.
 
-No meter todavia:
+Don't add yet:
 
-- embeddings obligatorios;
+- mandatory embeddings;
 - OCR;
-- multi-provider IA complejo;
-- reescritura completa de n8n.
+- complex multi-provider AI;
+- full n8n rewrite.
 
-### Fase 1 - Estabilizacion de contratos
+### Phase 1 - Contract stabilization
 
-Objetivo: que n8n sea reemplazable.
+Goal: make n8n replaceable.
 
-Tareas:
+Tasks:
 
-- Definir contratos TypeScript para:
+- Define TypeScript contracts for:
   - `ChatInteractionInput`;
   - `AgentRuntimeResult`;
   - `KnowledgeRetrievalResult`;
   - `UsageEvent`.
-- Hacer que `/api/chat/:tenantId` hable con un `ChatAgentProvider`. Iniciado: `src/lib/agent-runtime/chat.ts`.
-- Mantener `N8nChatAgentProvider` como adapter. Iniciado.
-- Documentar payloads internos.
+- Make `/api/chat/:tenantId` talk to a `ChatAgentProvider`. Started: `src/lib/agent-runtime/chat.ts`.
+- Keep `N8nChatAgentProvider` as the adapter. Started.
+- Document internal payloads.
 
-Resultado:
+Result:
 
-- El widget no sabe si responde n8n o backend propio.
+- The widget doesn't know whether n8n or our own backend is answering.
 
-### Fase 2 - Retrieval real
+### Phase 2 - Real retrieval
 
-Objetivo: que la base de conocimiento escale.
+Goal: make the knowledge base scale.
 
-Tareas:
+Tasks:
 
-- Crear tabla `knowledge_chunks`. Iniciado: la tabla ya existe como base documental para PDFs.
-- Separar `knowledge_items` tipo FAQ de chunks documentales. Iniciado: los PDFs se guardan en chunks y se reflejan temporalmente en `knowledge_items`.
-- Guardar metadata de fuente, pagina, idioma y hash.
-- Crear modulo `KnowledgeRetriever`. Iniciado: `src/lib/knowledge/retrieval.ts` ya encapsula el contrato.
-- Primer retrieval determinista por texto/prioridad. Iniciado: retrieval consulta chunks e items.
-- Preparar columna para embeddings o tabla auxiliar. Iniciado: `knowledge_chunks.embedding` usa pgvector y `match_knowledge_chunks` habilita busqueda semantica opcional.
-- Preparar backfill/reintentos de embeddings. Iniciado: `talia-ai` expone `/v1/knowledge/embed` y `/v1/knowledge/embed/pending`; Next ya no ejecuta embeddings localmente.
+- Create the `knowledge_chunks` table. Started: the table already exists as the documentary base for PDFs.
+- Separate FAQ-type `knowledge_items` from documentary chunks. Started: PDFs are stored as chunks and temporarily mirrored into `knowledge_items`.
+- Store source, page, language and hash metadata.
+- Create a `KnowledgeRetriever` module. Started: `src/lib/knowledge/retrieval.ts` already encapsulates the contract.
+- First deterministic retrieval by text/priority. Started: retrieval queries chunks and items.
+- Prepare a column for embeddings or an auxiliary table. Started: `knowledge_chunks.embedding` uses pgvector and `match_knowledge_chunks` enables optional semantic search.
+- Prepare embeddings backfill/retries. Started: `talia-ai` exposes `/v1/knowledge/embed` and `/v1/knowledge/embed/pending`; Next no longer runs embeddings locally.
 
-Resultado:
+Result:
 
-- PDFs largos y multiples fuentes no inflan prompts completos.
+- Long PDFs and multiple sources don't bloat full prompts.
 
-### Fase 3 - Backend/worker propio
+### Phase 3 - Own backend/worker
 
-Objetivo: sacar jobs pesados de Next.
+Goal: move heavy jobs out of Next.
 
-Tareas:
+Tasks:
 
-- Repo nuevo o paquete separado:
+- New repo or separate package:
   - `talia-ai-runtime`;
   - `talia-worker`;
-  - o monorepo cuando sea conveniente.
+  - or a monorepo when convenient.
 - Jobs:
   - PDF parsing;
-  - OCR opcional;
+  - optional OCR;
   - embeddings;
-  - sync de URLs;
-  - classification/drafting email.
-- Cola:
-  - Supabase queue, pg-boss, Inngest, Trigger.dev o worker propio.
+  - URL sync;
+  - email classification/drafting.
+- Queue:
+  - Supabase queue, pg-boss, Inngest, Trigger.dev or a custom worker.
 
-Resultado:
+Result:
 
-- Agora solo dispara ingestion y consulta estados.
-- Procesos lentos no dependen del request web.
+- Agora only triggers ingestion and queries status.
+- Slow processes don't depend on the web request.
 
-### Fase 4 - Observabilidad y billing serio
+### Phase 4 - Real observability and billing
 
-Objetivo: saber que pasa y cuanto cuesta.
+Goal: know what's happening and what it costs.
 
-Tareas:
+Tasks:
 
-- Registrar usage por:
+- Log usage by:
   - tenant;
-  - canal;
-  - modulo;
-  - modelo;
-  - tokens estimados/reales;
-  - coste;
-  - latencia;
+  - channel;
+  - module;
+  - model;
+  - estimated/real tokens;
+  - cost;
+  - latency;
   - error_code.
-- Panel interno Backstage para errores de agentes.
-- Alertas de fallo por tenant.
-- Rate limits por tenant y canal.
+- Internal Backstage panel for agent errors.
+- Per-tenant failure alerts.
+- Rate limits per tenant and channel.
 
-Resultado:
+Result:
 
-- Podemos vender y operar sin ir a ciegas.
+- We can sell and operate without flying blind.
 
-### Fase 5 - Preparacion demo/evento
+### Phase 5 - Demo/event preparation
 
-Objetivo: llegar a noviembre con una historia solida.
+Goal: reach November with a solid story.
 
-Tareas:
+Tasks:
 
-- Tenant demo limpio.
-- Landing demo con widget + accesibilidad.
-- Dataset de conocimiento realista.
-- Flujo de onboarding pulido.
-- Modo demo sin depender de cuentas personales.
-- Script de demo y rollback.
+- Clean demo tenant.
+- Demo landing page with widget + accessibility.
+- Realistic knowledge dataset.
+- Polished onboarding flow.
+- Demo mode not dependent on personal accounts.
+- Demo script and rollback plan.
 
-Resultado:
+Result:
 
-- Producto enseñable, no solo prototipo tecnico.
+- A showable product, not just a technical prototype.
 
-## Decisiones recomendadas ahora
+## Recommended decisions now
 
-1. Mantener el despliegue MVP.
-2. No seguir aumentando n8n como cerebro central.
-3. Usar n8n solo como adapter mientras creamos interfaces estables.
-4. Empezar por `Knowledge Retrieval` antes que por embeddings complejos.
-5. Separar backend/IA cuando haya dos adapters reales:
-   - n8n actual;
-   - runtime propio inicial.
+1. Keep the MVP deployment.
+2. Stop growing n8n as the central brain.
+3. Use n8n only as an adapter while we build stable interfaces.
+4. Start with `Knowledge Retrieval` before complex embeddings.
+5. Split backend/AI once there are two real adapters:
+   - current n8n;
+   - initial own runtime.
 
-## Primeros issues recomendados
+## Recommended first issues
 
-1. Crear contratos TS para runtime de chat y retrieval.
-2. Encapsular llamada n8n de chat en `N8nChatAgentProvider`.
-3. Crear `KnowledgeRetriever` determinista.
-4. Añadir tabla `knowledge_chunks`.
-5. Migrar PDFs de `knowledge_items` a `knowledge_chunks`.
-6. Registrar usage real del chatbot.
-7. Crear dashboard interno de errores de agentes.
+1. Create TS contracts for the chat and retrieval runtime.
+2. Encapsulate the chat n8n call in `N8nChatAgentProvider`.
+3. Create a deterministic `KnowledgeRetriever`.
+4. Add the `knowledge_chunks` table.
+5. Migrate PDFs from `knowledge_items` to `knowledge_chunks`.
+6. Log real chatbot usage.
+7. Create an internal agent-error dashboard.
 
-## Riesgos
+## Risks
 
-- Meter PDFs directamente en `knowledge_items` sirve para MVP, pero no escala.
-- n8n con prompts grandes sera caro, lento y dificil de depurar.
-- Sin usage/coste por tenant, pricing y limites seran estimaciones.
-- Sin contratos internos, desacoplar backend despues sera una reescritura.
+- Putting PDFs directly into `knowledge_items` works for the MVP, but doesn't scale.
+- n8n with large prompts will be expensive, slow and hard to debug.
+- Without per-tenant usage/cost, pricing and limits will be guesswork.
+- Without internal contracts, decoupling the backend later will be a rewrite.
 
-## Criterio de exito
+## Success criteria
 
-La arquitectura estara lista para crecer cuando:
+The architecture will be ready to grow when:
 
-- el widget no dependa de n8n;
-- Agora no sepa que proveedor IA responde;
-- Conocimiento pueda procesar fuentes en segundo plano;
-- cada respuesta pueda explicar que fuente uso;
-- cada tenant tenga limites, coste y errores observables;
-- cambiar un proveedor IA sea cambiar un adapter, no tocar todo el producto.
+- the widget doesn't depend on n8n;
+- Agora doesn't know which AI provider is answering;
+- Knowledge can process sources in the background;
+- every response can explain which source it used;
+- every tenant has observable limits, cost and errors;
+- changing an AI provider means swapping an adapter, not touching the whole product.

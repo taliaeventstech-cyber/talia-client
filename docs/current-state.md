@@ -1,261 +1,261 @@
-# Estado Actual de TALIA
+# Current State of TALIA
 
-Ultima actualizacion: 29 junio 2026
+Last updated: June 29, 2026
 
-Este documento es la fuente rapida para entender en que punto esta la app antes de tocar codigo. Para decisiones mas profundas, ir a los documentos enlazados al final.
+This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
-## Resumen
+## Summary
 
-TALIA es un SaaS para entidades culturales. El producto no debe entenderse como un chatbot aislado, sino como una capa de atencion multicanal para venues culturales.
+TALIA is a SaaS for cultural institutions. The product should not be understood as a standalone chatbot, but as a multichannel Attention layer for cultural venues.
 
-Estado actual:
+Current state:
 
-- Modulo principal activo: **Atencion**.
-- Canal mas maduro: **Chatbot web**.
-- Canal en testing: **Agente de email Gmail**, en modo borradores supervisados.
-- Canales planificados o pausados: Microsoft/Outlook, voz, WhatsApp, Instagram.
-- Dashboard cliente: **Agora**, por venue.
-- Panel interno: **Backstage**.
-- Modelo comercial actual: trial gratuito de 14 dias, upgrade a planes de pago y extras.
+- Main active module: **Attention**.
+- Most mature channel: **Web chatbot**.
+- Channel in testing: **Gmail email agent**, in supervised drafts mode.
+- Planned or paused channels: Microsoft/Outlook, voice, WhatsApp, Instagram.
+- Client dashboard: **Agora**, per venue.
+- Internal panel: **Backstage**.
+- Current commercial model: 14-day free trial, upgrade to paid plans and add-ons.
 
-## Producto Implementado
+## Implemented Product
 
-### Signup y Auth
+### Signup and Auth
 
-Implementado:
+Implemented:
 
-- Signup publico con email/password.
-- Confirmacion por email antes de entrar al producto.
-- Pantalla intermedia de cuenta confirmada antes de comenzar onboarding.
-- Login con selector de idioma.
-- Password policy reforzada.
-- Toggle para visualizar password.
-- Baseline de seguridad documentada en `docs/security/auth-phase-1.md`.
+- Public signup with email/password.
+- Email confirmation before entering the product.
+- Intermediate "account confirmed" screen before starting onboarding.
+- Login with language selector.
+- Strengthened password policy.
+- Toggle to show/hide password.
+- Security baseline documented in `docs/security/auth-phase-1.md`.
 
-Pendiente:
+Pending:
 
-- MFA/SSO empresarial.
-- Politicas avanzadas por equipo.
-- Rate limiting mas robusto fuera de la capa Next.js.
+- Enterprise MFA/SSO.
+- Advanced team policies.
+- More robust rate limiting outside the Next.js layer.
 
-### Onboarding Cliente
+### Client Onboarding
 
-Implementado:
+Implemented:
 
-- Onboarding principal tras confirmar cuenta.
-- Selector de idioma y modo dia/noche en onboarding.
-- Recogida de datos basicos de usuario y entidad.
-- Seleccion de hasta 3 propositos/casos de uso.
-- Creacion del primer workspace operativo.
-- Flujo posterior hacia configuracion inicial del chatbot.
+- Main onboarding after confirming the account.
+- Language selector and day/night mode in onboarding.
+- Collection of basic user and entity data.
+- Selection of up to 3 purposes/use cases.
+- Creation of the first operational workspace.
+- Subsequent flow toward initial chatbot configuration.
 
-Regla actual:
+Current rule:
 
-- El onboarding inicial crea el contexto de account/venue.
-- Las invitaciones son para equipos ya existentes, no para el alta inicial del cliente.
+- Initial onboarding creates the account/venue context.
+- Invitations are for teams that already exist, not for the client's initial signup.
 
-Referencia:
+Reference:
 
 - `docs/product/onboarding.md`.
 
-### Onboarding Chatbot
+### Chatbot Onboarding
 
-Implementado:
+Implemented:
 
-- Wizard especifico de chatbot despues del onboarding cliente.
-- Sidebar del Agora oculto mientras el wizard inicial esta pendiente.
-- Selector de idioma y modo dia/noche tambien disponible en este wizard.
-- Configuracion de mensaje inicial, tono, primera fuente de conocimiento, color y fallback.
-- Al finalizar, el usuario vuelve al Agora.
+- Chatbot-specific wizard after client onboarding.
+- Agora sidebar hidden while the initial wizard is pending.
+- Language selector and day/night mode also available in this wizard.
+- Configuration of initial message, tone, first knowledge source, color and fallback.
+- Upon completion, the user returns to Agora.
 
-Pendiente:
+Pending:
 
-- Mejorar experiencia de test del bot con preview lateral mas parecida a Botsonic.
-- Separar definitivamente prompts editables de prompts tecnicos.
+- Improve the bot testing experience with a side preview closer to Botsonic.
+- Definitively separate editable prompts from technical prompts.
 
 ### Agora
 
-Implementado:
+Implemented:
 
-- Dashboard por venue.
-- Sidebar con modulos visibles segun permisos, plan y acceso.
-- Idiomas: castellano, catalan e ingles.
-- Modo dia/noche global.
-- Trial visible en sidebar.
-- Boton de upgrade hacia pantalla de planes.
-- Ocultacion de modulos cuando el trial termina o no hay acceso de producto.
+- Dashboard per venue.
+- Sidebar with modules visible based on permissions, plan and access.
+- Languages: Spanish, Catalan and English.
+- Global day/night mode.
+- Trial visible in sidebar.
+- Upgrade button leading to the plans screen.
+- Hiding of modules when the trial ends or there is no product access.
 
-Pendiente:
+Pending:
 
-- Dashboard agregado por account.
-- Mejorar consistencia visual en algunas pantallas.
-- Completar traducciones de zonas menos usadas si aparecen nuevas secciones.
+- Aggregated dashboard per account.
+- Improve visual consistency on some screens.
+- Complete translations of less-used areas if new sections appear.
 
-## Modulos
+## Modules
 
-### Chatbot Web
+### Web Chatbot
 
-Estado: activo.
+Status: active.
 
-Implementado:
+Implemented:
 
-- Configuracion por venue.
-- Widget/script instalable.
-- Mensaje inicial y color de marca.
-- Prompt de canal.
-- Fallback configurable.
-- Conversaciones y mensajes persistidos.
-- Analitica basica de temas e intenciones.
-- Uso asociado a billing/limits.
-- Runtime interno de chat en `src/lib/agent-runtime/chat.ts`, con n8n encapsulado como adapter temporal.
-- Provider `talia-ai` seleccionable con `CHAT_AGENT_PROVIDER=talia-ai`, con fallback temporal a n8n en errores 5xx.
-- Cuando `CHAT_AGENT_PROVIDER=talia-ai`, Next actua como gateway: valida tenant, limites y sesion, y delega retrieval + respuesta a `/v1/chat/respond`.
-- Las respuestas del agent runtime guardan fuentes compactas (`id`, `source_id`, `source_type`, `score`) en metadata del mensaje assistant, metadata de conversacion legacy y usage para auditoria.
-- Backstage muestra salud RAG por venue, trazabilidad de respuestas, pregunta original, provider solicitado/usado, modelo, idioma, estado de retrieval, avisos de baja confianza/fallback, fuentes, scores, chunks recuperados desde `talia-ai` y acciones internas para reprocesar PDFs o reintentar embeddings.
+- Configuration per venue.
+- Installable widget/script.
+- Initial message and brand color.
+- Channel prompt.
+- Configurable fallback.
+- Persisted conversations and messages.
+- Basic analytics of topics and intents.
+- Usage tied to billing/limits.
+- Internal chat runtime in `src/lib/agent-runtime/chat.ts`, with n8n encapsulated as a temporary adapter.
+- Selectable `talia-ai` provider via `CHAT_AGENT_PROVIDER=talia-ai`, with temporary fallback to n8n on 5xx errors.
+- When `CHAT_AGENT_PROVIDER=talia-ai`, Next acts as a gateway: it validates tenant, limits and session, and delegates retrieval + response to `/v1/chat/respond`.
+- Agent runtime responses save compact sources (`id`, `source_id`, `source_type`, `score`) in the assistant message metadata, legacy conversation metadata, and usage for auditing.
+- Backstage shows RAG health per venue, response traceability, original question, requested/used provider, model, language, retrieval status, low-confidence/fallback warnings, sources, scores, chunks retrieved from `talia-ai`, and internal actions to reprocess PDFs or retry embeddings.
 
-Pendiente:
+Pending:
 
-- Validar en produccion que `metadata.retrieval.chunks` aparece en Backstage tras desplegar `talia-ai`.
-- Consolidar conocimiento como fuente primaria antes que prompts libres.
-- Mejorar preview/test integrado.
-- Estabilizar `/v1/chat/respond` en el repo externo `talia-ai` para reducir dependencia de n8n.
+- Validate in production that `metadata.retrieval.chunks` appears in Backstage after deploying `talia-ai`.
+- Consolidate knowledge as the primary source ahead of free-form prompts.
+- Improve integrated preview/test.
+- Stabilize `/v1/chat/respond` in the external `talia-ai` repo to reduce dependency on n8n.
 
-Referencia:
+Reference:
 
 - `docs/requirements/chatbot.md`.
 
-### Accesibilidad / Clear View
+### Accessibility / Clear View
 
-Estado: MVP tecnico funcional, en endurecimiento de producto.
+Status: functional technical MVP, undergoing product hardening.
 
-Implementado:
+Implemented:
 
-- Widget independiente en `public/accessibility-widget.js`.
-- Activacion por tenant desde la seccion Accesibilidad del Agora.
-- Controles visuales: tamano de texto, contraste, escala de grises, enlaces resaltados, pausa de animaciones, espaciado, fuente legible y reset.
-- Clear View como lectura simplificada de la pagina publica.
-- Clear View usa IA cuando hay proveedor configurado y fallback local cuando no.
-- Endpoint publico con validacion de tenant, activacion explicita, limite de payload y rate limit basico por IP/tenant.
-- Sanitizado para que la IA no pueda inventar enlaces nuevos.
+- Standalone widget in `public/accessibility-widget.js`.
+- Per-tenant activation from the Accessibility section of Agora.
+- Visual controls: text size, contrast, grayscale, highlighted links, animation pause, spacing, readable font and reset.
+- Clear View as a simplified reading mode for the public page.
+- Clear View uses AI when a provider is configured and falls back locally when it isn't.
+- Public endpoint with tenant validation, explicit activation, payload limit and basic rate limiting per IP/tenant.
+- Sanitization so the AI cannot invent new links.
 
-Pendiente:
+Pending:
 
-- QA visual en `public/olympia.html` y webs reales.
-- Definir pricing/add-on y limites comerciales de uso IA.
-- Reporting de uso si se convierte en producto de pago independiente.
+- Visual QA on `public/olympia.html` and real websites.
+- Define pricing/add-on and commercial limits for AI usage.
+- Usage reporting if it becomes an independent paid product.
 
-Referencia:
+Reference:
 
 - `docs/product/accessibility-widget.md`.
 
-### Conocimiento
+### Knowledge
 
-Estado: activo, entrando en fase RAG incremental.
+Status: active, entering incremental RAG phase.
 
-Implementado:
+Implemented:
 
-- Base de conocimiento compartida por venue.
-- FAQs/respuestas oficiales.
-- Importacion de PDFs con extraccion de texto y fragmentos de conocimiento.
-- FAQs manuales y Excel/CSV se guardan como `knowledge_items` para UI/fallback, pero se reindexan como `knowledge_chunks` via `talia-ai`.
-- Tabla `knowledge_chunks` para fragmentos documentales preparados para retrieval y embeddings.
-- Seam interno de ingestion en `src/lib/knowledge/ingestion.ts`, que sube PDFs a Storage y delega parsing/chunking en `talia-ai`; para fuentes estructuradas normaliza texto y delega chunking/embeddings en `talia-ai`.
-- Seam interno de retrieval en `src/lib/knowledge/retrieval.ts`.
-- Embeddings delegados a `talia-ai` por HTTP server-to-server; Next no genera embeddings localmente.
-- Retrieval semantico delegado a `talia-ai`; en el flujo principal de chatbot con `CHAT_AGENT_PROVIDER=talia-ai`, el retrieval ocurre dentro de `/v1/chat/respond`.
-- PDFs reprocesables desde Storage: Backstage puede pedir a `talia-ai` regenerar chunks y embeddings sin volver a subir el archivo.
-- Backstage permite reindexar todo el conocimiento de un venue y reprocesar fuentes individuales de RAG.
-- Fallback local en Next solo textual sobre chunks/items.
-- Fuentes de web instalada conectadas a `knowledge_sources` tipo `web_snapshot`: Agora genera una URL de captura firmada, el widget instalado extrae texto visible del DOM de la landing y `talia-ai` normaliza, trocea y genera embeddings.
-- La ingesta por URLs externas queda fuera del flujo principal de Agora para clientes; el camino recomendado es instalar el script en la web propia y capturar paginas detectadas.
-- Importacion estructurada segun pantalla de configuracion, ya conectada al RAG para FAQs manuales y Excel/CSV.
+- Knowledge base shared per venue.
+- FAQs/official answers.
+- PDF import with text extraction and knowledge fragments.
+- Manual FAQs and Excel/CSV are saved as `knowledge_items` for UI/fallback, but are reindexed as `knowledge_chunks` via `talia-ai`.
+- `knowledge_chunks` table for documentary fragments prepared for retrieval and embeddings.
+- Internal ingestion seam in `src/lib/knowledge/ingestion.ts`, which uploads PDFs to Storage and delegates parsing/chunking to `talia-ai`; for structured sources it normalizes text and delegates chunking/embeddings to `talia-ai`.
+- Internal retrieval seam in `src/lib/knowledge/retrieval.ts`.
+- Embeddings delegated to `talia-ai` via server-to-server HTTP; Next does not generate embeddings locally.
+- Semantic retrieval delegated to `talia-ai`; in the main chatbot flow with `CHAT_AGENT_PROVIDER=talia-ai`, retrieval happens inside `/v1/chat/respond`.
+- Reprocessable PDFs from Storage: Backstage can ask `talia-ai` to regenerate chunks and embeddings without re-uploading the file.
+- Backstage allows reindexing all of a venue's knowledge and reprocessing individual RAG sources.
+- Local text-only fallback in Next over chunks/items.
+- Installed-web sources connected to `knowledge_sources` of type `web_snapshot`: Agora generates a signed capture URL, the installed widget extracts visible DOM text from the landing page, and `talia-ai` normalizes, chunks and generates embeddings.
+- Ingestion via external URLs is outside the main Agora flow for clients; the recommended path is to install the script on the client's own website and capture detected pages.
+- Structured import per the configuration screen, already connected to RAG for manual FAQs and Excel/CSV.
 
-Direccion de producto:
+Product direction:
 
-- Mantener Conocimiento como nucleo comun para chatbot, email, voz y futuros canales.
-- Ampliar en el futuro hacia Sources, Guidelines, Workflows y Actions.
-- Evolucion recomendada: seguir moviendo ingestion/retrieval/IA a `talia-ai` manteniendo estable el contrato interno de TALIA.
-- Pendiente clave: cron/worker desplegado en Fly para `/v1/knowledge/embed/pending` y mejorar la captura de web instalada con exploracion controlada de paginas propias.
+- Keep Knowledge as the common core for chatbot, email, voice and future channels.
+- Expand in the future toward Sources, Guidelines, Workflows and Actions.
+- Recommended evolution: keep moving ingestion/retrieval/AI to `talia-ai` while keeping TALIA's internal contract stable.
+- Key pending item: cron/worker deployed on Fly for `/v1/knowledge/embed/pending` and improve installed-web capture with controlled exploration of the client's own pages.
 
-### Agente de Email
+### Email Agent
 
-Estado: testing activo con Gmail.
+Status: active testing with Gmail.
 
-Principio de producto:
+Product principle:
 
-- TALIA no envia emails automaticamente.
-- TALIA genera borradores supervisados.
-- El humano revisa y envia desde Gmail.
+- TALIA does not send emails automatically.
+- TALIA generates supervised drafts.
+- The human reviews and sends from Gmail.
 
-Implementado:
+Implemented:
 
-- Conexion Gmail OAuth desde Agora.
-- Microsoft/Outlook oculto hasta completar verificacion.
-- Scopes Gmail actuales:
+- Gmail OAuth connection from Agora.
+- Microsoft/Outlook hidden until verification is complete.
+- Current Gmail scopes:
   - `gmail.readonly`;
   - `gmail.compose`.
-- Sincronizacion por polling con limites configurables.
-- Persistencia de conexiones, threads, mensajes y drafts.
-- Clasificador y redactor desacoplados.
-- Campo vigente: `should_generate_draft`.
-- `should_reply` queda eliminado como contrato nuevo.
-- Drafts visibles en Agora y/o creados en Gmail segun modo.
-- n8n actua como adapter temporal, no como fuente de verdad.
+- Polling-based sync with configurable limits.
+- Persistence of connections, threads, messages and drafts.
+- Decoupled classifier and drafter.
+- Current field: `should_generate_draft`.
+- `should_reply` is removed as a new contract.
+- Drafts visible in Agora and/or created in Gmail depending on mode.
+- n8n acts as a temporary adapter, not as the source of truth.
 
-Pendiente:
+Pending:
 
-- Completar verificacion OAuth de Google.
-- Completar Microsoft Graph.
-- Mover mas logica a backend propio cuando toque desacoplar n8n.
-- Mejorar UI de revision de drafts.
+- Complete Google OAuth verification.
+- Complete Microsoft Graph.
+- Move more logic to our own backend when it's time to decouple n8n.
+- Improve draft review UI.
 
-Referencia:
+Reference:
 
 - `docs/requirements/email-agent.md`.
 - `docs/operations/google-cloud-production-oauth.md`.
 
-### Voz
+### Voice
 
-Estado: planificado/pausado para cliente.
+Status: planned/paused for client.
 
-Contexto:
+Context:
 
-- Hubo exploracion con ElevenLabs/Twilio.
-- El agente de voz no debe aparecer en onboarding cliente ni como opcion activa del Agora hasta que se retome.
+- There was exploration with ElevenLabs/Twilio.
+- The voice agent must not appear in client onboarding nor as an active option in Agora until it is resumed.
 
-Referencia:
+Reference:
 
 - `docs/requirements/voice-agent.md`.
 
-## Billing y Trial
+## Billing and Trial
 
-Implementado:
+Implemented:
 
-- Trial gratuito de 14 dias.
-- Despues del trial, el acceso a Chatbot/Email se reemplaza por upgrade.
-- Pantalla `/upgrade` con planes y extras.
+- 14-day free trial.
+- After the trial, access to Chatbot/Email is replaced by an upgrade prompt.
+- `/upgrade` screen with plans and add-ons.
 - Stripe Checkout.
-- Webhook Stripe documentado.
-- Extras:
+- Documented Stripe webhook.
+- Add-ons:
   - white label;
-  - +2.000 mensajes;
-  - onboarding premium.
+  - +2,000 messages;
+  - premium onboarding.
 
-Pendiente:
+Pending:
 
-- Validar flujo completo live de Stripe.
-- Ajustar reporting de plan actual y add-ons despues de compra.
-- Pulir estado visual de trial/upgrade.
+- Validate the full live Stripe flow.
+- Adjust reporting of current plan and add-ons after purchase.
+- Polish the visual state of trial/upgrade.
 
-Referencias:
+References:
 
 - `docs/product/pricing.md`.
 - `docs/stripe-checkout.md`.
 - `docs/architecture/usage-billing.md`.
 
-## Modelo de Datos y Accesos
+## Data Model and Access
 
-Modelo objetivo:
+Target model:
 
 ```txt
 auth.users
@@ -264,74 +264,74 @@ auth.users
   -> venue_memberships   -> theatres / venues
 ```
 
-Reglas:
+Rules:
 
-- `auth.users` es identidad, no negocio.
-- `profiles` representa la persona.
-- `accounts` representa el cliente contractual.
-- `theatres` es el nombre tecnico legacy de venue.
-- `account_memberships` y `venue_memberships` gobiernan acceso.
-- `public.users` es legacy y no debe ser base de nuevas decisiones.
+- `auth.users` is identity, not business data.
+- `profiles` represents the person.
+- `accounts` represents the contractual client.
+- `theatres` is the legacy technical name for venue.
+- `account_memberships` and `venue_memberships` govern access.
+- `public.users` is legacy and must not be the basis for new decisions.
 
-Referencia:
+Reference:
 
 - `docs/architecture/accounts-venues-access.md`.
 
 ## Backstage
 
-Estado: panel interno TALIA.
+Status: internal TALIA panel.
 
-Uso esperado:
+Expected use:
 
-- Ver y gestionar accounts/venues.
-- Ajustar modulos contratados.
-- Revisar configuraciones avanzadas.
-- Diagnosticar conexiones.
-- Configurar parametros operativos que no deben estar en manos del cliente final.
+- View and manage accounts/venues.
+- Adjust contracted modules.
+- Review advanced configurations.
+- Diagnose connections.
+- Configure operational parameters that should not be in the end client's hands.
 
-Pendiente:
+Pending:
 
-- Consolidar permisos internos.
-- Mejorar visibilidad de usuarios self-serve y configuraciones por venue.
+- Consolidate internal permissions.
+- Improve visibility of self-serve users and per-venue configurations.
 
-## Legal, OAuth y Operacion
+## Legal, OAuth and Operations
 
-Documentos vigentes:
+Current documents:
 
-- Politica de privacidad para Google OAuth: `docs/legal/privacy-policy-google-en.md`.
+- Privacy policy for Google OAuth: `docs/legal/privacy-policy-google-en.md`.
 - Terms of Service: `docs/legal/terms-of-service-google-en.md`.
 - Google OAuth production checklist: `docs/operations/google-cloud-production-oauth.md`.
 - Data retention: `docs/operations/data-retention.md`.
-- Checklist de lanzamiento cliente: `docs/operations/client-launch-checklist.md`.
+- Client launch checklist: `docs/operations/client-launch-checklist.md`.
 
-Estado:
+Status:
 
-- Google exige verificacion para scopes restringidos de Gmail.
-- La homepage y politicas deben ser publicas y verificadas en Search Console.
-- La politica de privacidad debe mantenerse alineada con el uso real de Gmail.
+- Google requires verification for restricted Gmail scopes.
+- The homepage and policies must be public and verified in Search Console.
+- The privacy policy must remain aligned with actual Gmail usage.
 
-## Legacy y Deuda Conocida
+## Legacy and Known Debt
 
-No tomar como modelo nuevo:
+Do not take as a new model:
 
-- `theatres` como nombre de producto. En producto hablamos de venues.
-- `public.users` como modelo de permisos.
-- `should_reply` en workflows email.
-- `DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL` salvo fallback temporal.
-- Voice agent en UI cliente hasta reactivarlo.
+- `theatres` as a product name. In the product we talk about venues.
+- `public.users` as the permissions model.
+- `should_reply` in email workflows.
+- `DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL` except as a temporary fallback.
+- Voice agent in the client UI until it is reactivated.
 
-Deuda activa:
+Active debt:
 
-- Separar prompts editables de prompts tecnicos.
-- Crear repo separado `talia-ai` siguiendo `docs/architecture/talia-ai-service.md`.
-- Reducir dependencia de n8n en chat y email.
-- Consolidar docs de roadmap para que no haya fuentes paralelas.
-- Completar roles y permisos avanzados.
-- Completar observabilidad y reporting.
+- Separate editable prompts from technical prompts.
+- Create a separate `talia-ai` repo following `docs/architecture/talia-ai-service.md`.
+- Reduce dependency on n8n in chat and email.
+- Consolidate roadmap docs so there are no parallel sources.
+- Complete advanced roles and permissions.
+- Complete observability and reporting.
 
-## Como Entrar al Repo
+## How to Get Started in the Repo
 
-Lectura recomendada para nuevos miembros:
+Recommended reading for new members:
 
 1. `docs/current-state.md`.
 2. `docs/index.md`.
@@ -344,13 +344,13 @@ Lectura recomendada para nuevos miembros:
 9. `docs/requirements/email-agent.md`.
 10. `docs/security/auth-phase-1.md`.
 
-## Validacion Basica Antes de PR
+## Basic Validation Before PR
 
-Ejecutar:
+Run:
 
 ```bash
 npm run typecheck
 npm run lint
 ```
 
-No asumir que hay que arrancar `npm run dev` para cada cambio. Si se toca UI critica, verificar visualmente cuando sea necesario.
+Do not assume you need to start `npm run dev` for every change. If critical UI is touched, verify visually when necessary.

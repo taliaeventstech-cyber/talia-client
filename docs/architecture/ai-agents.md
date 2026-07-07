@@ -1,87 +1,87 @@
-# Arquitectura: Agentes IA
+# Architecture: AI Agents
 
-## Principio
+## Principle
 
-Chatbot, voz, email, WhatsApp e Instagram no deben ser productos separados. Deben ser canales sobre una misma capa de atención.
+Chatbot, voice, email, WhatsApp, and Instagram must not be separate products. They must be channels on top of the same attention layer.
 
-## Núcleo Compartido
+## Shared Core
 
-El core debe responder:
+The core must be able to answer:
 
-- qué account y venue poseen la interacción;
-- qué canal la recibió;
-- qué agente respondió;
-- qué conocimiento se usó;
-- qué estado tiene la conversación;
-- si hubo escalado humano;
-- qué intención/tema se detectó;
-- cuánto costó o consumió.
+- which account and venue own the interaction;
+- which channel received it;
+- which agent responded;
+- which knowledge was used;
+- what state the conversation is in;
+- whether there was human escalation;
+- which intent/topic was detected;
+- how much it cost or consumed.
 
-## Canales
+## Channels
 
 ### Chatbot
 
-Canal actual más maduro.
+Currently the most mature channel.
 
-Entrada:
+Input:
 
-- widget web.
+- web widget.
 
-Salida:
+Output:
 
-- respuesta directa en widget.
+- direct response in the widget.
 
-### Voz
+### Voice
 
-Entrada:
+Input:
 
-- llamada telefónica.
+- phone call.
 
-Salida:
+Output:
 
-- voz conversacional;
+- conversational voice;
 - transcript;
-- evento post-call.
+- post-call event.
 
 ### Email
 
-Entrada:
+Input:
 
-- buzón real del cliente.
+- the client's real mailbox.
 
-Salida MVP:
+MVP output:
 
-- borrador en Gmail/Outlook;
-- revisión humana.
+- draft in Gmail/Outlook;
+- human review.
 
-No auto-enviar en primera versión.
+No auto-send in the first version.
 
 ## Knowledge Base
 
-La base de conocimiento debe tener prioridad sobre cualquier fallback generativo.
+The knowledge base must take priority over any generative fallback.
 
-Fuentes:
+Sources:
 
-- FAQs manuales.
+- manual FAQs.
 - CSV/XLSX.
-- Google Sheets más adelante.
-- PDFs y capturas de web instalada.
+- Google Sheets later on.
+- PDFs and installed-web snapshots.
 
-Regla:
+Rule:
 
-1. Buscar respuesta determinista.
-2. Si hay match fiable, responder con fuente.
-3. Si no hay respuesta, fallback humano.
+1. Search for a deterministic answer.
+2. If there is a reliable match, respond with the source.
+3. If there is no answer, fall back to a human.
 
-## Proveedor Temporal vs Backend Propio
+## Temporary Provider vs. In-House Backend
 
-n8n es útil para demos y velocidad.
+n8n is useful for demos and speed.
 
-La arquitectura debe permitir sustituirlo por backend propio sin cambiar:
+The architecture must allow replacing it with an in-house backend without changing:
 
-- widget;
-- modelo de datos;
-- dashboards;
-- configuración por tenant.
+- the widget;
+- the data model;
+- the dashboards;
+- per-tenant configuration.
 
-Por eso la API pública del widget debe hablar con TALIA, no directamente con n8n.
+That's why the widget's public API must talk to TALIA, not directly to n8n.

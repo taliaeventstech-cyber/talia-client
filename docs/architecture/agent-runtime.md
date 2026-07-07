@@ -1,18 +1,18 @@
 # Agent Runtime
 
-## Objetivo
+## Goal
 
-`/api/chat/:tenantId` no debe saber si la respuesta viene de n8n, de un backend propio o de otro proveedor IA. La API publica del widget debe hablar siempre con TALIA y TALIA debe decidir el runtime.
+`/api/chat/:tenantId` must not know whether the response comes from n8n, from an in-house backend, or from another AI provider. The widget's public API must always talk to TALIA, and TALIA must decide the runtime.
 
-## Estado actual
+## Current State
 
-El seam de runtime de chat vive en:
+The chat runtime seam lives in:
 
 ```txt
 src/lib/agent-runtime/chat.ts
 ```
 
-Contrato principal:
+Main contract:
 
 ```ts
 runChatAgent({
@@ -24,51 +24,51 @@ runChatAgent({
 })
 ```
 
-Provider actual:
+Current provider:
 
 - `N8nChatAgentProvider`
 - `TaliaAiChatAgentProvider`
 
-Selector actual:
+Current selector:
 
 ```txt
 CHAT_AGENT_PROVIDER=n8n
 CHAT_AGENT_PROVIDER=talia-ai
 ```
 
-Variables para `talia-ai`:
+Variables for `talia-ai`:
 
 ```txt
 TALIA_AI_BASE_URL=https://talia-ai.fly.dev
 TALIA_AI_INTERNAL_API_KEY=...
 ```
 
-Si `CHAT_AGENT_PROVIDER=talia-ai` y el servicio devuelve un error temporal 5xx, TALIA puede caer a `N8nChatAgentProvider` si el tenant tiene `n8nWebhookUrl` configurado.
+If `CHAT_AGENT_PROVIDER=talia-ai` and the service returns a temporary 5xx error, TALIA can fall back to `N8nChatAgentProvider` if the tenant has `n8nWebhookUrl` configured.
 
-Responsabilidades del route handler:
+Route handler responsibilities:
 
-- validar tenant, session y limites;
-- registrar uso del mensaje de usuario;
-- recuperar conocimiento;
-- responder directo si hay match fiable;
-- si no hay match directo, llamar al runtime;
-- registrar uso de la respuesta.
+- validate tenant, session, and limits;
+- log usage of the user's message;
+- retrieve knowledge;
+- respond directly if there is a reliable match;
+- if there is no direct match, call the runtime;
+- log usage of the response.
 
-Responsabilidades del runtime:
+Runtime responsibilities:
 
-- encapsular provider IA/orquestador;
-- normalizar errores;
-- devolver `{ ok, provider, reply }` en exito;
-- devolver `{ ok: false, provider, status, error }` en fallo.
+- encapsulate the AI/orchestrator provider;
+- normalize errors;
+- return `{ ok, provider, reply }` on success;
+- return `{ ok: false, provider, status, error }` on failure.
 
-## Siguiente paso
+## Next Step
 
-Implementar `/v1/chat/respond` en el repo `talia-ai` siguiendo `docs/architecture/talia-ai-service.md`.
+Implement `/v1/chat/respond` in the `talia-ai` repo following `docs/architecture/talia-ai-service.md`.
 
-El selector de provider ya puede decidir por entorno:
+The provider selector can already decide by environment:
 
 ```txt
-n8n -> runtime propio -> backend externo
+n8n -> in-house runtime -> external backend
 ```
 
-La migracion debe ser gradual: mantener n8n como fallback mientras `talia-ai` estabiliza chat, retrieval y embeddings.
+The migration must be gradual: keep n8n as a fallback while `talia-ai` stabilizes chat, retrieval, and embeddings.
