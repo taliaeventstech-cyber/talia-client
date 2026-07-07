@@ -9,3 +9,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 Before changing product behavior or UI, read `docs/current-state.md` to recover
 the current TALIA product state, active modules, paused modules, and important
 implementation constraints.
+
+## Workflow
+
+Before opening a PR, read `CONTRIBUTING.md` (branching, Linear conventions, pre-PR
+checks) and `HARNESS.md` (rule hierarchy, MCP setup, per-tool notes).

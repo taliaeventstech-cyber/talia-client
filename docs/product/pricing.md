@@ -1,213 +1,213 @@
-# Pricing y Límites
+# Pricing and Limits
 
-Este documento define la lógica de precios y límites de TALIA. Los importes pueden cambiar comercialmente, pero la arquitectura debe soportar planes, uso incluido, overages y módulos independientes.
+This document defines TALIA's pricing and limits logic. Amounts may change commercially, but the architecture must support plans, included usage, overages, and independent modules.
 
-## Planes Base
+## Base Plans
 
-| Plan | Perfil |
+| Plan | Profile |
 | --- | --- |
-| Essential | Cliente pequeño o primera implantación |
-| Professional | Cliente con más volumen o varias necesidades operativas |
-| Enterprise | Cliente con volumen alto, varias venues o requirements avanzados |
-| Custom | Acuerdos específicos |
+| Essential | Small client or first deployment |
+| Professional | Client with more volume or several operational needs |
+| Enterprise | Client with high volume, several venues, or advanced requirements |
+| Custom | Specific agreements |
 
-## Módulos
+## Modules
 
-Los módulos se contratan por venue:
+Modules are contracted per venue:
 
-- Atención.
+- Attention.
 - Data.
 - Marketing.
 
-Dentro de Atención, los canales pueden tener límites separados:
+Within Attention, channels can have separate limits:
 
-- Chatbot web: conversaciones.
-- Email: conversaciones o emails procesados.
-- Voz: minutos.
-- WhatsApp/Instagram: conversaciones o mensajes.
+- Web chatbot: conversations.
+- Email: conversations or processed emails.
+- Voice: minutes.
+- WhatsApp/Instagram: conversations or messages.
 
-## Límites Recomendados
+## Recommended Limits
 
-Los límites deben estar en base de datos, no hardcodeados.
+Limits should be in the database, not hardcoded.
 
-Ejemplo inicial:
+Initial example:
 
-| Plan | Chatbot | Email | Voz |
+| Plan | Chatbot | Email | Voice |
 | --- | ---: | ---: | ---: |
-| Essential | 1.000 conversaciones/mes | 0-500 conversaciones/mes | 0 minutos |
-| Professional | 4.000 conversaciones/mes | 500-1.500 conversaciones/mes | 60-120 minutos |
-| Enterprise | 12.000 conversaciones/mes | 2.000+ conversaciones/mes | 120+ minutos |
+| Essential | 1,000 conversations/month | 0-500 conversations/month | 0 minutes |
+| Professional | 4,000 conversations/month | 500-1,500 conversations/month | 60-120 minutes |
+| Enterprise | 12,000 conversations/month | 2,000+ conversations/month | 120+ minutes |
 
-## Propuesta Estimada Para Cliente Institucional
+## Estimated Proposal For Institutional Client
 
-Esta propuesta es preliminar. Sirve para presentar un rango profesional y defendible antes de tener datos reales de uso. No debe comunicarse como pricing validado hasta medir volumen, coste de proveedores y carga operativa durante una prueba real.
+This proposal is preliminary. It serves to present a professional and defensible range before having real usage data. It must not be communicated as validated pricing until volume, provider cost, and operational load are measured during a real trial.
 
-### Proceso Comercial Recomendado
+### Recommended Commercial Process
 
-Después de la primera presentación/demo, no conviene cerrar precio definitivo sin una mínima fase de discovery. El proceso recomendado es:
+After the initial presentation/demo, it is not advisable to close a definitive price without a minimal discovery phase. The recommended process is:
 
-1. **Demo inicial**
-   - Enseñar TALIA con chatbot, email agent y voice agent como visión de módulo Atención.
-   - Mostrar el valor operativo: menos fricción para el visitante, respuestas más rápidas, datos de intención y trazabilidad.
+1. **Initial demo**
+   - Show TALIA with chatbot, email agent, and voice agent as the vision for the Attention module.
+   - Show the operational value: less friction for the visitor, faster responses, intent data, and traceability.
 
-2. **Confirmación de volumen**
-   - Pedir datos aproximados:
-     - visitas mensuales a la web;
-     - conversaciones o consultas web actuales;
-     - emails mensuales de atención;
-     - llamadas mensuales o minutos estimados;
-     - idiomas;
-     - picos por campaña/temporada;
-     - número de venues o áreas implicadas.
+2. **Volume confirmation**
+   - Request approximate data:
+     - monthly website visits;
+     - current conversations or web inquiries;
+     - monthly attention emails;
+     - monthly calls or estimated minutes;
+     - languages;
+     - peaks by campaign/season;
+     - number of venues or areas involved.
 
-3. **Clasificación del cliente**
-   - Clasificar el cliente como Bronce, Plata u Oro según volumen, complejidad y canales.
-   - Esta clasificación no es solo tamaño: también mide criticidad operativa, necesidad de soporte, idiomas, integraciones y número de equipos.
+3. **Client classification**
+   - Classify the client as Bronze, Silver, or Gold based on volume, complexity, and channels.
+   - This classification is not just about size: it also measures operational criticality, support needs, languages, integrations, and number of teams.
 
-4. **Propuesta con 3 opciones**
-   - Presentar tres alternativas claras:
-     - una opción conservadora;
-     - una opción recomendada;
-     - una opción completa.
-   - Cada opción debe indicar:
-     - canales incluidos;
-     - conversaciones/emails/minutos incluidos;
-     - precio mensual;
+4. **Proposal with 3 options**
+   - Present three clear alternatives:
+     - a conservative option;
+     - a recommended option;
+     - a complete option.
+   - Each option must indicate:
+     - included channels;
+     - included conversations/emails/minutes;
+     - monthly price;
      - setup;
-     - coste por uso adicional.
+     - cost per additional usage.
 
-### Clasificación Bronce / Plata / Oro
+### Bronze / Silver / Gold Classification
 
-| Nivel | Perfil | Canales recomendados | Uso incluido orientativo |
+| Tier | Profile | Recommended channels | Indicative included usage |
 | --- | --- | --- | --- |
-| Bronce | Venue con volumen bajo o piloto controlado | Chatbot | 1.000-2.000 conversaciones chatbot |
-| Plata | Venue con atención digital relevante | Chatbot + email | 4.000-6.000 conversaciones chatbot + 1.000-1.500 emails |
-| Oro | Institución con atención multicanal y picos altos | Chatbot + email + voz | 12.000-18.000 conversaciones chatbot + 3.000-5.000 emails + 300-600 min voz |
+| Bronze | Venue with low volume or controlled pilot | Chatbot | 1,000-2,000 chatbot conversations |
+| Silver | Venue with significant digital attention | Chatbot + email | 4,000-6,000 chatbot conversations + 1,000-1,500 emails |
+| Gold | Institution with multichannel attention and high peaks | Chatbot + email + voice | 12,000-18,000 chatbot conversations + 3,000-5,000 emails + 300-600 min voice |
 
-### Preguntas de Discovery
+### Discovery Questions
 
-Para poder clasificar bien:
+To classify properly:
 
-- ¿Cuántas visitas mensuales tiene la web?
-- ¿Cuántos emails recibe atención al público al mes?
-- ¿Cuántas llamadas recibe el teatro al mes?
-- ¿Qué porcentaje de preguntas son repetitivas?
-- ¿En qué idiomas atienden?
-- ¿Hay picos por estreno, temporada, descuentos o campañas?
-- ¿El cliente quiere solo web/chat o también buzón y teléfono?
-- ¿Necesitan revisar respuestas antes de enviarlas?
-- ¿Cuántas personas del equipo usarán TALIA?
+- How many monthly visits does the website have?
+- How many emails does public attention receive per month?
+- How many calls does the venue receive per month?
+- What percentage of questions are repetitive?
+- What languages do they handle?
+- Are there peaks due to premieres, season, discounts, or campaigns?
+- Does the client want only web/chat, or also mailbox and phone?
+- Do they need to review responses before sending them?
+- How many people on the team will use TALIA?
 
-### Pack Atención TALIA
+### TALIA Attention Pack
 
-Incluye:
+Includes:
 
-- Chatbot web para la web del cliente.
-- Agente de email en modo borradores supervisados.
-- Agente de voz con número TALIA o desvío desde número del cliente.
-- Base de conocimiento inicial.
-- Dashboard Àgora.
-- Analítica básica de temas e intención.
-- Configuración y soporte de puesta en marcha.
+- Web chatbot for the client's website.
+- Email agent in supervised-drafts mode.
+- Voice agent with a TALIA number or forwarding from the client's number.
+- Initial knowledge base.
+- Agora dashboard.
+- Basic analytics of topics and intent.
+- Setup configuration and support.
 
-| Plan | Precio mensual estimado | Chatbot web | Email agent | Voice agent | Soporte |
+| Plan | Estimated monthly price | Web chatbot | Email agent | Voice agent | Support |
 | --- | ---: | ---: | ---: | ---: | --- |
-| Essential | 349 €/mes | 2.000 conversaciones/mes | 500 emails procesados/mes | 60 min/mes | Email |
-| Professional | 699 €/mes | 6.000 conversaciones/mes | 1.500 emails procesados/mes | 180 min/mes | Prioritario |
-| Enterprise | 1.399 €/mes | 18.000 conversaciones/mes | 5.000 emails procesados/mes | 600 min/mes | Prioritario + seguimiento mensual |
+| Essential | €349/month | 2,000 conversations/month | 500 processed emails/month | 60 min/month | Email |
+| Professional | €699/month | 6,000 conversations/month | 1,500 processed emails/month | 180 min/month | Priority |
+| Enterprise | €1,399/month | 18,000 conversations/month | 5,000 processed emails/month | 600 min/month | Priority + monthly follow-up |
 
-### Propuesta por Canales
+### Proposal By Channels
 
-Para evitar vender de entrada algo sobredimensionado, también se puede presentar la propuesta por número de canales:
+To avoid selling an oversized package from the outset, the proposal can also be presented by number of channels:
 
-| Opción | Canales incluidos | Precio mensual estimado | Uso incluido |
+| Option | Included channels | Estimated monthly price | Included usage |
 | --- | --- | ---: | --- |
-| Bronce | Chatbot web | 349 €/mes | 2.000 conversaciones chatbot |
-| Plata | Chatbot web + email agent | 699 €/mes | 6.000 conversaciones chatbot + 1.500 emails |
-| Oro | Chatbot web + email agent + voice agent | 1.399 €/mes | 18.000 conversaciones chatbot + 5.000 emails + 600 minutos voz |
+| Bronze | Web chatbot | €349/month | 2,000 chatbot conversations |
+| Silver | Web chatbot + email agent | €699/month | 6,000 chatbot conversations + 1,500 emails |
+| Gold | Web chatbot + email agent + voice agent | €1,399/month | 18,000 chatbot conversations + 5,000 emails + 600 voice minutes |
 
-Esta estructura es más fácil de explicar comercialmente:
+This structure is easier to explain commercially:
 
-- **Bronce**: empezamos por web.
-- **Plata**: añadimos atención por buzón.
-- **Oro**: cubrimos web, email y teléfono.
+- **Bronze**: we start with the web.
+- **Silver**: we add mailbox attention.
+- **Gold**: we cover web, email, and phone.
 
-### Setup Inicial
+### Initial Setup
 
-Recomendación para cliente institucional:
+Recommendation for institutional client:
 
-| Concepto | Precio estimado |
+| Item | Estimated price |
 | --- | ---: |
-| Setup chatbot + widget + dashboard | 750 € |
-| Carga inicial de base de conocimiento | 500 € |
-| Configuración agente de email | 600 € |
-| Configuración agente de voz + telefonía | 900 € |
-| Total setup recomendado | 2.750 € |
+| Chatbot + widget + dashboard setup | €750 |
+| Initial knowledge base loading | €500 |
+| Email agent configuration | €600 |
+| Voice agent + telephony configuration | €900 |
+| Total recommended setup | €2,750 |
 
-Para una propuesta comercial más sencilla, se puede ofrecer:
+For a simpler commercial proposal, we can offer:
 
-- **Setup bonificado**: 1.500 € si contratan Professional o Enterprise.
-- **Piloto de 60 días**: 699 €/mes + setup reducido.
+- **Discounted setup**: €1,500 if they contract Professional or Enterprise.
+- **60-day pilot**: €699/month + reduced setup.
 
-### Overages Estimados
+### Estimated Overages
 
-Los overages protegen margen y evitan usos no controlados.
+Overages protect margin and prevent uncontrolled usage.
 
-| Canal | Unidad extra | Precio estimado |
+| Channel | Extra unit | Estimated price |
 | --- | ---: | ---: |
-| Chatbot | 1.000 conversaciones extra | 49 € |
-| Email | 500 emails procesados extra | 59 € |
-| Voz | 100 minutos extra | 79 € |
+| Chatbot | 1,000 extra conversations | €49 |
+| Email | 500 extra processed emails | €59 |
+| Voice | 100 extra minutes | €79 |
 
-### Límites Operativos
+### Operational Limits
 
-Los límites no deberían cortar el servicio de golpe en una demo o primer contrato. Recomendación:
+Limits should not cut off service abruptly during a demo or first contract. Recommendation:
 
-- Al 80% de uso: aviso interno TALIA.
-- Al 100%: aviso interno + aviso comercial al cliente.
-- Al 120%: aplicar overage o pasar a fallback según contrato.
-- No bloquear chatbot ni voz en eventos críticos sin aviso previo.
+- At 80% usage: internal TALIA notice.
+- At 100%: internal notice + commercial notice to the client.
+- At 120%: apply overage or move to fallback per contract.
+- Do not block chatbot or voice during critical events without prior notice.
 
-### Recomendación para Cliente Institucional
+### Recommendation For Institutional Client
 
-Para un cliente institucional, tras una demo inicial, la recomendación inicial sería clasificarlo probablemente entre **Plata** y **Oro**, pendiente de volumen real.
+For an institutional client, after an initial demo, the initial recommendation would probably be to classify them between **Silver** and **Gold**, pending real volume.
 
-Si quieren empezar de forma sólida pero controlada, la propuesta más defendible es **Plata / Professional**:
+If they want to start solidly but in a controlled way, the most defensible proposal is **Silver / Professional**:
 
-- 699 €/mes.
-- 6.000 conversaciones chatbot.
-- 1.500 emails procesados.
-- Sin voz incluida o con bolsa piloto limitada si se quiere probar.
-- Setup bonificado de 1.500 €.
+- €699/month.
+- 6,000 chatbot conversations.
+- 1,500 processed emails.
+- No voice included, or with a limited pilot allowance if they want to test it.
+- Discounted setup of €1,500.
 
-Si desde el principio quieren cubrir teléfono, la propuesta debería subir a **Oro / Enterprise** o a un Professional con add-on de voz:
+If they want to cover the phone from the start, the proposal should move up to **Gold / Enterprise** or a Professional with a voice add-on:
 
-- 699 €/mes base Professional.
-- Add-on voz: 199-349 €/mes según minutos incluidos.
-- Minutos extra según overage.
+- €699/month base Professional.
+- Voice add-on: €199-349/month depending on included minutes.
+- Extra minutes according to overage.
 
-Motivo: un cliente institucional puede tener volumen alto, programación recurrente, preguntas de accesibilidad, ticketing, horarios y atención multicanal. Bronce se queda corto para una propuesta seria; Oro tiene sentido si confirman volumen de llamadas o quieren atención multicanal desde el día uno.
+Reason: an institutional client may have high volume, recurring programming, accessibility questions, ticketing, schedules, and multichannel attention. Bronze falls short for a serious proposal; Gold makes sense if they confirm call volume or want multichannel attention from day one.
 
-## Coste Real vs Coste Estimado
+## Real Cost vs Estimated Cost
 
-El coste por conversación no se obtiene automáticamente de OpenAI con granularidad perfecta por conversación salvo que lo calculemos nosotros.
+The cost per conversation is not automatically obtained from OpenAI with perfect granularity per conversation unless we calculate it ourselves.
 
-Arquitectura recomendada:
+Recommended architecture:
 
-- Guardar tokens de entrada y salida cuando el backend propio haga la llamada al modelo.
-- Guardar modelo usado.
-- Calcular coste estimado con tabla interna de precios.
-- Guardar `cost_estimate_cents` en `usage_events`.
-- Comparar mensualmente con factura real de proveedores.
+- Store input and output tokens when our own backend makes the model call.
+- Store the model used.
+- Calculate estimated cost with an internal pricing table.
+- Store `cost_estimate_cents` in `usage_events`.
+- Compare monthly against providers' actual invoices.
 
-Mientras n8n gestione parte del flujo, el coste será estimado si no devuelve tokens. Cuando migremos a backend propio, el tracking será más fiable.
+While n8n manages part of the flow, the cost will be estimated if it does not return tokens. When we migrate to our own backend, tracking will be more reliable.
 
 ## Hard Limits
 
-Soportar tres comportamientos:
+Support three behaviors:
 
-- `notify_only`: avisar internamente, no bloquear.
-- `fallback`: responder con mensaje de fallback y contacto humano.
-- `block`: bloquear uso al superar el límite.
+- `notify_only`: notify internally, do not block.
+- `fallback`: respond with a fallback message and human contact.
+- `block`: block usage when the limit is exceeded.
 
-Para demos y primeros clientes, se recomienda `notify_only` o `fallback`, no bloqueo duro.
+For demos and first clients, `notify_only` or `fallback` is recommended, not hard blocking.

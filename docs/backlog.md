@@ -1,33 +1,33 @@
 # Backlog
 
-Tareas y mejoras de medio plazo que no bloquean el avance actual, pero conviene no perder.
+Medium-term tasks and improvements that don't block current progress, but shouldn't be lost track of.
 
-## Arquitectura de agentes
+## Agent architecture
 
-### Separar prompts editables de prompts técnicos
+### Separate editable prompts from technical prompts
 
-Estado: pendiente
+Status: pending
 
-Contexto:
-- La base de conocimiento es común por venue.
-- Cada canal tiene configuración propia: Chatbot, Email, Voz.
-- Los workflows/agentes de n8n también tienen prompts técnicos de sistema.
+Context:
+- The knowledge base is shared per venue.
+- Each channel has its own configuration: Chatbot, Email, Voice.
+- n8n workflows/agents also have technical system prompts.
 
-Mejora:
-- Distinguir explícitamente entre `channelPrompt` e instrucciones técnicas del agente.
-- `channelPrompt`: editable desde producto/backstage; define tono, preferencias y comportamiento del canal.
-- Prompt técnico: vive en n8n/backend; contiene reglas duras, formato de salida, límites de seguridad y contrato JSON.
+Improvement:
+- Explicitly distinguish between `channelPrompt` and the agent's technical instructions.
+- `channelPrompt`: editable from product/backstage; defines tone, preferences, and channel behavior.
+- Technical prompt: lives in n8n/backend; contains hard rules, output format, safety limits, and the JSON contract.
 
-Motivo:
-- Evita que un usuario rompa el contrato técnico del agente.
-- Mantiene trazabilidad por canal.
-- Permite compartir conocimiento sin mezclarlo con comportamiento.
+Rationale:
+- Prevents a user from breaking the agent's technical contract.
+- Maintains traceability per channel.
+- Allows sharing knowledge without mixing it with behavior.
 
-Canales afectados:
+Affected channels:
 - Chatbot: `theatres.system_prompt`.
 - Email: `email_connections.metadata.email_agent_settings.channel_prompt`.
-- Voz: `theatres.voice_system_prompt`.
+- Voice: `theatres.voice_system_prompt`.
 
-Decisión pendiente:
-- Si renombramos internamente `system_prompt` del chatbot a un nombre más claro en una futura migración.
-- Si añadimos versionado/auditoría de cambios de prompts por canal.
+Pending decision:
+- Whether to internally rename the chatbot's `system_prompt` to a clearer name in a future migration.
+- Whether to add versioning/audit trail for prompt changes per channel.

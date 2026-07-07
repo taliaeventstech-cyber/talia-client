@@ -1,219 +1,219 @@
-# Widget de Accesibilidad
+# Accessibility Widget
 
-Estado: MVP tecnico funcional con endurecimiento inicial de producto.
+Status: functional technical MVP with initial product hardening.
 
-Objetivo: desarrollar un widget de accesibilidad ligero, independiente del chatbot de TALIA, orientado a mejorar la experiencia de usuarios finales y ayudar a clientes culturales a avanzar hacia mejores practicas de accesibilidad. No debe venderse como certificacion ni como garantia automatica de cumplimiento legal.
+Goal: develop a lightweight accessibility widget, independent of the TALIA chatbot, aimed at improving the end-user experience and helping cultural clients move toward better accessibility practices. It must not be sold as certification or as an automatic guarantee of legal compliance.
 
-## Posicionamiento
+## Positioning
 
-El modulo se debe comunicar como:
+The module should be communicated as:
 
-- herramienta de mejora de accesibilidad;
-- soporte operativo para reducir barreras comunes;
-- modulo independiente dentro del ecosistema TALIA;
-- ayuda previa o complementaria a auditorias humanas.
+- an accessibility improvement tool;
+- operational support to reduce common barriers;
+- an independent module within the TALIA ecosystem;
+- prior or complementary help to human audits.
 
-No se debe comunicar como:
+It should not be communicated as:
 
-- cumplimiento WCAG automatico;
-- cumplimiento certificado;
-- sustituto de auditoria legal o tecnica;
-- solucion completa para EAA, ADA, EN 301 549 o normativa equivalente.
+- automatic WCAG compliance;
+- certified compliance;
+- a substitute for a legal or technical audit;
+- a complete solution for EAA, ADA, EN 301 549, or equivalent regulations.
 
-Mensaje comercial recomendado:
+Recommended commercial message:
 
-> TALIA Accessibility mejora la navegacion, lectura y adaptacion visual de la web mediante controles accesibles para visitantes. Ayuda a reducir friccion y a preparar mejor la web para auditorias, sin sustituir una auditoria profesional de accesibilidad.
+> TALIA Accessibility improves navigation, reading, and visual adaptation of the website through accessible controls for visitors. It helps reduce friction and better prepare the website for audits, without replacing a professional accessibility audit.
 
-## Referencias
+## References
 
-OneTap vende un plugin de accesibilidad para WordPress con instalacion rapida, widget flotante, modulos activables, perfiles preconfigurados, personalizacion visual, soporte multidioma, generador de declaracion de accesibilidad y pricing por numero de webs o agencia.
+OneTap sells an accessibility plugin for WordPress with quick installation, floating widget, toggleable modules, preconfigured profiles, visual customization, multi-language support, an accessibility statement generator, and pricing by number of websites or agency.
 
-Referencias de producto:
+Product references:
 
 - https://wponetap.com/pricing/
 - https://wponetap.com/features/
 - https://wponetap.com/modules/
 
-Referencias normativas y tecnicas:
+Regulatory and technical references:
 
 - W3C WCAG 2.2: https://www.w3.org/TR/WCAG22/
 - European Accessibility Act, Directive (EU) 2019/882: https://eur-lex.europa.eu/eli/dir/2019/882/oj
 
-## Encaje en TALIA
+## Fit within TALIA
 
-El modulo debe vivir dentro del ecosistema TALIA, pero separado del chatbot:
+The module must live within the TALIA ecosystem, but separate from the chatbot:
 
-- se distribuye desde `public/accessibility-widget.js`;
-- no se mezcla con el launcher conversacional del chatbot;
-- puede reutilizar tenant/configuracion/branding de TALIA;
-- se configura desde `widget_config.accessibility` o desde una tabla/configuracion dedicada si el producto crece;
-- se activa por tenant/venue;
-- convive con el chatbot web;
-- se prueba inicialmente en paginas demo como `public/olympia.html`.
+- it is distributed from `public/accessibility-widget.js`;
+- it is not mixed with the chatbot's conversational launcher;
+- it can reuse TALIA's tenant/configuration/branding;
+- it is configured from `widget_config.accessibility` or from a dedicated table/configuration if the product grows;
+- it is activated per tenant/venue;
+- it coexists with the web chatbot;
+- it is initially tested on demo pages such as `public/olympia.html`.
 
-No se plantea como plugin WordPress independiente en el MVP.
+It is not planned as a standalone WordPress plugin in the MVP.
 
-Decision de producto: el chatbot y el widget de accesibilidad deben ser widgets distintos. El usuario final no debe interpretar que un chatbot es una herramienta de accesibilidad ni que los ajustes visuales forman parte de una conversacion. Pueden compartir branding, posicionamiento y configuracion, pero deben tener botones, labels y estados separados.
+Product decision: the chatbot and the accessibility widget must be distinct widgets. The end user should not interpret a chatbot as an accessibility tool, nor should visual adjustments be understood as part of a conversation. They can share branding, positioning, and configuration, but must have separate buttons, labels, and states.
 
 ## MVP
 
-El MVP debe ser pequeno, reversible y seguro en webs externas.
+The MVP must be small, reversible, and safe on external websites.
 
-### Funciones
+### Features
 
-- Boton flotante propio de accesibilidad, independiente del launcher del chatbot.
-- Panel accesible con controles:
-  - aumentar texto;
-  - reducir texto;
-  - alto contraste;
-  - escala de grises;
-  - resaltar enlaces;
-  - pausar animaciones;
-  - aumentar espaciado;
-  - fuente legible;
+- Its own floating accessibility button, independent of the chatbot launcher.
+- Accessible panel with controls:
+  - increase text size;
+  - decrease text size;
+  - high contrast;
+  - grayscale;
+  - highlight links;
+  - pause animations;
+  - increase spacing;
+  - readable font;
   - reset.
-- Persistencia local por navegador con `localStorage`.
-- Soporte inicial en castellano, catalan e ingles.
-- Navegacion completa con teclado.
-- Foco visible.
-- Etiquetas ARIA claras.
-- Sin cookies.
-- Sin recopilacion de datos personales.
+- Local persistence per browser via `localStorage`.
+- Initial support in Spanish, Catalan, and English.
+- Full keyboard navigation.
+- Visible focus.
+- Clear ARIA labels.
+- No cookies.
+- No collection of personal data.
 
-### Fuera del MVP
+### Out of scope for the MVP
 
-Nota (jul 2026): Text-to-speech se implemento despues del MVP (ver auditoria); el resto
-sigue fuera de alcance.
+Note (Jul 2026): Text-to-speech was implemented after the MVP (see audit); the rest
+remains out of scope.
 
-- Text-to-speech. (implementado en jul 2026, ya no aplica)
-- Auditoria automatica WCAG.
-- Generador legal de declaracion de accesibilidad.
-- Crawling de paginas.
-- Certificado de cumplimiento.
-- Plugin WordPress.
-- Panel de reporting avanzado.
+- Text-to-speech. (implemented Jul 2026, no longer applies)
+- Automatic WCAG audit.
+- Legal accessibility statement generator.
+- Page crawling.
+- Compliance certificate.
+- WordPress plugin.
+- Advanced reporting panel.
 
 ## Clear View
 
-Clear View es una lectura simplificada de la pagina publica dentro del widget.
-Esta pensada para reducir carga cognitiva y ordenar informacion util, no para
-certificar accesibilidad.
+Clear View is a simplified reading view of the public page within the widget.
+It is designed to reduce cognitive load and organize useful information, not to
+certify accessibility.
 
-Implementado:
+Implemented:
 
-- Extraccion local de titulo, resumen, acciones y secciones visibles.
+- Local extraction of title, summary, actions, and visible sections.
 - Endpoint `POST /api/accessibility/clear-view`.
-- Generacion con IA cuando `OPENAI_API_KEY` esta disponible.
-- Fallback local si la IA no esta configurada o falla.
-- Schema estricto para la respuesta.
-- Sanitizado de acciones para impedir que la IA invente enlaces nuevos.
-- Cache por pagina en `sessionStorage`.
-- Activacion separada con `widget_config.accessibility.clearViewEnabled`.
-- Rate limit basico por tenant e IP.
-- Corte de payload excesivo antes de llamar al proveedor IA.
+- AI generation when `OPENAI_API_KEY` is available.
+- Local fallback if AI is not configured or fails.
+- Strict schema for the response.
+- Sanitization of actions to prevent the AI from inventing new links.
+- Per-page cache in `sessionStorage`.
+- Separate activation via `widget_config.accessibility.clearViewEnabled`.
+- Basic rate limit per tenant and IP.
+- Excessive payload truncation before calling the AI provider.
 
-## Modo neurodivergente / baja estimulacion
+## Neurodivergent / low-stimulation mode
 
-Modo visual reversible dentro del widget. No sustituye a Clear View: Clear View
-reordena la lectura dentro del panel, mientras que baja estimulacion adapta la
-web actual sin salir de la pagina.
+Reversible visual mode within the widget. It does not replace Clear View: Clear View
+reorders the reading content within the panel, while low stimulation adapts the
+current page without leaving it.
 
-Implementado:
+Implemented:
 
-- Pausa animaciones y transiciones.
-- Reduce saturacion/contraste de imagenes y medios.
-- Elimina fondos intensos, gradientes, sombras y efectos de urgencia visual.
-- Suaviza badges, alertas, contadores y elementos llamativos.
-- Hace mas lineales los layouts tipo grid, carrusel o slider cuando el usuario lo activa.
-- Mantiene excluidos los roots de TALIA para no romper el chatbot ni el propio widget.
+- Pauses animations and transitions.
+- Reduces saturation/contrast of images and media.
+- Removes intense backgrounds, gradients, shadows, and visual urgency effects.
+- Softens badges, alerts, counters, and eye-catching elements.
+- Makes grid, carousel, or slider-type layouts more linear when the user activates it.
+- Keeps TALIA roots excluded so as not to break the chatbot or the widget itself.
 
-## Orientacion de lectura
+## Reading orientation
 
-Modos reversibles para reducir distraccion durante la lectura sin modificar el DOM
-de la pagina. Pueden usarse por separado o juntos.
+Reversible modes to reduce distraction during reading without modifying the page's
+DOM. They can be used separately or together.
 
-Implementado:
+Implemented:
 
-- Mascara de lectura: oscurece arriba y abajo, dejando una banda central.
-- Linea de lectura: linea fina que sigue el raton o foco.
-- Reposicionamiento por foco de teclado, scroll y resize.
-- Ligero ajuste de interlineado mientras la mascara esta activa.
-- Persistencia en `localStorage` con el resto de ajustes.
+- Reading mask: darkens the top and bottom, leaving a central band.
+- Reading line: thin line that follows the mouse or focus.
+- Repositioning on keyboard focus, scroll, and resize.
+- Slight line-spacing adjustment while the mask is active.
+- Persistence in `localStorage` along with the rest of the settings.
 
-## Resaltar contenido
+## Highlight content
 
-Modo reversible para orientar al usuario sobre el bloque actual sin alterar la
-estructura de la web.
+Reversible mode to orient the user around the current block without altering the
+website's structure.
 
-Implementado:
+Implemented:
 
-- Detecta el bloque semantico bajo raton o foco de teclado.
-- Prioriza contenedores como `section`, `article`, `form`, `li`, `p`, cards e items.
-- Dibuja un overlay en Shadow DOM con borde y fondo suave.
-- Reposiciona el overlay con `requestAnimationFrame`, scroll y resize.
-- Excluye los roots de TALIA para no resaltar el widget ni el chatbot.
+- Detects the semantic block under the mouse or keyboard focus.
+- Prioritizes containers such as `section`, `article`, `form`, `li`, `p`, cards, and items.
+- Draws an overlay in Shadow DOM with a border and soft background.
+- Repositions the overlay with `requestAnimationFrame`, scroll, and resize.
+- Excludes TALIA roots so as not to highlight the widget or the chatbot.
 
-Reglas:
+Rules:
 
-- Si `accessibility.enabled !== true`, el widget no se monta.
-- Si `clearViewEnabled === false`, el boton de Clear View no aparece.
-- El endpoint tambien bloquea Clear View cuando el tenant lo tiene desactivado.
-- Clear View debe mantener copy prudente: ayuda de lectura, no cumplimiento legal.
+- If `accessibility.enabled !== true`, the widget does not mount.
+- If `clearViewEnabled === false`, the Clear View button does not appear.
+- The endpoint also blocks Clear View when the tenant has it disabled.
+- Clear View must maintain cautious copy: reading aid, not legal compliance.
 
 ## UX
 
 ### Launcher
 
-Opciones consideradas:
+Options considered:
 
-1. Boton separado de accesibilidad.
-2. Acceso dentro del panel del chatbot.
-3. Launcher combinado con dos acciones.
+1. Separate accessibility button.
+2. Access within the chatbot panel.
+3. Combined launcher with two actions.
 
-Decision: boton separado, pequeno, cercano al launcher del chatbot cuando ambos esten instalados. Es mas claro para usuarios finales y evita mezclar conversacion con ajustes visuales.
+Decision: a separate, small button, close to the chatbot launcher when both are installed. It is clearer for end users and avoids mixing conversation with visual settings.
 
-Cuando conviva con el chatbot:
+When it coexists with the chatbot:
 
-- el boton de accesibilidad debe quedar ligeramente por encima del boton del chatbot;
-- ambos botones deben tener labels ARIA distintos;
-- el panel de accesibilidad no debe abrir ni cerrar el chatbot;
-- el chatbot no debe contener controles de accesibilidad en el MVP.
+- the accessibility button should sit slightly above the chatbot button;
+- both buttons must have distinct ARIA labels;
+- the accessibility panel must not open or close the chatbot;
+- the chatbot must not contain accessibility controls in the MVP.
 
 ### Panel
 
-El panel debe:
+The panel must:
 
-- abrirse como modal flotante no bloqueante;
-- tener titulo claro: `Accesibilidad`;
-- tener boton de cierre;
-- tener controles grandes y escaneables;
-- mostrar estado activo de cada control;
-- incluir un boton `Restablecer`;
-- no tapar el contenido principal mas de lo necesario.
+- open as a non-blocking floating modal;
+- have a clear title: `Accessibility`;
+- have a close button;
+- have large, scannable controls;
+- show the active state of each control;
+- include a `Reset` button;
+- not cover the main content more than necessary.
 
-### Copy inicial
+### Initial copy
 
-Castellano:
+Spanish:
 
-- Titulo: `Accesibilidad`
-- Descripcion: `Ajusta la lectura y visualizacion de esta web.`
+- Title: `Accesibilidad`
+- Description: `Ajusta la lectura y visualización de esta web.`
 - Reset: `Restablecer`
 
 Catalan:
 
-- Titulo: `Accessibilitat`
-- Descripcion: `Ajusta la lectura i visualitzacio d'aquest web.`
+- Title: `Accessibilitat`
+- Description: `Ajusta la lectura i visualització d'aquest web.`
 - Reset: `Restableix`
 
-Ingles:
+English:
 
 - Title: `Accessibility`
 - Description: `Adjust reading and visual display for this website.`
 - Reset: `Reset`
 
-## Configuracion
+## Configuration
 
-Propuesta de `widget_config`:
+Proposed `widget_config`:
 
 ```json
 {
@@ -244,16 +244,16 @@ Propuesta de `widget_config`:
 }
 ```
 
-Reglas:
+Rules:
 
-- Si `accessibility.enabled !== true`, no se monta el modulo.
-- Si no hay configuracion remota, el modulo no debe aparecer salvo que el script tenga atributo explicito.
-- El idioma `auto` debe tomar `document.documentElement.lang`, con fallback a castellano.
+- If `accessibility.enabled !== true`, the module does not mount.
+- If there is no remote configuration, the module must not appear unless the script has an explicit attribute.
+- The `auto` language should take `document.documentElement.lang`, with a fallback to Spanish.
 
-## API de embed
+## Embed API
 
-Instalacion estable. Los cambios hechos en Agora se reflejan al recargar la web
-publica porque el script consulta `/api/widget/{tenantId}`.
+Stable installation. Changes made in Agora are reflected upon reloading the
+public website because the script queries `/api/widget/{tenantId}`.
 
 ```html
 <script
@@ -262,7 +262,7 @@ publica porque el script consulta `/api/widget/{tenantId}`.
 </script>
 ```
 
-Si una web usa tambien el chatbot:
+If a website also uses the chatbot:
 
 ```html
 <script
@@ -276,25 +276,25 @@ Si una web usa tambien el chatbot:
 </script>
 ```
 
-Prioridad:
+Priority:
 
-1. Configuracion remota del tenant.
-2. Atributos del script solo como override avanzado o fallback manual.
-3. Defaults seguros.
+1. Tenant's remote configuration.
+2. Script attributes only as an advanced override or manual fallback.
+3. Safe defaults.
 
-## Arquitectura tecnica
+## Technical architecture
 
-El chatbot actual usa Shadow DOM en `public/widget.js`. El widget de accesibilidad debe tener su propio Shadow DOM en `public/accessibility-widget.js`. Los ajustes de accesibilidad deben afectar a la pagina host, por tanto no pueden quedarse solo dentro del Shadow DOM.
+The current chatbot uses Shadow DOM in `public/widget.js`. The accessibility widget must have its own Shadow DOM in `public/accessibility-widget.js`. Accessibility settings must affect the host page, so they cannot remain solely within the Shadow DOM.
 
-Estrategia:
+Strategy:
 
-- montar la UI del panel en un root independiente: `talia-accessibility-root`;
-- aplicar estado visual al documento host mediante clases en `document.documentElement`;
-- inyectar una hoja de estilos global con `id="talia-accessibility-styles"`;
-- limitar los estilos a clases prefijadas `talia-a11y-*`;
-- guardar preferencias en `localStorage`.
+- mount the panel UI in an independent root: `talia-accessibility-root`;
+- apply visual state to the host document via classes on `document.documentElement`;
+- inject a global stylesheet with `id="talia-accessibility-styles"`;
+- limit styles to `talia-a11y-*` prefixed classes;
+- save preferences in `localStorage`.
 
-Clases propuestas:
+Proposed classes:
 
 ```txt
 talia-a11y-text-lg
@@ -307,13 +307,13 @@ talia-a11y-line-spacing
 talia-a11y-readable-font
 ```
 
-Persistencia:
+Persistence:
 
 ```txt
 localStorage key: talia-a11y-{tenantId}
 ```
 
-Ejemplo de estado:
+Example state:
 
 ```json
 {
@@ -331,46 +331,46 @@ Ejemplo de estado:
 }
 ```
 
-## Implementacion de controles
+## Control implementation
 
-### Texto
+### Text
 
-Debe usar un enfoque conservador:
+Should use a conservative approach:
 
-- no tocar elementos dentro del widget TALIA;
-- aplicar `font-size` relativo a elementos comunes;
-- maximo dos pasos de aumento;
-- permitir volver atras.
+- do not touch elements inside the TALIA widget;
+- apply `font-size` relative to common elements;
+- maximum of two increase steps;
+- allow reverting.
 
-### Contraste
+### Contrast
 
-Debe priorizar legibilidad:
+Should prioritize readability:
 
-- fondo claro/oscuro consistente;
-- texto con contraste alto;
-- evitar romper imagenes y logos.
+- consistent light/dark background;
+- high-contrast text;
+- avoid breaking images and logos.
 
-### Escala de grises
+### Grayscale
 
-Aplicar:
+Apply:
 
 ```css
 filter: grayscale(1);
 ```
 
-con cuidado de excluir el panel TALIA para mantener controles claros.
+taking care to exclude the TALIA panel to keep controls clear.
 
-### Resaltar enlaces
+### Highlight links
 
-Aplicar:
+Apply:
 
-- subrayado visible;
-- outline o fondo suave;
-- sin cambiar layout de forma agresiva.
+- visible underline;
+- outline or soft background;
+- without aggressively changing layout.
 
-### Pausar animaciones
+### Pause animations
 
-Aplicar:
+Apply:
 
 ```css
 animation-duration: 0.001ms !important;
@@ -379,300 +379,300 @@ transition-duration: 0.001ms !important;
 scroll-behavior: auto !important;
 ```
 
-### Espaciado
+### Spacing
 
-Aumentar:
+Increase:
 
 - `line-height`;
-- `letter-spacing` solo si no rompe demasiado;
-- separacion entre parrafos.
+- `letter-spacing` only if it doesn't break things too much;
+- spacing between paragraphs.
 
-### Fuente legible
+### Readable font
 
-Aplicar stack del sistema:
+Apply system stack:
 
 ```css
 font-family: Arial, Helvetica, system-ui, sans-serif;
 ```
 
-## Accesibilidad del propio panel
+## Accessibility of the panel itself
 
-Requisitos:
+Requirements:
 
-- boton launcher con `aria-label`;
+- launcher button with `aria-label`;
 - `aria-expanded`;
-- panel con `role="dialog"` o region etiquetada;
-- titulo asociado mediante `aria-labelledby`;
-- cierre con Escape;
-- foco inicial en el panel o primer control;
-- foco visible;
-- controles como botones reales;
-- estados con `aria-pressed`;
-- no depender solo de color.
+- panel with `role="dialog"` or labeled region;
+- title associated via `aria-labelledby`;
+- close with Escape;
+- initial focus on the panel or first control;
+- visible focus;
+- controls as real buttons;
+- states with `aria-pressed`;
+- not relying solely on color.
 
-## Seguridad y privacidad
+## Security and privacy
 
-El modulo MVP:
+The MVP module:
 
-- no envia datos personales;
-- no lee contenido sensible;
-- no usa cookies;
-- no hace fingerprinting;
-- no envia eventos hasta que exista base legal y configuracion clara.
+- does not send personal data;
+- does not read sensitive content;
+- does not use cookies;
+- does not perform fingerprinting;
+- does not send events until there is a legal basis and clear configuration.
 
-Si se instrumenta analytics mas adelante, deben ser eventos agregados:
+If analytics is instrumented later, events must be aggregated:
 
-- panel abierto;
-- control activado/desactivado;
+- panel opened;
+- control activated/deactivated;
 - reset;
 - tenant;
-- pagina normalizada sin query params sensibles.
+- normalized page without sensitive query params.
 
-## Riesgos
+## Risks
 
-- Romper estilos de la web cliente.
-- Crear falsa sensacion de cumplimiento.
-- Hacer que el propio panel sea inaccesible.
-- Afectar rendimiento por CSS global excesivo.
-- Conflictos con themes, builders y plugins externos.
+- Breaking the client website's styles.
+- Creating a false sense of compliance.
+- Making the panel itself inaccessible.
+- Affecting performance due to excessive global CSS.
+- Conflicts with themes, builders, and third-party plugins.
 
-Mitigaciones:
+Mitigations:
 
-- estilos prefijados;
-- controles reversibles;
-- pruebas en paginas reales;
-- copy legal prudente;
-- no prometer certificacion;
-- activar por tenant, no globalmente.
+- prefixed styles;
+- reversible controls;
+- testing on real pages;
+- cautious legal copy;
+- not promising certification;
+- activating per tenant, not globally.
 
-## Criterios de aceptacion MVP
+## MVP acceptance criteria
 
-- El modulo solo aparece cuando esta activado.
-- El panel abre/cierra con raton y teclado.
-- Escape cierra el panel.
-- Los controles tienen estado visible y `aria-pressed`.
-- Los ajustes persisten al recargar.
-- Reset elimina clases y preferencias.
-- El chatbot sigue funcionando.
-- No se rompe `public/olympia.html`.
-- No hay errores en consola al cargar sin configuracion.
-- El modulo no bloquea el contenido principal.
+- The module only appears when enabled.
+- The panel opens/closes with mouse and keyboard.
+- Escape closes the panel.
+- Controls have visible state and `aria-pressed`.
+- Settings persist on reload.
+- Reset removes classes and preferences.
+- The chatbot keeps working.
+- `public/olympia.html` is not broken.
+- No console errors when loading without configuration.
+- The module does not block the main content.
 
-## Plan de Desarrollo
+## Development Plan
 
-### Fase 1: prototipo en `public/accessibility-widget.js` - completada
+### Phase 1: prototype in `public/accessibility-widget.js` - completed
 
-- Crear archivo separado `public/accessibility-widget.js`.
-- Crear configuracion local por atributos del script.
-- Crear launcher y panel dentro del Shadow DOM.
-- Inyectar CSS global prefijado.
-- Implementar estado local.
-- Implementar controles MVP.
-- Probar en `public/olympia.html` junto al chatbot sin interferencias.
+- Create separate file `public/accessibility-widget.js`.
+- Create local configuration via script attributes.
+- Create launcher and panel within the Shadow DOM.
+- Inject prefixed global CSS.
+- Implement local state.
+- Implement MVP controls.
+- Test on `public/olympia.html` alongside the chatbot without interference.
 
-### Fase 2: configuracion desde TALIA - completada
+### Phase 2: configuration from TALIA - completed
 
-- Ampliar `widget_config`.
-- Exponer activacion en settings/backstage.
-- Mostrar preview en configuracion del widget.
-- Guardar idioma y color.
+- Expand `widget_config`.
+- Expose activation in settings/backstage.
+- Show preview in widget configuration.
+- Save language and color.
 
-### Fase 3: producto - en curso
+### Phase 3: product - in progress
 
-- Endurecer Clear View con proteccion de coste.
-- Cubrir contrato y sanitizado con tests.
-- Definir pricing/add-on.
-- Documentar limites legales.
-- Crear checklist comercial.
-- Preparar demo para venues culturales.
+- Harden Clear View with cost protection.
+- Cover contract and sanitization with tests.
+- Define pricing/add-on.
+- Document legal limits.
+- Create a commercial checklist.
+- Prepare a demo for cultural venues.
 
-### Fase 4: reporting opcional
+### Phase 4: optional reporting
 
-- Eventos agregados.
-- Dashboard basico de uso.
-- Informe mensual.
+- Aggregated events.
+- Basic usage dashboard.
+- Monthly report.
 
-## Preguntas Abiertas
+## Open Questions
 
-- Se vendera como add-on o incluido en planes superiores?
-- Que separacion visual exacta debe tener respecto al boton del chatbot?
-- Debemos permitir marca blanca desde el primer MVP?
-- Que clientes usaremos como piloto?
-- Activamos analytics desde el inicio o lo dejamos fuera?
-- Se necesitara declaracion de accesibilidad editable mas adelante?
+- Will it be sold as an add-on or included in higher-tier plans?
+- What exact visual separation should it have from the chatbot button?
+- Should we allow white-labeling from the first MVP?
+- Which clients will we use as pilots?
+- Do we enable analytics from the start or leave it out?
+- Will an editable accessibility statement be needed later on?
 
-## Decision Recomendada
+## Recommended Decision
 
-Mantener el modulo como producto independiente del chatbot y pasar a piloto
-controlado con venues culturales. Antes de venta amplia, cerrar pricing,
-politica de limites de IA y pruebas visuales en webs reales.
+Keep the module as a product independent of the chatbot and move to a controlled
+pilot with cultural venues. Before broad sales, finalize pricing, AI usage-limit
+policy, and visual testing on real websites.
 
 ---
 
-# Auditoria de Accesibilidad y Cumplimiento (julio 2026)
+# Accessibility and Compliance Audit (July 2026)
 
-Auditoria del modulo tal como esta implementado en `public/accessibility-widget.js`
-(1.451 lineas), el backend de Clear View (`src/lib/accessibility/*`) y su encaje
-normativo, con OneTap (https://wponetap.com/modules/) como referencia de mercado.
+Audit of the module as currently implemented in `public/accessibility-widget.js`
+(1,451 lines), the Clear View backend (`src/lib/accessibility/*`), and its regulatory
+fit, using OneTap (https://wponetap.com/modules/) as a market reference.
 
-El foco de esta auditoria es doble:
+The focus of this audit is twofold:
 
-1. Si el modulo **sirve de verdad a los usuarios finales con dificultades** (los que
-   deberian beneficiarse), por perfil.
-2. Si el **propio widget** cumple WCAG 2.2 AA (una herramienta de accesibilidad
-   inaccesible falla a su propio publico).
+1. Whether the module **actually serves end users with difficulties** (those who
+   should benefit), by profile.
+2. Whether the **widget itself** complies with WCAG 2.2 AA (an inaccessible
+   accessibility tool fails its own audience).
 
-## 1. Realidad normativa (leer antes de vender)
+## 1. Regulatory reality (read before selling)
 
-Normativa relevante para venues culturales (muchos son entidades publicas/municipales):
+Regulations relevant to cultural venues (many are public/municipal entities):
 
-- **WCAG 2.2 AA** (W3C, oct 2023): estandar tecnico de referencia.
-- **EAA - European Accessibility Act**, Directiva (UE) 2019/882, aplicable desde el
-  **28 jun 2025** a productos/servicios a consumidores. Se apoya en **EN 301 549**
-  (que referencia WCAG 2.1 AA).
-- **Directiva (UE) 2016/2102** (sector publico web): exige conformidad EN 301 549 **y**
-  publicar una **declaracion de accesibilidad** con mecanismo de feedback. Aplica a
-  teatros municipales/publicos.
-- **ADA** (EEUU, Titulo III) y **Section 508**: referencian WCAG 2.x AA.
+- **WCAG 2.2 AA** (W3C, Oct 2023): the reference technical standard.
+- **EAA - European Accessibility Act**, Directive (EU) 2019/882, applicable from
+  **June 28, 2025** to consumer products/services. It relies on **EN 301 549**
+  (which references WCAG 2.1 AA).
+- **Directive (EU) 2016/2102** (public sector web): requires EN 301 549 conformity **and**
+  publishing an **accessibility statement** with a feedback mechanism. Applies to
+  municipal/public theatres.
+- **ADA** (US, Title III) and **Section 508**: reference WCAG 2.x AA.
 
-**Verdad central, no negociable:** ningun widget/overlay "hace cumplir" la normativa.
-La conformidad WCAG depende del HTML/ARIA/semantica de la propia web, no de una barra
-superpuesta. El consenso experto (overlayfalseclaims.com, +900 firmantes) y las demandas
-contra overlays tipo accessiBe/UserWay lo confirman. **Vender el widget como "cumplimiento
-automatico" expone legalmente a TALIA y a sus clientes.** El posicionamiento actual de este
-documento (secciones "Posicionamiento" y "Riesgos") es correcto y debe mantenerse.
+**Central, non-negotiable truth:** no widget/overlay "enforces" regulatory compliance.
+WCAG conformance depends on the HTML/ARIA/semantics of the website itself, not an
+overlaid bar. Expert consensus (overlayfalseclaims.com, +900 signatories) and lawsuits
+against overlays like accessiBe/UserWay confirm this. **Selling the widget as "automatic
+compliance" legally exposes TALIA and its clients.** The current positioning in this
+document (the "Positioning" and "Risks" sections) is correct and must be maintained.
 
-Conclusion sobre "cumplir todas las normativas posibles": no es alcanzable con un widget.
-Lo alcanzable y lo que TALIA debe perseguir es:
+Conclusion regarding "complying with all possible regulations": it is not achievable with a widget.
+What is achievable, and what TALIA should pursue, is:
 
-1. Que el **propio widget** sea WCAG 2.2 AA conforme.
-2. Que **ayude de verdad** a los perfiles que un overlay si puede ayudar (ver §2).
-3. Ofrecer un **generador de declaracion de accesibilidad** editable (artefacto que la
-   Directiva 2016/2102 exige al sector publico) como ayuda real de cumplimiento, sin
-   prometer conformidad.
-4. Copy prudente y guia de remediacion del sitio host.
+1. Making the **widget itself** WCAG 2.2 AA conformant.
+2. **Genuinely helping** the profiles that an overlay actually can help (see §2).
+3. Offering an editable **accessibility statement generator** (an artifact that
+   Directive 2016/2102 requires from the public sector) as real compliance aid, without
+   promising conformance.
+4. Cautious copy and remediation guidance for the host site.
 
-## 2. Eficacia real por perfil de usuario final
+## 2. Real effectiveness by end-user profile
 
-Leyenda: ✅ bien servido · 🟡 parcial · ❌ no servido / no puede
+Legend: ✅ well served · 🟡 partial · ❌ not served / cannot be served
 
-| Perfil | Estado | Detalle |
+| Profile | Status | Detail |
 |--------|:------:|---------|
-| **Dislexia / dificultad lectora** | ✅ | Fuente legible, **fuente para dislexia** (jul 2026), mas espaciado (WCAG 1.4.12), **mascara y linea de lectura**, lectura en voz alta, Clear View y **perfil "Dislexia" de 1 clic**. Es de los perfiles mejor servidos. |
-| **TDAH / atencion** | ✅ | **Baja estimulacion** (quita animaciones, gradientes, urgencia, lineariza layout), pausar animaciones, mascara/linea de lectura, Clear View. Buen encaje real. |
-| **Neurodivergencia / sensibilidad sensorial** | 🟡 | Baja estimulacion y pausar animaciones ayudan. Falta **silenciar sonidos** (autoplay) y **ocultar imagenes**. |
-| **Personas mayores** | ✅ | Combinacion texto + contraste + fuente legible + espaciado. Targets grandes (>=54px) facilitan el uso. |
-| **Baja vision** | 🟡 | Alto contraste, fuente legible, **escalado hasta 200%** (jul 2026) y **lectura en voz alta** ayudan bastante. Queda pendiente lupa/magnificador y cursor grande. |
-| **Daltonismo** | 🟡 | Escala de grises y "resaltar enlaces" (subrayado + outline, no depende del color, WCAG 1.4.1). Sin filtros especificos por tipo. |
-| **Epilepsia / fotosensibilidad** | 🟡 | Pausar animaciones + baja estimulacion (reduce saturacion de medios) mitigan, pero no hay un "modo seguro" de un clic que detenga parpadeos/GIF/video. WCAG 2.3.1 depende del sitio. |
-| **Motor / solo teclado / temblor** | 🟡 | Panel operable por teclado y targets grandes (supera WCAG 2.5.8). Pero (a) el widget **no** aporta navegacion por teclado al sitio host, y (b) hay un bug de foco (Hallazgo 1). |
-| **Ceguera / lector de pantalla** | ❌ | Un overlay **no puede** mejorar la semantica del sitio host; estos usuarios se benefician del HTML/ARIA propio, no de la barra. No debe comunicarse como solucion para ceguera. TALIA hace bien en **no** inyectar un lector alternativo (los overlays que lo hacen interfieren con la tecnologia asistiva del usuario). |
-| **Baja alfabetizacion / audio** | ✅ | Cubierto (jul 2026) con **"Leer en voz alta"** (Web Speech API): lee el contenido principal en el idioma detectado, sin datos fuera del navegador. Tambien beneficia a baja vision y dislexia. |
+| **Dyslexia / reading difficulty** | ✅ | Readable font, **dyslexia font** (Jul 2026), more spacing (WCAG 1.4.12), **reading mask and reading line**, read-aloud, Clear View, and a **1-click "Dyslexia" profile**. One of the best-served profiles. |
+| **ADHD / attention** | ✅ | **Low stimulation** (removes animations, gradients, urgency, linearizes layout), pause animations, reading mask/line, Clear View. Good real-world fit. |
+| **Neurodivergence / sensory sensitivity** | 🟡 | Low stimulation and pause animations help. Missing **mute sounds** (autoplay) and **hide images**. |
+| **Elderly users** | ✅ | Combination of text + contrast + readable font + spacing. Large targets (>=54px) make it easier to use. |
+| **Low vision** | 🟡 | High contrast, readable font, **scaling up to 200%** (Jul 2026), and **read-aloud** help quite a bit. A magnifier and large cursor are still pending. |
+| **Color blindness** | 🟡 | Grayscale and "highlight links" (underline + outline, not color-dependent, WCAG 1.4.1). No color-type-specific filters. |
+| **Epilepsy / photosensitivity** | 🟡 | Pause animations + low stimulation (reduces media saturation) help, but there is no one-click "safe mode" that stops flashing/GIFs/video. WCAG 2.3.1 depends on the site. |
+| **Motor / keyboard-only / tremor** | 🟡 | Panel operable by keyboard and large targets (exceeds WCAG 2.5.8). But (a) the widget does **not** add keyboard navigation to the host site, and (b) there is a focus bug (Finding 1). |
+| **Blindness / screen reader** | ❌ | An overlay **cannot** improve the host site's semantics; these users benefit from the site's own HTML/ARIA, not from the bar. It must not be communicated as a solution for blindness. TALIA does the right thing by **not** injecting an alternative reader (overlays that do interfere with the user's own assistive technology). |
+| **Low literacy / audio** | ✅ | Covered (Jul 2026) with **"Read aloud"** (Web Speech API): reads the main content in the detected language, with no data leaving the browser. Also benefits low vision and dyslexia. |
 
-Lectura: el widget sirve **bien** a dislexia, TDAH, neurodivergencia y mayores; **parcialmente**
-a baja vision, daltonismo, epilepsia y motor; y **no puede** servir a lectores de pantalla (ni debe
-pretenderlo). Las dos carencias de mayor impacto que se senalaron para el publico objetivo
-—**escalado de texto limitado (125%)** y **ausencia de text-to-speech**— ya estan **resueltas**
-(jul 2026), junto con la **fuente para dislexia** y los **perfiles de 1 clic**. Con esto, el
-Bloque 1 y el Bloque 2 del roadmap estan completos; los **perfiles** ademas mejoran la
-descubribilidad para usuarios que no saben que ajuste concreto necesitan.
+Reading: the widget serves **well** dyslexia, ADHD, neurodivergence, and the elderly; **partially**
+low vision, color blindness, epilepsy, and motor impairments; and **cannot** serve screen reader
+users (nor should it try to). The two highest-impact gaps previously flagged for the target
+audience —**limited text scaling (125%)** and **absence of text-to-speech**— have now been
+**resolved** (Jul 2026), along with the **dyslexia font** and the **1-click profiles**. With this,
+Block 1 and Block 2 of the roadmap are complete; the **profiles** also improve discoverability
+for users who don't know exactly which setting they need.
 
-## 3. Hallazgos WCAG 2.2 del propio widget
+## 3. WCAG 2.2 findings for the widget itself
 
-### Lo que ya cumple (creditar)
+### What it already meets (credit due)
 
 - `role="dialog"`, `aria-modal`, `aria-labelledby`, `aria-describedby`, `tabindex="-1"`.
-- **Trampa de foco** correcta (usa `shadowRoot.activeElement`), cierre con **Escape** y
-  **retorno de foco** al lanzador.
-- `aria-expanded` en el lanzador, `aria-pressed` en controles, tabs con `role="tab"` +
-  navegacion por flechas + Home/End.
-- Foco visible reforzado (`:focus-visible` con doble outline).
-- Botones reales, no divs clicables.
-- **Targets grandes**: controles >=54px, lanzador 56px (supera WCAG 2.5.8 AA de 24px).
-- **Contraste calculado**: `getReadableTextColor`/luminancia relativa para el color de marca.
-- Regiones vivas (`aria-live`) para nivel de texto y para Clear View (`aria-busy`).
-- Aislamiento por Shadow DOM y exclusion de los roots de TALIA.
-- Sin cookies, sin PII, sin fingerprinting; `localStorage` local (favorable a GDPR).
+- Correct **focus trap** (uses `shadowRoot.activeElement`), closes with **Escape**, and
+  **returns focus** to the launcher.
+- `aria-expanded` on the launcher, `aria-pressed` on controls, tabs with `role="tab"` +
+  arrow-key navigation + Home/End.
+- Reinforced visible focus (`:focus-visible` with double outline).
+- Real buttons, not clickable divs.
+- **Large targets**: controls >=54px, launcher 56px (exceeds WCAG 2.5.8 AA's 24px).
+- **Calculated contrast**: `getReadableTextColor`/relative luminance for the brand color.
+- Live regions (`aria-live`) for text level and for Clear View (`aria-busy`).
+- Shadow DOM isolation and exclusion of TALIA roots.
+- No cookies, no PII, no fingerprinting; local `localStorage` (favorable to GDPR).
 
-### Hallazgos a corregir
+### Findings to fix
 
-| # | Sev. | Hallazgo | WCAG | Fix propuesto |
+| # | Sev. | Finding | WCAG | Proposed fix |
 |---|------|----------|------|---------------|
-| 1 | **Alta** | Con el panel cerrado, sus controles siguen siendo **focusables** (solo `opacity:0` + `pointer-events:none` + `aria-hidden`, sin `display/visibility/inert`). Un usuario de teclado/lector tabula dentro de controles invisibles. | 1.3.1, 2.4.3, 4.1.2 | `panel.inert = true` al cerrar y `false` al abrir (o `visibility:hidden`). |
-| 2 | Media | El widget no respeta `prefers-reduced-motion` en **sus propias** animaciones (panel/lanzador). Ironico para el publico vestibular/epilepsia. | 2.3.3 | `@media (prefers-reduced-motion: reduce)` que anule transiciones. |
-| 3 | Media | Escalado de texto tope 125% (2 pasos). Insuficiente para baja vision. | 1.4.4 | Ampliar a 150-200% (3-4 pasos). |
-| 4 | ~~Media~~ **HECHO** | Sin **text-to-speech**. Alto valor para el publico objetivo. | — (mejora) | Aplicado (jul 2026): control "Leer en voz alta" con Web Speech API del navegador, lee el contenido principal en el idioma detectado, se detiene al re-pulsar, nunca auto-arranca (cumple 1.4.2). Sin datos fuera del navegador. |
-| 5 | ~~Media~~ **HECHO** | Sin **fuente para dislexia** real (solo Arial). | — (mejora) | Aplicado (jul 2026): control "Fuente para dislexia" con stack `OpenDyslexic → Comic Sans MS → Verdana` (sin peticiones externas) + espaciado de letra/palabra/linea segun guia BDA. |
-| 6 | Baja | Etiqueta de pestana "IA" poco clara para usuarios con dificultad cognitiva; Clear View poco descubrible. | 3.2.4 | Renombrar a "Lectura facil"/"Vista clara" y subir su visibilidad. |
-| 7 | Baja | Preferencias por-tenant/por-navegador en `localStorage`: el usuario debe reconfigurar en cada venue. | — (UX) | Valorar clave compartida por dominio del script. |
-| 8 | Baja | Sin atajo de teclado para abrir (paridad OneTap Alt+.). | 2.1.4 si se anade | Atajo configurable con posibilidad de desactivar. |
-| 9 | Info | El widget no mejora la semantica del host: los lectores de pantalla no se benefician. | — | Documentar el limite; no comunicar como solucion para ceguera. |
-| 10 | Media (priv.) | Clear View envia contenido de la pagina a OpenAI cuando esta configurado (cap 12k chars, rate limit, sin invencion de enlaces). Es una relacion con subprocesador US. | GDPR | Reflejar en DPA y en la declaracion de accesibilidad/privacidad. |
+| 1 | **High** | When the panel is closed, its controls remain **focusable** (only `opacity:0` + `pointer-events:none` + `aria-hidden`, without `display/visibility/inert`). A keyboard/screen-reader user tabs into invisible controls. | 1.3.1, 2.4.3, 4.1.2 | Set `panel.inert = true` on close and `false` on open (or `visibility:hidden`). |
+| 2 | Medium | The widget does not respect `prefers-reduced-motion` in **its own** animations (panel/launcher). Ironic for the vestibular/epilepsy audience. | 2.3.3 | `@media (prefers-reduced-motion: reduce)` to cancel transitions. |
+| 3 | Medium | Text scaling capped at 125% (2 steps). Insufficient for low vision. | 1.4.4 | Extend to 150-200% (3-4 steps). |
+| 4 | ~~Medium~~ **DONE** | No **text-to-speech**. High value for the target audience. | — (enhancement) | Applied (Jul 2026): "Read aloud" control using the browser's Web Speech API, reads the main content in the detected language, stops on re-press, never auto-starts (complies with 1.4.2). No data leaves the browser. |
+| 5 | ~~Medium~~ **DONE** | No real **dyslexia font** (only Arial). | — (enhancement) | Applied (Jul 2026): "Dyslexia font" control with stack `OpenDyslexic → Comic Sans MS → Verdana` (no external requests) + letter/word/line spacing per BDA guidance. |
+| 6 | Low | "AI" tab label unclear for users with cognitive difficulties; Clear View is not very discoverable. | 3.2.4 | Rename to "Easy reading"/"Clear view" and increase its visibility. |
+| 7 | Low | Per-tenant/per-browser preferences in `localStorage`: the user must reconfigure at every venue. | — (UX) | Consider a key shared by the script's domain. |
+| 8 | Low | No keyboard shortcut to open (parity with OneTap's Alt+.). | 2.1.4 if added | Configurable shortcut with the option to disable it. |
+| 9 | Info | The widget does not improve the host's semantics: screen reader users do not benefit. | — | Document the limitation; do not communicate it as a solution for blindness. |
+| 10 | Medium (priv.) | Clear View sends page content to OpenAI when configured (12k char cap, rate limit, no invented links). This is a relationship with a US subprocessor. | GDPR | Reflect this in the DPA and in the accessibility/privacy statement. |
 
-## 4. Comparativa de modulos vs OneTap
+## 4. Module comparison vs. OneTap
 
-Leyenda: ✅ presente · 🟡 parcial · ❌ ausente
+Legend: ✅ present · 🟡 partial · ❌ absent
 
-| Modulo OneTap | TALIA | Nota |
+| OneTap module | TALIA | Note |
 |---------------|:-----:|------|
-| Text Size | ✅ | Escalado hasta 200% en 4 pasos (jul 2026) |
-| Line Height / Spacing | ✅ | `lineSpacing` combina interlineado + espaciado |
+| Text Size | ✅ | Scaling up to 200% in 4 steps (Jul 2026) |
+| Line Height / Spacing | ✅ | `lineSpacing` combines line height + spacing |
 | Readable Font | ✅ | Arial/system |
-| Dyslexic Font | ✅ | Aplicado: "Fuente para dislexia" (OpenDyslexic/Comic Sans/Verdana + espaciado BDA) |
-| Letter Spacing (aparte) | 🟡 | Incluido en `lineSpacing`, no separado |
+| Dyslexic Font | ✅ | Applied: "Dyslexia font" (OpenDyslexic/Comic Sans/Verdana + BDA spacing) |
+| Letter Spacing (separate) | 🟡 | Included in `lineSpacing`, not separate |
 | Font Weight / Align Text | ❌ | — |
-| Highlight Links | ✅ | Subrayado + outline |
-| Big Cursor | ❌ | Util baja vision/motor |
-| Text Magnifier | ❌ | Util baja vision |
-| High/Dark/Light Contrast | 🟡 | Solo un alto contraste (negro/blanco) |
+| Highlight Links | ✅ | Underline + outline |
+| Big Cursor | ❌ | Useful for low vision/motor |
+| Text Magnifier | ❌ | Useful for low vision |
+| High/Dark/Light Contrast | 🟡 | Only one high-contrast mode (black/white) |
 | Monochrome / Grayscale | ✅ | `grayscale` |
-| Saturation | 🟡 | Solo dentro de baja estimulacion |
-| Reading Line / Reading Mask | ✅ | Puntos fuertes propios |
-| Keyboard Navigation (host) | ❌ | Un overlay no puede garantizarlo |
-| Highlight Titles | 🟡 | Hay `highlightContent`, no titulos aparte |
-| Highlight Content | ✅ | Overlay semantico propio |
-| Text-to-Speech | ✅ | Aplicado: "Leer en voz alta" (Web Speech API, sin datos fuera del navegador) |
-| Mute Sounds | ❌ | Util neurodivergencia |
-| Hide Images | ❌ | Util TDAH/cognitivo |
+| Saturation | 🟡 | Only within low stimulation |
+| Reading Line / Reading Mask | ✅ | Own strong points |
+| Keyboard Navigation (host) | ❌ | An overlay cannot guarantee this |
+| Highlight Titles | 🟡 | There is `highlightContent`, not titles separately |
+| Highlight Content | ✅ | Own semantic overlay |
+| Text-to-Speech | ✅ | Applied: "Read aloud" (Web Speech API, no data leaves the browser) |
+| Mute Sounds | ❌ | Useful for neurodivergence |
+| Hide Images | ❌ | Useful for ADHD/cognitive |
 | Stop Animations | ✅ | `pauseAnimations` |
-| Perfiles (Vision/Seizure/ADHD/Epilepsy/Blind) | ✅ | Aplicado (jul 2026): 4 perfiles de 1 clic — Dislexia, Concentracion (TDAH), Baja vision, Bajo estimulo. Sin perfil que simule lector de pantalla (a proposito) |
-| Baja estimulacion / neurodivergente | ✅⭐ | Diferenciador propio, OneTap no lo tiene igual |
-| Clear View (lectura IA) | ✅⭐ | Diferenciador propio |
-| +40 idiomas | 🟡 | Solo es/ca/en |
-| Generador de declaracion | ❌ | Recomendado por §1 punto 3 |
-| Atajo de teclado | ❌ | Hallazgo 8 |
-| Sin recopilacion de datos | ✅ | Correcto |
+| Profiles (Vision/Seizure/ADHD/Epilepsy/Blind) | ✅ | Applied (Jul 2026): 4 one-click profiles — Dyslexia, Focus (ADHD), Low vision, Low stimulation. No profile that simulates a screen reader (intentionally) |
+| Low stimulation / neurodivergent | ✅⭐ | Own differentiator, OneTap does not have an equivalent |
+| Clear View (AI reading) | ✅⭐ | Own differentiator |
+| +40 languages | 🟡 | Only es/ca/en |
+| Statement generator | ❌ | Recommended by §1 point 3 |
+| Keyboard shortcut | ❌ | Finding 8 |
+| No data collection | ✅ | Correct |
 
-## 5. Roadmap priorizado (cumplimiento + eficacia)
+## 5. Prioritized roadmap (compliance + effectiveness)
 
-**Bloque 1 - conformidad del propio widget (obligatorio antes de vender) — APLICADO (jul 2026):**
+**Block 1 - conformance of the widget itself (mandatory before selling) — APPLIED (Jul 2026):**
 
-1. Hallazgo 1 (`inert` al cerrar) — hecho: `panel.inert` se activa al cerrar y se
-   desactiva al abrir; el panel arranca con atributo `inert`.
-2. Hallazgo 2 (`prefers-reduced-motion`) — hecho: media query que anula transiciones
-   del lanzador, panel y Clear View.
-3. Hallazgo 3 (escalado a 200%) — hecho: 4 pasos (125/150/175/200%) con clases
-   `talia-a11y-text-1..4` y etiqueta de nivel en porcentaje.
+1. Finding 1 (`inert` on close) — done: `panel.inert` is enabled on close and
+   disabled on open; the panel starts with the `inert` attribute.
+2. Finding 2 (`prefers-reduced-motion`) — done: media query that cancels
+   transitions of the launcher, panel, and Clear View.
+3. Finding 3 (scaling to 200%) — done: 4 steps (125/150/175/200%) with classes
+   `talia-a11y-text-1..4` and a level label in percentage.
 
-**Bloque 2 - eficacia para el publico objetivo (alto valor):**
+**Block 2 - effectiveness for the target audience (high value):**
 
-4. Text-to-speech (Hallazgo 4) — **HECHO (jul 2026)**: control "Leer en voz alta"
-   con Web Speech API, lectura del contenido principal en el idioma detectado,
-   play/stop por toggle, sin auto-arranque, sin datos fuera del navegador.
-5. Fuente de dislexia (Hallazgo 5) — **HECHO (jul 2026)**: control "Fuente para dislexia"
-   con stack `OpenDyslexic → Comic Sans MS → Verdana` (sin peticiones externas) y espaciado
-   de letra/palabra/linea segun guia de la British Dyslexia Association.
-6. Perfiles de 1 clic — **HECHO (jul 2026)**: 4 perfiles (Dislexia, Concentracion/TDAH,
-   Baja vision, Bajo estimulo) que aplican una combinacion predefinida de ajustes sobre un
-   estado limpio; mejora la usabilidad para quien no sabe que ajuste necesita. Sin perfil
-   que simule lector de pantalla (contraproducente y arriesgado, ver §3 Hallazgo 9).
+4. Text-to-speech (Finding 4) — **DONE (Jul 2026)**: "Read aloud" control
+   using the Web Speech API, reading the main content in the detected language,
+   play/stop via toggle, no auto-start, no data leaving the browser.
+5. Dyslexia font (Finding 5) — **DONE (Jul 2026)**: "Dyslexia font" control
+   with stack `OpenDyslexic → Comic Sans MS → Verdana` (no external requests) and letter/word/line
+   spacing per British Dyslexia Association guidance.
+6. One-click profiles — **DONE (Jul 2026)**: 4 profiles (Dyslexia, Focus/ADHD,
+   Low vision, Low stimulation) that apply a predefined combination of settings on a
+   clean state; improves usability for those who don't know which setting they need. No profile
+   that simulates a screen reader (counterproductive and risky, see §3 Finding 9).
 
-**Bloque 3 - paridad y cumplimiento comercial:**
+**Block 3 - parity and commercial compliance:**
 
-7. Silenciar sonidos, ocultar imagenes, cursor grande, magnificador.
-8. Generador de declaracion de accesibilidad editable (§1 punto 3).
-9. Reflejar Clear View/OpenAI en DPA y politica (Hallazgo 10).
-10. Copy y checklist comercial que separen "ayuda" de "cumplimiento".
+7. Mute sounds, hide images, large cursor, magnifier.
+8. Editable accessibility statement generator (§1 point 3).
+9. Reflect Clear View/OpenAI in the DPA and policy (Finding 10).
+10. Copy and commercial checklist that separate "help" from "compliance".
 
-**No hacer:** perfiles que simulen un lector de pantalla o prometan conformidad
-automatica. Es contraproducente para usuarios de tecnologia asistiva y legalmente arriesgado.
+**Do not do:** profiles that simulate a screen reader or promise automatic
+conformance. This is counterproductive for assistive technology users and legally risky.

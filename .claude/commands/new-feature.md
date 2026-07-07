@@ -1,13 +1,13 @@
- Crea una feature completa siguiendo el patrón estándar de TALIA:
+ Create a complete feature following TALIA's standard pattern:
 
-1. Crea la migration en /supabase/migrations/ con RLS multi-tenant
-2. Aplica la migration y regenera tipos con npm run db:types
-3. Crea los tipos en /src/types/ con validación zod
-4. Crea la server action en la carpeta de la feature
-5. Crea la page (Server Component) en /src/app/(dashboard)/[tenantId]/
-6. Crea el componente UI con shadcn en /src/components/dashboard/
-7. Añade test co-locado
-8. Actualiza el sidebar nav
-9. Verifica que pasa lint y typecheck
+1. Create the migration in /supabase/migrations/ with multi-tenant RLS
+2. Apply the migration and regenerate types with npm run db:types
+3. Create the types in /src/types/ with zod validation
+4. Create the server action in the feature folder
+5. Create the page (Server Component) in /src/app/(dashboard)/[tenantId]/
+6. Create the UI component with shadcn in /src/components/dashboard/
+7. Add a co-located test
+8. Update the sidebar nav
+9. Verify it passes lint and typecheck
 
-Sigue las skills `new-feature`, `supabase-rls` y `dashboard-component` del proyecto.
+Follow the `supabase-rls` (migrations + RLS) and `dashboard-component` (page/form/action/component) skills of the project — they are in `.claude/skills/`.

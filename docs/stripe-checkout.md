@@ -1,8 +1,8 @@
 # Stripe Checkout
 
-TALIA usa Stripe Checkout desde la pantalla de upgrade, una vez terminado el trial o cuando el cliente decide pasar a un plan de pago.
+TALIA uses Stripe Checkout from the upgrade screen, once the trial has ended or when the client decides to move to a paid plan.
 
-## Variables de entorno
+## Environment variables
 
 ```bash
 STRIPE_SECRET_KEY=sk_live_...
@@ -16,7 +16,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 NEXT_PUBLIC_APP_URL=https://app.talia...
 ```
 
-En local, `NEXT_PUBLIC_APP_URL` debe apuntar al puerto real donde corre Next, por ejemplo:
+Locally, `NEXT_PUBLIC_APP_URL` must point to the actual port where Next is running, for example:
 
 ```bash
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -30,7 +30,7 @@ Endpoint:
 POST /api/billing/stripe/webhook
 ```
 
-Eventos necesarios:
+Required events:
 
 - `checkout.session.completed`
 - `customer.subscription.created`
@@ -39,45 +39,45 @@ Eventos necesarios:
 - `invoice.payment_succeeded`
 - `invoice.payment_failed`
 
-El webhook valida `Stripe-Signature` con `STRIPE_WEBHOOK_SECRET`.
+The webhook validates `Stripe-Signature` using `STRIPE_WEBHOOK_SECRET`.
 
-El plan comercial se envía en metadata de Stripe como `plan_key` y se guarda en `accounts.metadata.commercial_plan`. Las columnas `accounts.plan`, `theatres.plan` y `tenant_subscriptions.plan` mantienen valores compatibles con el esquema existente.
+The commercial plan is sent in Stripe metadata as `plan_key` and stored in `accounts.metadata.commercial_plan`. The `accounts.plan`, `theatres.plan`, and `tenant_subscriptions.plan` columns keep values compatible with the existing schema.
 
-Los extras se envían como line items de Stripe junto al plan base y se sincronizan desde los items activos de la suscripción. Se guardan en `accounts.metadata.active_addons` y en `tenant_subscriptions.metadata.active_addons`. Actualmente:
+Add-ons are sent as Stripe line items alongside the base plan and are synced from the subscription's active items. They are stored in `accounts.metadata.active_addons` and in `tenant_subscriptions.metadata.active_addons`. Currently:
 
-- `white_label`: activa `widget_config.whiteLabel`.
-- `plus_2000_messages`: suma 2.000 conversaciones al límite mensual del chatbot mientras el item recurrente esté activo.
-- `onboarding_premium`: pago único incluido sólo en el checkout inicial.
+- `white_label`: activates `widget_config.whiteLabel`.
+- `plus_2000_messages`: adds 2,000 conversations to the chatbot's monthly limit while the recurring item is active.
+- `onboarding_premium`: one-time payment included only in the initial checkout.
 
 ## Checkout endpoints
 
-Alta inicial de plan, con o sin extras:
+Initial plan signup, with or without add-ons:
 
 ```text
 POST /api/billing/checkout
 ```
 
-Cambio de plan o add-ons recurrentes en una suscripción existente:
+Plan change or recurring add-ons on an existing subscription:
 
 ```text
 POST /api/billing/update-subscription
 ```
 
-`update-subscription` sólo modifica add-ons recurrentes. Los pagos únicos, como `onboarding_premium`, no se añaden a una suscripción ya creada.
+`update-subscription` only modifies recurring add-ons. One-time payments, such as `onboarding_premium`, are not added to an already-created subscription.
 
 ## Restricted key
 
-Si se usa una restricted API key en vez de una secret key completa, necesita permisos para:
+If a restricted API key is used instead of a full secret key, it needs permissions to:
 
-- Crear Checkout Sessions.
-- Leer Subscriptions.
-- Leer Customers, si se quiere reutilizar el customer guardado.
+- Create Checkout Sessions.
+- Read Subscriptions.
+- Read Customers, if the saved customer is to be reused.
 
-El webhook no usa scopes: se configura por eventos en Stripe y firma las llamadas con el webhook secret.
+The webhook doesn't use scopes: it's configured by events in Stripe and signs calls with the webhook secret.
 
-## Sandbox local
+## Local sandbox
 
-Stripe no puede llamar a `localhost` desde el Dashboard. Para probar en local usa Stripe CLI:
+Stripe cannot call `localhost` from the Dashboard. To test locally, use the Stripe CLI:
 
 ```bash
 stripe listen \
@@ -85,14 +85,14 @@ stripe listen \
   --events checkout.session.completed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,invoice.payment_succeeded,invoice.payment_failed
 ```
 
-La CLI imprimirá un valor `whsec_...`. Copia ese valor en:
+The CLI will print a `whsec_...` value. Copy that value into:
 
 ```bash
 STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
-Para producción o preview, crea un endpoint en Stripe Dashboard con:
+For production or preview, create an endpoint in the Stripe Dashboard with:
 
 ```text
-https://TU_DOMINIO/api/billing/stripe/webhook
+https://YOUR_DOMAIN/api/billing/stripe/webhook
 ```

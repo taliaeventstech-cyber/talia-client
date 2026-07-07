@@ -1,226 +1,226 @@
-# Análisis Competitivo: DocsBot AI vs TALIA
+# Competitive Analysis: DocsBot AI vs TALIA
 
-Última actualización: 1 julio 2026
+Last updated: July 1, 2026
 
-Documento de referencia para posicionar TALIA frente a DocsBot AI (https://docsbot.ai).
-No es una hoja de ruta: es una foto comparativa para decidir dónde competir, dónde
-diferenciarnos y qué NO copiar. Para el estado real de TALIA, ver `docs/current-state.md`.
-
----
-
-## 1. Qué es DocsBot AI
-
-Plataforma madura (75.000+ usuarios, clientes tipo Sony, Sentry.io) que convierte
-documentación de negocio en **agentes de IA** que responden y ejecutan acciones.
-Su tesis: *"trusted knowledge with real actions"* — ir más allá del bot que solo
-responde, hacia el bot que además opera vía integraciones.
-
-Pilares:
-
-- **RAG agéntico** sobre 37+ tipos de fuente.
-- **Multimodelo** (selección de GPT-5.5 / 5.4 / 4.1, Azure OpenAI en enterprise).
-- **Despliegue multicanal** (widget web, Slack, Teams, Discord, Zendesk, Intercom…).
-- **Modelo de negocio por créditos de IA** con límites duros y auto-recarga.
-- **Postura enterprise**: SOC 2 Type II, GDPR, DPA, residencia de datos, SSO, HIPAA.
+Reference document to position TALIA against DocsBot AI (https://docsbot.ai).
+This is not a roadmap: it's a comparative snapshot to decide where to compete, where to
+differentiate, and what NOT to copy. For TALIA's real state, see `docs/current-state.md`.
 
 ---
 
-## 2. DocsBot en una tabla
+## 1. What DocsBot AI is
 
-| Dimensión | DocsBot |
+A mature platform (75,000+ users, clients like Sony, Sentry.io) that turns business
+documentation into **AI agents** that answer questions and execute actions.
+Its thesis: *"trusted knowledge with real actions"* — going beyond a bot that only
+answers, toward a bot that also operates via integrations.
+
+Pillars:
+
+- **Agentic RAG** over 37+ source types.
+- **Multi-model** (selection of GPT-5.5 / 5.4 / 4.1, Azure OpenAI in enterprise).
+- **Multichannel deployment** (web widget, Slack, Teams, Discord, Zendesk, Intercom…).
+- **AI-credit business model** with hard limits and auto-recharge.
+- **Enterprise posture**: SOC 2 Type II, GDPR, DPA, data residency, SSO, HIPAA.
+
+---
+
+## 2. DocsBot at a glance
+
+| Dimension | DocsBot |
 |-----------|---------|
-| Propuesta | Documentación → agentes de IA que responden y actúan |
-| Fuentes de conocimiento | 37+ tipos: webs, sitemaps, RSS, PDF/Word/MD/CSV, audio/vídeo transcrito, Drive, SharePoint, Dropbox, Notion, Confluence, Slack, Zendesk, Intercom, GitHub… |
-| Canales | Widget web, WordPress, Slack, Teams, Discord, Gmail, Zendesk, HubSpot, Intercom + Zapier/Make (7.000+ apps) |
-| IA | RAG agéntico, multimodelo, Deep Research (docs + web), custom instructions, MCP, skill builder |
-| Analítica | Uso, topics, sentiment, tasa de resolución (first-contact), logs, satisfacción |
-| Equipos | Multi-workspace, RBAC, tokens API con scope |
+| Proposition | Documentation → AI agents that answer and act |
+| Knowledge sources | 37+ types: websites, sitemaps, RSS, PDF/Word/MD/CSV, transcribed audio/video, Drive, SharePoint, Dropbox, Notion, Confluence, Slack, Zendesk, Intercom, GitHub… |
+| Channels | Web widget, WordPress, Slack, Teams, Discord, Gmail, Zendesk, HubSpot, Intercom + Zapier/Make (7,000+ apps) |
+| AI | Agentic RAG, multi-model, Deep Research (docs + web), custom instructions, MCP, skill builder |
+| Analytics | Usage, topics, sentiment, resolution rate (first-contact), logs, satisfaction |
+| Teams | Multi-workspace, RBAC, scoped API tokens |
 | Developer | REST API + admin endpoints, webhooks, MCP, self-hosting (enterprise) |
-| Compliance | SOC 2 Type II, GDPR, DPA, cifrado TLS/AES-256, residencia UE, HIPAA |
-| Idiomas | 100+ (responde en idioma del usuario aunque los docs estén en inglés) |
-| Público | Enterprise/mid-market, SaaS, soporte, educación, indie hackers |
+| Compliance | SOC 2 Type II, GDPR, DPA, TLS/AES-256 encryption, EU residency, HIPAA |
+| Languages | 100+ (responds in the user's language even if the docs are in English) |
+| Audience | Enterprise/mid-market, SaaS, support, education, indie hackers |
 
-### Precios DocsBot (jul 2026)
+### DocsBot Pricing (Jul 2026)
 
-| Plan | Precio | Bots | Páginas fuente | Créditos IA/mes | Usuarios |
+| Plan | Price | Bots | Source pages | AI credits/month | Users |
 |------|--------|------|----------------|-----------------|----------|
 | Free | $0 | 1 | 50 | 100 | 1 |
-| Personal | $49/mes | 1 | 5.000 | 5.000 | 1 |
-| Standard | $149/mes | 3 | 15.000 | 15.000 | 5 |
-| Business | $499/mes | 10 | 100.000 | 60.000 | 10 |
+| Personal | $49/month | 1 | 5,000 | 5,000 | 1 |
+| Standard | $149/month | 3 | 15,000 | 15,000 | 5 |
+| Business | $499/month | 10 | 100,000 | 60,000 | 10 |
 | Enterprise | Custom | Custom | Custom | Custom | Custom |
 
-Add-ons: +5k créditos $49/mes · bot extra $19/mes · +10k páginas $29/mes · usuario $19/mes.
-**Modelo de crédito**: 1 mensaje ≈ 1 crédito en modelo base; multiplicadores por modelo
-(GPT-5.5 = 24x). Al agotar, el bot deja de responder salvo auto-recarga (hard stop, estilo Botsonic).
+Add-ons: +5k credits $49/month · extra bot $19/month · +10k pages $29/month · user $19/month.
+**Credit model**: 1 message ≈ 1 credit on the base model; multipliers per model
+(GPT-5.5 = 24x). Once exhausted, the bot stops responding unless auto-recharge is enabled (hard stop, Botsonic-style).
 
 ---
 
-## 3. TALIA hoy (resumen)
+## 3. TALIA today (summary)
 
-Capa de atención multicanal para **entidades culturales / venues** (no un bot aislado).
+Multichannel attention layer for **cultural entities / venues** (not a standalone bot).
 
-- Módulo activo principal: **Atención**. Canal más maduro: **Chatbot web**.
-- **Conocimiento** como núcleo común (FAQs, fuentes/scrape URLs, ingestión estructurada,
-  chunks + embeddings recientes).
-- **Agente de Email (Gmail)** en testing: solo **borradores supervisados**, nunca envía solo.
-- **Accesibilidad / Clear View**: widget propio, diferenciador fuera del alcance de DocsBot.
-- **Voz** (ElevenLabs/Twilio): pausada.
-- Dashboard cliente **Agora** (es/ca/en) + panel interno **Backstage**.
-- Multi-tenant vía RLS (`tenant_id` en toda tabla).
-- Billing con Stripe: trial 14 días, planes base + add-on **+2.000 mensajes (25€)**.
-- **Límite de mensajes por plan** (recién implementado): modelo Botsonic (1 respuesta de
-  TALIA = 1 mensaje), enforcement por **fallback degradado** + aviso al 80/100% en Agora.
+- Main active module: **Attention**. Most mature channel: **Web chatbot**.
+- **Knowledge** as the common core (FAQs, sources/scrape URLs, structured ingestion,
+  recent chunks + embeddings).
+- **Email Agent (Gmail)** in testing: only **supervised drafts**, never sends on its own.
+- **Accessibility / Clear View**: proprietary widget, a differentiator outside DocsBot's scope.
+- **Voice** (ElevenLabs/Twilio): paused.
+- Client dashboard **Agora** (es/ca/en) + internal panel **Backstage**.
+- Multi-tenant via RLS (`tenant_id` on every table).
+- Billing with Stripe: 14-day trial, base plans + **+2,000 messages (€25)** add-on.
+- **Per-plan message limit** (recently implemented): Botsonic model (1 TALIA
+  response = 1 message), enforced via **degraded fallback** + notice at 80/100% in Agora.
 
 ---
 
-## 4. Comparativa directa
+## 4. Direct comparison
 
-Leyenda: ✅ sólido · 🟡 parcial / en progreso · ❌ ausente · ⭐ diferenciador propio
+Legend: ✅ solid · 🟡 partial / in progress · ❌ absent · ⭐ own differentiator
 
-| Capacidad | DocsBot | TALIA | Nota |
+| Capability | DocsBot | TALIA | Note |
 |-----------|:-------:|:-----:|------|
-| Chatbot web con RAG | ✅ | ✅ | TALIA tiene retrieval + embeddings; DocsBot con RAG agéntico más maduro |
-| Nº de fuentes de conocimiento | ✅ 37+ | 🟡 | TALIA: FAQs, scrape URLs, PDF, ingestión estructurada. Falta Notion/Drive/Zendesk/etc. |
-| Ingesta audio/vídeo | ✅ | ❌ | Fuera de foco cultural por ahora |
-| Multimodelo / selección de modelo | ✅ | 🟡 | TALIA usa proveedor configurable; sin selector cara al cliente |
-| Multicanal (Slack/Teams/Discord) | ✅ | ❌ | TALIA prioriza web + email; WhatsApp/Instagram planificados |
-| Agente de email | 🟡 (vía Gmail/Zendesk) | ✅⭐ | TALIA con **borradores supervisados** como principio de producto (control humano) |
-| **Accesibilidad / Clear View** | ❌ | ✅⭐ | **Diferenciador claro de TALIA**, DocsBot no lo ofrece |
-| Enfoque vertical (venues culturales) | ❌ (horizontal) | ✅⭐ | TALIA es vertical; ventaja de contexto y lenguaje de dominio |
-| Idiomas UI cliente | ✅ 100+ (respuesta) | 🟡 es/ca/en | TALIA fuerte en catalán; DocsBot más amplio en respuesta |
-| Analítica (topics/intención) | ✅ (+ sentiment) | 🟡 | TALIA tiene topics/intención básica; falta sentiment y tasa de resolución |
-| Multi-workspace / equipos / RBAC | ✅ | 🟡 | TALIA: accounts/venues + memberships; roles avanzados pendientes |
-| API pública + webhooks | ✅ | 🟡 | TALIA usa n8n como adapter; sin API pública documentada |
-| White-label | ✅ (Business+) | ✅ | TALIA: add-on marca blanca 49€ |
-| Límite de mensajes / créditos | ✅ hard stop + auto-recarga | ✅ fallback degradado + add-on | Enfoques distintos (ver §6) |
-| Compliance (SOC2/HIPAA/SSO) | ✅ | 🟡 | TALIA: baseline auth + docs legales OAuth; sin SOC2/SSO |
-| Self-hosting | ✅ (enterprise) | ❌ | No aplica al modelo SaaS de TALIA |
-| Deep Research (docs + web) | ✅ | ❌ | Nicho; no prioritario para venues |
+| Web chatbot with RAG | ✅ | ✅ | TALIA has retrieval + embeddings; DocsBot's agentic RAG is more mature |
+| Number of knowledge sources | ✅ 37+ | 🟡 | TALIA: FAQs, scrape URLs, PDF, structured ingestion. Missing Notion/Drive/Zendesk/etc. |
+| Audio/video ingestion | ✅ | ❌ | Outside cultural focus for now |
+| Multi-model / model selection | ✅ | 🟡 | TALIA uses a configurable provider; no client-facing selector |
+| Multichannel (Slack/Teams/Discord) | ✅ | ❌ | TALIA prioritizes web + email; WhatsApp/Instagram planned |
+| Email agent | 🟡 (via Gmail/Zendesk) | ✅⭐ | TALIA with **supervised drafts** as a product principle (human control) |
+| **Accessibility / Clear View** | ❌ | ✅⭐ | **Clear TALIA differentiator**, DocsBot doesn't offer it |
+| Vertical focus (cultural venues) | ❌ (horizontal) | ✅⭐ | TALIA is vertical; advantage in context and domain language |
+| Client UI languages | ✅ 100+ (response) | 🟡 es/ca/en | TALIA strong in Catalan; DocsBot broader in response language |
+| Analytics (topics/intent) | ✅ (+ sentiment) | 🟡 | TALIA has basic topics/intent; missing sentiment and resolution rate |
+| Multi-workspace / teams / RBAC | ✅ | 🟡 | TALIA: accounts/venues + memberships; advanced roles pending |
+| Public API + webhooks | ✅ | 🟡 | TALIA uses n8n as an adapter; no documented public API |
+| White-label | ✅ (Business+) | ✅ | TALIA: white-label add-on €49 |
+| Message/credit limit | ✅ hard stop + auto-recharge | ✅ degraded fallback + add-on | Different approaches (see §6) |
+| Compliance (SOC2/HIPAA/SSO) | ✅ | 🟡 | TALIA: baseline auth + legal OAuth docs; no SOC2/SSO |
+| Self-hosting | ✅ (enterprise) | ❌ | Not applicable to TALIA's SaaS model |
+| Deep Research (docs + web) | ✅ | ❌ | Niche; not a priority for venues |
 
 ---
 
-## 5. Dónde gana cada uno
+## 5. Where each one wins
 
-### Ventajas de DocsBot (a vigilar)
+### DocsBot's advantages (to watch)
 
-1. **Amplitud de fuentes** (37+): integra el ecosistema documental de una empresa sin código.
-2. **Multicanal real**: Slack/Teams/Discord/Zendesk out-of-the-box.
-3. **Madurez enterprise**: SOC 2, HIPAA, SSO, residencia de datos, self-hosting.
-4. **Ecosistema developer**: API pública, webhooks, MCP, skill builder.
-5. **Analítica avanzada**: sentiment, topic reports, first-contact resolution.
-6. **Escala probada**: 75k usuarios, referencias enterprise.
+1. **Breadth of sources** (37+): integrates a company's entire document ecosystem with no code.
+2. **Real multichannel**: Slack/Teams/Discord/Zendesk out-of-the-box.
+3. **Enterprise maturity**: SOC 2, HIPAA, SSO, data residency, self-hosting.
+4. **Developer ecosystem**: public API, webhooks, MCP, skill builder.
+5. **Advanced analytics**: sentiment, topic reports, first-contact resolution.
+6. **Proven scale**: 75k users, enterprise references.
 
-### Ventajas de TALIA (a explotar)
+### TALIA's advantages (to exploit)
 
-1. **Vertical cultural** ⭐: lenguaje de dominio, contexto de venue, catalán nativo.
-   DocsBot es horizontal y genérico.
-2. **Accesibilidad / Clear View** ⭐: capacidad que DocsBot **no tiene** y que es relevante
-   para instituciones públicas/culturales (cumplimiento de accesibilidad).
-3. **Agente de email con supervisión humana** ⭐: TALIA no auto-envía; genera borradores.
-   Es un principio de confianza que encaja con instituciones que no quieren automatización ciega.
-4. **Enforcement de límite "amable"**: fallback degradado en vez de dejar mudo al visitante
-   del teatro (protege la marca del cliente final). Ver §6.
-5. **Simplicidad de pricing**: planes en € pensados para presupuestos culturales, no créditos IA.
+1. **Cultural vertical** ⭐: domain language, venue context, native Catalan.
+   DocsBot is horizontal and generic.
+2. **Accessibility / Clear View** ⭐: a capability DocsBot **does not have** and that is relevant
+   for public/cultural institutions (accessibility compliance).
+3. **Email agent with human supervision** ⭐: TALIA doesn't auto-send; it generates drafts.
+   It's a trust principle that fits institutions that don't want blind automation.
+4. **"Gentle" limit enforcement**: degraded fallback instead of leaving the theatre visitor
+   without an answer (protects the end client's brand). See §6.
+5. **Pricing simplicity**: plans in € designed for cultural budgets, not AI credits.
 
 ---
 
-## 6. Modelo de límites: choque de filosofías
+## 6. Limits model: a clash of philosophies
 
 | | DocsBot | TALIA |
 |-|---------|-------|
-| Unidad | Créditos IA (multiplicador por modelo) | 1 respuesta de TALIA = 1 mensaje (modelo Botsonic) |
-| Al agotar | **Hard stop**: el bot deja de responder | **Fallback degradado**: responde con contacto del venue, sin coste IA |
-| Recuperación | Auto-recarga de créditos ($) | Add-on **+2.000 mensajes (25€/mes)** o nuevo ciclo |
-| Aviso | Sí | Sí — 80% / 100% en Agora |
+| Unit | AI credits (model multiplier) | 1 TALIA response = 1 message (Botsonic model) |
+| On exhaustion | **Hard stop**: the bot stops responding | **Degraded fallback**: responds with venue contact info, no AI cost |
+| Recovery | Credit auto-recharge ($) | **+2,000 messages (€25/month)** add-on or a new cycle |
+| Notice | Yes | Yes — 80% / 100% in Agora |
 
-**Lectura estratégica:** DocsBot optimiza para monetizar consumo (créditos, multiplicadores,
-auto-recarga). TALIA optimiza para **proteger la experiencia del visitante del teatro** y la
-marca del cliente. Para un público institucional/cultural, el fallback amable es más defendible
-comercialmente que el corte seco. Mantener esta diferencia como argumento de venta.
+**Strategic reading:** DocsBot optimizes to monetize consumption (credits, multipliers,
+auto-recharge). TALIA optimizes to **protect the theatre visitor's experience** and the
+client's brand. For an institutional/cultural audience, the gentle fallback is more commercially
+defensible than the hard cutoff. Keep this difference as a sales argument.
 
-*Riesgo a vigilar:* el modelo de créditos de DocsBot escala ingresos con el uso; el de TALIA
-(mensaje plano + add-on fijo) puede quedarse corto si un venue grande consume mucho. Considerar
-un tercer tramo o overage facturado (estilo Intercom) si aparecen cuentas de alto volumen.
-
----
-
-## 7. Gaps priorizados para TALIA
-
-Ordenados por relación impacto / esfuerzo para el vertical cultural.
-
-**Alto impacto, alcanzable:**
-
-1. **Ampliar fuentes de conocimiento**: sumar 2-3 conectores de alto valor cultural
-   (Google Drive, Notion, o import de webs/programación de temporada) sin perseguir los 37 de DocsBot.
-2. **Analítica de resolución**: añadir tasa de resolución y sentiment básico — cierra un gap
-   visible frente a DocsBot y aporta valor real al venue.
-3. **Trazabilidad de fuentes por respuesta** (ya en pendientes de Chatbot): reforzar qué fuente
-   usó cada respuesta. DocsBot lo vende como confianza/citas.
-
-**Medio plazo:**
-
-4. **API pública documentada** para reducir dependencia de n8n y abrir integraciones.
-5. **Canal adicional** alineado con público cultural (WhatsApp/Instagram ya planificados) antes
-   que Slack/Teams (menos relevantes para venues).
-6. **Baseline de compliance** (DPA, retención, GDPR) más visible — importante para instituciones
-   públicas, aunque sin llegar a SOC 2/HIPAA en el corto plazo.
-
-**No copiar (evitar distracción):**
-
-- Deep Research docs+web, self-hosting, skill builder genérico, marketplace de 7.000 apps:
-  fuera del foco vertical y de alto coste de mantenimiento.
+*Risk to watch:* DocsBot's credit model scales revenue with usage; TALIA's
+(flat message + fixed add-on) may fall short if a large venue consumes heavily. Consider
+a third tier or billed overage (Intercom-style) if high-volume accounts appear.
 
 ---
 
-## 8. Conclusión
+## 7. Prioritized gaps for TALIA
 
-DocsBot es un competidor **horizontal, maduro y orientado a developers/enterprise**. No compite
-directamente en el nicho de TALIA, pero marca el estándar de expectativas en RAG, multicanal y
-analítica. TALIA no debe intentar igualar amplitud; debe **profundizar en su vertical**:
-accesibilidad, supervisión humana en email, catalán/contexto cultural y una experiencia de
-límite que protege al visitante del teatro. Los gaps que sí conviene cerrar son concretos:
-más fuentes de conocimiento de alto valor cultural, analítica de resolución y trazabilidad de
-fuentes. El resto del catálogo de DocsBot es, en su mayoría, ruido para el mercado objetivo de TALIA.
+Ordered by impact/effort ratio for the cultural vertical.
+
+**High impact, achievable:**
+
+1. **Expand knowledge sources**: add 2-3 high-value cultural connectors
+   (Google Drive, Notion, or import of season programming/websites) without chasing DocsBot's 37.
+2. **Resolution analytics**: add resolution rate and basic sentiment — closes a
+   visible gap versus DocsBot and adds real value to the venue.
+3. **Source traceability per response** (already in Chatbot's pending items): reinforce which source
+   each response used. DocsBot sells this as trust/citations.
+
+**Medium term:**
+
+4. **Documented public API** to reduce dependency on n8n and open up integrations.
+5. **Additional channel** aligned with the cultural audience (WhatsApp/Instagram already planned) before
+   Slack/Teams (less relevant for venues).
+6. **More visible compliance baseline** (DPA, retention, GDPR) — important for public
+   institutions, without reaching SOC 2/HIPAA in the short term.
+
+**Do not copy (avoid distraction):**
+
+- Deep Research docs+web, self-hosting, generic skill builder, 7,000-app marketplace:
+  outside the vertical focus and high maintenance cost.
 
 ---
 
-## Apéndice A — Fuentes de conocimiento de DocsBot ("37+")
+## 8. Conclusion
 
-DocsBot no publica una tabla oficial única numerada. El "37+" es una cifra de marketing
-(en otras páginas cita 28+ o 40+). Esta lista está **reconstruida** cruzando su homepage,
-el artículo de source types y la documentación de API (jul 2026); da ~38 ítems, coherente
-con su cifra, pero el número exacto y el estado *beta* de algunos conectores varían.
+DocsBot is a **horizontal, mature, developer/enterprise-oriented** competitor. It does not compete
+directly in TALIA's niche, but it sets the standard of expectations in RAG, multichannel, and
+analytics. TALIA should not try to match its breadth; it should **go deeper into its vertical**:
+accessibility, human supervision in email, Catalan/cultural context, and a limit
+experience that protects the theatre visitor. The gaps worth closing are specific:
+more high-value cultural knowledge sources, resolution analytics, and source
+traceability. The rest of DocsBot's catalog is, for the most part, noise for TALIA's target market.
 
-**Web y feeds**
+---
 
-1. Website (crawler de sitio completo)
-2. URL individual / página web
+## Appendix A — DocsBot knowledge sources ("37+")
+
+DocsBot does not publish a single official numbered table. The "37+" is a marketing
+figure (other pages cite 28+ or 40+). This list is **reconstructed** by cross-referencing its homepage,
+the source types article, and the API documentation (Jul 2026); it comes to ~38 items, consistent
+with its figure, but the exact number and the *beta* status of some connectors vary.
+
+**Web and feeds**
+
+1. Website (full-site crawler)
+2. Individual URL / web page
 3. Sitemap (XML)
 4. RSS feed
-5. Vídeo de YouTube (individual)
-6. Playlist de YouTube (hasta 100 vídeos)
+5. YouTube video (individual)
+6. YouTube playlist (up to 100 videos)
 
-**Documentos y archivos**
+**Documents and files**
 
 7. PDF
 8. Word (DOCX)
 9. Markdown
 10. HTML
-11. Texto plano (TXT)
+11. Plain text (TXT)
 12. CSV
 13. TSV
 14. Email (EML)
-15. Imágenes con OCR (documentos escaneados, capturas, infografías)
-16. Archivos de audio (transcripción IA)
-17. Archivos de vídeo (transcripción IA)
+15. Images with OCR (scanned documents, screenshots, infographics)
+16. Audio files (AI transcription)
+17. Video files (AI transcription)
 
-**Entrada manual**
+**Manual input**
 
-18. Q&A / pares pregunta-respuesta
-19. Texto pegado directamente
+18. Q&A / question-answer pairs
+19. Directly pasted text
 
-**Almacenamiento en la nube**
+**Cloud storage**
 
 20. Google Drive
 21. Microsoft SharePoint
@@ -231,7 +231,7 @@ con su cifra, pero el número exacto y el estado *beta* de algunos conectores va
 26. Google Cloud Storage
 27. DigitalOcean Spaces
 
-**Colaboración / conocimiento**
+**Collaboration / knowledge**
 
 28. Notion
 29. Confluence
@@ -246,27 +246,27 @@ con su cifra, pero el número exacto y el estado *beta* de algunos conectores va
 35. Zoho Desk
 36. FreeScout
 
-**Repositorios de código**
+**Code repositories**
 
 37. GitHub
 38. Bitbucket (beta)
 
-**Lectura para TALIA:** igualar los 38 no es el objetivo. La mayoría (help desks, repos de
-código, S3, Confluence) son irrelevantes para venues culturales. Los de alto valor cultural
-—y por tanto los candidatos a cerrar el gap de §7— son **Website/Sitemap, PDF, Google Drive
-y Notion**. Para cifras exactas en material comercial o legal, confirmar en el panel/documentación
-en vivo de DocsBot.
+**Reading for TALIA:** matching the 38 is not the goal. Most of them (help desks, code
+repos, S3, Confluence) are irrelevant for cultural venues. The high-cultural-value ones
+—and therefore the candidates to close the §7 gap— are **Website/Sitemap, PDF, Google Drive,
+and Notion**. For exact figures in commercial or legal materials, confirm on DocsBot's live
+panel/documentation.
 
-Fuentes: homepage (https://docsbot.ai/), artículo de source types
+Sources: homepage (https://docsbot.ai/), source types article
 (https://docsbot.ai/article/new-flexible-source-types-and-40-powerful-use-cases),
-docs de API (https://docsbot.ai/documentation/developer/source-api).
+API docs (https://docsbot.ai/documentation/developer/source-api).
 
 ---
 
-## Referencias
+## References
 
 - DocsBot AI: https://docsbot.ai · https://docsbot.ai/pricing
-- Estado TALIA: `docs/current-state.md`
-- Pricing TALIA: `docs/product/pricing.md`
+- TALIA status: `docs/current-state.md`
+- TALIA pricing: `docs/product/pricing.md`
 - Usage/billing: `docs/architecture/usage-billing.md`
 - Roadmap: `docs/product/roadmap.md`

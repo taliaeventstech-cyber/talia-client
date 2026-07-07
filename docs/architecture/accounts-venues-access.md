@@ -1,6 +1,6 @@
-# Arquitectura: Accounts, Venues, Profiles y Accesos
+# Architecture: Accounts, Venues, Profiles, and Access
 
-## Modelo
+## Model
 
 ```txt
 auth.users
@@ -14,131 +14,131 @@ profiles
   └── venue_memberships ───► theatres / venues
 ```
 
-## Entidades
+## Entities
 
 ### `auth.users`
 
-Identidad de Supabase Auth.
+Supabase Auth identity.
 
-Responsabilidad:
+Responsibility:
 
 - Email.
 - Password/session.
-- Confirmación de cuenta.
+- Account confirmation.
 
-No debe contener lógica de negocio de TALIA.
+Must not contain TALIA business logic.
 
 ### `profiles`
 
-Perfil estable de persona en TALIA.
+Stable person profile in TALIA.
 
-Responsabilidad:
+Responsibility:
 
 - `auth_user_id`.
-- Email normalizado.
-- Nombre.
-- Estado.
-- Datos de contacto.
+- Normalized email.
+- Name.
+- Status.
+- Contact details.
 
 ### `accounts`
 
-Cliente contractual.
+Contractual client.
 
-Ejemplo:
+Example:
 
 - Layers of Reality.
-- Cliente institucional de ejemplo.
+- Sample institutional client.
 - Culturactiva.
 
 ### `theatres` / venues
 
-Centro operativo dentro del account.
+Operating center within the account.
 
-Ejemplo:
+Example:
 
 - IDEAL Barcelona.
 - IDEAL Madrid.
 - Teatro Aurora.
 
-El nombre técnico `theatres` es legacy. En producto hablamos de venues.
+The technical name `theatres` is legacy. In the product we talk about venues.
 
 ### `account_memberships`
 
-Acceso de una persona a un account.
+A person's access to an account.
 
-Sirve para:
+Used for:
 
-- ver dashboard agregado,
-- gestionar varias venues,
-- invitar usuarios,
-- administrar facturación.
+- viewing the aggregated dashboard,
+- managing multiple venues,
+- inviting users,
+- managing billing.
 
 ### `venue_memberships`
 
-Acceso de una persona a una venue.
+A person's access to a venue.
 
-Sirve para:
+Used for:
 
-- operar Àgora,
-- ver conversaciones,
-- configurar chatbot,
-- ver métricas,
-- gestionar canal de voz/email si tiene permiso.
+- operating Àgora,
+- viewing conversations,
+- configuring the chatbot,
+- viewing metrics,
+- managing the voice/email channel if permitted.
 
 ## Legacy
 
-`public.users` se considera legacy.
+`public.users` is considered legacy.
 
-Puede seguir existiendo por compatibilidad, pero la arquitectura futura debe depender de:
+It may continue to exist for compatibility, but the future architecture must depend on:
 
 - `profiles`;
 - `account_memberships`;
 - `venue_memberships`.
 
-## Reglas
+## Rules
 
-- Un account puede tener muchas venues.
-- Una venue pertenece a un account.
-- Una persona puede estar en varios accounts.
-- Una persona puede estar en varias venues.
-- TALIA puede vincular, desvincular y cambiar permisos sin borrar historial.
-- Los emails son credenciales, no la fuente principal del modelo de negocio.
+- An account can have many venues.
+- A venue belongs to one account.
+- A person can be in several accounts.
+- A person can be in several venues.
+- TALIA can link, unlink, and change permissions without deleting history.
+- Emails are credentials, not the main source of truth for the business model.
 
 ## Dashboard
 
 ### Account Dashboard
 
-Ruta: `/accounts/[accountId]`.
+Route: `/accounts/[accountId]`.
 
-Muestra:
+Shows:
 
-- visión agregada;
-- lista de venues;
-- uso por venue;
-- acceso a cada Àgora;
-- usuarios e invitaciones de account.
+- aggregated view;
+- list of venues;
+- usage per venue;
+- access to each Àgora;
+- account users and invitations.
 
 ### Àgora
 
-Ruta: `/[tenantId]/overview`.
+Route: `/[tenantId]/overview`.
 
-Muestra:
+Shows:
 
-- operación de una venue;
-- conversaciones;
-- base de conocimiento;
-- configuración del chatbot;
-- voz/email si están contratados.
+- operation of a venue;
+- conversations;
+- knowledge base;
+- chatbot configuration;
+- voice/email if contracted.
 
 ### Backstage
 
-Ruta: `/backstage`.
+Route: `/backstage`.
 
-Panel interno TALIA para:
+Internal TALIA panel for:
 
-- crear accounts;
-- crear venues;
-- activar módulos;
-- invitar usuarios;
-- abrir dashboards;
-- diagnosticar configuración.
+- creating accounts;
+- creating venues;
+- activating modules;
+- inviting users;
+- opening dashboards;
+- diagnosing configuration.

@@ -1,106 +1,106 @@
-# Arquitectura: Usage y Billing
+# Architecture: Usage and Billing
 
-## Objetivo
+## Goal
 
-Medir uso real o estimado por venue, módulo y canal para:
+Measure real or estimated usage per venue, module, and channel in order to:
 
-- controlar límites;
-- calcular costes;
-- justificar pricing;
-- mostrar consumo al cliente;
-- detectar abuso o necesidad de upgrade.
+- control limits;
+- calculate costs;
+- justify pricing;
+- show consumption to the client;
+- detect abuse or the need for an upgrade.
 
-## Tablas Base
+## Base Tables
 
 ### `tenant_subscriptions`
 
-Suscripción por venue y periodo.
+Subscription per venue and period.
 
-Contiene:
+Contains:
 
 - plan;
-- estado;
-- periodo de facturación;
-- conversaciones incluidas;
-- minutos de voz incluidos;
-- precios de overage;
-- comportamiento de hard limit.
+- status;
+- billing period;
+- included conversations;
+- included voice minutes;
+- overage prices;
+- hard limit behavior.
 
 ### `tenant_module_entitlements`
 
-Módulos activos por venue.
+Active modules per venue.
 
-Contiene:
+Contains:
 
-- módulo;
+- module;
 - enabled;
-- límites específicos;
+- specific limits;
 - metadata.
 
 ### `usage_events`
 
-Evento granular.
+Granular event.
 
-Ejemplos:
+Examples:
 
-- conversación iniciada;
-- mensaje;
-- llamada al modelo;
+- conversation started;
+- message;
+- model call;
 - tool call;
-- minuto de voz;
+- voice minute;
 - fallback;
-- límite excedido.
+- limit exceeded.
 
 ### `tenant_usage_daily`
 
-Agregado diario para dashboards rápidos.
+Daily aggregate for fast dashboards.
 
-## Unidades
+## Units
 
 Chatbot:
 
-- conversación;
-- mensaje;
+- conversation;
+- message;
 - tokens;
-- coste estimado.
+- estimated cost.
 
 Email:
 
-- conversación;
-- email inbound/outbound;
-- draft generado;
+- conversation;
+- inbound/outbound email;
+- draft generated;
 - tokens;
-- coste estimado.
+- estimated cost.
 
-Voz:
+Voice:
 
-- minuto;
-- llamada;
-- resolución;
+- minute;
+- call;
+- resolution;
 - fallback;
-- coste proveedor.
+- provider cost.
 
-## Coste IA
+## AI Cost
 
-Para OpenAI:
+For OpenAI:
 
-- capturar modelo;
-- capturar tokens input/output;
-- aplicar tabla interna de precios;
-- guardar `cost_estimate_cents`.
+- capture the model;
+- capture input/output tokens;
+- apply the internal pricing table;
+- store `cost_estimate_cents`.
 
-Si el flujo pasa por n8n y no devuelve tokens, el coste será estimado por heurística hasta migrar a backend propio.
+If the flow goes through n8n and doesn't return tokens, cost will be estimated via heuristic until migrating to an in-house backend.
 
-## Límites
+## Limits
 
-La función de límite debe responder:
+The limit function must answer:
 
 - allowed;
 - current;
 - limit;
 - behavior.
 
-Comportamientos:
+Behaviors:
 
 - `notify_only`;
 - `fallback`;
@@ -108,18 +108,18 @@ Comportamientos:
 
 ## UI
 
-En el dashboard cliente, mostrar uso de forma sutil:
+In the client dashboard, show usage subtly:
 
-- plan actual;
-- conversaciones usadas / incluidas;
-- minutos usados / incluidos;
-- avisos de proximidad al límite.
+- current plan;
+- conversations used / included;
+- minutes used / included;
+- warnings when approaching the limit.
 
-No mostrar coste IA estimado al cliente salvo decisión comercial explícita.
+Do not show estimated AI cost to the client unless there is an explicit business decision to do so.
 
-En Backstage, sí mostrar:
+In Backstage, do show:
 
-- coste estimado;
-- usage por venue;
-- módulos contratados;
-- overage potencial.
+- estimated cost;
+- usage per venue;
+- contracted modules;
+- potential overage.

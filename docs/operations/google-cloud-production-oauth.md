@@ -1,69 +1,69 @@
 # Google Cloud production OAuth
 
-Documento operativo para sacar a produccion la integracion de Gmail de TALIA.
+Operational document for taking TALIA's Gmail integration to production.
 
-## Problema actual
+## Current problem
 
-Google muestra `Access blocked: talia-mail has not completed the Google verification process` cuando una cuenta no autorizada intenta conectar Gmail.
+Google shows `Access blocked: talia-mail has not completed the Google verification process` when an unauthorized account tries to connect Gmail.
 
-Esto ocurre porque el OAuth consent screen esta en modo testing o porque la app aun no esta verificada para los scopes solicitados.
+This happens because the OAuth consent screen is in testing mode, or because the app is not yet verified for the requested scopes.
 
-## Scopes actuales
+## Current scopes
 
-TALIA solicita:
+TALIA requests:
 
 - `https://www.googleapis.com/auth/gmail.readonly`
 - `https://www.googleapis.com/auth/gmail.compose`
 
-Ambos son scopes restringidos de Gmail. Google exige verificacion OAuth para apps publicas que los usen. Si la app almacena o transmite datos de scopes restringidos en servidores, Google puede exigir security assessment.
+Both are restricted Gmail scopes. Google requires OAuth verification for public apps that use them. If the app stores or transmits restricted-scope data on servers, Google may require a security assessment.
 
-## Desbloqueo temporal para pruebas
+## Temporary unblock for testing
 
-En Google Cloud Console:
+In Google Cloud Console:
 
-1. Abrir el proyecto OAuth actual.
-2. Ir a Google Auth Platform / Audience.
-3. Mantener publishing status en `Testing`.
-4. Anadir las cuentas de prueba en Test users.
-5. Reintentar conectar Gmail.
+1. Open the current OAuth project.
+2. Go to Google Auth Platform / Audience.
+3. Keep the publishing status as `Testing`.
+4. Add the test accounts under Test users.
+5. Retry connecting Gmail.
 
-Limitaciones:
+Limitations:
 
-- Maximo 100 test users.
-- Las autorizaciones de test users caducan a los 7 dias si se usan scopes fuera de perfil/email/openid.
-- No sirve como solucion para clientes reales.
+- Maximum of 100 test users.
+- Test user authorizations expire after 7 days if scopes outside profile/email/openid are used.
+- Not a viable solution for real clients.
 
-## Produccion recomendada
+## Recommended production setup
 
-Crear un proyecto de Google Cloud separado para produccion.
+Create a separate Google Cloud project for production.
 
-1. Crear proyecto `talia-production`.
-2. Activar Gmail API.
-3. Configurar Google Auth Platform.
-4. User type: `External`, salvo que el producto sea solo para un Google Workspace interno.
+1. Create project `talia-production`.
+2. Enable the Gmail API.
+3. Configure Google Auth Platform.
+4. User type: `External`, unless the product is only for an internal Google Workspace.
 5. Branding:
-   - App name: `TALIA` o `GoTalia`.
+   - App name: `TALIA` or `GoTalia`.
    - User support email.
    - Logo.
-   - Home page publica.
-   - Privacy policy publica.
-   - Terms of service publica.
-   - Authorized domain: dominio final de produccion.
+   - Public home page.
+   - Public privacy policy.
+   - Public terms of service.
+   - Authorized domain: final production domain.
 6. Data access:
-   - Declarar solo `gmail.readonly` y `gmail.compose`.
-   - Justificar por que se necesitan.
+   - Declare only `gmail.readonly` and `gmail.compose`.
+   - Justify why they are needed.
 7. OAuth client:
-   - Tipo: Web application.
+   - Type: Web application.
    - Authorized redirect URI:
      - `https://APP_PROD_DOMAIN/api/email/google/callback`
    - Authorized JavaScript origins:
      - `https://APP_PROD_DOMAIN`
-8. Publicar app en `In production`.
-9. Solicitar verificacion de branding y data access.
+8. Publish the app as `In production`.
+9. Request branding and data access verification.
 
-## Variables de entorno de produccion
+## Production environment variables
 
-Configurar en el entorno donde corre Next:
+Configure in the environment where Next runs:
 
 ```bash
 NEXT_PUBLIC_APP_URL=https://APP_PROD_DOMAIN
@@ -73,46 +73,46 @@ EMAIL_OAUTH_STATE_SECRET=...
 EMAIL_TOKEN_ENCRYPTION_KEY=...
 ```
 
-`NEXT_PUBLIC_APP_URL` es critico: el codigo genera el redirect URI como:
+`NEXT_PUBLIC_APP_URL` is critical: the code generates the redirect URI as:
 
 ```text
 ${NEXT_PUBLIC_APP_URL}/api/email/google/callback
 ```
 
-Ese valor debe coincidir exactamente con el redirect URI autorizado en Google Cloud.
+That value must match exactly the redirect URI authorized in Google Cloud.
 
-## Evidencias para verificacion
+## Evidence for verification
 
-Preparar antes de enviar la solicitud:
+Prepare before submitting the request:
 
-- URL publica de la app.
-- Politica de privacidad con mencion explicita a datos de Gmail.
-- Terminos de servicio.
-- Video corto mostrando:
-  - login en TALIA;
-  - conexion de Gmail;
-  - lectura de bandeja autorizada;
-  - creacion de borrador;
-  - desconexion/revocacion.
-- Explicacion de uso de datos:
-  - se leen emails autorizados para clasificar y preparar respuestas;
-  - se crean borradores supervisados;
-  - TALIA no envia emails automaticamente con el scope actual;
-  - tokens OAuth se guardan cifrados;
-  - el usuario puede desconectar la cuenta.
+- Public URL of the app.
+- Privacy policy with explicit mention of Gmail data.
+- Terms of service.
+- Short video showing:
+  - login in TALIA;
+  - connecting Gmail;
+  - reading the authorized inbox;
+  - creating a draft;
+  - disconnection/revocation.
+- Explanation of data usage:
+  - authorized emails are read to classify and prepare replies;
+  - supervised drafts are created;
+  - TALIA does not send emails automatically with the current scope;
+  - OAuth tokens are stored encrypted;
+  - the user can disconnect the account.
 
-## Despliegue de la app
+## App deployment
 
-El frontend/backend Next puede correr en Cloud Run, Vercel u otro hosting. Lo importante para Google OAuth es:
+The Next frontend/backend can run on Cloud Run, Vercel, or another hosting provider. What matters for Google OAuth is:
 
-- dominio HTTPS estable;
-- redirect URI estable;
-- paginas publicas de privacidad y terminos;
-- proyecto OAuth de produccion verificado.
+- a stable HTTPS domain;
+- a stable redirect URI;
+- public privacy and terms pages;
+- a verified production OAuth project.
 
-Si se despliega en Google Cloud, Cloud Run es la opcion mas directa para esta app.
+If deployed on Google Cloud, Cloud Run is the most straightforward option for this app.
 
-## Referencias oficiales
+## Official references
 
 - OAuth App Verification: https://support.google.com/cloud/answer/13463073
 - Manage App Audience: https://support.google.com/cloud/answer/15549945

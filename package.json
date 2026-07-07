@@ -10,7 +10,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "db:migrate": "supabase db push",
-    "db:types": "supabase gen types typescript --linked --schema public > src/types/database.types.ts"
+    "db:types": "supabase gen types typescript --linked --schema public > src/types/database.types.ts",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": "eslint --fix"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -34,6 +38,8 @@
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "supabase": "^2.95.3",
     "typescript": "^5",
     "vitest": "^4.1.5"

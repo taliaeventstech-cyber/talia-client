@@ -1,65 +1,71 @@
-# Indice de Documentacion TALIA
+# TALIA Documentation Index
 
-Este directorio recoge la documentacion curada de producto, arquitectura, requirements, seguridad, legal y operacion.
+This directory holds the curated documentation for product, architecture, requirements, security, legal and operations.
 
-## Entrada Principal
+## Main Entry Point
 
-- [`current-state.md`](current-state.md): estado real de la app, modulos activos, legacy y deuda conocida.
+- [`current-state.md`](current-state.md): real state of the app, active modules, legacy and known debt.
 
-## Producto
+## Product
 
-- [`product/roadmap.md`](product/roadmap.md): vision por fases y modulos.
-- [`product/pricing.md`](product/pricing.md): planes, limites y criterios de monetizacion.
-- [`product/onboarding.md`](product/onboarding.md): flujo de alta self-serve, accounts, venues e invitaciones de equipo.
-- [`product/accessibility-widget.md`](product/accessibility-widget.md): exploracion inicial de widget de accesibilidad.
+- [`product/roadmap.md`](product/roadmap.md): vision by phases and modules.
+- [`product/pricing.md`](product/pricing.md): plans, limits and monetization criteria.
+- [`product/onboarding.md`](product/onboarding.md): self-serve signup flow, accounts, venues and team invitations.
+- [`product/accessibility-widget.md`](product/accessibility-widget.md): initial exploration of the accessibility widget.
+- [`product/branding.md`](product/branding.md): product design system. Mandatory reference document for the code agent on any UI change.
 
-## Arquitectura
+## Competitive Research
 
-- [`architecture/accounts-venues-access.md`](architecture/accounts-venues-access.md): accounts, venues, profiles, roles e invitaciones.
-- [`architecture/usage-billing.md`](architecture/usage-billing.md): medicion de uso, limites y facturacion.
-- [`architecture/ai-agents.md`](architecture/ai-agents.md): principios compartidos para chatbot, email, voz y futuros canales.
-- [`architecture/agent-runtime.md`](architecture/agent-runtime.md): contrato interno de runtime para desacoplar n8n/backend propio.
-- [`architecture/talia-ai-service.md`](architecture/talia-ai-service.md): spec del repo separado `talia-ai` para Fly.io.
-- [`architecture/knowledge-ingestion.md`](architecture/knowledge-ingestion.md): ingestion de FAQs, Excel, PDFs, URLs y futura capa de retrieval.
-- [`architecture/scaling-roadmap-lisbon-2026.md`](architecture/scaling-roadmap-lisbon-2026.md): plan de arquitectura escalable hacia noviembre de 2026.
+- [`product/competitive-docsbot.md`](product/competitive-docsbot.md): comparative analysis of TALIA vs DocsBot AI. Point-in-time snapshot, not a roadmap.
+- [`product/competitor-pricing-research.json`](product/competitor-pricing-research.json): pricing research on direct competitors in the cultural sector (Ask Mona, Nevent.ai, CultureBot.eu, Anolla, ChatbotKit).
+
+## Architecture
+
+- [`architecture/accounts-venues-access.md`](architecture/accounts-venues-access.md): accounts, venues, profiles, roles and invitations.
+- [`architecture/usage-billing.md`](architecture/usage-billing.md): usage measurement, limits and billing.
+- [`architecture/ai-agents.md`](architecture/ai-agents.md): shared principles for chatbot, email, voice and future channels.
+- [`architecture/agent-runtime.md`](architecture/agent-runtime.md): internal runtime contract to decouple n8n/own backend.
+- [`architecture/talia-ai-service.md`](architecture/talia-ai-service.md): spec of the separate `talia-ai` repo for Fly.io.
+- [`architecture/knowledge-ingestion.md`](architecture/knowledge-ingestion.md): ingestion of FAQs, Excel, PDFs, URLs and future retrieval layer.
+- [`architecture/scaling-roadmap-lisbon-2026.md`](architecture/scaling-roadmap-lisbon-2026.md): scalable architecture plan toward November 2026.
 
 ## Requirements
 
-- [`requirements/chatbot.md`](requirements/chatbot.md): chatbot web y widget.
-- [`requirements/email-agent.md`](requirements/email-agent.md): agente de email y conexion con buzones reales.
-- [`requirements/voice-agent.md`](requirements/voice-agent.md): agente de voz, telefonia y ElevenLabs/Twilio.
+- [`requirements/chatbot.md`](requirements/chatbot.md): web chatbot and widget.
+- [`requirements/email-agent.md`](requirements/email-agent.md): email agent and connection with real mailboxes.
+- [`requirements/voice-agent.md`](requirements/voice-agent.md): voice agent, telephony and ElevenLabs/Twilio.
 
-## Operaciones
+## Operations
 
-- [`operations/client-launch-checklist.md`](operations/client-launch-checklist.md): checklist interno para lanzar un cliente.
-- [`operations/google-cloud-production-oauth.md`](operations/google-cloud-production-oauth.md): verificacion OAuth de Google para Gmail.
-- [`operations/data-retention.md`](operations/data-retention.md): politica operativa de retencion y limpieza.
-- [`operations/knowledge-embeddings.md`](operations/knowledge-embeddings.md): cron/backfill operativo de embeddings.
+- [`operations/client-launch-checklist.md`](operations/client-launch-checklist.md): internal checklist for launching a client.
+- [`operations/google-cloud-production-oauth.md`](operations/google-cloud-production-oauth.md): Google OAuth verification for Gmail.
+- [`operations/data-retention.md`](operations/data-retention.md): operational data retention and cleanup policy.
+- [`operations/knowledge-embeddings.md`](operations/knowledge-embeddings.md): operational cron/backfill for embeddings.
 
-## Seguridad y Legal
+## Security and Legal
 
-- [`security/auth-phase-1.md`](security/auth-phase-1.md): primera fase de hardening de signup/signin.
-- [`legal/privacy-policy-google-en.md`](legal/privacy-policy-google-en.md): politica de privacidad vigente para Google OAuth.
-- [`legal/terms-of-service-google-en.md`](legal/terms-of-service-google-en.md): terminos de servicio vigentes.
+- [`security/auth-phase-1.md`](security/auth-phase-1.md): first phase of signup/signin hardening.
+- [`legal/privacy-policy-google-en.md`](legal/privacy-policy-google-en.md): current privacy policy for Google OAuth.
+- [`legal/terms-of-service-google-en.md`](legal/terms-of-service-google-en.md): current terms of service.
 
-## Otros
+## Other
 
-- [`backlog.md`](backlog.md): deuda y mejoras no bloqueantes.
-- [`stripe-checkout.md`](stripe-checkout.md): configuracion de Stripe Checkout y webhook.
+- [`backlog.md`](backlog.md): non-blocking debt and improvements.
+- [`stripe-checkout.md`](stripe-checkout.md): Stripe Checkout and webhook configuration.
 
-## Naming de Producto
+## Product Naming
 
-- **Backstage**: panel interno de TALIA.
-- **Account**: cliente u organizacion contratada.
-- **Venue**: centro, teatro, museo, sala o sede gestionada dentro de un account.
-- **Agora**: dashboard operativo de una venue.
-- **Account dashboard**: dashboard agregado de un account con varias venues.
+- **Backstage**: TALIA's internal panel.
+- **Account**: contracted client or organization.
+- **Venue**: theatre, museum, hall or site managed within an account.
+- **Agora**: operational dashboard of a venue.
+- **Account dashboard**: aggregated dashboard of an account with multiple venues.
 
-## Principios
+## Principles
 
-- TALIA usa signup self-serve para crear el primer workspace.
-- Las invitaciones son para equipos existentes.
-- Los modulos contratados se definen por venue.
-- Un account puede tener una o varias venues.
-- Las personas y emails son rotativos; el modelo debe permitir vincular, desvincular y cambiar accesos sin romper historial.
-- Los canales de atencion son adaptadores sobre un nucleo comun: conocimiento, conversaciones, permisos, metricas y limites.
+- TALIA uses self-serve signup to create the first workspace.
+- Invitations are for existing teams.
+- Contracted modules are defined per venue.
+- An account can have one or several venues.
+- People and emails are subject to turnover; the model must allow linking, unlinking and changing access without breaking history.
+- Attention channels are adapters over a common core: knowledge, conversations, permissions, metrics and limits.
