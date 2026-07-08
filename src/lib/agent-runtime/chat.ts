@@ -11,6 +11,7 @@ export type ChatAgentRuntimeInput = {
   sessionId: string
   message: string
   pageUrl?: string
+  pendingClarification?: ChatAgentPendingClarification
   n8nWebhookUrl: string | null
   tenant: {
     name: string
@@ -22,6 +23,13 @@ export type ChatAgentRuntimeInput = {
     aiSettings?: ChatbotAiSettings
   }
   relevantKnowledge?: RelevantKnowledgeHint[]
+}
+
+export type ChatAgentPendingClarification = {
+  intent: 'pricing' | 'schedule' | 'program'
+  reason?: string
+  options: string[]
+  optionKeys?: string[]
 }
 
 export type ChatAgentRuntimeResult =

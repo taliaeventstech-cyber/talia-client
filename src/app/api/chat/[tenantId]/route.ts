@@ -1,6 +1,6 @@
-import { saveConversation } from '@/lib/chat/service'
+import { getLatestAssistantMessageMetadata, saveConversation } from '@/lib/chat/service'
 import { saveConversationTopic } from '@/lib/analytics/topics'
-import { isTaliaAiPrimaryProvider, runChatAgent } from '@/lib/agent-runtime/chat'
+import { isTaliaAiPrimaryProvider, runChatAgent, type ChatAgentPendingClarification } from '@/lib/agent-runtime/chat'
 import { corsJson, corsNoContent } from '@/lib/http/cors'
 import { buildRelevantKnowledgeHints, retrieveTenantKnowledge } from '@/lib/knowledge/retrieval'
 import { detectChatLanguage } from '@/lib/chat/language'
@@ -165,6 +165,9 @@ export async function POST(
 
   const responseLanguage = detectChatLanguage(message, tenant.config.language)
   const shouldDelegateKnowledgeToTaliaAi = isTaliaAiPrimaryProvider()
+  const pendingClarification = shouldDelegateKnowledgeToTaliaAi
+    ? extractPendingClarification(await getLatestAssistantMessageMetadata(admin, tenantId, sessionId))
+    : undefined
   const knowledge = shouldDelegateKnowledgeToTaliaAi
     ? {
       query: message,
@@ -255,6 +258,7 @@ export async function POST(
     sessionId,
     message,
     pageUrl,
+    pendingClarification,
     tenant: {
       name: tenant.config.name,
       language: responseLanguage,
@@ -308,6 +312,7 @@ export async function POST(
     },
     agent_sources: agentSources,
     retrieval: retrievalTrace,
+    pending_clarification: pendingClarification ? serializePendingClarification(pendingClarification) : null,
     agent_metadata: agentMetadata,
   } satisfies Record<string, Json>
 
@@ -356,6 +361,7 @@ export async function POST(
       },
       agent_sources: agentSources,
       retrieval: retrievalTrace,
+      pending_clarification: pendingClarification ? serializePendingClarification(pendingClarification) : null,
       agent_metadata: agentMetadata,
     },
   })
@@ -547,7 +553,7 @@ function summarizeAgentSources(sources: unknown[] | undefined): AgentSourceSumma
 function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): Record<string, Json> {
   if (!metadata) return {}
 
-  const allowedKeys = ['intent', 'confidence', 'response_language'] as const
+  const allowedKeys = ['intent', 'confidence', 'response_language', 'action'] as const
   const result: Record<string, Json> = {}
   for (const key of allowedKeys) {
     const value = metadata[key]
@@ -555,7 +561,90 @@ function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): 
       result[key] = value
     }
   }
+  const clarification = summarizeClarification(metadata.clarification)
+  if (clarification) result.clarification = clarification
+
+  const clarificationResolution = summarizeClarificationResolution(metadata.clarification_resolution)
+  if (clarificationResolution) result.clarification_resolution = clarificationResolution
+
   return result
+}
+
+function summarizeClarification(value: unknown): Json | null {
+  if (!isRecord(value)) return null
+
+  const intent = typeof value.intent === 'string' ? value.intent : null
+  const reason = typeof value.reason === 'string' ? value.reason : null
+  const options = Array.isArray(value.options)
+    ? value.options.filter((option): option is string => typeof option === 'string').slice(0, 8)
+    : []
+  const optionKeys = Array.isArray(value.option_keys)
+    ? value.option_keys.filter((option): option is string => typeof option === 'string').slice(0, 8)
+    : []
+
+  if (!intent || options.length === 0) return null
+  return {
+    intent,
+    reason,
+    options,
+    option_keys: optionKeys,
+  }
+}
+
+function summarizeClarificationResolution(value: unknown): Json | null {
+  if (!isRecord(value)) return null
+
+  const status = typeof value.status === 'string' ? value.status : null
+  const intent = typeof value.intent === 'string' ? value.intent : null
+  if (!status || !intent) return null
+
+  return {
+    status,
+    intent,
+    reason: typeof value.reason === 'string' ? value.reason : null,
+    selected_option_key: typeof value.selected_option_key === 'string' ? value.selected_option_key : null,
+    selected_option: typeof value.selected_option === 'string' ? value.selected_option : null,
+    user_message: typeof value.user_message === 'string' ? truncateForMetadata(value.user_message, 200) : null,
+    rewritten_query: typeof value.rewritten_query === 'string' ? truncateForMetadata(value.rewritten_query, 360) : null,
+  }
+}
+
+function extractPendingClarification(metadata: Json | undefined): ChatAgentPendingClarification | undefined {
+  if (!isRecord(metadata)) return undefined
+  const agentMetadata = isRecord(metadata.agent_metadata) ? metadata.agent_metadata : metadata
+  if (agentMetadata.action !== 'clarification_requested') return undefined
+
+  const clarification = isRecord(agentMetadata.clarification) ? agentMetadata.clarification : null
+  if (!clarification || !isClarificationIntent(clarification.intent)) return undefined
+
+  const options = Array.isArray(clarification.options)
+    ? clarification.options.filter((option): option is string => typeof option === 'string' && option.trim().length > 0).slice(0, 8)
+    : []
+  if (options.length === 0) return undefined
+
+  const optionKeys = Array.isArray(clarification.option_keys)
+    ? clarification.option_keys.filter((option): option is string => typeof option === 'string' && option.trim().length > 0).slice(0, options.length)
+    : undefined
+
+  return {
+    intent: clarification.intent,
+    ...(typeof clarification.reason === 'string' ? { reason: clarification.reason } : {}),
+    options,
+    ...(optionKeys?.length ? { optionKeys } : {}),
+  }
+}
+
+function serializePendingClarification(value: ChatAgentPendingClarification): Json {
+  return {
+    intent: value.intent,
+    reason: value.reason ?? null,
+    options: value.options,
+    option_keys: value.optionKeys ?? [],
+  }
+}
+
+function isClarificationIntent(value: unknown): value is ChatAgentPendingClarification['intent'] {
+  return value === 'pricing' || value === 'schedule' || value === 'program'
 }
 
 function summarizeRetrievalTrace(metadata: Record<string, unknown> | undefined): RetrievalTrace | null {

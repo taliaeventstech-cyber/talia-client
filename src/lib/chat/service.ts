@@ -84,3 +84,26 @@ export async function getLatestUserMessage(admin: AdminClient, tenantId: string,
 
   return message?.content
 }
+
+export async function getLatestAssistantMessageMetadata(admin: AdminClient, tenantId: string, sessionId: string) {
+  const { data: conversation } = await admin
+    .from('conversations')
+    .select('id')
+    .eq('theatre_id', tenantId)
+    .eq('session_id', sessionId)
+    .maybeSingle()
+
+  if (!conversation) return undefined
+
+  const { data: message } = await admin
+    .from('messages')
+    .select('metadata')
+    .eq('theatre_id', tenantId)
+    .eq('conversation_id', conversation.id)
+    .eq('role', 'assistant')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return message?.metadata
+}
