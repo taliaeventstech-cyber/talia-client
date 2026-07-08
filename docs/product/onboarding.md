@@ -1,86 +1,86 @@
-# Onboarding de Clientes
+# Client Onboarding
 
-TALIA usa alta self-serve como entrada principal: una entidad crea cuenta, completa el onboarding inicial y obtiene su primer account/venue operativo. Las invitaciones se mantienen como flujo separado para añadir miembros del equipo a un account o venue ya creado.
+TALIA uses high self-serve as the primary entry point: an entity creates an account, completes the initial onboarding, and obtains its first operational account/venue. Invitations remain a separate flow for adding team members to an account or venue that already exists.
 
-## Flujo Ideal
+## Ideal Flow
 
-1. El usuario crea cuenta desde `/signup`.
-2. El sistema crea `auth.users` y `profiles`.
-3. El usuario entra en `/onboarding`.
-4. El onboarding recoge los datos mínimos de la entidad cultural.
-5. El sistema crea `account`, `venue`, `users`, `account_memberships` y `venue_memberships`.
-6. El usuario entra en el Àgora de la venue creada.
-7. Backstage puede ajustar módulos, plan, configuración avanzada y accesos.
+1. The user creates an account from `/signup`.
+2. The system creates `auth.users` and `profiles`.
+3. The user enters `/onboarding`.
+4. The onboarding collects the minimum data for the cultural entity.
+5. The system creates `account`, `venue`, `users`, `account_memberships`, and `venue_memberships`.
+6. The user enters the Agora of the created venue.
+7. Backstage can adjust modules, plan, advanced configuration, and access.
 
-## Datos de Account
+## Account Data
 
-El account representa al cliente contractual.
+The account represents the contractual client.
 
-Datos propios:
+Own data:
 
-- Nombre legal/comercial.
-- Email de facturación.
-- Estado: prospect, trialing, active, paused, cancelled.
-- Notas comerciales.
+- Legal/business name.
+- Billing email.
+- Status: prospect, trialing, active, paused, cancelled.
+- Commercial notes.
 
-No debe almacenar datos específicos del agente, porque esos viven en cada venue.
+It must not store agent-specific data, because that lives in each venue.
 
-## Datos de Venue
+## Venue Data
 
-La venue representa el centro operativo.
+The venue represents the operational center.
 
-Datos propios:
+Own data:
 
-- Nombre público.
-- Tipo: teatro, museo, cine, festival, auditorio, centro cultural.
-- Web oficial.
-- Email y teléfono fallback.
-- Idioma principal.
-- Plan de la venue.
-- Módulos contratados.
-- Configuración de chatbot.
-- Configuración de voz.
-- Configuración de email cuando exista.
+- Public name.
+- Type: theatre, museum, cinema, festival, auditorium, cultural center.
+- Official website.
+- Fallback email and phone.
+- Primary language.
+- Venue plan.
+- Contracted modules.
+- Chatbot configuration.
+- Voice configuration.
+- Email configuration when it exists.
 
-## Invitaciones
+## Invitations
 
-Las invitaciones ya no son el mecanismo de alta inicial del cliente. Son un flujo de equipo para sumar personas a una organización existente.
+Invitations are no longer the client's initial sign-up mechanism. They are a team flow for adding people to an existing organization.
 
-### Invitación por Account
+### Invitation By Account
 
-Uso:
+Use case:
 
-- Cliente con varias venues.
-- Dirección, gerencia o perfiles que necesitan visión agregada.
+- Client with several venues.
+- Management, leadership, or profiles that need an aggregated view.
 
-Resultado:
+Result:
 
-- Crea `account_membership`.
-- Puede crear acceso a todas las venues del account según rol/permisos.
+- Creates `account_membership`.
+- Can create access to all venues of the account depending on role/permissions.
 
-### Invitación por Venue
+### Invitation By Venue
 
-Uso:
+Use case:
 
-- Operadores de una sede concreta.
-- Clientes con una sola venue.
+- Operators of a specific site.
+- Clients with a single venue.
 
-Resultado:
+Result:
 
-- Crea `venue_membership`.
-- Puede crear también membership de account mínima si hace falta para navegación.
-- El enlace de invitación debe usar `/invite/TOKEN`, no `/signup?invite=TOKEN`.
+- Creates `venue_membership`.
+- Can also create a minimal account membership if needed for navigation.
+- The invitation link must use `/invite/TOKEN`, not `/signup?invite=TOKEN`.
 
 ## Roles
 
-Roles de account:
+Account roles:
 
-- `owner`: control total del cliente.
-- `admin`: gestión habitual.
-- `billing`: facturación.
-- `viewer`: lectura.
+- `owner`: full control of the client.
+- `admin`: regular management.
+- `billing`: billing.
+- `viewer`: read-only.
 
-Roles de venue:
+Venue roles:
 
 - `owner`.
 - `admin`.
@@ -88,4 +88,4 @@ Roles de venue:
 - `analyst`.
 - `viewer`.
 
-Los permisos reales deben validarse server-side. La UI solo oculta opciones, no protege datos.
+Actual permissions must be validated server-side. The UI only hides options, it does not protect data.

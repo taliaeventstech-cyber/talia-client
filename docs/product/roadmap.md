@@ -1,93 +1,93 @@
-# Roadmap de Producto
+# Product Roadmap
 
-TALIA es una plataforma SaaS para entidades culturales. El objetivo no es vender un chatbot aislado, sino construir una capa de atención, datos y marketing para teatros, museos, cines, festivales y venues culturales.
+TALIA is a SaaS platform for cultural entities. The goal is not to sell a standalone chatbot, but to build an attention, data, and marketing layer for theatres, museums, cinemas, festivals, and cultural venues.
 
-## Módulos
+## Modules
 
-### Módulo Atención
+### Attention Module
 
-Estado: activo.
+Status: active.
 
-Canales:
+Channels:
 
-- Chatbot web.
-- Agente de email.
-- Agente de voz, pausado hasta reactivacion.
-- WhatsApp e Instagram más adelante.
+- Web chatbot.
+- Email agent.
+- Voice agent, paused pending reactivation.
+- WhatsApp and Instagram later on.
 
-Objetivo:
+Goal:
 
-Resolver preguntas de visitantes, preparar respuestas, escalar a humanos cuando haga falta y generar datos útiles para la operación.
+Answer visitor questions, prepare responses, escalate to humans when needed, and generate useful data for operations.
 
-### Módulo Data
+### Data Module
 
-Estado: en construcción.
+Status: under construction.
 
-Incluye:
+Includes:
 
-- Temas e intención.
-- Métricas por canal.
-- Señales de demanda.
-- Rendimiento de la base de conocimiento.
-- Uso del plan.
+- Topics and intent.
+- Metrics per channel.
+- Demand signals.
+- Knowledge base performance.
+- Plan usage.
 
-### Módulo Marketing
+### Marketing Module
 
-Estado: planificado.
+Status: planned.
 
-Incluye:
+Includes:
 
-- Segmentos.
-- Campañas.
-- Recomendaciones.
-- Recuperación de interés y ticketing.
+- Segments.
+- Campaigns.
+- Recommendations.
+- Interest recovery and ticketing.
 
-## Fases
+## Phases
 
-### Fase 1: Demos estables
+### Phase 1: Stable demos
 
-- Widget multi-tenant.
-- Configuración por venue.
-- Backstage para TALIA.
-- Àgora para el cliente.
-- Conversaciones, temas e intención.
-- Base de conocimiento manual o importada.
+- Multi-tenant widget.
+- Per-venue configuration.
+- Backstage for TALIA.
+- Agora for the client.
+- Conversations, topics, and intent.
+- Manual or imported knowledge base.
 
-### Fase 2: Modelo SaaS serio
+### Phase 2: Serious SaaS model
 
-- Accounts y venues.
-- Invitaciones por account o por venue.
-- Roles y permisos.
-- Módulos contratados por venue.
-- Límites y uso por plan.
-- Backstage con creación, edición y desactivación de clientes.
+- Accounts and venues.
+- Invitations by account or by venue.
+- Roles and permissions.
+- Modules contracted per venue.
+- Limits and usage per plan.
+- Backstage with client creation, editing, and deactivation.
 
-### Fase 3: Atención multicanal
+### Phase 3: Multichannel attention
 
-- Chatbot web estable.
-- Agente de voz integrado.
-- Agente de email con borradores en el buzón del cliente.
-- Visión unificada de conversaciones e insights.
+- Stable web chatbot.
+- Integrated voice agent.
+- Email agent with drafts in the client's mailbox.
+- Unified view of conversations and insights.
 
-### Fase 4: Data y reporting
+### Phase 4: Data and reporting
 
-- Dashboard agregado por account.
-- Dashboard por venue.
-- Métricas por canal.
-- Métricas de intención.
-- Exportables y reporting mensual.
+- Aggregated dashboard per account.
+- Dashboard per venue.
+- Metrics per channel.
+- Intent metrics.
+- Exportables and monthly reporting.
 
-### Fase 5: Marketing
+### Phase 5: Marketing
 
-- Activación de campañas desde insights.
-- Integraciones con CRM/email marketing.
-- Automatizaciones supervisadas.
+- Campaign activation from insights.
+- Integrations with CRM/email marketing.
+- Supervised automations.
 
-## Prioridades Actuales
+## Current Priorities
 
-1. Consolidar onboarding self-serve y configuracion inicial del chatbot.
-2. Estabilizar agente de email Gmail en modo borradores supervisados.
-3. Completar verificacion OAuth de Google.
-4. Consolidar permisos por rol, account y venue.
-5. Mejorar overview, reporting y trazabilidad de uso.
-6. Mantener `docs/current-state.md` como fuente viva para onboarding de equipo.
+1. Consolidate self-serve onboarding and initial chatbot configuration.
+2. Stabilize the Gmail email agent in supervised-drafts mode.
+3. Complete Google OAuth verification.
+4. Consolidate permissions by role, account, and venue.
+5. Improve overview, reporting, and usage traceability.
+6. Keep `docs/current-state.md` as a living source for team onboarding.

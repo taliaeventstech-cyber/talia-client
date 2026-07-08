@@ -2,65 +2,65 @@
 
 ## Decision
 
-Crear un repositorio separado llamado `talia-ai` y desplegarlo en Fly.io.
+Create a separate repository called `talia-ai` and deploy it to Fly.io.
 
-Este servicio debe concentrar la logica de IA, RAG, ingestion pesada, embeddings, prompts tecnicos y providers. El repo actual `talia-client` debe seguir siendo Agora/widget/API publica ligera mientras migramos por fases.
+This service should concentrate AI logic, RAG, heavy ingestion, embeddings, technical prompts and providers. The current `talia-client` repo should stay as a lightweight Agora/widget/public API while we migrate in phases.
 
-## Objetivo
+## Goal
 
-Separar TALIA en tres capas:
+Split TALIA into three layers:
 
 ```txt
 talia-client
-  Next.js: Agora, widget, marketing, BFF/API publica ligera
+  Next.js: Agora, widget, marketing, lightweight BFF/public API
 
 talia-api
-  Futuro backend producto: tenants, billing, permisos, usage, configuracion
+  Future product backend: tenants, billing, permissions, usage, configuration
 
 talia-ai
-  Servicio IA: chat, email draft, RAG, ingestion, embeddings, prompts, providers
+  AI service: chat, email draft, RAG, ingestion, embeddings, prompts, providers
 ```
 
-Primera prioridad: crear `talia-ai`. `talia-api` vendra despues.
+First priority: create `talia-ai`. `talia-api` comes later.
 
-## Stack Recomendado
+## Recommended Stack
 
-Usar TypeScript + Node.js.
+Use TypeScript + Node.js.
 
-Stack base:
+Base stack:
 
 - Runtime: Node.js 22 LTS.
-- Framework HTTP: Fastify.
-- Validacion: Zod.
+- HTTP framework: Fastify.
+- Validation: Zod.
 - Tests: Vitest.
 - Logger: Pino.
-- Deploy: Docker en Fly.io.
-- DB: Supabase Postgres via `@supabase/supabase-js` con service role.
-- IA: OpenAI Responses API y Embeddings API.
+- Deploy: Docker on Fly.io.
+- DB: Supabase Postgres via `@supabase/supabase-js` with service role.
+- AI: OpenAI Responses API and Embeddings API.
 
-No usar Next.js en `talia-ai`.
+Don't use Next.js in `talia-ai`.
 
-Razon:
+Reason:
 
-- El servicio no tiene UI.
-- Necesita workers, procesos largos y jobs.
-- Debe ser portable fuera de Vercel.
-- Fastify + Docker encaja mejor con Fly y con un futuro backend propio.
+- The service has no UI.
+- It needs workers, long-running processes and jobs.
+- It must be portable outside Vercel.
+- Fastify + Docker fits Fly better, and a future own backend too.
 
-## Principios
+## Principles
 
-- El widget nunca llama directamente a `talia-ai`.
-- Agora/Next llama a TALIA API local o futura `talia-api`.
-- `talia-ai` se llama solo server-to-server.
-- Todo request debe estar autenticado con clave interna.
-- Los contratos deben ser JSON estables y versionados bajo `/v1`.
-- n8n queda como adapter temporal, no como cerebro central.
-- El servicio debe ser stateless salvo DB/colas externas.
-- Toda operacion larga debe ser idempotente.
+- The widget never calls `talia-ai` directly.
+- Agora/Next calls the local TALIA API or the future `talia-api`.
+- `talia-ai` is only called server-to-server.
+- Every request must be authenticated with an internal key.
+- Contracts must be stable, versioned JSON under `/v1`.
+- n8n stays as a temporary adapter, not the central brain.
+- The service must be stateless except for external DB/queues.
+- Every long-running operation must be idempotent.
 
-## Seguridad
+## Security
 
-Autenticacion inicial:
+Initial authentication:
 
 - Header `Authorization: Bearer $TALIA_AI_INTERNAL_API_KEY`.
 
@@ -75,20 +75,20 @@ Variables:
 - `LOG_LEVEL`
 - `NODE_ENV`
 
-Reglas:
+Rules:
 
-- No aceptar llamadas desde navegador.
-- No exponer service role al cliente.
-- No loguear prompts completos con datos personales salvo modo debug controlado.
-- No enviar emails automaticamente.
-- No crear enlaces inventados en respuestas.
-- Todas las queries deben filtrar por `tenant_id`.
+- Don't accept calls from the browser.
+- Don't expose the service role to the client.
+- Don't log full prompts with personal data except in a controlled debug mode.
+- Don't send emails automatically.
+- Don't invent links in responses.
+- All queries must filter by `tenant_id`.
 
-## Endpoints MVP
+## MVP Endpoints
 
 ### GET /health
 
-Devuelve estado basico.
+Returns basic status.
 
 Response:
 
@@ -102,19 +102,19 @@ Response:
 
 ### POST /v1/chat/respond
 
-Genera respuesta de chatbot.
+Generates a chatbot response.
 
 Request:
 
 ```json
 {
   "tenant_id": "uuid",
-  "session_id": "session-publica",
-  "message": "Pregunta del usuario",
+  "session_id": "public-session",
+  "message": "User's question",
   "language": "es",
   "tenant": {
-    "name": "Sala Ejemplo",
-    "system_prompt": "Reglas del asistente",
+    "name": "Example Venue",
+    "system_prompt": "Assistant rules",
     "fallback_email": "info@example.com",
     "fallback_phone": "+34..."
   },
@@ -123,9 +123,9 @@ Request:
       "id": "chunk-id",
       "source_id": "source-id",
       "source_type": "pdf",
-      "question": "Documento sala",
-      "answer": "Fragmento relevante",
-      "category": "documento",
+      "question": "Venue document",
+      "answer": "Relevant excerpt",
+      "category": "document",
       "score": 0.91
     }
   ]
@@ -137,7 +137,7 @@ Response:
 ```json
 {
   "ok": true,
-  "reply": "Respuesta final para el widget",
+  "reply": "Final answer for the widget",
   "provider": "openai",
   "model": "gpt-4o-mini",
   "usage": {
@@ -159,7 +159,7 @@ Response:
 }
 ```
 
-Errores:
+Errors:
 
 ```json
 {
@@ -171,14 +171,14 @@ Errores:
 
 ### POST /v1/knowledge/retrieve
 
-Recupera conocimiento relevante.
+Retrieves relevant knowledge.
 
 Request:
 
 ```json
 {
   "tenant_id": "uuid",
-  "query": "Hay acceso para silla de ruedas?",
+  "query": "Is there wheelchair access?",
   "channel": "chatbot",
   "limit": 5,
   "language": "es"
@@ -195,7 +195,7 @@ Response:
       "id": "chunk-id",
       "source_id": "source-id",
       "source_type": "pdf",
-      "content": "Texto recuperado",
+      "content": "Retrieved text",
       "score": 0.88,
       "retrieval": "vector"
     }
@@ -205,7 +205,7 @@ Response:
 
 ### POST /v1/knowledge/embed
 
-Genera embeddings para chunks pendientes o fuente concreta.
+Generates embeddings for pending chunks or a specific source.
 
 Request:
 
@@ -232,16 +232,16 @@ Response:
 
 ### POST /v1/knowledge/ingest
 
-Primer MVP puede no implementar ingestion completa. Si se implementa, debe aceptar una fuente ya subida o texto normalizado. No subir archivos binarios grandes directamente como primer corte.
+The first MVP may not implement full ingestion. If implemented, it should accept an already-uploaded source or normalized text. Don't upload large binary files directly in this first cut.
 
-Request inicial recomendado:
+Recommended initial request:
 
 ```json
 {
   "tenant_id": "uuid",
   "source_id": "source-id",
   "source_type": "pdf",
-  "text": "Texto extraido por TALIA o por worker",
+  "text": "Text extracted by TALIA or by a worker",
   "metadata": {
     "file_name": "info.pdf"
   }
@@ -260,12 +260,12 @@ Response:
 
 ### POST /v1/email/draft
 
-No es primer corte si Google/Microsoft siguen bloqueando producto, pero debe estar previsto.
+Not first-cut if Google/Microsoft are still blocking the product, but it should be planned for.
 
-Regla:
+Rule:
 
-- Nunca enviar emails.
-- Solo devolver borrador.
+- Never send emails.
+- Only return a draft.
 
 Request:
 
@@ -273,9 +273,9 @@ Request:
 {
   "tenant_id": "uuid",
   "message": {
-    "subject": "Consulta",
-    "body": "Texto del cliente",
-    "from": "cliente@example.com"
+    "subject": "Inquiry",
+    "body": "Customer's text",
+    "from": "customer@example.com"
   },
   "relevant_knowledge": []
 }
@@ -288,13 +288,13 @@ Response:
   "ok": true,
   "should_generate_draft": true,
   "draft": {
-    "subject": "Re: Consulta",
-    "body": "Borrador revisable por humano"
+    "subject": "Re: Inquiry",
+    "body": "Draft for human review"
   }
 }
 ```
 
-## Estructura del Repo
+## Repo Structure
 
 ```txt
 talia-ai/
@@ -351,7 +351,7 @@ talia-ai/
 
 ## Fly.io
 
-Primer deploy:
+First deploy:
 
 ```bash
 fly launch --name talia-ai --region mad
@@ -362,7 +362,7 @@ fly secrets set OPENAI_API_KEY=...
 fly deploy
 ```
 
-`fly.toml` minimo:
+Minimal `fly.toml`:
 
 ```toml
 app = "talia-ai"
@@ -381,126 +381,126 @@ primary_region = "mad"
   cpus = 1
 ```
 
-Cuando haya mas trafico:
+When there's more traffic:
 
-- subir a 1GB RAM;
-- mantener una maquina minima encendida si la latencia de cold start molesta;
-- separar worker de ingestion si los PDFs crecen.
+- bump to 1GB RAM;
+- keep one machine warm if cold-start latency becomes an issue;
+- split off an ingestion worker if PDF volume grows.
 
-## Integracion con talia-client
+## Integration with talia-client
 
-Crear provider nuevo en este repo:
+Create a new provider in this repo:
 
 ```txt
 src/lib/agent-runtime/talia-ai-provider.ts
 ```
 
-Variables en `talia-client`:
+Variables in `talia-client`:
 
 - `TALIA_AI_BASE_URL`
 - `TALIA_AI_INTERNAL_API_KEY`
 - `CHAT_AGENT_PROVIDER=talia-ai|n8n`
 
-Regla:
+Rule:
 
-- Si `CHAT_AGENT_PROVIDER=talia-ai`, `runChatAgent` llama a `talia-ai`.
-- Si falla con 5xx o timeout, puede caer a n8n temporalmente si el tenant tiene webhook.
-- El widget no cambia.
+- If `CHAT_AGENT_PROVIDER=talia-ai`, `runChatAgent` calls `talia-ai`.
+- If it fails with a 5xx or times out, it can temporarily fall back to n8n if the tenant has a webhook.
+- The widget doesn't change.
 
-## Fases de Implementacion
+## Implementation Phases
 
-### Fase 1 - Skeleton
+### Phase 1 - Skeleton
 
-- Crear repo.
+- Create the repo.
 - Fastify server.
 - `/health`.
-- Auth interna.
+- Internal auth.
 - Dockerfile.
 - Fly deploy.
-- Tests basicos.
+- Basic tests.
 
-Done cuando:
+Done when:
 
-- `curl /health` responde.
-- llamadas sin auth devuelven 401.
-- CI local pasa.
+- `curl /health` responds.
+- Calls without auth return 401.
+- Local CI passes.
 
-### Fase 2 - Chat Provider
+### Phase 2 - Chat Provider
 
-- Implementar `/v1/chat/respond`.
-- Usar OpenAI Responses API.
-- Recibir `relevant_knowledge`.
-- Devolver contrato estable.
-- Integrar `TaliaAiChatAgentProvider` en `talia-client`.
+- Implement `/v1/chat/respond`.
+- Use the OpenAI Responses API.
+- Receive `relevant_knowledge`.
+- Return a stable contract.
+- Integrate `TaliaAiChatAgentProvider` into `talia-client`.
 
-Done cuando:
+Done when:
 
-- un tenant puede responder sin n8n;
-- n8n sigue como fallback;
-- usage se sigue registrando en `talia-client`.
+- a tenant can get a response without n8n;
+- n8n still works as a fallback;
+- usage is still logged in `talia-client`.
 
-### Fase 3 - Retrieval
+### Phase 3 - Retrieval
 
-- Mover retrieval semantico a `talia-ai`.
-- Leer `knowledge_chunks`.
-- Usar `match_knowledge_chunks`.
-- Mantener fallback textual.
+- Move semantic retrieval to `talia-ai`.
+- Read `knowledge_chunks`.
+- Use `match_knowledge_chunks`.
+- Keep the textual fallback.
 
-Done cuando:
+Done when:
 
-- `/v1/knowledge/retrieve` devuelve fuentes con score;
-- `talia-client` puede delegar retrieval sin cambiar widget.
+- `/v1/knowledge/retrieve` returns sources with a score;
+- `talia-client` can delegate retrieval without changing the widget.
 
-### Fase 4 - Embeddings Worker
+### Phase 4 - Embeddings Worker
 
-- Implementado en `talia-ai` con `/v1/knowledge/embed` y `/v1/knowledge/embed/pending`.
-- Procesar batches desde Fly/cron.
-- Reintentar errores con `retry_errors`.
-- Loguear metricas.
+- Implemented in `talia-ai` with `/v1/knowledge/embed` and `/v1/knowledge/embed/pending`.
+- Process batches from Fly/cron.
+- Retry errors with `retry_errors`.
+- Log metrics.
 
-Done cuando:
+Done when:
 
-- Next deja de generar embeddings. Hecho: `talia-client` solo llama al adaptador HTTP.
-- Fly procesa embeddings periodicamente. Pendiente de configuracion de deploy/cron.
+- Next stops generating embeddings. Done: `talia-client` only calls the HTTP adapter.
+- Fly processes embeddings periodically. Pending deploy/cron configuration.
 
-### Fase 5 - Ingestion Worker
+### Phase 5 - Ingestion Worker
 
-- Mover parsing/chunking pesado a `talia-ai`.
-- Mantener Agora como UI de fuentes.
-- Añadir estado `processing/error/ready` visible.
+- Move heavy parsing/chunking to `talia-ai`.
+- Keep Agora as the sources UI.
+- Add a visible `processing/error/ready` status.
 
-Done cuando:
+Done when:
 
-- PDF upload no bloquea la request de Agora;
-- errores de parsing quedan registrados por fuente.
+- PDF upload doesn't block Agora's request;
+- parsing errors are logged per source.
 
-## Criterios de Calidad
+## Quality Criteria
 
-- Tests unitarios para prompts, schemas, auth y parsing de respuestas.
-- Tests de contrato para cada endpoint.
-- Timeouts en llamadas OpenAI.
-- Retries con backoff solo en errores transitorios.
-- Logs estructurados con request id.
-- No mezclar prompts tecnicos con UI/config editable.
-- No depender de n8n dentro de `talia-ai`.
+- Unit tests for prompts, schemas, auth and response parsing.
+- Contract tests for every endpoint.
+- Timeouts on OpenAI calls.
+- Retries with backoff only on transient errors.
+- Structured logs with request id.
+- Don't mix technical prompts with editable UI/config.
+- Don't depend on n8n inside `talia-ai`.
 
-## Fuera de Alcance Inicial
+## Initial Out of Scope
 
-- Panel admin propio.
-- Multi-provider complejo.
-- Cola distribuida avanzada.
+- Own admin panel.
+- Complex multi-provider support.
+- Advanced distributed queue.
 - Fine-tuning.
-- Auto-envio de email.
-- Voz.
+- Automatic email sending.
+- Voice.
 - WhatsApp/Instagram.
 
-## Orden de Trabajo para el Agente
+## Agent Work Order
 
-1. Crear repo `talia-ai`.
-2. Implementar skeleton Fastify + auth + health.
-3. Implementar schemas compartidos de `/v1/chat/respond`.
-4. Implementar `OpenAIChatProvider`.
-5. Añadir Dockerfile y `fly.toml`.
-6. Añadir README con comandos.
-7. Volver a `talia-client` y añadir `TaliaAiChatAgentProvider`.
-8. Probar con un tenant real en modo staging.
+1. Create the `talia-ai` repo.
+2. Implement the Fastify skeleton + auth + health.
+3. Implement shared schemas for `/v1/chat/respond`.
+4. Implement `OpenAIChatProvider`.
+5. Add Dockerfile and `fly.toml`.
+6. Add README with commands.
+7. Go back to `talia-client` and add `TaliaAiChatAgentProvider`.
+8. Test with a real tenant in staging mode.

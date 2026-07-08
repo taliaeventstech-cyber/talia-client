@@ -1,53 +1,53 @@
 {
   "metadata": {
     "generated_at": "2026-05-13",
-    "scope": "AI chatbot / asistente virtual — sector cultural: teatros, museos, galerías, cines, festivales, patrimonio",
-    "geography": "España y Europa",
-    "methodology": "Web research + scraping directo de páginas de pricing",
+    "scope": "AI chatbot / virtual assistant — cultural sector: theatres, museums, galleries, cinemas, festivals, heritage",
+    "geography": "Spain and Europe",
+    "methodology": "Web research + direct scraping of pricing pages",
     "analyst": "TALIA competitive research"
   },
 
   "summary": {
-    "key_finding": "Ask Mona (París) es el único competidor directo con producto SaaS dedicado al sector cultural europeo y pricing público. Nadie más en España/Europa tiene un producto equivalente auto-servicio para este nicho. El resto son: agencias custom, plataformas genéricas adaptadas, o soluciones de ticketing con chatbot como add-on.",
+    "key_finding": "Ask Mona (Paris) is the only direct competitor with a dedicated SaaS product for the European cultural sector and public pricing. No one else in Spain/Europe has an equivalent self-serve product for this niche. The rest are: custom agencies, adapted generic platforms, or ticketing solutions with a chatbot as an add-on.",
     "market_segments": {
-      "teatros_auditorios": "Ningún SaaS standalone en España. Competencia indirecta de agencias y Nevent.ai",
-      "museos_galerias": "Ask Mona domina Europa. CultureBot.eu nicho patrimonio. ChatbotKit solución DIY global.",
-      "cines": "Anolla tiene solución específica freemium para cines/salas.",
-      "festivales_conciertos": "CM.com (Países Bajos) y Nevent.ai compiten aquí. Pricing opaco.",
-      "patrimonio_archivos": "CultureBot.eu (proyecto ONG/institucional). Sin pricing público."
+      "teatros_auditorios": "No standalone SaaS in Spain. Indirect competition from agencies and Nevent.ai",
+      "museos_galerias": "Ask Mona dominates Europe. CultureBot.eu is a heritage niche player. ChatbotKit is a global DIY solution.",
+      "cines": "Anolla has a specific freemium solution for cinemas/screens.",
+      "festivales_conciertos": "CM.com (Netherlands) and Nevent.ai compete here. Opaque pricing.",
+      "patrimonio_archivos": "CultureBot.eu (NGO/institutional project). No public pricing."
     },
     "pricing_models_observed": [
-      "Flat fee mensual por venue/instalación (Ask Mona: €99/mes entry)",
-      "Por conversación/resolución (Intercom $0.99, HubSpot $0.50, Quickchat $0.50–0.60)",
-      "Por volumen de mensajes/mes (Quickchat: 200 gratis → 35.000 en plan Pro)",
-      "Por agente/usuario al mes (Freshdesk: $15–69/seat)",
-      "Freemium + features de pago (Anolla, BlueCaribu, Botslovers)",
-      "Proyecto a medida + mantenimiento (agencias españolas: €500–2.500/mes)",
-      "Custom quote / sin precios públicos (mayoría de enterprise)"
+      "Monthly flat fee per venue/installation (Ask Mona: €99/month entry)",
+      "Per conversation/resolution (Intercom $0.99, HubSpot $0.50, Quickchat $0.50–0.60)",
+      "Per message volume/month (Quickchat: 200 free → 35,000 on Pro plan)",
+      "Per agent/user per month (Freshdesk: $15–69/seat)",
+      "Freemium + paid features (Anolla, BlueCaribu, Botslovers)",
+      "Custom project + maintenance (Spanish agencies: €500–2,500/month)",
+      "Custom quote / no public prices (most enterprise)"
     ],
     "price_anchor_cultural_sector": {
-      "entry_level_saas": "€99/mes (Ask Mona Essential — referente del sector)",
-      "mid_market": "€200–500/mes estimado para planes Enhanced",
-      "agency_custom": "€500–2.500/mes mantenimiento + setup €10k–150k",
+      "entry_level_saas": "€99/month (Ask Mona Essential — sector benchmark)",
+      "mid_market": "€200–500/month estimated for Enhanced plans",
+      "agency_custom": "€500–2,500/month maintenance + setup €10k–150k",
       "enterprise": "custom quote"
     },
-    "gap_confirmed": "TALIA no tiene competidor directo en España. Ask Mona es la mayor amenaza si se expande comercialmente en España, pero opera desde Francia y no tiene presencia local establecida."
+    "gap_confirmed": "TALIA has no direct competitor in Spain. Ask Mona is the biggest threat if it expands commercially into Spain, but it operates from France and has no established local presence."
   },
 
   "competitors": [
     {
       "id": "ask_mona",
       "name": "Ask Mona",
-      "country": "Francia (París)",
+      "country": "France (Paris)",
       "website": "askmona.ai",
-      "type": "SaaS AI assistant para instituciones culturales",
-      "target_market": "Museos, teatros, patrimonio cultural — Europa y Oriente Medio",
-      "relevance_to_talia": "MUY ALTA — competidor directo. Mismo nicho, misma geografía, pricing público.",
-      "clients_known": ["Centre Pompidou", "Château de Chillon", "Fondation Louis Vuitton", "+80 instituciones culturales"],
+      "type": "SaaS AI assistant for cultural institutions",
+      "target_market": "Museums, theatres, cultural heritage — Europe and the Middle East",
+      "relevance_to_talia": "VERY HIGH — direct competitor. Same niche, same geography, public pricing.",
+      "clients_known": ["Centre Pompidou", "Château de Chillon", "Fondation Louis Vuitton", "+80 cultural institutions"],
       "pricing": {
         "public_pricing": true,
         "currency": "EUR",
-        "commitment": "Mínimo 12 meses",
+        "commitment": "Minimum 12 months",
         "tiers": [
           {
             "name": "Essential",
@@ -55,66 +55,66 @@
             "price_annual_eur": 1188,
             "messages_included": 1000,
             "languages": 1,
-            "setup": "Self-service, activación 48h tras revisión del equipo",
-            "support": "Solo email",
+            "setup": "Self-service, 48h activation after team review",
+            "support": "Email only",
             "features": [
-              "AI agent text-first",
-              "CMS con guía IA",
-              "Integración web",
-              "1 idioma",
-              "Hasta 1.000 mensajes/mes"
+              "Text-first AI agent",
+              "CMS with AI guidance",
+              "Web integration",
+              "1 language",
+              "Up to 1,000 messages/month"
             ]
           },
           {
             "name": "Enhanced",
             "price_monthly_eur": "custom quote",
             "languages": 3,
-            "setup": "~1 mes con Customer Success dedicado",
+            "setup": "~1 month with dedicated Customer Success",
             "features": [
-              "Texto + voz",
-              "3 idiomas",
-              "Captions sincronizados con animación",
-              "Analytics detallados de audiencia"
+              "Text + voice",
+              "3 languages",
+              "Captions synced with animation",
+              "Detailed audience analytics"
             ]
           },
           {
             "name": "Immersive",
             "price_monthly_eur": "custom quote",
-            "setup": "~1 mes con guía experta",
+            "setup": "~1 month with expert guidance",
             "features": [
-              "Avatar con lip-sync personalizado",
-              "Voz premium",
-              "Analytics detallados",
-              "Deploy en web / app / kioscos / pantallas"
+              "Avatar with custom lip-sync",
+              "Premium voice",
+              "Detailed analytics",
+              "Deploy on web / app / kiosks / screens"
             ]
           }
         ],
         "add_ons": [
-          "Hasta 80 idiomas/voces",
-          "Modo voz en tiempo real",
-          "Voz personalizada premium",
-          "Elección de LLM provider",
-          "Avatar visual personalizado",
+          "Up to 80 languages/voices",
+          "Real-time voice mode",
+          "Custom premium voice",
+          "Choice of LLM provider",
+          "Custom visual avatar",
           "Collections (multi-knowledge base)",
-          "Dashboards custom / exportaciones",
-          "Recogida de datos usuarios GDPR-compliant",
-          "Soporte extendido e integraciones"
+          "Custom dashboards / exports",
+          "GDPR-compliant user data collection",
+          "Extended support and integrations"
         ],
         "free_tier": false,
         "trial": false
       },
       "strengths_vs_talia": [
-        "80+ clientes en sector cultural — prueba social muy fuerte",
-        "Reconocimiento de marca en museos europeos",
-        "Soporte multimodal (texto, voz, avatar)",
-        "Multilingüe (hasta 80 idiomas)"
+        "80+ clients in the cultural sector — very strong social proof",
+        "Brand recognition among European museums",
+        "Multimodal support (text, voice, avatar)",
+        "Multilingual (up to 80 languages)"
       ],
       "weaknesses_vs_talia": [
-        "Sin presencia comercial establecida en España",
-        "Plan Essential muy limitado (1.000 msgs/mes, 1 idioma)",
-        "Compromiso mínimo 12 meses — barrera de entrada alta",
-        "Sin analytics de operaciones para gestión del venue",
-        "No orientado a venta de entradas ni integración con ticketing español"
+        "No established commercial presence in Spain",
+        "Essential plan very limited (1,000 msgs/month, 1 language)",
+        "Minimum 12-month commitment — high entry barrier",
+        "No operations analytics for venue management",
+        "Not oriented toward ticket sales or integration with Spanish ticketing"
       ],
       "source": "https://www.askmona.ai/pricing"
     },
@@ -122,35 +122,35 @@
     {
       "id": "nevent_ai",
       "name": "Nevent.ai",
-      "country": "España",
+      "country": "Spain",
       "website": "nevent.ai",
-      "type": "Plataforma marketing + AI chatbot para eventos",
-      "target_market": "Teatros, festivales, promotores, salas de conciertos",
-      "relevance_to_talia": "ALTA — sector cultural español, chatbot + ticketing integrado",
+      "type": "Marketing platform + AI chatbot for events",
+      "target_market": "Theatres, festivals, promoters, concert halls",
+      "relevance_to_talia": "HIGH — Spanish cultural sector, chatbot + integrated ticketing",
       "pricing": {
         "public_pricing": false,
-        "model": "Custom quote / contacto ventas",
-        "known_details": "Sin precios publicados. Mencionan ROI típico de 3–5x en venta de entradas.",
+        "model": "Custom quote / sales contact",
+        "known_details": "No published prices. They mention a typical ROI of 3–5x in ticket sales.",
         "free_tier": false,
         "trial": "unknown"
       },
       "key_features": [
-        "AI chatbot entrenado con datos del evento",
-        "Integración con sistema de ticketing en tiempo real",
-        "Multicanal: WhatsApp, Instagram, Telegram, web",
+        "AI chatbot trained on event data",
+        "Real-time integration with ticketing system",
+        "Multichannel: WhatsApp, Instagram, Telegram, web",
         "CRM + email marketing + SMS",
-        "Reduce consultas de soporte hasta 80%"
+        "Reduces support inquiries by up to 80%"
       ],
       "strengths_vs_talia": [
-        "Integración nativa con ticketing — cierra la venta dentro del chat",
-        "Multicanal robusto (WhatsApp, Instagram, Telegram)",
-        "Suite marketing completa para eventos"
+        "Native ticketing integration — closes the sale within the chat",
+        "Robust multichannel (WhatsApp, Instagram, Telegram)",
+        "Complete marketing suite for events"
       ],
       "weaknesses_vs_talia": [
-        "Enfocado en eventos puntuales, no gestión continua del venue",
-        "Sin dashboard de analytics de conversaciones para el gestor cultural",
-        "Scope más amplio (CRM + mktg) = más complejo y probablemente más caro",
-        "Sin pricing transparente"
+        "Focused on one-off events, not ongoing venue management",
+        "No conversation analytics dashboard for the cultural manager",
+        "Broader scope (CRM + marketing) = more complex and likely more expensive",
+        "No transparent pricing"
       ],
       "source": "https://nevent.ai/es/features/ai-chatbot/"
     },
@@ -158,36 +158,36 @@
     {
       "id": "cm_com",
       "name": "CM.com — Festival & Music Venue Agents",
-      "country": "Países Bajos (Breda)",
+      "country": "Netherlands (Breda)",
       "website": "cm.com",
-      "type": "Plataforma comunicaciones + AI agents para eventos y venues",
-      "target_market": "Festivales de música, salas de conciertos, eventos deportivos",
-      "relevance_to_talia": "MEDIA — competidor en festivales/conciertos, no en museos ni teatros clásicos",
+      "type": "Communications platform + AI agents for events and venues",
+      "target_market": "Music festivals, concert halls, sporting events",
+      "relevance_to_talia": "MEDIUM — competitor in festivals/concerts, not in museums or classic theatres",
       "clients_known": ["F1 Dutch Grand Prix", "Loveland Festival", "Tram 30"],
       "pricing": {
         "public_pricing": false,
         "model": "Enterprise / custom quote",
-        "known_details": "Sin precios públicos. Solución enterprise orientada a grandes festivales.",
+        "known_details": "No public prices. Enterprise solution aimed at large festivals.",
         "free_tier": false,
         "trial": false
       },
       "key_features": [
-        "AI Voice Agents 24/7",
-        "Gestión de guest lists",
-        "Venta de entradas + pagos en el chat",
-        "Upsells personalizados (VIP tickets)",
-        "Plataforma de reventa propia para organizadores",
-        "Agente HALO: descubrimiento → pago → confirmación → reventa"
+        "24/7 AI Voice Agents",
+        "Guest list management",
+        "Ticket sales + payments in chat",
+        "Personalized upsells (VIP tickets)",
+        "Proprietary resale platform for organizers",
+        "HALO agent: discovery → payment → confirmation → resale"
       ],
       "strengths_vs_talia": [
-        "Solución end-to-end: descubrimiento + compra + post-evento",
-        "Voice AI avanzado",
-        "Presencia consolidada en grandes festivales europeos"
+        "End-to-end solution: discovery + purchase + post-event",
+        "Advanced Voice AI",
+        "Established presence at major European festivals"
       ],
       "weaknesses_vs_talia": [
-        "Orientado a grandes eventos, no a teatros/museos de tamaño medio",
-        "Sin pricing accesible para venues pequeños",
-        "No especializado en patrimonio o programación cultural permanente"
+        "Aimed at large events, not mid-sized theatres/museums",
+        "No accessible pricing for small venues",
+        "Not specialized in heritage or permanent cultural programming"
       ],
       "source": "https://www.cm.com/press/next-generation-ai-agents-for-festivals-and-venues/"
     },
@@ -195,51 +195,51 @@
     {
       "id": "anolla",
       "name": "Anolla",
-      "country": "Internacional",
+      "country": "International",
       "website": "anolla.com",
-      "type": "Software de gestión + AI chatbot específico para cines y salas",
-      "target_market": "Cines, teatros con boletería, salas de espectáculos",
-      "relevance_to_talia": "MEDIA — muy específico para cines, también cubre teatros con ticketing",
+      "type": "Management software + AI chatbot specific to cinemas and venues",
+      "target_market": "Cinemas, theatres with box offices, performance venues",
+      "relevance_to_talia": "MEDIUM — very specific to cinemas, also covers theatres with ticketing",
       "pricing": {
         "public_pricing": true,
-        "model": "Freemium — funciones básicas gratis, features avanzadas de pago",
+        "model": "Freemium — basic features free, advanced features paid",
         "tiers": [
           {
             "name": "Free",
             "price_monthly_usd": 0,
             "features": [
-              "Gestión de sesiones",
-              "Mapa de asientos",
-              "Venta de entradas online",
-              "Entrega de e-tickets"
+              "Session management",
+              "Seat map",
+              "Online ticket sales",
+              "E-ticket delivery"
             ],
-            "note": "Plan gratuito potente para cines independientes pequeños"
+            "note": "Powerful free plan for small independent cinemas"
           },
           {
             "name": "Paid (AI Chatbot add-on)",
             "price_monthly_usd": "not published",
             "features": [
-              "AI chatbot: resuelve hasta 79.3% de consultas recurrentes",
-              "Soporte 24/7 en 25+ idiomas",
-              "Resolución de tickets, cambios de sesión, descuentos, asientos",
-              "Reducción intervención manual hasta 59.3%",
-              "Soporte técnico IA: e-tickets, pagos, confirmaciones (52.4% auto-resuelto)"
+              "AI chatbot: resolves up to 79.3% of recurring inquiries",
+              "24/7 support in 25+ languages",
+              "Ticket resolution, session changes, discounts, seating",
+              "Reduces manual intervention by up to 59.3%",
+              "AI technical support: e-tickets, payments, confirmations (52.4% auto-resolved)"
             ]
           }
         ],
         "free_tier": true,
-        "trial": "Plan gratuito permanente para funciones core"
+        "trial": "Permanent free plan for core features"
       },
       "strengths_vs_talia": [
-        "Integración nativa ticketing + chatbot en un solo producto",
-        "Plan gratuito elimina barrera de entrada",
-        "Soporte en 25+ idiomas out of the box",
-        "Métricas de resolución publicadas (79.3%, 59.3%) — prueba social"
+        "Native ticketing + chatbot integration in a single product",
+        "Free plan removes the entry barrier",
+        "Support in 25+ languages out of the box",
+        "Published resolution metrics (79.3%, 59.3%) — social proof"
       ],
       "weaknesses_vs_talia": [
-        "Pensado para cines — menos relevante para museos, teatros de programación cultural, festivales",
-        "Sin analytics de audiencia ni comportamiento del visitante",
-        "Pricing del add-on AI no publicado"
+        "Designed for cinemas — less relevant for museums, cultural-programming theatres, festivals",
+        "No audience analytics or visitor behavior data",
+        "AI add-on pricing not published"
       ],
       "source": "https://anolla.com/en/cinema-software"
     },
@@ -247,37 +247,37 @@
     {
       "id": "culturebot_eu",
       "name": "CultureBot.eu",
-      "country": "Europa (origen ONG/institucional — jhn.ngo)",
+      "country": "Europe (NGO/institutional origin — jhn.ngo)",
       "website": "culturebot.eu",
-      "type": "AI agents para patrimonio cultural y gestión de colecciones",
-      "target_market": "Museos, bibliotecas, archivos, galerías — patrimonio cultural institucional",
-      "relevance_to_talia": "MEDIA — nicho patrimonio/colecciones, menos enfocado en experiencia del visitante",
+      "type": "AI agents for cultural heritage and collections management",
+      "target_market": "Museums, libraries, archives, galleries — institutional cultural heritage",
+      "relevance_to_talia": "MEDIUM — heritage/collections niche, less focused on visitor experience",
       "pricing": {
         "public_pricing": false,
-        "model": "Contacto directo (info@jhn.ngo) para demo e implementación",
-        "known_details": "Sin precios publicados. Parece ser proyecto semi-institucional / ONG, no VC-backed SaaS.",
+        "model": "Direct contact (info@jhn.ngo) for demo and implementation",
+        "known_details": "No published prices. Appears to be a semi-institutional/NGO project, not VC-backed SaaS.",
         "free_tier": "unknown",
-        "trial": "Demo bajo petición"
+        "trial": "Demo on request"
       },
       "key_features": [
-        "Q&A Referent (preguntas sobre la colección)",
-        "Living Figure (personaje histórico interactivo)",
-        "Past Representative (representación de figuras del pasado)",
-        "Inventory Manager (gestión de inventario con IA)",
-        "Research Assistant (asistencia a investigadores)",
-        "Story Archivist (narrativas sobre el archivo)",
-        "Integración con Primo, Axiell Collections, MuseumPlus",
-        "Soporte metadatos: Dublin Core, EDM, METS, MODS, MARC21, EAD"
+        "Q&A Referent (questions about the collection)",
+        "Living Figure (interactive historical character)",
+        "Past Representative (representation of past figures)",
+        "Inventory Manager (AI-assisted inventory management)",
+        "Research Assistant (researcher assistance)",
+        "Story Archivist (narratives about the archive)",
+        "Integration with Primo, Axiell Collections, MuseumPlus",
+        "Metadata support: Dublin Core, EDM, METS, MODS, MARC21, EAD"
       ],
       "strengths_vs_talia": [
-        "Integración profunda con sistemas de gestión de colecciones",
-        "Tipos de agente especializados muy diferenciados",
-        "Soporte de estándares de patrimonio europeos"
+        "Deep integration with collections management systems",
+        "Highly differentiated specialized agent types",
+        "Support for European heritage standards"
       ],
       "weaknesses_vs_talia": [
-        "Sin pricing transparente ni self-serve",
-        "Orientado a gestión interna de colecciones, no a atención al visitante",
-        "Probablemente bajo desarrollo activo de producto comercial"
+        "No transparent or self-serve pricing",
+        "Oriented toward internal collections management, not visitor attention",
+        "Likely under active commercial product development"
       ],
       "source": "https://culturebot.eu/"
     },
@@ -285,47 +285,47 @@
     {
       "id": "chatbotkit_museum",
       "name": "ChatbotKit — Museum AI",
-      "country": "Internacional (EEUU)",
+      "country": "International (USA)",
       "website": "chatbotkit.com",
-      "type": "Plataforma AI genérica con solución vertical para museos",
-      "target_market": "Museos y patrimonio cultural — uso internacional",
-      "relevance_to_talia": "MEDIA — competidor indirecto, autoservicio DIY para museos",
+      "type": "Generic AI platform with a vertical solution for museums",
+      "target_market": "Museums and cultural heritage — international use",
+      "relevance_to_talia": "MEDIUM — indirect competitor, DIY self-service for museums",
       "pricing": {
         "public_pricing": true,
-        "model": "Por volumen de tokens (GPT-3.5 / GPT-4)",
+        "model": "By token volume (GPT-3.5 / GPT-4)",
         "tiers": [
           {
             "name": "Basic",
-            "features": ["Hasta 12M tokens GPT-3.5 según uso", "Funciones core"]
+            "features": ["Up to 12M GPT-3.5 tokens depending on usage", "Core features"]
           },
           {
             "name": "Pro Plus",
-            "features": ["Recursos ampliados vs Pro", "Soporte prioritario", "Features avanzadas"]
+            "features": ["Expanded resources vs Pro", "Priority support", "Advanced features"]
           },
           {
             "name": "Team",
-            "features": ["Proyectos grandes / big data", "SLAs", "Dominios custom", "Audit trails", "Logs de eventos", "Desarrollo de features prioritizado"]
+            "features": ["Large projects / big data", "SLAs", "Custom domains", "Audit trails", "Event logs", "Prioritized feature development"]
           },
           {
             "name": "Enterprise",
-            "features": ["Alto volumen", "Features premium", "Soporte prioritario"]
+            "features": ["High volume", "Premium features", "Priority support"]
           }
         ],
-        "known_pricing": "Precios exactos no capturados. Ver chatbotkit.com/pricing",
+        "known_pricing": "Exact prices not captured. See chatbotkit.com/pricing",
         "free_tier": "unknown",
         "trial": "unknown"
       },
       "key_features": [
-        "Guías interactivos para museos",
-        "Soporte multilingüe",
-        "Acceso remoto / digital",
-        "Insights sobre visitantes",
-        "API disponible"
+        "Interactive guides for museums",
+        "Multilingual support",
+        "Remote / digital access",
+        "Visitor insights",
+        "API available"
       ],
       "weaknesses_vs_talia": [
-        "Plataforma genérica — el museo construye el chatbot por su cuenta (DIY)",
-        "Sin solución vertical lista para usar",
-        "Sin integración con sistemas de ticketing o gestión cultural española"
+        "Generic platform — the museum builds the chatbot itself (DIY)",
+        "No ready-to-use vertical solution",
+        "No integration with Spanish ticketing or cultural management systems"
       ],
       "source": "https://chatbotkit.com/solutions/museum-ai"
     },
@@ -333,22 +333,22 @@
     {
       "id": "cuseum",
       "name": "Cuseum",
-      "country": "EEUU",
+      "country": "USA",
       "website": "cuseum.com",
-      "type": "Plataforma de engagement y membresías digitales para museos",
-      "target_market": "Museos, atracciones, ONGs culturales — principalmente EEUU",
-      "relevance_to_talia": "BAJA — EEUU-centric, más enfocado en membresías que en chatbot",
+      "type": "Engagement and digital membership platform for museums",
+      "target_market": "Museums, attractions, cultural NGOs — mainly USA",
+      "relevance_to_talia": "LOW — USA-centric, more focused on memberships than on chatbot",
       "pricing": {
         "public_pricing": false,
         "model": "Custom quote",
-        "known_details": "Sin precios públicos. Orientado a museos con membresías y programas de fidelización.",
+        "known_details": "No public prices. Oriented toward museums with memberships and loyalty programs.",
         "free_tier": false
       },
       "key_features": [
-        "Membresías digitales móviles",
-        "Engagement de visitantes con IA generativa",
-        "Creación de contenido con IA",
-        "Gestión de datos de audiencia"
+        "Mobile digital memberships",
+        "Visitor engagement with generative AI",
+        "AI content creation",
+        "Audience data management"
       ],
       "source": "https://cuseum.com/"
     },
@@ -356,17 +356,17 @@
     {
       "id": "1millionbot",
       "name": "1MillionBot",
-      "country": "España (Alicante)",
+      "country": "Spain (Alicante)",
       "website": "1millionbot.com",
-      "type": "Agencia + plataforma IA conversacional",
-      "target_market": "Empresas, universidades, administración pública España/LatAm",
-      "relevance_to_talia": "MEDIA — opera en España pero no especializado en cultura",
+      "type": "Agency + conversational AI platform",
+      "target_market": "Companies, universities, public administration Spain/LatAm",
+      "relevance_to_talia": "MEDIUM — operates in Spain but not specialized in culture",
       "pricing": {
         "public_pricing": false,
-        "model": "Proyecto a medida + suscripción plataforma",
-        "known_details": "Sin precios públicos. Enterprise. Custom quote.",
+        "model": "Custom project + platform subscription",
+        "known_details": "No public prices. Enterprise. Custom quote.",
         "free_tier": false,
-        "trial": "Demo disponible"
+        "trial": "Demo available"
       },
       "source": "https://1millionbot.com/en/"
     },
@@ -374,15 +374,15 @@
     {
       "id": "chatbot_chocolate",
       "name": "Chatbot Chocolate",
-      "country": "España",
+      "country": "Spain",
       "website": "chatbotchocolate.com",
-      "type": "Agencia de desarrollo de chatbots a medida",
-      "target_market": "Empresas y administración pública España",
-      "relevance_to_talia": "BAJA — agencia, no producto SaaS",
+      "type": "Custom chatbot development agency",
+      "target_market": "Companies and public administration in Spain",
+      "relevance_to_talia": "LOW — agency, not a SaaS product",
       "pricing": {
         "public_pricing": false,
-        "model": "Presupuesto a medida",
-        "known_details": "Elegibles Kit Digital (hasta €6.000 subvencionado para pymes).",
+        "model": "Custom quote",
+        "known_details": "Eligible for Kit Digital (up to €6,000 subsidized for SMEs).",
         "free_tier": false
       },
       "source": "https://chatbotchocolate.com/"
@@ -391,17 +391,17 @@
     {
       "id": "botslovers_lovi",
       "name": "Botslovers / Lovi",
-      "country": "España (Madrid)",
+      "country": "Spain (Madrid)",
       "website": "botslovers.com / lovi.ai",
-      "type": "Plataforma SaaS AI chatbot — freemium",
-      "target_market": "Pymes España — retail, atención al cliente",
-      "relevance_to_talia": "BAJA-MEDIA — SaaS español accesible, pero no orientado a cultura",
+      "type": "SaaS AI chatbot platform — freemium",
+      "target_market": "Spanish SMEs — retail, customer service",
+      "relevance_to_talia": "LOW-MEDIUM — accessible Spanish SaaS, but not culture-oriented",
       "pricing": {
-        "public_pricing": "parcial",
+        "public_pricing": "partial",
         "model": "Freemium",
         "tiers": [
           { "name": "Lite / Free", "price_monthly_eur": 0 },
-          { "name": "Pro", "price_monthly_eur": "custom — no publicado" }
+          { "name": "Pro", "price_monthly_eur": "custom — not published" }
         ],
         "free_tier": true
       },
@@ -411,21 +411,21 @@
     {
       "id": "quickchat_ai",
       "name": "Quickchat.ai",
-      "country": "Internacional (Polonia/EU)",
+      "country": "International (Poland/EU)",
       "website": "quickchat.ai",
-      "type": "Plataforma SaaS AI agents — referente de pricing",
-      "target_market": "Pymes y startups globales",
-      "relevance_to_talia": "MEDIA — buena referencia de pricing transparente en el segmento",
+      "type": "SaaS AI agents platform — pricing benchmark",
+      "target_market": "Global SMEs and startups",
+      "relevance_to_talia": "MEDIUM — good transparent pricing reference in the segment",
       "pricing": {
         "public_pricing": true,
-        "model": "Freemium por volumen de mensajes + opción pay-per-resolution",
+        "model": "Freemium by message volume + pay-per-resolution option",
         "tiers": [
           { "name": "Free", "price_monthly_usd": 0, "messages": 200 },
           { "name": "Basic", "price_monthly_usd": 35, "messages": 3000 },
           { "name": "Essential", "price_monthly_usd": 99, "messages": 15000 },
           { "name": "Professional", "price_monthly_usd": 379, "messages": 35000 }
         ],
-        "per_resolution": { "price_usd": "0.50–0.60", "note": "50% más barato que Intercom Fin" },
+        "per_resolution": { "price_usd": "0.50–0.60", "note": "50% cheaper than Intercom Fin" },
         "free_tier": true
       },
       "source": "https://quickchat.ai/pricing"
@@ -434,72 +434,72 @@
     {
       "id": "intercom_fin",
       "name": "Intercom Fin AI Agent",
-      "country": "EEUU / disponible EU",
+      "country": "USA / available in EU",
       "website": "intercom.com",
-      "type": "AI agent customer support — referente mercado",
+      "type": "AI agent customer support — market benchmark",
       "pricing": {
         "public_pricing": true,
         "model": "Pay-per-resolved-conversation",
         "price_per_resolution_usd": 0.99,
-        "base_plan_required": "desde ~$39/seat/mes",
+        "base_plan_required": "from ~$39/seat/month",
         "free_tier": false,
-        "trial": "14 días"
+        "trial": "14 days"
       },
-      "note": "Precio techo del modelo per-resolution en el mercado.",
+      "note": "Ceiling price of the per-resolution model in the market.",
       "source": "https://www.intercom.com/"
     }
   ],
 
   "pricing_matrix": {
-    "description": "Comparativa rápida de precios entry-level en el sector cultural",
-    "note": "Ordenado por precio mensual de entrada",
+    "description": "Quick comparison of entry-level prices in the cultural sector",
+    "note": "Ordered by monthly entry price",
     "table": [
-      { "competitor": "Anolla", "entry_price_eur_month": 0, "model": "Freemium", "cultural_focus": "Cines/salas", "public_pricing": true },
-      { "competitor": "Botslovers Lite", "entry_price_eur_month": 0, "model": "Freemium", "cultural_focus": "Genérico", "public_pricing": true },
-      { "competitor": "Quickchat Basic", "entry_price_eur_month": 32, "model": "Por mensajes", "cultural_focus": "Genérico", "public_pricing": true },
-      { "competitor": "Ask Mona Essential", "entry_price_eur_month": 99, "model": "Flat fee/venue", "cultural_focus": "Museos/teatros/patrimonio", "public_pricing": true },
-      { "competitor": "Quickchat Essential", "entry_price_eur_month": 91, "model": "Por mensajes", "cultural_focus": "Genérico", "public_pricing": true },
-      { "competitor": "Aivo", "entry_price_eur_month": "~90 (ref. $99)", "model": "Custom", "cultural_focus": "Genérico enterprise", "public_pricing": false },
-      { "competitor": "Nevent.ai", "entry_price_eur_month": "custom", "model": "Custom", "cultural_focus": "Eventos/teatros", "public_pricing": false },
-      { "competitor": "CM.com", "entry_price_eur_month": "custom (enterprise)", "model": "Enterprise", "cultural_focus": "Festivales/conciertos", "public_pricing": false },
-      { "competitor": "1MillionBot", "entry_price_eur_month": "custom (alto)", "model": "Custom", "cultural_focus": "Genérico España", "public_pricing": false },
-      { "competitor": "Chatbot Chocolate", "entry_price_eur_month": "custom (alto)", "model": "Custom", "cultural_focus": "Genérico España", "public_pricing": false }
+      { "competitor": "Anolla", "entry_price_eur_month": 0, "model": "Freemium", "cultural_focus": "Cinemas/venues", "public_pricing": true },
+      { "competitor": "Botslovers Lite", "entry_price_eur_month": 0, "model": "Freemium", "cultural_focus": "Generic", "public_pricing": true },
+      { "competitor": "Quickchat Basic", "entry_price_eur_month": 32, "model": "Per message", "cultural_focus": "Generic", "public_pricing": true },
+      { "competitor": "Ask Mona Essential", "entry_price_eur_month": 99, "model": "Flat fee/venue", "cultural_focus": "Museums/theatres/heritage", "public_pricing": true },
+      { "competitor": "Quickchat Essential", "entry_price_eur_month": 91, "model": "Per message", "cultural_focus": "Generic", "public_pricing": true },
+      { "competitor": "Aivo", "entry_price_eur_month": "~90 (ref. $99)", "model": "Custom", "cultural_focus": "Generic enterprise", "public_pricing": false },
+      { "competitor": "Nevent.ai", "entry_price_eur_month": "custom", "model": "Custom", "cultural_focus": "Events/theatres", "public_pricing": false },
+      { "competitor": "CM.com", "entry_price_eur_month": "custom (enterprise)", "model": "Enterprise", "cultural_focus": "Festivals/concerts", "public_pricing": false },
+      { "competitor": "1MillionBot", "entry_price_eur_month": "custom (high)", "model": "Custom", "cultural_focus": "Generic Spain", "public_pricing": false },
+      { "competitor": "Chatbot Chocolate", "entry_price_eur_month": "custom (high)", "model": "Custom", "cultural_focus": "Generic Spain", "public_pricing": false }
     ]
   },
 
   "market_gaps": [
     {
-      "gap": "Ask Mona Essential (€99/mes) es muy limitado: 1.000 msgs/mes, 1 idioma, sin analytics reales",
-      "implication_for_talia": "Un plan entry de €99–149 con más mensajes, español nativo y analytics básicos ya supera la oferta de entrada del líder europeo"
+      "gap": "Ask Mona Essential (€99/month) is very limited: 1,000 msgs/month, 1 language, no real analytics",
+      "implication_for_talia": "An entry plan of €99–149 with more messages, native Spanish, and basic analytics already surpasses the European leader's entry-level offering"
     },
     {
-      "gap": "Nadie ofrece un SaaS cultural en España con pricing transparente y self-serve en español",
-      "implication_for_talia": "Ser el primero con web de pricing clara en español es una ventaja de posicionamiento, no solo de producto"
+      "gap": "No one offers a cultural SaaS in Spain with transparent, self-serve pricing in Spanish",
+      "implication_for_talia": "Being the first with a clear pricing page in Spanish is a positioning advantage, not just a product one"
     },
     {
-      "gap": "Los competidores orientados a eventos (Nevent, CM.com) no sirven a la programación permanente de un museo o teatro estable",
-      "implication_for_talia": "TALIA puede capturar el segmento 'venue permanente' que necesita continuidad, no solo eventos puntuales"
+      "gap": "Event-oriented competitors (Nevent, CM.com) do not serve the permanent programming of a stable museum or theatre",
+      "implication_for_talia": "TALIA can capture the 'permanent venue' segment that needs continuity, not just one-off events"
     },
     {
-      "gap": "Ask Mona requiere compromiso mínimo de 12 meses — barrera alta para instituciones culturales con presupuesto ajustado",
-      "implication_for_talia": "Ofrecer mensual sin compromiso, o trial de 30 días, puede ser el argumento de cierre vs. Ask Mona"
+      "gap": "Ask Mona requires a minimum 12-month commitment — a high barrier for cultural institutions with tight budgets",
+      "implication_for_talia": "Offering monthly with no commitment, or a 30-day trial, could be the closing argument vs. Ask Mona"
     },
     {
-      "gap": "Ningún competidor integra chatbot con analytics de comportamiento del visitante específicos del sector cultural (preguntas de programación, accesibilidad, idiomas de visitantes)",
-      "implication_for_talia": "Analytics verticalizados es el diferenciador de largo plazo más difícil de replicar"
+      "gap": "No competitor integrates a chatbot with visitor behavior analytics specific to the cultural sector (programming questions, accessibility, visitor languages)",
+      "implication_for_talia": "Verticalized analytics is the hardest-to-replicate long-term differentiator"
     }
   ],
 
   "strategic_recommendation": {
-    "price_positioning": "Entrar en €99–149/mes (mismo nivel que Ask Mona) pero con más valor incluido: más mensajes, español nativo, analytics, sin compromiso 12 meses",
-    "go_to_market_priority": "España primero (Ask Mona no tiene presencia comercial local). Luego Portugal e Italia (idiomas románicos, misma sensibilidad cultural).",
+    "price_positioning": "Enter at €99–149/month (same level as Ask Mona) but with more included value: more messages, native Spanish, analytics, no 12-month commitment",
+    "go_to_market_priority": "Spain first (Ask Mona has no local commercial presence). Then Portugal and Italy (Romance languages, same cultural sensibility).",
     "key_differentiators_to_communicate": [
-      "Español nativo — Ask Mona Essential solo soporta 1 idioma, y es francesa",
-      "Sin compromiso anual forzado",
-      "Analytics de conversaciones específicos del sector cultural",
-      "Onboarding en días, no en 1 mes"
+      "Native Spanish — Ask Mona Essential only supports 1 language, and it's French",
+      "No forced annual commitment",
+      "Conversation analytics specific to the cultural sector",
+      "Onboarding in days, not 1 month"
     ],
-    "risk": "Si Ask Mona lanza campaña activa en España, tienen la prueba social de 80+ clientes. TALIA debe cerrar clientes de referencia locales (1-3 teatros/museos conocidos) antes de que eso pase."
+    "risk": "If Ask Mona launches an active campaign in Spain, they have social proof from 80+ clients. TALIA must close local reference clients (1-3 well-known theatres/museums) before that happens."
   },
 
   "sources": [

@@ -43,6 +43,16 @@ export class TaliaAiChatAgentProvider implements ChatAgentProvider {
           session_id: input.sessionId,
           message: input.message,
           ...(input.pageUrl ? { page_url: input.pageUrl } : {}),
+          ...(input.pendingClarification
+            ? {
+              pending_clarification: {
+                intent: input.pendingClarification.intent,
+                ...(input.pendingClarification.reason ? { reason: input.pendingClarification.reason } : {}),
+                options: input.pendingClarification.options,
+                ...(input.pendingClarification.optionKeys ? { option_keys: input.pendingClarification.optionKeys } : {}),
+              },
+            }
+            : {}),
           language: input.tenant.language,
           tenant: {
             name: input.tenant.name,

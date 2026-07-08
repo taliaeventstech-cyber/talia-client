@@ -2,27 +2,27 @@
 
 ## Ownership
 
-Los embeddings de conocimiento ya no se generan en `talia-client`.
+Knowledge embeddings are no longer generated in `talia-client`.
 
-`talia-client` mantiene:
+`talia-client` maintains:
 
-- migraciones de Supabase para `knowledge_chunks.embedding`;
-- ingesta inicial de PDFs en `knowledge_chunks`;
-- adaptador HTTP hacia `talia-ai`.
+- Supabase migrations for `knowledge_chunks.embedding`;
+- initial ingestion of PDFs into `knowledge_chunks`;
+- HTTP adapter toward `talia-ai`.
 
-`talia-ai` mantiene:
+`talia-ai` maintains:
 
-- llamadas a OpenAI Embeddings API;
-- escritura de `embedding`, `embedding_model`, `embedding_status`;
-- backfill y reintentos;
-- endpoint worker global.
+- calls to the OpenAI Embeddings API;
+- writing of `embedding`, `embedding_model`, `embedding_status`;
+- backfill and retries;
+- global worker endpoint.
 
-## Variables en talia-client
+## Variables in talia-client
 
 - `TALIA_AI_BASE_URL`
 - `TALIA_AI_INTERNAL_API_KEY`
 
-## Variables en talia-ai
+## Variables in talia-ai
 
 - `OPENAI_API_KEY`
 - `OPENAI_EMBEDDING_MODEL`
@@ -32,7 +32,7 @@ Los embeddings de conocimiento ya no se generan en `talia-client`.
 
 ## Endpoints
 
-Procesar una fuente concreta:
+Process a specific source:
 
 ```txt
 POST $TALIA_AI_BASE_URL/v1/knowledge/embed
@@ -42,14 +42,14 @@ Payload:
 
 ```json
 {
-  "tenant_id": "uuid-del-tenant",
-  "source_id": "uuid-de-la-fuente",
+  "tenant_id": "tenant-uuid",
+  "source_id": "source-uuid",
   "limit": 20,
   "retry_errors": true
 }
 ```
 
-Procesar pendientes globales:
+Process global pending items:
 
 ```txt
 POST $TALIA_AI_BASE_URL/v1/knowledge/embed/pending
@@ -64,7 +64,7 @@ Payload:
 }
 ```
 
-## Ejemplo
+## Example
 
 ```bash
 curl -X POST "$TALIA_AI_BASE_URL/v1/knowledge/embed/pending" \
@@ -73,10 +73,10 @@ curl -X POST "$TALIA_AI_BASE_URL/v1/knowledge/embed/pending" \
   -d '{"limit":20,"retry_errors":true}'
 ```
 
-## Comportamiento esperado
+## Expected behavior
 
-- Los chunks se crean en `pending`.
-- `talia-ai` los pasa a `processing`.
-- Si se generan embeddings, pasan a `ready`.
-- Si falla OpenAI o Supabase, pasan a `error`.
-- Si `talia-ai` no esta disponible al subir un PDF, los chunks quedan en `pending` para el worker.
+- Chunks are created in `pending`.
+- `talia-ai` moves them to `processing`.
+- If embeddings are generated successfully, they move to `ready`.
+- If OpenAI or Supabase fails, they move to `error`.
+- If `talia-ai` is unavailable when a PDF is uploaded, the chunks remain in `pending` for the worker.

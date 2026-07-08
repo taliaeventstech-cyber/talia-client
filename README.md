@@ -1,16 +1,16 @@
 # TALIA Client
 
-Aplicacion Next.js de TALIA: signup, onboarding, Agora, Backstage, chatbot web, agente de email, billing y configuracion operativa.
+TALIA's Next.js application: signup, onboarding, Agora, Backstage, web chatbot, email agent, billing and operational configuration.
 
-## Fuente de Verdad
+## Source of Truth
 
-Antes de tocar codigo, leer:
+Before touching code, read:
 
-1. [`docs/current-state.md`](docs/current-state.md): estado real de la app, modulos activos, deuda y legacy.
-2. [`docs/index.md`](docs/index.md): indice curado de documentacion.
-3. [`docs/product/roadmap.md`](docs/product/roadmap.md): direccion de producto.
+1. [`docs/current-state.md`](docs/current-state.md): real state of the app, active modules, debt and legacy.
+2. [`docs/index.md`](docs/index.md): curated documentation index.
+3. [`docs/product/roadmap.md`](docs/product/roadmap.md): product direction.
 
-No usar documentos antiguos, notas sueltas o comentarios de codigo como fuente principal si contradicen `docs/current-state.md`.
+Do not use old documents, loose notes or code comments as the primary source if they contradict `docs/current-state.md`.
 
 ## Stack
 
@@ -18,20 +18,20 @@ No usar documentos antiguos, notas sueltas o comentarios de codigo como fuente p
 - TypeScript.
 - Supabase Auth/Postgres/RLS.
 - Stripe Checkout.
-- Google OAuth/Gmail API para el agente de email.
-- n8n como adapter temporal para workflows de IA.
-- Vercel para despliegue.
+- Google OAuth/Gmail API for the email agent.
+- n8n as a temporary adapter for AI workflows.
+- Vercel for deployment.
 
-## Modulos Actuales
+## Current Modules
 
-- **Auth y onboarding**: alta self-serve, confirmacion de email y configuracion inicial.
-- **Agora**: dashboard operativo por venue.
-- **Chatbot web**: canal mas maduro del modulo Atencion.
-- **Agente de email**: testing activo con Gmail, modo borradores supervisados.
-- **Billing**: trial de 14 dias, planes, extras y Stripe Checkout.
-- **Backstage**: panel interno TALIA para configuracion y diagnostico.
+- **Auth and onboarding**: self-serve signup, email confirmation and initial configuration.
+- **Agora**: operational dashboard per venue.
+- **Web chatbot**: most mature channel of the Attention module.
+- **Email agent**: active testing with Gmail, supervised drafts mode.
+- **Billing**: 14-day trial, plans, add-ons and Stripe Checkout.
+- **Backstage**: internal TALIA panel for configuration and diagnostics.
 
-## Comandos Basicos
+## Basic Commands
 
 ```bash
 npm install
@@ -39,26 +39,26 @@ npm run typecheck
 npm run lint
 ```
 
-Para desarrollo local:
+For local development:
 
 ```bash
 npm run dev
 ```
 
-## Variables de Entorno
+## Environment Variables
 
-La app depende de Supabase, Stripe, Google OAuth, secretos internos y URLs publicas. Usar `.env.local` en local y configurar equivalentes en Vercel para produccion.
+The app depends on Supabase, Stripe, Google OAuth, internal secrets and public URLs. Use `.env.local` locally and configure equivalents in Vercel for production.
 
-Documentos relacionados:
+Related documents:
 
 - [`docs/stripe-checkout.md`](docs/stripe-checkout.md)
 - [`docs/operations/google-cloud-production-oauth.md`](docs/operations/google-cloud-production-oauth.md)
 - [`docs/security/auth-phase-1.md`](docs/security/auth-phase-1.md)
 
-## Reglas Para Nuevos Cambios
+## Rules for New Changes
 
-- Mantener `docs/current-state.md` actualizado cuando cambie el comportamiento real de la app.
-- No introducir nuevas dependencias de `public.users`; el modelo objetivo usa `profiles`, `accounts`, `account_memberships` y `venue_memberships`.
-- No reintroducir `should_reply` en email; el contrato actual usa `should_generate_draft`.
-- No mostrar el agente de voz en flujos cliente hasta que se reactive.
-- Ejecutar `npm run typecheck` y `npm run lint` antes de PR.
+- Keep `docs/current-state.md` up to date when the app's real behavior changes.
+- Do not introduce new dependencies on `public.users`; the target model uses `profiles`, `accounts`, `account_memberships` and `venue_memberships`.
+- Do not reintroduce `should_reply` in email; the current contract uses `should_generate_draft`.
+- Do not show the voice agent in client flows until it is reactivated.
+- Run `npm run typecheck` and `npm run lint` before a PR.

@@ -116,6 +116,12 @@ describe('TaliaAiChatAgentProvider', () => {
     const result = await provider.respond({
       ...runtimeInput,
       pageUrl: 'https://talia.events/pricing',
+      pendingClarification: {
+        intent: 'pricing',
+        reason: 'ambiguous_price_intent',
+        optionKeys: ['tickets', 'plans'],
+        options: ['entradas', 'planes'],
+      },
       relevantKnowledge: [{
         id: 'chunk-1',
         sourceId: 'source-1',
@@ -149,6 +155,12 @@ describe('TaliaAiChatAgentProvider', () => {
       tenant_id: 'tenant-1',
       session_id: 'session-1',
       page_url: 'https://talia.events/pricing',
+      pending_clarification: {
+        intent: 'pricing',
+        reason: 'ambiguous_price_intent',
+        option_keys: ['tickets', 'plans'],
+        options: ['entradas', 'planes'],
+      },
       language: 'es',
       tenant: {
         name: 'Sala Test',

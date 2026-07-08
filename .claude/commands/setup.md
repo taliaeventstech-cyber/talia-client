@@ -1,10 +1,10 @@
-Configura el proyecto desde cero:
+Set up the project from scratch:
 
 1. `npm install`
-2. Verifica que existe .env.local con las variables de Supabase
-3. `npx supabase start` (Supabase local)
-4. `npm run db:migrate` (aplicar migrations)
-5. `npm run db:types` (generar tipos)
-6. `npm run dev` (arrancar)
+2. Verify that .env.local exists with the Supabase variables
+3. `npx supabase start` (local Supabase)
+4. `npm run db:migrate` (apply migrations)
+5. `npm run db:types` (generate types)
+6. `npm run dev` (start)
 
-Si falta alguna variable de entorno, indícamelo.
+If any environment variable is missing, let me know.
