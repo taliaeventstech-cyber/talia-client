@@ -14,6 +14,7 @@ import type { Json } from '@/types/database.types'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
+import { optionalInternationalPhoneSchema } from '@/lib/phone/schema'
 
 export type CreateTenantState = {
   ok: boolean
@@ -68,7 +69,7 @@ const createTenantSchema = z.object({
   plan: z.enum(['essential', 'professional', 'enterprise']),
   websiteUrl: z.string().trim().url('La web debe ser una URL válida.').optional().or(z.literal('')),
   fallbackEmail: z.string().trim().email('El email de contacto no es válido.').optional().or(z.literal('')),
-  fallbackPhone: z.string().trim().optional(),
+  fallbackPhone: optionalInternationalPhoneSchema,
   modules: z.array(z.enum(moduleKeys)).default(['chatbot', 'data']),
 })
 

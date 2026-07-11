@@ -4,6 +4,8 @@ import { ActionToast } from '@/components/ui/action-toast'
 import { useActionState, useState } from 'react'
 import { CopyScriptButton } from './copy-script-button'
 import { updateTenantSettings, type SettingsFormState } from './actions'
+import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
+import { getDefaultPhoneCountry } from '@/lib/phone/international'
 
 type SettingsFormLabels = {
   chatbot: string
@@ -40,6 +42,7 @@ type SettingsFormProps = {
     system_prompt: string | null
     fallback_email: string | null
     fallback_phone: string | null
+    primary_language: string
   }
   widgetConfig: {
     initialMessage: string
@@ -180,10 +183,13 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
                 <input name="fallback_email" type="email" defaultValue={theatre.fallback_email ?? ''} />
               </label>
 
-              <label className="field">
-                {labels.fallbackPhone}
-                <input name="fallback_phone" defaultValue={theatre.fallback_phone ?? ''} />
-              </label>
+              <InternationalPhoneInput
+                name="fallback_phone"
+                label={labels.fallbackPhone}
+                defaultValue={theatre.fallback_phone}
+                defaultCountry={getDefaultPhoneCountry(theatre.primary_language)}
+                locale={theatre.primary_language}
+              />
 
               <label className="field" style={{ gridColumn: '1 / -1' }}>
                 {labels.fallbackMessage}
