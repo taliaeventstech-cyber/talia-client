@@ -24,6 +24,18 @@ type SettingsFormLabels = {
   allowedDomainsHint: string
   position: string
   widgetSize: string
+  widgetTheme: string
+  widgetThemeHint: string
+  widgetThemeSolid: string
+  widgetThemeSolidHint: string
+  widgetThemeGlass: string
+  widgetThemeGlassHint: string
+  glassBackground: string
+  glassBackgroundHint: string
+  glassBackgroundLight: string
+  glassBackgroundDark: string
+  glassBlur: string
+  glassTranslucency: string
   inlineOffset: string
   blockOffset: string
   collisionStrategy: string
@@ -52,6 +64,10 @@ type SettingsFormProps = {
     inlineOffset: number
     blockOffset: number
     collisionStrategy: 'auto' | 'none'
+    widgetTheme: 'solid' | 'glass'
+    glassBackground: 'light' | 'dark'
+    glassBlur: number
+    glassTranslucency: number
     autoOpen: boolean
     autoOpenDelay: number
     allowedDomains: string[]
@@ -86,6 +102,10 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
     inlineOffset: widgetConfig.inlineOffset,
     blockOffset: widgetConfig.blockOffset,
     collisionStrategy: widgetConfig.collisionStrategy,
+    widgetTheme: widgetConfig.widgetTheme,
+    glassBackground: widgetConfig.glassBackground,
+    glassBlur: widgetConfig.glassBlur,
+    glassTranslucency: widgetConfig.glassTranslucency,
   })
 
   return (
@@ -153,6 +173,94 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
                   <option value="large">Grande</option>
                 </select>
               </label>
+
+              <fieldset className="field widget-theme-field" style={{ gridColumn: '1 / -1', border: 0, padding: 0, margin: 0 }}>
+                <legend style={{ padding: 0 }}>{labels.widgetTheme}</legend>
+                <div className="widget-theme-options">
+                  <ThemeChoice
+                    value="solid"
+                    checked={previewConfig.widgetTheme === 'solid'}
+                    title={labels.widgetThemeSolid}
+                    onSelect={() => setPreviewConfig((current) => ({ ...current, widgetTheme: 'solid' }))}
+                  />
+                  <ThemeChoice
+                    value="glass"
+                    checked={previewConfig.widgetTheme === 'glass'}
+                    title={labels.widgetThemeGlass}
+                    onSelect={() => setPreviewConfig((current) => ({ ...current, widgetTheme: 'glass' }))}
+                  />
+                </div>
+              </fieldset>
+
+              {previewConfig.widgetTheme === 'glass' ? (
+                <div className="glass-controls" style={{ gridColumn: '1 / -1' }}>
+                  <fieldset className="field glass-bg-field" style={{ border: 0, padding: 0, margin: 0 }}>
+                    <legend style={{ padding: 0 }}>{labels.glassBackground}</legend>
+                    <div className="glass-bg-options">
+                      <label className={previewConfig.glassBackground === 'light' ? 'glass-bg-choice glass-bg-choice-active' : 'glass-bg-choice'}>
+                        <input
+                          type="radio"
+                          name="glass_background"
+                          value="light"
+                          checked={previewConfig.glassBackground === 'light'}
+                          onChange={() => setPreviewConfig((current) => ({ ...current, glassBackground: 'light' }))}
+                          className="sr-only"
+                        />
+                        <span className="glass-bg-dot glass-bg-dot-light" aria-hidden="true" />
+                        {labels.glassBackgroundLight}
+                      </label>
+                      <label className={previewConfig.glassBackground === 'dark' ? 'glass-bg-choice glass-bg-choice-active' : 'glass-bg-choice'}>
+                        <input
+                          type="radio"
+                          name="glass_background"
+                          value="dark"
+                          checked={previewConfig.glassBackground === 'dark'}
+                          onChange={() => setPreviewConfig((current) => ({ ...current, glassBackground: 'dark' }))}
+                          className="sr-only"
+                        />
+                        <span className="glass-bg-dot glass-bg-dot-dark" aria-hidden="true" />
+                        {labels.glassBackgroundDark}
+                      </label>
+                    </div>
+                  </fieldset>
+
+                  <label className="field">
+                    {labels.glassBlur}
+                    <div className="glass-range-row">
+                      <input
+                        type="range"
+                        name="glass_blur"
+                        min={0}
+                        max={30}
+                        value={previewConfig.glassBlur}
+                        onChange={(event) => setPreviewConfig((current) => ({ ...current, glassBlur: Number(event.target.value) }))}
+                      />
+                      <output>{Math.round((previewConfig.glassBlur / 30) * 100)}%</output>
+                    </div>
+                  </label>
+
+                  <label className="field">
+                    {labels.glassTranslucency}
+                    <div className="glass-range-row">
+                      <input
+                        type="range"
+                        name="glass_translucency"
+                        min={15}
+                        max={85}
+                        value={previewConfig.glassTranslucency}
+                        onChange={(event) => setPreviewConfig((current) => ({ ...current, glassTranslucency: Number(event.target.value) }))}
+                      />
+                      <output>{Math.round(((previewConfig.glassTranslucency - 15) / 70) * 100)}%</output>
+                    </div>
+                  </label>
+                </div>
+              ) : (
+                <>
+                  <input type="hidden" name="glass_background" value={previewConfig.glassBackground} />
+                  <input type="hidden" name="glass_blur" value={previewConfig.glassBlur} />
+                  <input type="hidden" name="glass_translucency" value={previewConfig.glassTranslucency} />
+                </>
+              )}
 
               <label className="field">
                 {labels.inlineOffset}
@@ -327,6 +435,35 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
   )
 }
 
+function ThemeChoice({
+  value,
+  checked,
+  title,
+  onSelect,
+}: {
+  value: 'solid' | 'glass'
+  checked: boolean
+  title: string
+  onSelect: () => void
+}) {
+  return (
+    <label className={checked ? 'widget-theme-choice widget-theme-choice-active' : 'widget-theme-choice'}>
+      <input
+        type="radio"
+        name="widget_theme"
+        value={value}
+        checked={checked}
+        onChange={onSelect}
+        className="sr-only"
+      />
+      <span className={`widget-theme-swatch widget-theme-swatch-${value}`} aria-hidden="true" />
+      <span className="widget-theme-choice-text">
+        <strong>{title}</strong>
+      </span>
+    </label>
+  )
+}
+
 function WidgetPreview({
   widgetConfig,
 }: {
@@ -339,6 +476,10 @@ function WidgetPreview({
     inlineOffset: number
     blockOffset: number
     collisionStrategy: 'auto' | 'none'
+    widgetTheme: 'solid' | 'glass'
+    glassBackground: 'light' | 'dark'
+    glassBlur: number
+    glassTranslucency: number
   }
 }) {
   const scale = 0.35
@@ -346,23 +487,53 @@ function WidgetPreview({
   const inlineOffset = Math.max(16, Math.round(widgetConfig.inlineOffset * scale))
   const previewSize = getPreviewWidgetSize(widgetConfig.widgetSize)
   const chatbotPosition = getPreviewPosition(widgetConfig.position, chatbotOffset, inlineOffset)
+  const glass = widgetConfig.widgetTheme === 'glass'
+  const color = widgetConfig.primaryColor
+  const skin = getGlassSkin(color, widgetConfig.glassBackground, widgetConfig.glassTranslucency)
+
+  const filter = `blur(${widgetConfig.glassBlur}px) saturate(200%) brightness(${skin.bright})`
+
+  const panelStyle: React.CSSProperties = glass
+    ? {
+        background: skin.panelFill,
+        backdropFilter: filter,
+        WebkitBackdropFilter: filter,
+        boxShadow: `${skin.shadow}, inset 0 1.5px 0 ${skin.spec}, inset 0 -1px 0 ${skin.spec2}, inset 0 0 0 1px ${skin.hairline}`,
+      }
+    : { background: 'var(--color-surface)', border: '0.5px solid var(--color-border)' }
+
+  const headerStyle: React.CSSProperties = glass
+    ? { background: skin.chromeFill, backdropFilter: filter, WebkitBackdropFilter: filter, color: '#fff', boxShadow: `inset 0 1px 0 ${skin.spec}` }
+    : { background: color, color: '#fff' }
+
+  const toggleStyle: React.CSSProperties = glass
+    ? { background: skin.toggleFill, backdropFilter: filter, WebkitBackdropFilter: filter, boxShadow: `${skin.shadow}, inset 0 1.5px 0 ${skin.spec}, inset 0 0 0 1px ${skin.hairline}` }
+    : { background: color, boxShadow: '0 10px 24px rgba(0,0,0,.22)' }
+
+  const botBubbleStyle: React.CSSProperties = glass
+    ? { background: skin.botBubble, color: skin.botText }
+    : { background: '#fff', color: '#1A1A2E' }
 
   return (
-    <div style={{ minHeight: 260, position: 'relative' }}>
-      <div style={{ border: '0.5px solid var(--color-border)', borderRadius: 12, overflow: 'hidden', background: 'var(--color-surface)' }}>
-        <div style={{ background: widgetConfig.primaryColor, color: '#fff', padding: '0.75rem', fontWeight: 700 }}>
+    <div style={{ minHeight: 260, position: 'relative', borderRadius: 14, overflow: 'hidden', padding: 18, background: glass ? skin.stage : 'transparent' }}>
+      <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', ...panelStyle }}>
+        {glass ? (
+          <span style={{ position: 'absolute', inset: '0 0 auto 0', height: '45%', background: 'linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0) 90%)', pointerEvents: 'none' }} aria-hidden="true" />
+        ) : null}
+        <div style={{ ...headerStyle, padding: '0.75rem', fontWeight: 700, position: 'relative' }}>
           {widgetConfig.assistantName}
         </div>
-        <div style={{ padding: '0.75rem', display: 'grid', gap: '0.6rem', fontSize: '0.9rem' }}>
-          <p style={{ margin: 0, background: '#f1f1f1', color: '#1A1A2E', borderRadius: 8, padding: '0.6rem' }}>
+        {/* message reading zone keeps a legible surface; the translucency slider only tunes the chrome */}
+        <div style={{ padding: '0.75rem', display: 'grid', gap: '0.6rem', fontSize: '0.9rem', background: glass ? skin.msgSurface : 'transparent', position: 'relative' }}>
+          <p style={{ margin: 0, borderRadius: 8, padding: '0.6rem', boxShadow: '0 1px 2px rgba(0,0,0,.08)', ...botBubbleStyle }}>
             {widgetConfig.initialMessage}
           </p>
-          <p style={{ margin: 0, justifySelf: 'end', background: widgetConfig.primaryColor, color: '#fff', borderRadius: 8, padding: '0.6rem' }}>
+          <p style={{ margin: 0, justifySelf: 'end', background: color, color: '#fff', borderRadius: 8, padding: '0.6rem' }}>
             Quiero información
           </p>
         </div>
       </div>
-      <div style={{ position: 'absolute', ...chatbotPosition, width: previewSize, height: previewSize, borderRadius: 999, background: widgetConfig.primaryColor, color: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 10px 24px rgba(0,0,0,.22)' }}>
+      <div style={{ position: 'absolute', ...chatbotPosition, width: previewSize, height: previewSize, borderRadius: 999, color: '#fff', display: 'grid', placeItems: 'center', ...toggleStyle }}>
         <svg viewBox="0 0 28 28" aria-hidden="true" focusable="false" width={Math.round(previewSize * 0.54)} height={Math.round(previewSize * 0.54)} fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M5.25 6.8C5.25 4.98 6.73 3.5 8.55 3.5h10.9c1.82 0 3.3 1.48 3.3 3.3v7.7c0 1.82-1.48 3.3-3.3 3.3h-6.17l-5.1 4.2v-4.2h.37c-1.82 0-3.3-1.48-3.3-3.3V6.8Z" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
           <path d="M10 10.5h7.2M10 14h4.8" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -370,6 +541,42 @@ function WidgetPreview({
       </div>
     </div>
   )
+}
+
+// Single source of truth for the glass material, mirrored by the production widget
+// (public/widget.js). `translucency` is 15–85 where higher = more see-through.
+function getGlassSkin(color: string, background: 'light' | 'dark', translucency: number) {
+  const alpha = Math.min(0.85, Math.max(0.15, (100 - translucency) / 100))
+  if (background === 'dark') {
+    return {
+      bright: 1.16,
+      stage: 'radial-gradient(120% 80% at 18% 8%, rgba(255,196,120,0.32), transparent 55%), radial-gradient(90% 70% at 88% 90%, rgba(180,60,90,0.4), transparent 60%), linear-gradient(135deg, #2b0f1f, #141019)',
+      panelFill: `color-mix(in srgb, ${color} 16%, rgba(46,36,52,${alpha}))`,
+      chromeFill: `color-mix(in srgb, ${color} 40%, rgba(40,30,46,${alpha * 0.85}))`,
+      toggleFill: `color-mix(in srgb, ${color} 54%, rgba(60,44,66,0.3))`,
+      spec: 'rgba(255,255,255,0.62)',
+      spec2: 'rgba(255,255,255,0.22)',
+      hairline: 'rgba(255,255,255,0.14)',
+      msgSurface: 'rgba(30,23,36,0.55)',
+      botBubble: 'rgba(255,255,255,0.15)',
+      botText: '#f3ecf3',
+      shadow: '0 20px 50px -14px rgba(0,0,0,0.62)',
+    }
+  }
+  return {
+    bright: 1.04,
+    stage: 'radial-gradient(120% 80% at 15% 10%, rgba(255,196,120,0.45), transparent 55%), radial-gradient(90% 70% at 90% 88%, rgba(120,150,210,0.4), transparent 60%), linear-gradient(135deg, #f3ede1, #e4d3bd)',
+    panelFill: `color-mix(in srgb, ${color} 8%, rgba(255,255,255,${alpha}))`,
+    chromeFill: `color-mix(in srgb, ${color} 40%, rgba(255,255,255,${alpha * 0.7}))`,
+    toggleFill: `color-mix(in srgb, ${color} 56%, rgba(255,255,255,0.22))`,
+    spec: 'rgba(255,255,255,0.9)',
+    spec2: 'rgba(255,255,255,0.4)',
+    hairline: 'rgba(255,255,255,0.6)',
+    msgSurface: 'rgba(250,248,243,0.55)',
+    botBubble: '#ffffff',
+    botText: '#211018',
+    shadow: '0 18px 45px -14px rgba(40,10,25,0.42)',
+  }
 }
 
 function getWidgetSize(value: string): 'small' | 'medium' | 'large' {

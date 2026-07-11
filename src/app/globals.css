@@ -6994,3 +6994,176 @@ textarea {
     bottom: 8%;
   }
 }
+
+/* Widget style (solid vs glass) selector in chatbot settings */
+.widget-theme-field {
+  display: grid;
+  gap: 8px;
+}
+
+.widget-theme-field legend {
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.widget-theme-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.widget-theme-choice {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface-2) 56%, transparent);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  padding: 12px 13px;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.widget-theme-choice:hover,
+.widget-theme-choice:focus-within,
+.widget-theme-choice-active {
+  border-color: color-mix(in srgb, var(--color-brand) 48%, var(--color-border));
+  background: color-mix(in srgb, var(--color-brand) 12%, var(--color-surface-2));
+}
+
+.widget-theme-choice-text {
+  display: grid;
+  gap: 2px;
+}
+
+.widget-theme-choice-text strong {
+  font-size: 13.5px;
+}
+
+.widget-theme-choice-text small {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.widget-theme-swatch {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+}
+
+.widget-theme-swatch-solid {
+  background: linear-gradient(150deg, var(--color-brand) 0%, var(--color-brand) 45%, #ffffff 45%, #ffffff 100%);
+}
+
+.widget-theme-swatch-glass {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 20% 10%, color-mix(in srgb, var(--color-brand) 60%, transparent), transparent 60%),
+    radial-gradient(90% 80% at 90% 90%, rgba(255, 196, 120, 0.6), transparent 60%),
+    linear-gradient(135deg, #2b0f1f, #141019);
+}
+
+.widget-theme-swatch-glass::after {
+  content: "";
+  position: absolute;
+  inset: 8px 6px auto 6px;
+  height: 15px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-brand) 20%, rgba(255, 255, 255, 0.55));
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.widget-theme-choice input:focus-visible + .widget-theme-swatch {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+/* Glass tuning sub-controls (shown only when the glass style is selected) */
+.glass-controls {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 0.5px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-2) 40%, transparent);
+}
+
+.glass-bg-field {
+  display: grid;
+  gap: 8px;
+}
+
+.glass-bg-field legend {
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.glass-bg-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.glass-bg-choice {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-surface-2) 56%, transparent);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  padding: 10px 12px;
+  font-size: 13px;
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.glass-bg-choice:hover,
+.glass-bg-choice:focus-within,
+.glass-bg-choice-active {
+  border-color: color-mix(in srgb, var(--color-brand) 48%, var(--color-border));
+  background: color-mix(in srgb, var(--color-brand) 12%, var(--color-surface-2));
+}
+
+.glass-bg-dot {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 1px solid var(--color-border);
+}
+
+.glass-bg-dot-light {
+  background: linear-gradient(135deg, #f5efe3, #e2d1b8);
+}
+
+.glass-bg-dot-dark {
+  background: linear-gradient(135deg, #2b0f1f, #141019);
+}
+
+.glass-range-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.glass-range-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--color-brand);
+  cursor: pointer;
+}
+
+.glass-range-row output {
+  min-width: 46px;
+  text-align: right;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}

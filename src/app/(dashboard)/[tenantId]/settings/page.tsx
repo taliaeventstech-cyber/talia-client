@@ -52,6 +52,10 @@ export default async function SettingsPage({ params }: Props) {
             inlineOffset: widgetConfig.inlineOffset,
             blockOffset: widgetConfig.blockOffset,
             collisionStrategy: widgetConfig.collisionStrategy,
+            widgetTheme: widgetConfig.widgetTheme,
+            glassBackground: widgetConfig.glassBackground,
+            glassBlur: widgetConfig.glassBlur,
+            glassTranslucency: widgetConfig.glassTranslucency,
             autoOpen: widgetConfig.autoOpen,
             autoOpenDelay: widgetConfig.autoOpenDelay,
             allowedDomains: widgetConfig.allowedDomains,
@@ -93,6 +97,10 @@ function getWidgetConfig(value: unknown) {
       inlineOffset: 20,
       blockOffset: 20,
       collisionStrategy: 'auto' as const,
+      widgetTheme: 'solid' as const,
+      glassBackground: 'light' as const,
+      glassBlur: 18,
+      glassTranslucency: 58,
       autoOpen: false,
       autoOpenDelay: 3,
       allowedDomains: [],
@@ -113,6 +121,14 @@ function getWidgetConfig(value: unknown) {
     block_offset?: unknown
     collisionStrategy?: unknown
     collision_strategy?: unknown
+    widgetTheme?: unknown
+    widget_theme?: unknown
+    glassBackground?: unknown
+    glass_background?: unknown
+    glassBlur?: unknown
+    glass_blur?: unknown
+    glassTranslucency?: unknown
+    glass_translucency?: unknown
     autoOpen?: unknown
     autoOpenDelay?: unknown
     allowedDomains?: unknown
@@ -128,6 +144,10 @@ function getWidgetConfig(value: unknown) {
     inlineOffset: getPixelOffset(config.inlineOffset ?? config.inline_offset, 20),
     blockOffset: getPixelOffset(config.blockOffset ?? config.block_offset, 20),
     collisionStrategy: config.collisionStrategy === 'none' || config.collision_strategy === 'none' ? 'none' as const : 'auto' as const,
+    widgetTheme: config.widgetTheme === 'glass' || config.widget_theme === 'glass' ? 'glass' as const : 'solid' as const,
+    glassBackground: config.glassBackground === 'dark' || config.glass_background === 'dark' ? 'dark' as const : 'light' as const,
+    glassBlur: getBoundedNumber(config.glassBlur ?? config.glass_blur, 0, 30, 18),
+    glassTranslucency: getBoundedNumber(config.glassTranslucency ?? config.glass_translucency, 15, 85, 58),
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
     allowedDomains: getAllowedDomains(config.allowedDomains ?? config.allowed_domains),
@@ -143,6 +163,12 @@ function getPixelOffset(value: unknown, fallback: number) {
   const numericValue = typeof value === 'number' ? value : Number(value)
   if (!Number.isFinite(numericValue)) return fallback
   return Math.min(320, Math.max(12, Math.round(numericValue)))
+}
+
+function getBoundedNumber(value: unknown, min: number, max: number, fallback: number) {
+  const numericValue = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(numericValue)) return fallback
+  return Math.min(max, Math.max(min, Math.round(numericValue)))
 }
 
 function getAllowedDomains(value: unknown) {

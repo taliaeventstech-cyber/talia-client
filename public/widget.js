@@ -40,6 +40,10 @@
     var inlineOffset = getPixelOffset(config.inlineOffset || script.getAttribute('data-inline-offset'), 20);
     var blockOffset = getPixelOffset(config.blockOffset || script.getAttribute('data-block-offset'), 20);
     var collisionStrategy = getCollisionStrategy(config.collisionStrategy || script.getAttribute('data-collision-strategy'));
+    var widgetTheme = getWidgetTheme(config.widgetTheme || script.getAttribute('data-theme'));
+    var glassBackground = getGlassBackground(config.glassBackground || script.getAttribute('data-glass-background'));
+    var glassBlur = getGlassBlur(config.glassBlur != null ? config.glassBlur : script.getAttribute('data-glass-blur'));
+    var glassTranslucency = getGlassTranslucency(config.glassTranslucency != null ? config.glassTranslucency : script.getAttribute('data-glass-translucency'));
     var host = document.createElement('div');
     host.id = 'talia-widget-root';
     document.body.appendChild(host);
@@ -51,7 +55,7 @@
     });
 
     var root = host.attachShadow({ mode: 'open' });
-    root.innerHTML = getTemplate(assistantName, initialMessage, primaryColor, position, widgetSize);
+    root.innerHTML = getTemplate(assistantName, initialMessage, primaryColor, position, widgetSize, widgetTheme, glassBackground, glassBlur, glassTranslucency);
 
     var panel = root.querySelector('[data-panel]');
     var toggle = root.querySelector('[data-toggle]');
@@ -526,7 +530,7 @@
     notice.textContent = message;
   }
 
-  function getTemplate(assistantName, initialMessage, primaryColor, position, widgetSize) {
+  function getTemplate(assistantName, initialMessage, primaryColor, position, widgetSize, widgetTheme, glassBackground, glassBlur, glassTranslucency) {
     var togglePosition = getTogglePositionCss(position);
     var panelPosition = getPanelPositionCss(position);
     var toggleSize = getWidgetSizePixels(widgetSize);
@@ -535,25 +539,70 @@
       ? (position.indexOf('top') >= 0 ? 'top left' : 'bottom left')
       : (position.indexOf('top') >= 0 ? 'top right' : 'bottom right');
 
+    // Glass ("liquid glass") material: translucent, frosted chrome that blends with
+    // the host site. The reading zone stays on a solid, legible surface (only the
+    // chrome is translucent). The look mirrors the Agora preview (getGlassSkin in
+    // settings-form.tsx). Falls back to opaque under reduced transparency.
+    var glass = widgetTheme === 'glass';
+    var skin = getGlassSkin(primaryColor, glassBackground, glassTranslucency);
+    var filter = 'blur(' + glassBlur + 'px) saturate(200%) brightness(' + skin.bright + ')';
+    var glassFilter = glass ? 'backdrop-filter: ' + filter + '; -webkit-backdrop-filter: ' + filter + ';' : '';
+
+    var panelBackground = glass ? skin.panelFill : 'white';
+    var panelBorder = glass ? 'border: 0;' : 'border: .5px solid rgba(26,26,46,.12);';
+    var panelInset = glass ? ', inset 0 1.5px 0 ' + skin.spec + ', inset 0 -1px 0 ' + skin.spec2 + ', inset 0 0 0 1px ' + skin.hairline : '';
+    var panelShadow = glass ? skin.shadow : '0 0 0 rgba(0,0,0,0)';
+    var panelOpenShadow = glass ? skin.shadow : '0 12px 40px rgba(0,0,0,.16)';
+    var headerBackground = glass ? skin.chromeFill : primaryColor;
+    var headerFilter = glass ? glassFilter + ' box-shadow: inset 0 1px 0 ' + skin.spec + ';' : '';
+    var messagesBackground = glass ? skin.msgSurface : '#F5F2EC';
+    var botBubbleBackground = glass ? skin.botBubble : '#fff';
+    var botBubbleColor = glass ? skin.botText : '#1A1A2E';
+    var formBackground = glass ? skin.chromeFill : 'transparent';
+    var formFilter = glass ? glassFilter : '';
+    var formBorder = glass ? 'box-shadow: inset 0 1px 0 ' + skin.spec + ';' : 'border-top: .5px solid rgba(26,26,46,.12);';
+    var inputBackground = glass ? 'rgba(255,255,255,.82)' : '#fff';
+    var toggleBackground = glass ? skin.toggleFill : primaryColor;
+    var toggleFilter = glass ? glassFilter : '';
+    var toggleShadow = glass
+      ? skin.shadow + ', inset 0 1.5px 0 ' + skin.spec + ', inset 0 0 0 1px ' + skin.hairline
+      : '0 4px 16px rgba(0,0,0,.18)';
+    var specularBand = glass
+      ? '.panel::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 45%; border-radius: inherit; background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0) 90%); pointer-events: none; }'
+      : '';
+    var reducedTransparencyFallback = glass
+      ? '@media (prefers-reduced-transparency: reduce) {'
+        + ' .panel { background: ' + (glassBackground === 'dark' ? '#1b1622' : '#fff') + '; backdrop-filter: none; -webkit-backdrop-filter: none; }'
+        + ' .panel::before { display: none; }'
+        + ' .header { background: ' + primaryColor + '; backdrop-filter: none; -webkit-backdrop-filter: none; }'
+        + ' .messages { background: ' + (glassBackground === 'dark' ? '#161019' : '#F5F2EC') + '; }'
+        + ' .form { background: ' + (glassBackground === 'dark' ? '#1b1622' : '#fff') + '; backdrop-filter: none; -webkit-backdrop-filter: none; }'
+        + ' .toggle { background: ' + primaryColor + '; backdrop-filter: none; -webkit-backdrop-filter: none; }'
+        + ' }'
+      : '';
+
     return '\
       <style>\
         :host { all: initial; font-family: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }\
-        .toggle { position: fixed; ' + togglePosition + ' z-index: 2147483647; width: ' + toggleSize + 'px; height: ' + toggleSize + 'px; border: 0; border-radius: 999px; background: ' + primaryColor + '; color: white; cursor: pointer; display: grid; place-items: center; box-shadow: 0 4px 16px rgba(0,0,0,.18); transition: transform 150ms ease, box-shadow 150ms ease; }\
-        .toggle:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,.22); }\
+        .toggle { position: fixed; ' + togglePosition + ' z-index: 2147483647; width: ' + toggleSize + 'px; height: ' + toggleSize + 'px; border: 0; border-radius: 999px; background: ' + toggleBackground + '; ' + toggleFilter + ' color: white; cursor: pointer; display: grid; place-items: center; box-shadow: ' + toggleShadow + '; transition: transform 150ms ease, box-shadow 150ms ease; }\
+        .toggle:hover { transform: scale(1.08); }\
         .toggle:active { transform: scale(0.94); }\
         .toggle svg { width: ' + toggleIconSize + 'px; height: ' + toggleIconSize + 'px; display: block; }\
-        .panel { position: fixed; ' + panelPosition + ' z-index: 2147483647; width: min(400px, calc(100vw - 32px)); height: min(580px, calc(100vh - 112px)); max-height: calc(100vh - 112px); background: white; color: #1A1A2E; border: .5px solid rgba(26,26,46,.12); border-radius: 12px; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; opacity: 0; transform: translateY(14px) scale(0.97); transform-origin: ' + transformOrigin + '; pointer-events: none; transition: opacity 280ms cubic-bezier(0.16,1,0.3,1), transform 280ms cubic-bezier(0.16,1,0.3,1), box-shadow 280ms cubic-bezier(0.16,1,0.3,1); box-shadow: 0 0 0 rgba(0,0,0,0); }\
-        .panel--open { opacity: 1 !important; transform: translateY(0) scale(1) !important; pointer-events: auto !important; box-shadow: 0 12px 40px rgba(0,0,0,.16) !important; }\
-        .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px; background: ' + primaryColor + '; color: white; font: 600 17px "Space Grotesk", system-ui; }\
+        .panel { position: fixed; ' + panelPosition + ' z-index: 2147483647; width: min(400px, calc(100vw - 32px)); height: min(580px, calc(100vh - 112px)); max-height: calc(100vh - 112px); background: ' + panelBackground + '; ' + glassFilter + ' color: #1A1A2E; ' + panelBorder + ' border-radius: 14px; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; opacity: 0; transform: translateY(14px) scale(0.97); transform-origin: ' + transformOrigin + '; pointer-events: none; transition: opacity 280ms cubic-bezier(0.16,1,0.3,1), transform 280ms cubic-bezier(0.16,1,0.3,1), box-shadow 280ms cubic-bezier(0.16,1,0.3,1); box-shadow: ' + panelShadow + panelInset + '; }\
+        .panel--open { opacity: 1 !important; transform: translateY(0) scale(1) !important; pointer-events: auto !important; box-shadow: ' + panelOpenShadow + panelInset + ' !important; }\
+        ' + specularBand + '\
+        .header { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px; background: ' + headerBackground + '; ' + headerFilter + ' color: white; font: 600 17px "Space Grotesk", system-ui; }\
         .close { border: 0; background: transparent; color: white; font-size: 22px; cursor: pointer; line-height: 1; }\
-        .messages { padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 11px; background: #F5F2EC; }\
+        .messages { position: relative; padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 11px; background: ' + messagesBackground + '; }\
         .message { max-width: 84%; border-radius: 13px; padding: 11px 13px; font: 15px/1.45 "Space Grotesk", system-ui; white-space: pre-wrap; }\
         .message a { color: inherit; text-decoration: underline; overflow-wrap: anywhere; }\
-        .assistant { align-self: flex-start; background: #fff; color: #1A1A2E; }\
+        .assistant { align-self: flex-start; background: ' + botBubbleBackground + '; color: ' + botBubbleColor + '; box-shadow: 0 1px 2px rgba(0,0,0,.06); }\
         .user { align-self: flex-end; background: ' + primaryColor + '; color: white; }\
-        .form { display: flex; gap: 9px; padding: 13px; border-top: .5px solid rgba(26,26,46,.12); }\
-        .input { min-width: 0; flex: 1; border: .5px solid rgba(26,26,46,.25); border-radius: 7px; padding: 11px; font: 15px "Space Grotesk", system-ui; }\
+        .form { display: flex; gap: 9px; padding: 13px; background: ' + formBackground + '; ' + formFilter + ' ' + formBorder + ' }\
+        .input { min-width: 0; flex: 1; border: .5px solid rgba(26,26,46,.25); border-radius: 7px; padding: 11px; font: 15px "Space Grotesk", system-ui; background: ' + inputBackground + '; }\
         .send { border: 0; border-radius: 7px; padding: 0 14px; background: ' + primaryColor + '; color: white; font: 600 14px "Space Grotesk", system-ui; cursor: pointer; }\
+        @media (prefers-reduced-motion: reduce) { .panel { transition: opacity 120ms ease; } .toggle { transition: none; } }\
+        ' + reducedTransparencyFallback + '\
       </style>\
       <section class="panel" data-panel>\
         <div class="header"><span>' + escapeHtml(assistantName) + '</span><button class="close" data-close aria-label="Cerrar">×</button></div>\
@@ -588,6 +637,61 @@
 
   function getCollisionStrategy(value) {
     return value === 'none' ? 'none' : 'auto';
+  }
+
+  function getWidgetTheme(value) {
+    return value === 'glass' ? 'glass' : 'solid';
+  }
+
+  function getGlassBackground(value) {
+    return value === 'dark' ? 'dark' : 'light';
+  }
+
+  function getGlassBlur(value) {
+    var numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 18;
+    return Math.min(30, Math.max(0, Math.round(numeric)));
+  }
+
+  function getGlassTranslucency(value) {
+    var numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 58;
+    return Math.min(85, Math.max(15, Math.round(numeric)));
+  }
+
+  // Glass material tokens. Mirrors getGlassSkin in settings-form.tsx (the Agora
+  // preview) so the live preview and the deployed widget look identical.
+  // `translucency` is 15-85 where higher = more see-through chrome.
+  function getGlassSkin(color, background, translucency) {
+    var alpha = Math.min(0.85, Math.max(0.15, (100 - translucency) / 100));
+    if (background === 'dark') {
+      return {
+        bright: 1.16,
+        panelFill: 'color-mix(in srgb, ' + color + ' 16%, rgba(46,36,52,' + alpha + '))',
+        chromeFill: 'color-mix(in srgb, ' + color + ' 40%, rgba(40,30,46,' + (alpha * 0.85) + '))',
+        toggleFill: 'color-mix(in srgb, ' + color + ' 54%, rgba(60,44,66,0.3))',
+        spec: 'rgba(255,255,255,0.62)',
+        spec2: 'rgba(255,255,255,0.22)',
+        hairline: 'rgba(255,255,255,0.14)',
+        msgSurface: 'rgba(30,23,36,0.55)',
+        botBubble: 'rgba(255,255,255,0.15)',
+        botText: '#f3ecf3',
+        shadow: '0 20px 50px -14px rgba(0,0,0,0.62)'
+      };
+    }
+    return {
+      bright: 1.04,
+      panelFill: 'color-mix(in srgb, ' + color + ' 8%, rgba(255,255,255,' + alpha + '))',
+      chromeFill: 'color-mix(in srgb, ' + color + ' 40%, rgba(255,255,255,' + (alpha * 0.7) + '))',
+      toggleFill: 'color-mix(in srgb, ' + color + ' 56%, rgba(255,255,255,0.22))',
+      spec: 'rgba(255,255,255,0.9)',
+      spec2: 'rgba(255,255,255,0.4)',
+      hairline: 'rgba(255,255,255,0.6)',
+      msgSurface: 'rgba(250,248,243,0.55)',
+      botBubble: '#ffffff',
+      botText: '#211018',
+      shadow: '0 18px 45px -14px rgba(40,10,25,0.42)'
+    };
   }
 
   function getWidgetSize(value) {
