@@ -5,6 +5,8 @@ import { ArrowLeft, ArrowRight, Bot, Building2, Check, Globe2, Landmark, Mail, M
 import Image from 'next/image'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { createTenant, type OnboardingFormState } from './actions'
+import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
+import { getDefaultPhoneCountry, normalizeInternationalPhoneValue } from '@/lib/phone/international'
 
 type EntityType = 'theatre' | 'museum' | 'cinema' | 'auditorium' | 'festival' | 'cultural_center' | 'other'
 type Language = 'ca' | 'es' | 'en'
@@ -314,10 +316,16 @@ function WorkspaceCompany({
         </label>
       </div>
 
-      <label className="field">
-        {company.publicPhone}
-        <input value={values.fallbackPhone} onChange={(event) => update('fallbackPhone', event.target.value)} placeholder={company.publicPhonePlaceholder} />
-      </label>
+      <InternationalPhoneInput
+        key={values.primaryLanguage}
+        name="fallback_phone_input"
+        label={company.publicPhone}
+        defaultValue={values.fallbackPhone}
+        defaultCountry={getDefaultPhoneCountry(values.primaryLanguage)}
+        locale={values.primaryLanguage}
+        numberPlaceholder={company.publicPhonePlaceholder}
+        onValueChange={(value) => update('fallbackPhone', value)}
+      />
     </div>
   )
 }
@@ -444,6 +452,7 @@ function isWorkspaceStepValid(step: WorkspaceStep, values: FormValues, websiteUr
     return (
       values.theatreName.trim().length >= 2
       && values.fallbackEmail.trim().length > 3
+      && (!values.fallbackPhone.trim() || normalizeInternationalPhoneValue(values.fallbackPhone) !== null)
       && !websiteUrlError
     )
   }

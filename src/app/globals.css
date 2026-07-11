@@ -1280,6 +1280,25 @@ textarea {
   line-height: 1.45;
 }
 
+.international-phone-controls {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.9fr) minmax(150px, 1.4fr);
+  gap: 8px;
+}
+
+.international-phone-controls label,
+.international-phone-controls select,
+.international-phone-controls input {
+  min-width: 0;
+  width: 100%;
+}
+
+@media (max-width: 560px) {
+  .international-phone-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;

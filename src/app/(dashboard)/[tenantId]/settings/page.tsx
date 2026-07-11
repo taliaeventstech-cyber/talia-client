@@ -18,7 +18,7 @@ export default async function SettingsPage({ params }: Props) {
 
   const { data: theatre } = await admin
     .from('theatres')
-    .select('name, slug, plan, system_prompt, fallback_email, fallback_phone, website_url, widget_config, n8n_webhook_url')
+    .select('name, slug, plan, primary_language, system_prompt, fallback_email, fallback_phone, website_url, widget_config, n8n_webhook_url')
     .eq('id', tenantId)
     .single()
 
@@ -42,6 +42,7 @@ export default async function SettingsPage({ params }: Props) {
             system_prompt: theatre.system_prompt,
             fallback_email: theatre.fallback_email,
             fallback_phone: theatre.fallback_phone,
+            primary_language: theatre.primary_language ?? 'es',
           }}
           widgetConfig={{
             initialMessage: widgetConfig.initialMessage,

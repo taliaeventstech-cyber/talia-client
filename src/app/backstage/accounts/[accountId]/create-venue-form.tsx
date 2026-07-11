@@ -4,6 +4,7 @@ import { Plus, X } from 'lucide-react'
 import Link from 'next/link'
 import { useActionState, useState } from 'react'
 import { createVenueAction, type CreateTenantState } from '../../actions'
+import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 
 const initialState: CreateTenantState = { ok: false, message: '' }
 
@@ -111,10 +112,12 @@ export function CreateVenueForm({ accountId }: { accountId: string }) {
           </div>
 
           <div className="form-row">
-            <label className="field">
-              Teléfono fallback
-              <input name="fallback_phone" placeholder="+34 900 000 000" />
-            </label>
+            <InternationalPhoneInput
+              name="fallback_phone"
+              label="Teléfono fallback"
+              defaultCountry="ES"
+              locale="es"
+            />
           </div>
 
           <fieldset className="module-checkbox-grid">

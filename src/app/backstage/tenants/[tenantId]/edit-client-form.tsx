@@ -6,6 +6,8 @@ import { ActionToast } from '@/components/ui/action-toast'
 import { normalizeChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import { defaultEmailClassificationTopics, getEmailAgentSettings } from '@/lib/email/settings'
 import { updateTenantAction, type UpdateTenantState } from '../../actions'
+import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
+import { getDefaultPhoneCountry } from '@/lib/phone/international'
 
 const initialState: UpdateTenantState = { ok: false, message: '' }
 
@@ -193,10 +195,13 @@ export function EditClientForm({
             Email fallback
             <input name="fallback_email" type="email" defaultValue={client.fallback_email ?? ''} />
           </label>
-          <label className="field">
-            Teléfono fallback
-            <input name="fallback_phone" defaultValue={client.fallback_phone ?? ''} />
-          </label>
+          <InternationalPhoneInput
+            name="fallback_phone"
+            label="Teléfono fallback"
+            defaultValue={client.fallback_phone}
+            defaultCountry={getDefaultPhoneCountry(client.primary_language)}
+            locale="es"
+          />
         </div>
       </SettingsTabPanel>
 

@@ -17,6 +17,7 @@ import type { Json } from '@/types/database.types'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
+import { optionalInternationalPhoneSchema } from '@/lib/phone/schema'
 
 export type SettingsFormState = {
   ok: boolean
@@ -33,7 +34,7 @@ const settingsSchema = z.object({
   blockOffset: z.coerce.number().int().min(12).max(320),
   collisionStrategy: z.enum(['auto', 'none']),
   fallbackEmail: z.string().trim().email('El email no es válido').optional().or(z.literal('')),
-  fallbackPhone: z.string().trim().max(40).optional(),
+  fallbackPhone: optionalInternationalPhoneSchema,
   fallbackMessage: z.string().trim().max(1000, 'El mensaje fallback no puede superar los 1000 caracteres').optional(),
   fallbackWhatsApp: z.boolean(),
   autoOpen: z.boolean(),
