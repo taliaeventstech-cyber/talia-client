@@ -8,6 +8,7 @@ type TaliaAiChatResponse = {
   model?: unknown
   usage?: unknown
   sources?: unknown
+  actions?: unknown
   metadata?: unknown
   error?: unknown
   details?: unknown
@@ -120,6 +121,7 @@ export class TaliaAiChatAgentProvider implements ChatAgentProvider {
         model: typeof body.model === 'string' ? body.model : undefined,
         usage: isRecord(body.usage) ? body.usage : undefined,
         sources: Array.isArray(body.sources) ? body.sources : undefined,
+        actions: Array.isArray(body.actions) ? body.actions : undefined,
         metadata: isRecord(body.metadata) ? body.metadata : undefined,
       }
     } catch (error) {

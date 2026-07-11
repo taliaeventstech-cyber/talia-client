@@ -141,7 +141,7 @@
       .then(function (response) { return response.json(); })
       .then(function (data) {
         removeTyping(messages);
-        appendMessage(messages, data.reply || getChatErrorMessage(data.error) || 'No he podido responder ahora mismo.', 'assistant');
+        appendMessage(messages, data.reply || getChatErrorMessage(data.error) || 'No he podido responder ahora mismo.', 'assistant', false, data.actions);
       })
       .catch(function () {
         removeTyping(messages);
@@ -149,33 +149,65 @@
       });
   }
 
-  function appendMessage(container, text, role, typing) {
+  function appendMessage(container, text, role, typing, actions) {
     var item = document.createElement('div');
     item.className = 'message ' + role;
     if (typing) item.setAttribute('data-typing', 'true');
-    appendMessageContent(item, text);
+    appendMessageContent(item, text, actions);
     container.appendChild(item);
     container.scrollTop = container.scrollHeight;
   }
 
-  function appendMessageContent(container, text) {
+  function appendMessageContent(container, text, actions) {
     var value = String(text || '');
     var urlPattern = /https?:\/\/[^\s]+/g;
+    var safeActions = normalizeMessageActions(actions);
     var cursor = 0;
-    var match;
+    while (cursor < value.length) {
+      urlPattern.lastIndex = cursor;
+      var urlMatch = urlPattern.exec(value);
+      var actionMatch = findNextActionMatch(value, cursor, safeActions);
+      var useAction = actionMatch && (!urlMatch || actionMatch.index <= urlMatch.index);
+      var match = useAction ? actionMatch : urlMatch;
+      if (!match) break;
 
-    while ((match = urlPattern.exec(value)) !== null) {
       if (match.index > cursor) container.appendChild(document.createTextNode(value.slice(cursor, match.index)));
       var link = document.createElement('a');
-      link.href = match[0];
-      link.textContent = match[0];
+      link.href = useAction ? match.action.href : match[0];
+      link.textContent = useAction ? match.action.label : match[0];
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       container.appendChild(link);
-      cursor = match.index + match[0].length;
+      cursor = match.index + (useAction ? match.action.label.length : match[0].length);
     }
 
     if (cursor < value.length) container.appendChild(document.createTextNode(value.slice(cursor)));
+  }
+
+  function normalizeMessageActions(actions) {
+    if (!Array.isArray(actions)) return [];
+    return actions.filter(function (action) {
+      if (!action || action.type !== 'whatsapp' || typeof action.label !== 'string' || typeof action.href !== 'string') return false;
+      if (!action.label || action.label.length > 100) return false;
+      try {
+        var url = new URL(action.href);
+        return url.protocol === 'https:' && url.hostname === 'wa.me' && /^\/\d{8,15}$/.test(url.pathname);
+      } catch {
+        return false;
+      }
+    });
+  }
+
+  function findNextActionMatch(value, cursor, actions) {
+    var best = null;
+    actions.forEach(function (action) {
+      var prefix = 'WhatsApp: ';
+      var tokenIndex = value.indexOf(prefix + action.label, cursor);
+      if (tokenIndex === -1) return;
+      var labelIndex = tokenIndex + prefix.length;
+      if (!best || labelIndex < best.index) best = { index: labelIndex, action: action };
+    });
+    return best;
   }
 
   function removeTyping(container) {

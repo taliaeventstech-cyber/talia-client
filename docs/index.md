@@ -27,6 +27,7 @@ This directory holds the curated documentation for product, architecture, requir
 - [`architecture/agent-runtime.md`](architecture/agent-runtime.md): internal runtime contract to decouple n8n/own backend.
 - [`architecture/talia-ai-service.md`](architecture/talia-ai-service.md): spec of the separate `talia-ai` repo for Fly.io.
 - [`architecture/knowledge-ingestion.md`](architecture/knowledge-ingestion.md): ingestion of FAQs, Excel, PDFs, URLs and future retrieval layer.
+- [`architecture/ticketing-integrations-prestudy.md`](architecture/ticketing-integrations-prestudy.md): prestudy for public API and ticketing connector architecture.
 - [`architecture/scaling-roadmap-lisbon-2026.md`](architecture/scaling-roadmap-lisbon-2026.md): scalable architecture plan toward November 2026.
 
 ## Requirements

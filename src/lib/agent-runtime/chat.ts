@@ -41,6 +41,7 @@ export type ChatAgentRuntimeResult =
     model?: string
     usage?: Record<string, unknown>
     sources?: unknown[]
+    actions?: unknown[]
     metadata?: Record<string, unknown>
   }
   | {
