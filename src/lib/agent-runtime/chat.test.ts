@@ -193,6 +193,18 @@ describe('TaliaAiChatAgentProvider', () => {
     const provider = new TaliaAiChatAgentProvider()
     await provider.respond({
       ...runtimeInput,
+      tenant: {
+        ...runtimeInput.tenant,
+        aiSettings: {
+          temperature: 0.2,
+          groundingMode: 'strict',
+          minContextScore: 0.3,
+          maxContextItems: 5,
+          fallbackContacts: true,
+          fallbackMessage: 'No podemos confirmar esa información.',
+          fallbackWhatsApp: true,
+        },
+      },
       relevantKnowledge: [],
     })
 
@@ -200,6 +212,10 @@ describe('TaliaAiChatAgentProvider', () => {
     expect(JSON.parse(String(requestInit?.body)).tenant).toMatchObject({
       fallback_email: 'info@example.test',
       fallback_phone: '+34000000000',
+      fallback: {
+        custom_message: 'No podemos confirmar esa información.',
+        whatsapp_enabled: true,
+      },
     })
   })
 

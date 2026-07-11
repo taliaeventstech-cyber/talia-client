@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createTenantForUser } from '@/lib/tenants/provisioning'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
+import { optionalInternationalPhoneSchema } from '@/lib/phone/schema'
 
 export type OnboardingFormState = {
   ok: boolean
@@ -21,7 +22,7 @@ const onboardingSchema = z.object({
   websiteUrl: z.string().trim().url('La web debe ser una URL válida').optional().or(z.literal('')),
   primaryLanguage: z.enum(['ca', 'es', 'en']),
   fallbackEmail: z.string().trim().email('El email de contacto no es válido').optional().or(z.literal('')),
-  fallbackPhone: z.string().trim().max(40).optional(),
+  fallbackPhone: optionalInternationalPhoneSchema,
   onboardingGoals: z.array(z.enum(['faqs', 'agenda', 'tickets', 'hours', 'location', 'accessibility', 'prices', 'email'])).min(1).max(3),
 })
 

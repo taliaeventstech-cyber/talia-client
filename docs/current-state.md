@@ -104,6 +104,12 @@ Implemented:
 - Initial message and brand color.
 - Channel prompt.
 - Configurable fallback.
+- Structured fallback policy delegated to `talia-ai`, with an optional tenant
+  message, verified email/phone contacts, an explicit WhatsApp toggle and
+  traceable fallback metadata in Backstage.
+- International fallback phone input shared by onboarding, Agora and Backstage;
+  country prefix and national number are edited separately while storage and
+  service contracts keep a single normalized E.164 value.
 - Persisted conversations and messages.
 - Basic analytics of topics and intents.
 - Usage tied to billing/limits.

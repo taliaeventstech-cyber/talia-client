@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { SettingsForm } from './settings-form'
+import { normalizeChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -17,11 +18,12 @@ export default async function SettingsPage({ params }: Props) {
 
   const { data: theatre } = await admin
     .from('theatres')
-    .select('name, slug, plan, system_prompt, fallback_email, fallback_phone, website_url, widget_config, n8n_webhook_url')
+    .select('name, slug, plan, primary_language, system_prompt, fallback_email, fallback_phone, website_url, widget_config, n8n_webhook_url')
     .eq('id', tenantId)
     .single()
 
   const widgetConfig = getWidgetConfig(theatre?.widget_config)
+  const aiSettings = getAiSettings(theatre?.widget_config)
 
   return (
     <main className="page-shell">
@@ -40,6 +42,7 @@ export default async function SettingsPage({ params }: Props) {
             system_prompt: theatre.system_prompt,
             fallback_email: theatre.fallback_email,
             fallback_phone: theatre.fallback_phone,
+            primary_language: theatre.primary_language ?? 'es',
           }}
           widgetConfig={{
             initialMessage: widgetConfig.initialMessage,
@@ -49,9 +52,15 @@ export default async function SettingsPage({ params }: Props) {
             inlineOffset: widgetConfig.inlineOffset,
             blockOffset: widgetConfig.blockOffset,
             collisionStrategy: widgetConfig.collisionStrategy,
+            widgetTheme: widgetConfig.widgetTheme,
+            glassBackground: widgetConfig.glassBackground,
+            glassBlur: widgetConfig.glassBlur,
+            glassTranslucency: widgetConfig.glassTranslucency,
             autoOpen: widgetConfig.autoOpen,
             autoOpenDelay: widgetConfig.autoOpenDelay,
             allowedDomains: widgetConfig.allowedDomains,
+            fallbackMessage: aiSettings.fallbackMessage,
+            fallbackWhatsApp: aiSettings.fallbackWhatsApp,
           }}
           labels={dictionary.settings.form}
           previewLabel={dictionary.settings.preview}
@@ -69,6 +78,14 @@ export default async function SettingsPage({ params }: Props) {
   )
 }
 
+function getAiSettings(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return normalizeChatbotAiSettings(undefined)
+  }
+  const config = value as { chatbotAi?: unknown; chatbot_ai?: unknown }
+  return normalizeChatbotAiSettings(config.chatbotAi ?? config.chatbot_ai)
+}
+
 function getWidgetConfig(value: unknown) {
   if (!value || typeof value !== 'object') {
     return {
@@ -80,6 +97,10 @@ function getWidgetConfig(value: unknown) {
       inlineOffset: 20,
       blockOffset: 20,
       collisionStrategy: 'auto' as const,
+      widgetTheme: 'solid' as const,
+      glassBackground: 'light' as const,
+      glassBlur: 18,
+      glassTranslucency: 58,
       autoOpen: false,
       autoOpenDelay: 3,
       allowedDomains: [],
@@ -100,6 +121,14 @@ function getWidgetConfig(value: unknown) {
     block_offset?: unknown
     collisionStrategy?: unknown
     collision_strategy?: unknown
+    widgetTheme?: unknown
+    widget_theme?: unknown
+    glassBackground?: unknown
+    glass_background?: unknown
+    glassBlur?: unknown
+    glass_blur?: unknown
+    glassTranslucency?: unknown
+    glass_translucency?: unknown
     autoOpen?: unknown
     autoOpenDelay?: unknown
     allowedDomains?: unknown
@@ -115,6 +144,10 @@ function getWidgetConfig(value: unknown) {
     inlineOffset: getPixelOffset(config.inlineOffset ?? config.inline_offset, 20),
     blockOffset: getPixelOffset(config.blockOffset ?? config.block_offset, 20),
     collisionStrategy: config.collisionStrategy === 'none' || config.collision_strategy === 'none' ? 'none' as const : 'auto' as const,
+    widgetTheme: config.widgetTheme === 'glass' || config.widget_theme === 'glass' ? 'glass' as const : 'solid' as const,
+    glassBackground: config.glassBackground === 'dark' || config.glass_background === 'dark' ? 'dark' as const : 'light' as const,
+    glassBlur: getBoundedNumber(config.glassBlur ?? config.glass_blur, 0, 30, 18),
+    glassTranslucency: getBoundedNumber(config.glassTranslucency ?? config.glass_translucency, 15, 85, 58),
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
     allowedDomains: getAllowedDomains(config.allowedDomains ?? config.allowed_domains),
@@ -130,6 +163,12 @@ function getPixelOffset(value: unknown, fallback: number) {
   const numericValue = typeof value === 'number' ? value : Number(value)
   if (!Number.isFinite(numericValue)) return fallback
   return Math.min(320, Math.max(12, Math.round(numericValue)))
+}
+
+function getBoundedNumber(value: unknown, min: number, max: number, fallback: number) {
+  const numericValue = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(numericValue)) return fallback
+  return Math.min(max, Math.max(min, Math.round(numericValue)))
 }
 
 function getAllowedDomains(value: unknown) {

@@ -567,7 +567,72 @@ function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): 
   const clarificationResolution = summarizeClarificationResolution(metadata.clarification_resolution)
   if (clarificationResolution) result.clarification_resolution = clarificationResolution
 
+  const contextAssembly = summarizeContextAssembly(metadata.context_assembly)
+  if (contextAssembly) result.context_assembly = contextAssembly
+
+  const fallback = summarizeFallback(metadata.fallback)
+  if (fallback) result.fallback = fallback
+
   return result
+}
+
+function summarizeFallback(value: unknown): Json | null {
+  if (!isRecord(value)) return null
+
+  const reason = typeof value.reason === 'string' ? value.reason : null
+  const strategy = typeof value.strategy === 'string' ? value.strategy : null
+  if (!reason || !strategy) return null
+
+  return {
+    reason,
+    strategy,
+    language: typeof value.language === 'string' ? value.language : null,
+    channels: Array.isArray(value.channels)
+      ? value.channels.filter((channel): channel is string => typeof channel === 'string').slice(0, 5)
+      : [],
+    template_source: typeof value.template_source === 'string' ? value.template_source : null,
+    whatsapp_link_used: value.whatsapp_link_used === true,
+    trigger: typeof value.trigger === 'string' ? value.trigger : null,
+  }
+}
+
+function summarizeContextAssembly(value: unknown): Json | null {
+  if (!isRecord(value)) return null
+
+  const mode = typeof value.mode === 'string' ? value.mode : null
+  if (!mode) return null
+
+  const rejected = Array.isArray(value.rejected)
+    ? value.rejected
+      .map(summarizeContextAssemblyRejection)
+      .filter((item): item is Json => Boolean(item))
+      .slice(0, 8)
+    : []
+
+  return {
+    mode,
+    focus: typeof value.focus === 'string' ? value.focus : null,
+    reason: typeof value.reason === 'string' ? value.reason : null,
+    confidence: typeof value.confidence === 'number' && Number.isFinite(value.confidence) ? value.confidence : null,
+    selected_count: typeof value.selected_count === 'number' && Number.isFinite(value.selected_count) ? value.selected_count : null,
+    rejected_count: typeof value.rejected_count === 'number' && Number.isFinite(value.rejected_count) ? value.rejected_count : rejected.length,
+    rejected,
+  }
+}
+
+function summarizeContextAssemblyRejection(value: unknown): Json | null {
+  if (!isRecord(value)) return null
+
+  const id = typeof value.id === 'string' ? value.id : null
+  const score = typeof value.score === 'number' && Number.isFinite(value.score) ? value.score : null
+  const reason = typeof value.reason === 'string' ? value.reason : null
+  if (!id && !reason) return null
+
+  return {
+    id,
+    score,
+    reason,
+  }
 }
 
 function summarizeClarification(value: unknown): Json | null {

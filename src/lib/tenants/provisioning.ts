@@ -45,6 +45,10 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
     inlineOffset: 20,
     blockOffset: 20,
     collisionStrategy: 'auto',
+    widgetTheme: 'solid',
+    glassBackground: 'light',
+    glassBlur: 18,
+    glassTranslucency: 58,
     tone: input.chatbotTone || 'close',
     fallbackBehavior: input.fallbackBehavior || 'contact',
     accessibility: {

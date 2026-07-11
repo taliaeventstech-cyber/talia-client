@@ -9,10 +9,15 @@ import { createClient } from '@/lib/supabase/server'
 import { assertTenantAdmin } from '@/lib/tenants/service'
 import { updateTenantSettings as updateTenantSettingsRecord } from '@/lib/tenants/settings'
 import { normalizeAllowedWidgetDomains } from '@/lib/widget/domain-allowlist'
+import {
+  chatbotAiSettingsToWidgetConfig,
+  normalizeChatbotAiSettings,
+} from '@/lib/chatbot/ai-settings'
 import type { Json } from '@/types/database.types'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
+import { optionalInternationalPhoneSchema } from '@/lib/phone/schema'
 
 export type SettingsFormState = {
   ok: boolean
@@ -28,8 +33,14 @@ const settingsSchema = z.object({
   inlineOffset: z.coerce.number().int().min(12).max(320),
   blockOffset: z.coerce.number().int().min(12).max(320),
   collisionStrategy: z.enum(['auto', 'none']),
+  widgetTheme: z.enum(['solid', 'glass']),
+  glassBackground: z.enum(['light', 'dark']),
+  glassBlur: z.coerce.number().int().min(0).max(30),
+  glassTranslucency: z.coerce.number().int().min(15).max(85),
   fallbackEmail: z.string().trim().email('El email no es válido').optional().or(z.literal('')),
-  fallbackPhone: z.string().trim().max(40).optional(),
+  fallbackPhone: optionalInternationalPhoneSchema,
+  fallbackMessage: z.string().trim().max(1000, 'El mensaje fallback no puede superar los 1000 caracteres').optional(),
+  fallbackWhatsApp: z.boolean(),
   autoOpen: z.boolean(),
   autoOpenDelay: z.coerce.number().int().min(0).max(60),
   allowedDomains: z.string().trim().max(2000).optional(),
@@ -70,8 +81,14 @@ export async function updateTenantSettings(
     inlineOffset: formData.get('inline_offset') ?? 20,
     blockOffset: formData.get('block_offset') ?? 20,
     collisionStrategy: formData.get('collision_strategy') === 'auto' ? 'auto' : 'none',
+    widgetTheme: formData.get('widget_theme') === 'glass' ? 'glass' : 'solid',
+    glassBackground: formData.get('glass_background') === 'dark' ? 'dark' : 'light',
+    glassBlur: formData.get('glass_blur') ?? 18,
+    glassTranslucency: formData.get('glass_translucency') ?? 58,
     fallbackEmail: String(formData.get('fallback_email') ?? '').trim(),
     fallbackPhone: String(formData.get('fallback_phone') ?? '').trim(),
+    fallbackMessage: String(formData.get('fallback_message') ?? '').trim(),
+    fallbackWhatsApp: formData.get('fallback_whatsapp') === 'on',
     autoOpen: formData.get('auto_open') === 'on',
     autoOpenDelay: formData.get('auto_open_delay') ?? 3,
     allowedDomains: String(formData.get('allowed_domains') ?? '').trim(),
@@ -84,6 +101,7 @@ export async function updateTenantSettings(
 
   const { data } = parsed
   const existingWidget = await getExistingWidgetConfig(admin, tenantId)
+  const existingAiSettings = normalizeChatbotAiSettings(existingWidget.chatbotAi ?? existingWidget.chatbot_ai)
   const updated = await updateTenantSettingsRecord(admin, tenantId, {
     plan: data.plan,
     systemPrompt: data.systemPrompt,
@@ -99,9 +117,18 @@ export async function updateTenantSettings(
       inlineOffset: data.inlineOffset,
       blockOffset: data.blockOffset,
       collisionStrategy: data.collisionStrategy,
+      widgetTheme: data.widgetTheme,
+      glassBackground: data.glassBackground,
+      glassBlur: data.glassBlur,
+      glassTranslucency: data.glassTranslucency,
       autoOpen: data.autoOpen,
       autoOpenDelay: data.autoOpenDelay,
       allowedDomains: normalizeAllowedWidgetDomains(data.allowedDomains ?? ''),
+      chatbotAi: chatbotAiSettingsToWidgetConfig({
+        ...existingAiSettings,
+        fallbackMessage: data.fallbackMessage || null,
+        fallbackWhatsApp: data.fallbackWhatsApp,
+      }),
     },
   })
 

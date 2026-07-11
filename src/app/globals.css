@@ -1280,6 +1280,25 @@ textarea {
   line-height: 1.45;
 }
 
+.international-phone-controls {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.9fr) minmax(150px, 1.4fr);
+  gap: 8px;
+}
+
+.international-phone-controls label,
+.international-phone-controls select,
+.international-phone-controls input {
+  min-width: 0;
+  width: 100%;
+}
+
+@media (max-width: 560px) {
+  .international-phone-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
@@ -5458,6 +5477,85 @@ textarea {
   padding-top: 10px;
 }
 
+.context-assembly-trace {
+  display: grid;
+  gap: 10px;
+  border: 0.5px solid color-mix(in srgb, var(--color-success) 24%, var(--color-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-success) 6%, var(--color-surface-2));
+  padding: 10px;
+}
+
+.context-assembly-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.context-assembly-header > span,
+.context-assembly-rejections > span {
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.context-assembly-header div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.context-assembly-header div span {
+  border: 0.5px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 6px;
+}
+
+.context-assembly-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.context-assembly-stats div {
+  display: grid;
+  gap: 2px;
+}
+
+.context-assembly-stats dt {
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.context-assembly-stats dd {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.context-assembly-rejections {
+  display: grid;
+  gap: 5px;
+  border-top: 0.5px solid var(--color-border);
+  padding-top: 8px;
+}
+
+.context-assembly-rejections p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
 .retrieval-chunk-list {
   display: grid;
   gap: 8px;
@@ -5561,6 +5659,18 @@ textarea {
 
   .retrieval-chunk-header div {
     justify-content: flex-start;
+  }
+
+  .context-assembly-header {
+    display: grid;
+  }
+
+  .context-assembly-header div {
+    justify-content: flex-start;
+  }
+
+  .context-assembly-stats {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -6883,4 +6993,233 @@ textarea {
     right: auto;
     bottom: 8%;
   }
+}
+
+/* Widget style (solid vs glass) selector in chatbot settings */
+.widget-theme-field {
+  display: grid;
+  gap: 8px;
+}
+
+.widget-theme-field legend {
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.widget-theme-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.widget-theme-choice {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface-2) 56%, transparent);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  padding: 12px 13px;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.widget-theme-choice:hover,
+.widget-theme-choice:focus-within,
+.widget-theme-choice-active {
+  border-color: color-mix(in srgb, var(--color-brand) 48%, var(--color-border));
+  background: color-mix(in srgb, var(--color-brand) 12%, var(--color-surface-2));
+}
+
+.widget-theme-choice-text {
+  display: grid;
+  gap: 2px;
+}
+
+.widget-theme-choice-text strong {
+  font-size: 13.5px;
+}
+
+.widget-theme-choice-text small {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.widget-theme-swatch {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+}
+
+.widget-theme-swatch-solid {
+  background: linear-gradient(150deg, var(--color-brand) 0%, var(--color-brand) 45%, #ffffff 45%, #ffffff 100%);
+}
+
+.widget-theme-swatch-glass {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 20% 10%, color-mix(in srgb, var(--color-brand) 60%, transparent), transparent 60%),
+    radial-gradient(90% 80% at 90% 90%, rgba(255, 196, 120, 0.6), transparent 60%),
+    linear-gradient(135deg, #2b0f1f, #141019);
+}
+
+.widget-theme-swatch-glass::after {
+  content: "";
+  position: absolute;
+  inset: 8px 6px auto 6px;
+  height: 15px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-brand) 20%, rgba(255, 255, 255, 0.55));
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.widget-theme-choice input:focus-visible + .widget-theme-swatch {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+/* Glass tuning sub-controls (shown only when the glass style is selected) */
+.glass-controls {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 0.5px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-2) 40%, transparent);
+}
+
+.glass-bg-field {
+  display: grid;
+  gap: 8px;
+}
+
+.glass-bg-field legend {
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.glass-bg-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.glass-bg-choice {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-surface-2) 56%, transparent);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  padding: 10px 12px;
+  font-size: 13px;
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.glass-bg-choice:hover,
+.glass-bg-choice:focus-within,
+.glass-bg-choice-active {
+  border-color: color-mix(in srgb, var(--color-brand) 48%, var(--color-border));
+  background: color-mix(in srgb, var(--color-brand) 12%, var(--color-surface-2));
+}
+
+.glass-bg-dot {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 1px solid var(--color-border);
+}
+
+.glass-bg-dot-light {
+  background: linear-gradient(135deg, #f5efe3, #e2d1b8);
+}
+
+.glass-bg-dot-dark {
+  background: linear-gradient(135deg, #2b0f1f, #141019);
+}
+
+.glass-range-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.glass-range-row input[type="range"] {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  background: transparent;
+  cursor: pointer;
+  /* --fill (0%–100%) is set inline from the value so the track fills fully at 100% */
+  --track-fill: linear-gradient(
+    to right,
+    var(--color-brand) var(--fill, 0%),
+    color-mix(in srgb, var(--color-text-tertiary) 32%, transparent) var(--fill, 0%)
+  );
+}
+
+.glass-range-row input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--track-fill);
+}
+
+.glass-range-row input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--track-fill);
+}
+
+.glass-range-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -5px;
+  border-radius: 999px;
+  background: var(--color-brand);
+  border: 2px solid var(--color-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.glass-range-row input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--color-brand);
+  border: 2px solid var(--color-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.glass-range-row input[type="range"]:focus {
+  outline: none;
+}
+
+.glass-range-row input[type="range"]:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.glass-range-row input[type="range"]:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.glass-range-row output {
+  min-width: 46px;
+  text-align: right;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
 }

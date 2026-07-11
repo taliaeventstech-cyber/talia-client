@@ -226,6 +226,8 @@ export default async function BackstageClientPage({ params }: Props) {
               const userMessage = typeof metadata.user_message === 'string' ? metadata.user_message : null
               const retrievalStatus = typeof metadata.retrieval_status === 'string' ? metadata.retrieval_status : null
               const retrievalChunks = getRetrievalChunks(metadata.retrieval)
+              const contextAssembly = getContextAssembly(metadata)
+              const fallbackTrace = getFallbackTrace(metadata)
               const fallbackReason = typeof metadata.fallback_reason === 'string' ? metadata.fallback_reason : null
               const lowConfidence = metadata.low_confidence === true
               const traceSummary = getTraceSummary({
@@ -268,6 +270,8 @@ export default async function BackstageClientPage({ params }: Props) {
                     <div>
                       {model ? <span>{model}</span> : null}
                       {retrievalStatus ? <span>{getRetrievalStatusLabel(retrievalStatus)}</span> : null}
+                      {contextAssembly ? <span>{getContextAssemblyModeLabel(contextAssembly.mode)}</span> : null}
+                      {fallbackTrace ? <span>{fallbackTrace.strategy}</span> : null}
                       {typeof traceSummary.topScore === 'number' ? <span>score {traceSummary.topScore.toFixed(2)}</span> : null}
                     </div>
                   </div>
@@ -289,6 +293,12 @@ export default async function BackstageClientPage({ params }: Props) {
                           <p>{userMessage}</p>
                         </div>
                       ) : null}
+
+                      {contextAssembly ? (
+                        <ContextAssemblyTrace contextAssembly={contextAssembly} />
+                      ) : null}
+
+                      {fallbackTrace ? <FallbackTrace fallback={fallbackTrace} /> : null}
 
                       {sources.length ? (
                         <ConversationSourceList sources={sources} sourceById={sourceById} />
@@ -389,6 +399,109 @@ type RetrievalChunk = {
   rank: number | null
   language: string | null
   preview: string | null
+}
+
+type ContextAssembly = {
+  mode: string
+  focus: string | null
+  reason: string | null
+  confidence: number | null
+  selected_count: number | null
+  rejected_count: number | null
+  rejected: ContextAssemblyRejection[]
+}
+
+type ContextAssemblyRejection = {
+  id: string | null
+  score: number | null
+  reason: string | null
+}
+
+type FallbackTraceData = {
+  reason: string
+  strategy: string
+  language: string | null
+  channels: string[]
+  template_source: string | null
+  whatsapp_link_used: boolean
+  trigger: string | null
+}
+
+function FallbackTrace({ fallback }: { fallback: FallbackTraceData }) {
+  return (
+    <div className="context-assembly-trace">
+      <div className="context-assembly-header">
+        <span>FallbackPolicy</span>
+        <div>
+          <span>{fallback.strategy}</span>
+          {fallback.language ? <span>{fallback.language}</span> : null}
+        </div>
+      </div>
+      <dl className="context-assembly-stats">
+        <div>
+          <dt>Motivo</dt>
+          <dd>{fallback.reason}</dd>
+        </div>
+        <div>
+          <dt>Canales</dt>
+          <dd>{fallback.channels.join(', ') || 'ninguno'}</dd>
+        </div>
+        <div>
+          <dt>Plantilla</dt>
+          <dd>{fallback.template_source ?? '-'}</dd>
+        </div>
+        <div>
+          <dt>Decisión</dt>
+          <dd>{fallback.trigger ?? '-'}</dd>
+        </div>
+      </dl>
+    </div>
+  )
+}
+
+function ContextAssemblyTrace({
+  contextAssembly,
+}: {
+  contextAssembly: ContextAssembly
+}) {
+  return (
+    <div className="context-assembly-trace">
+      <div className="context-assembly-header">
+        <span>ContextAssembler</span>
+        <div>
+          <span>{getContextAssemblyModeLabel(contextAssembly.mode)}</span>
+          {contextAssembly.focus ? <span>{getContextAssemblyFocusLabel(contextAssembly.focus)}</span> : null}
+          {typeof contextAssembly.confidence === 'number' ? <span>confianza {contextAssembly.confidence.toFixed(2)}</span> : null}
+        </div>
+      </div>
+      <dl className="context-assembly-stats">
+        <div>
+          <dt>Motivo</dt>
+          <dd>{contextAssembly.reason ? getContextAssemblyReasonLabel(contextAssembly.reason) : '-'}</dd>
+        </div>
+        <div>
+          <dt>Seleccionados</dt>
+          <dd>{contextAssembly.selected_count ?? '-'}</dd>
+        </div>
+        <div>
+          <dt>Descartados</dt>
+          <dd>{contextAssembly.rejected_count ?? '-'}</dd>
+        </div>
+      </dl>
+      {contextAssembly.rejected.length ? (
+        <div className="context-assembly-rejections">
+          <span>Contexto descartado</span>
+          {contextAssembly.rejected.map((rejection, index) => (
+            <p className="mono" key={`${rejection.id ?? 'rejected'}-${index}`}>
+              {rejection.id ? shortId(rejection.id) : '-'}
+              {typeof rejection.score === 'number' ? ` · score ${rejection.score.toFixed(2)}` : ''}
+              {rejection.reason ? ` · ${getContextAssemblyReasonLabel(rejection.reason)}` : ''}
+            </p>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 function ConversationSourceList({
@@ -588,6 +701,68 @@ function getRetrievalChunks(retrieval: unknown): RetrievalChunk[] {
     .filter((chunk): chunk is RetrievalChunk => Boolean(chunk))
 }
 
+function getContextAssembly(metadata: unknown): ContextAssembly | null {
+  if (!isRecord(metadata)) return null
+  const agentMetadata = isRecord(metadata.agent_metadata) ? metadata.agent_metadata : metadata
+  const contextAssembly = isRecord(agentMetadata.context_assembly) ? agentMetadata.context_assembly : null
+  if (!contextAssembly) return null
+
+  const mode = typeof contextAssembly.mode === 'string' ? contextAssembly.mode : null
+  if (!mode) return null
+
+  const rejected = Array.isArray(contextAssembly.rejected)
+    ? contextAssembly.rejected
+      .map((item) => {
+        if (!isRecord(item)) return null
+        const id = typeof item.id === 'string' ? item.id : null
+        const score = typeof item.score === 'number' && Number.isFinite(item.score) ? item.score : null
+        const reason = typeof item.reason === 'string' ? item.reason : null
+        if (!id && !reason) return null
+        return { id, score, reason }
+      })
+      .filter((item): item is ContextAssemblyRejection => Boolean(item))
+    : []
+
+  return {
+    mode,
+    focus: typeof contextAssembly.focus === 'string' ? contextAssembly.focus : null,
+    reason: typeof contextAssembly.reason === 'string' ? contextAssembly.reason : null,
+    confidence: typeof contextAssembly.confidence === 'number' && Number.isFinite(contextAssembly.confidence)
+      ? contextAssembly.confidence
+      : null,
+    selected_count: typeof contextAssembly.selected_count === 'number' && Number.isFinite(contextAssembly.selected_count)
+      ? contextAssembly.selected_count
+      : null,
+    rejected_count: typeof contextAssembly.rejected_count === 'number' && Number.isFinite(contextAssembly.rejected_count)
+      ? contextAssembly.rejected_count
+      : rejected.length,
+    rejected,
+  }
+}
+
+function getFallbackTrace(metadata: unknown): FallbackTraceData | null {
+  if (!isRecord(metadata)) return null
+  const agentMetadata = isRecord(metadata.agent_metadata) ? metadata.agent_metadata : metadata
+  const fallback = isRecord(agentMetadata.fallback) ? agentMetadata.fallback : null
+  if (!fallback) return null
+
+  const reason = typeof fallback.reason === 'string' ? fallback.reason : null
+  const strategy = typeof fallback.strategy === 'string' ? fallback.strategy : null
+  if (!reason || !strategy) return null
+
+  return {
+    reason,
+    strategy,
+    language: typeof fallback.language === 'string' ? fallback.language : null,
+    channels: Array.isArray(fallback.channels)
+      ? fallback.channels.filter((channel): channel is string => typeof channel === 'string')
+      : [],
+    template_source: typeof fallback.template_source === 'string' ? fallback.template_source : null,
+    whatsapp_link_used: fallback.whatsapp_link_used === true,
+    trigger: typeof fallback.trigger === 'string' ? fallback.trigger : null,
+  }
+}
+
 function getKnowledgeSourceName(source: { name: string; config: unknown }) {
   if (isRecord(source.config) && typeof source.config.file_name === 'string') return source.config.file_name
   return source.name
@@ -734,6 +909,25 @@ function getRetrievalStatusLabel(status: string) {
   if (status === 'no_sources') return 'sin fuentes'
   if (status === 'not_run') return 'sin retrieval'
   return status
+}
+
+function getContextAssemblyModeLabel(mode: string) {
+  if (mode === 'focused') return 'contexto enfocado'
+  if (mode === 'pass_through') return 'contexto completo'
+  return mode
+}
+
+function getContextAssemblyFocusLabel(focus: string) {
+  if (focus === 'top_relevant_source') return 'fuente dominante'
+  return focus
+}
+
+function getContextAssemblyReasonLabel(reason: string) {
+  if (reason === 'dominant_relevant_source') return 'fuente dominante relevante'
+  if (reason === 'topic_mismatch') return 'tema no alineado'
+  if (reason === 'no_focus_needed') return 'sin enfoque necesario'
+  if (reason === 'no_context') return 'sin contexto'
+  return reason
 }
 
 function getFallbackReasonLabel(reason: string) {
