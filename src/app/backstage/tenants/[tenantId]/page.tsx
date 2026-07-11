@@ -227,6 +227,7 @@ export default async function BackstageClientPage({ params }: Props) {
               const retrievalStatus = typeof metadata.retrieval_status === 'string' ? metadata.retrieval_status : null
               const retrievalChunks = getRetrievalChunks(metadata.retrieval)
               const contextAssembly = getContextAssembly(metadata)
+              const fallbackTrace = getFallbackTrace(metadata)
               const fallbackReason = typeof metadata.fallback_reason === 'string' ? metadata.fallback_reason : null
               const lowConfidence = metadata.low_confidence === true
               const traceSummary = getTraceSummary({
@@ -270,6 +271,7 @@ export default async function BackstageClientPage({ params }: Props) {
                       {model ? <span>{model}</span> : null}
                       {retrievalStatus ? <span>{getRetrievalStatusLabel(retrievalStatus)}</span> : null}
                       {contextAssembly ? <span>{getContextAssemblyModeLabel(contextAssembly.mode)}</span> : null}
+                      {fallbackTrace ? <span>{fallbackTrace.strategy}</span> : null}
                       {typeof traceSummary.topScore === 'number' ? <span>score {traceSummary.topScore.toFixed(2)}</span> : null}
                     </div>
                   </div>
@@ -295,6 +297,8 @@ export default async function BackstageClientPage({ params }: Props) {
                       {contextAssembly ? (
                         <ContextAssemblyTrace contextAssembly={contextAssembly} />
                       ) : null}
+
+                      {fallbackTrace ? <FallbackTrace fallback={fallbackTrace} /> : null}
 
                       {sources.length ? (
                         <ConversationSourceList sources={sources} sourceById={sourceById} />
@@ -411,6 +415,48 @@ type ContextAssemblyRejection = {
   id: string | null
   score: number | null
   reason: string | null
+}
+
+type FallbackTraceData = {
+  reason: string
+  strategy: string
+  language: string | null
+  channels: string[]
+  template_source: string | null
+  whatsapp_link_used: boolean
+  trigger: string | null
+}
+
+function FallbackTrace({ fallback }: { fallback: FallbackTraceData }) {
+  return (
+    <div className="context-assembly-trace">
+      <div className="context-assembly-header">
+        <span>FallbackPolicy</span>
+        <div>
+          <span>{fallback.strategy}</span>
+          {fallback.language ? <span>{fallback.language}</span> : null}
+        </div>
+      </div>
+      <dl className="context-assembly-stats">
+        <div>
+          <dt>Motivo</dt>
+          <dd>{fallback.reason}</dd>
+        </div>
+        <div>
+          <dt>Canales</dt>
+          <dd>{fallback.channels.join(', ') || 'ninguno'}</dd>
+        </div>
+        <div>
+          <dt>Plantilla</dt>
+          <dd>{fallback.template_source ?? '-'}</dd>
+        </div>
+        <div>
+          <dt>Decisión</dt>
+          <dd>{fallback.trigger ?? '-'}</dd>
+        </div>
+      </dl>
+    </div>
+  )
 }
 
 function ContextAssemblyTrace({
@@ -691,6 +737,29 @@ function getContextAssembly(metadata: unknown): ContextAssembly | null {
       ? contextAssembly.rejected_count
       : rejected.length,
     rejected,
+  }
+}
+
+function getFallbackTrace(metadata: unknown): FallbackTraceData | null {
+  if (!isRecord(metadata)) return null
+  const agentMetadata = isRecord(metadata.agent_metadata) ? metadata.agent_metadata : metadata
+  const fallback = isRecord(agentMetadata.fallback) ? agentMetadata.fallback : null
+  if (!fallback) return null
+
+  const reason = typeof fallback.reason === 'string' ? fallback.reason : null
+  const strategy = typeof fallback.strategy === 'string' ? fallback.strategy : null
+  if (!reason || !strategy) return null
+
+  return {
+    reason,
+    strategy,
+    language: typeof fallback.language === 'string' ? fallback.language : null,
+    channels: Array.isArray(fallback.channels)
+      ? fallback.channels.filter((channel): channel is string => typeof channel === 'string')
+      : [],
+    template_source: typeof fallback.template_source === 'string' ? fallback.template_source : null,
+    whatsapp_link_used: fallback.whatsapp_link_used === true,
+    trigger: typeof fallback.trigger === 'string' ? fallback.trigger : null,
   }
 }
 

@@ -9,6 +9,10 @@ import { createClient } from '@/lib/supabase/server'
 import { assertTenantAdmin } from '@/lib/tenants/service'
 import { updateTenantSettings as updateTenantSettingsRecord } from '@/lib/tenants/settings'
 import { normalizeAllowedWidgetDomains } from '@/lib/widget/domain-allowlist'
+import {
+  chatbotAiSettingsToWidgetConfig,
+  normalizeChatbotAiSettings,
+} from '@/lib/chatbot/ai-settings'
 import type { Json } from '@/types/database.types'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -30,6 +34,8 @@ const settingsSchema = z.object({
   collisionStrategy: z.enum(['auto', 'none']),
   fallbackEmail: z.string().trim().email('El email no es válido').optional().or(z.literal('')),
   fallbackPhone: z.string().trim().max(40).optional(),
+  fallbackMessage: z.string().trim().max(1000, 'El mensaje fallback no puede superar los 1000 caracteres').optional(),
+  fallbackWhatsApp: z.boolean(),
   autoOpen: z.boolean(),
   autoOpenDelay: z.coerce.number().int().min(0).max(60),
   allowedDomains: z.string().trim().max(2000).optional(),
@@ -72,6 +78,8 @@ export async function updateTenantSettings(
     collisionStrategy: formData.get('collision_strategy') === 'auto' ? 'auto' : 'none',
     fallbackEmail: String(formData.get('fallback_email') ?? '').trim(),
     fallbackPhone: String(formData.get('fallback_phone') ?? '').trim(),
+    fallbackMessage: String(formData.get('fallback_message') ?? '').trim(),
+    fallbackWhatsApp: formData.get('fallback_whatsapp') === 'on',
     autoOpen: formData.get('auto_open') === 'on',
     autoOpenDelay: formData.get('auto_open_delay') ?? 3,
     allowedDomains: String(formData.get('allowed_domains') ?? '').trim(),
@@ -84,6 +92,7 @@ export async function updateTenantSettings(
 
   const { data } = parsed
   const existingWidget = await getExistingWidgetConfig(admin, tenantId)
+  const existingAiSettings = normalizeChatbotAiSettings(existingWidget.chatbotAi ?? existingWidget.chatbot_ai)
   const updated = await updateTenantSettingsRecord(admin, tenantId, {
     plan: data.plan,
     systemPrompt: data.systemPrompt,
@@ -102,6 +111,11 @@ export async function updateTenantSettings(
       autoOpen: data.autoOpen,
       autoOpenDelay: data.autoOpenDelay,
       allowedDomains: normalizeAllowedWidgetDomains(data.allowedDomains ?? ''),
+      chatbotAi: chatbotAiSettingsToWidgetConfig({
+        ...existingAiSettings,
+        fallbackMessage: data.fallbackMessage || null,
+        fallbackWhatsApp: data.fallbackWhatsApp,
+      }),
     },
   })
 

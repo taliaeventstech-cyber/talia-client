@@ -12,6 +12,10 @@ type SettingsFormLabels = {
   primaryColor: string
   fallbackEmail: string
   fallbackPhone: string
+  fallbackMessage: string
+  fallbackMessageHint: string
+  fallbackWhatsApp: string
+  fallbackWhatsAppHint: string
   autoOpen: string
   delay: string
   allowedDomains: string
@@ -48,6 +52,8 @@ type SettingsFormProps = {
     autoOpen: boolean
     autoOpenDelay: number
     allowedDomains: string[]
+    fallbackMessage: string | null
+    fallbackWhatsApp: boolean
   }
   labels: SettingsFormLabels
   previewLabel: string
@@ -178,7 +184,28 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
                 {labels.fallbackPhone}
                 <input name="fallback_phone" defaultValue={theatre.fallback_phone ?? ''} />
               </label>
+
+              <label className="field" style={{ gridColumn: '1 / -1' }}>
+                {labels.fallbackMessage}
+                <textarea name="fallback_message" defaultValue={widgetConfig.fallbackMessage ?? ''} rows={3} />
+                <span className="muted">{labels.fallbackMessageHint}</span>
+              </label>
             </div>
+
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                name="fallback_whatsapp"
+                defaultChecked={widgetConfig.fallbackWhatsApp}
+                style={{ width: 16, height: 16, marginTop: 4 }}
+              />
+              <span>
+                <strong>{labels.fallbackWhatsApp}</strong>
+                <span className="muted" style={{ display: 'block', marginTop: 4 }}>
+                  {labels.fallbackWhatsAppHint}
+                </span>
+              </span>
+            </label>
 
             <div className="form-row" style={{ alignItems: 'flex-start', gap: 16 }}>
               <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>

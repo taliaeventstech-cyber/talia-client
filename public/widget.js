@@ -135,9 +135,29 @@
     var item = document.createElement('div');
     item.className = 'message ' + role;
     if (typing) item.setAttribute('data-typing', 'true');
-    item.textContent = text;
+    appendMessageContent(item, text);
     container.appendChild(item);
     container.scrollTop = container.scrollHeight;
+  }
+
+  function appendMessageContent(container, text) {
+    var value = String(text || '');
+    var urlPattern = /https?:\/\/[^\s]+/g;
+    var cursor = 0;
+    var match;
+
+    while ((match = urlPattern.exec(value)) !== null) {
+      if (match.index > cursor) container.appendChild(document.createTextNode(value.slice(cursor, match.index)));
+      var link = document.createElement('a');
+      link.href = match[0];
+      link.textContent = match[0];
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      container.appendChild(link);
+      cursor = match.index + match[0].length;
+    }
+
+    if (cursor < value.length) container.appendChild(document.createTextNode(value.slice(cursor)));
   }
 
   function removeTyping(container) {
@@ -528,6 +548,7 @@
         .close { border: 0; background: transparent; color: white; font-size: 22px; cursor: pointer; line-height: 1; }\
         .messages { padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 11px; background: #F5F2EC; }\
         .message { max-width: 84%; border-radius: 13px; padding: 11px 13px; font: 15px/1.45 "Space Grotesk", system-ui; white-space: pre-wrap; }\
+        .message a { color: inherit; text-decoration: underline; overflow-wrap: anywhere; }\
         .assistant { align-self: flex-start; background: #fff; color: #1A1A2E; }\
         .user { align-self: flex-end; background: ' + primaryColor + '; color: white; }\
         .form { display: flex; gap: 9px; padding: 13px; border-top: .5px solid rgba(26,26,46,.12); }\

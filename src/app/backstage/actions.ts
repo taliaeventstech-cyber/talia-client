@@ -556,6 +556,10 @@ export async function updateTenantAction(
     .select('account_id, widget_config')
     .eq('id', data.tenantId)
     .maybeSingle()
+  const currentWidgetConfig = tenantForAccount?.widget_config && typeof tenantForAccount.widget_config === 'object' && !Array.isArray(tenantForAccount.widget_config)
+    ? tenantForAccount.widget_config as Record<string, Json>
+    : {}
+  const currentChatbotAi = normalizeChatbotAiSettings(currentWidgetConfig.chatbotAi ?? currentWidgetConfig.chatbot_ai)
 
   const { error: accountError } = tenantForAccount?.account_id
     ? await admin
@@ -600,6 +604,8 @@ export async function updateTenantAction(
           minContextScore: data.chatbotMinContextScore,
           maxContextItems: data.chatbotMaxContextItems,
           fallbackContacts: data.chatbotFallbackContacts,
+          fallbackMessage: currentChatbotAi.fallbackMessage,
+          fallbackWhatsApp: currentChatbotAi.fallbackWhatsApp,
         })),
       }),
     })

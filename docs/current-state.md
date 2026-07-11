@@ -104,6 +104,9 @@ Implemented:
 - Initial message and brand color.
 - Channel prompt.
 - Configurable fallback.
+- Structured fallback policy delegated to `talia-ai`, with an optional tenant
+  message, verified email/phone contacts, an explicit WhatsApp toggle and
+  traceable fallback metadata in Backstage.
 - Persisted conversations and messages.
 - Basic analytics of topics and intents.
 - Usage tied to billing/limits.
