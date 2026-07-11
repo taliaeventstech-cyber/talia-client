@@ -233,6 +233,7 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
                         min={0}
                         max={30}
                         value={previewConfig.glassBlur}
+                        style={{ ['--fill' as string]: `${Math.round((previewConfig.glassBlur / 30) * 100)}%` }}
                         onChange={(event) => setPreviewConfig((current) => ({ ...current, glassBlur: Number(event.target.value) }))}
                       />
                       <output>{Math.round((previewConfig.glassBlur / 30) * 100)}%</output>
@@ -248,6 +249,7 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
                         min={15}
                         max={85}
                         value={previewConfig.glassTranslucency}
+                        style={{ ['--fill' as string]: `${Math.round(((previewConfig.glassTranslucency - 15) / 70) * 100)}%` }}
                         onChange={(event) => setPreviewConfig((current) => ({ ...current, glassTranslucency: Number(event.target.value) }))}
                       />
                       <output>{Math.round(((previewConfig.glassTranslucency - 15) / 70) * 100)}%</output>
