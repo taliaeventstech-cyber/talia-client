@@ -1,12 +1,23 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import type { CountryCode } from 'libphonenumber-js'
+import { useMemo, useState, useSyncExternalStore } from 'react'
+import { getCountryCallingCode, type CountryCode } from 'libphonenumber-js'
 import {
   buildInternationalPhoneValue,
   getPhoneCountryOptions,
   splitInternationalPhoneValue,
 } from '@/lib/phone/international'
+
+// Hydration-safe "are we on the client yet" flag: returns false during SSR and
+// the first client render, then true once mounted — without a setState-in-effect.
+const emptySubscribe = () => () => {}
+function useIsMounted() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  )
+}
 
 type InternationalPhoneInputProps = {
   name: string
@@ -39,7 +50,17 @@ export function InternationalPhoneInput({
   )
   const [country, setCountry] = useState<CountryCode>(initialParts.country)
   const [nationalNumber, setNationalNumber] = useState(initialParts.nationalNumber)
-  const countries = useMemo(() => getPhoneCountryOptions(locale), [locale])
+  // The localized country list is derived from `Intl.DisplayNames`, whose region
+  // names differ between the server's ICU and the browser's (e.g. Node returns
+  // "RAE de Hong Kong (China)" where the browser returns "Hong Kong"), which sorts
+  // differently and breaks hydration. Build it only on the client after mount so
+  // the server and first client render stay identical (a single deterministic
+  // option). This also keeps a client-driven `locale` working.
+  const mounted = useIsMounted()
+  const countries = useMemo(
+    () => (mounted ? getPhoneCountryOptions(locale) : []),
+    [mounted, locale],
+  )
   const copy = getPhoneInputCopy(locale)
   const normalizedValue = buildInternationalPhoneValue(country, nationalNumber)
   const submittedValue = normalizedValue ?? nationalNumber.trim()
@@ -66,11 +87,17 @@ export function InternationalPhoneInput({
             value={country}
             onChange={(event) => updateCountry(event.target.value as CountryCode)}
           >
-            {countries.map((option) => (
-              <option key={option.country} value={option.country}>
-                {option.label} (+{option.callingCode})
+            {mounted ? (
+              countries.map((option) => (
+                <option key={option.country} value={option.country}>
+                  {option.label} (+{option.callingCode})
+                </option>
+              ))
+            ) : (
+              <option value={country}>
+                {country} (+{getSafeCallingCode(country)})
               </option>
-            ))}
+            )}
           </select>
         </label>
         <label>
@@ -95,6 +122,16 @@ export function InternationalPhoneInput({
       ) : null}
     </div>
   )
+}
+
+// Calling codes come from a static data table (deterministic across environments),
+// unlike the ICU-derived country names, so this is safe to render during SSR.
+function getSafeCallingCode(country: CountryCode) {
+  try {
+    return getCountryCallingCode(country)
+  } catch {
+    return ''
+  }
 }
 
 function getPhoneInputCopy(locale: string) {
