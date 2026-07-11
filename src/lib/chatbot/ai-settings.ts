@@ -6,6 +6,8 @@ export type ChatbotAiSettings = {
   minContextScore: number
   maxContextItems: number
   fallbackContacts: boolean
+  fallbackMessage: string | null
+  fallbackWhatsApp: boolean
 }
 
 export const defaultChatbotAiSettings: ChatbotAiSettings = {
@@ -14,6 +16,8 @@ export const defaultChatbotAiSettings: ChatbotAiSettings = {
   minContextScore: 0.3,
   maxContextItems: 5,
   fallbackContacts: true,
+  fallbackMessage: null,
+  fallbackWhatsApp: false,
 }
 
 export function normalizeChatbotAiSettings(value: unknown): ChatbotAiSettings {
@@ -43,6 +47,12 @@ export function normalizeChatbotAiSettings(value: unknown): ChatbotAiSettings {
       : typeof record.fallback_contacts === 'boolean'
         ? record.fallback_contacts
         : defaultChatbotAiSettings.fallbackContacts,
+    fallbackMessage: normalizeOptionalString(record.fallbackMessage ?? record.fallback_message, 1_000),
+    fallbackWhatsApp: typeof record.fallbackWhatsApp === 'boolean'
+      ? record.fallbackWhatsApp
+      : typeof record.fallback_whatsapp === 'boolean'
+        ? record.fallback_whatsapp
+        : defaultChatbotAiSettings.fallbackWhatsApp,
   }
 }
 
@@ -53,6 +63,8 @@ export function chatbotAiSettingsToWidgetConfig(settings: ChatbotAiSettings) {
     minContextScore: settings.minContextScore,
     maxContextItems: settings.maxContextItems,
     fallbackContacts: settings.fallbackContacts,
+    fallbackMessage: settings.fallbackMessage,
+    fallbackWhatsApp: settings.fallbackWhatsApp,
   }
 }
 
@@ -64,6 +76,12 @@ export function chatbotAiSettingsToRuntime(settings: ChatbotAiSettings) {
     max_context_items: settings.maxContextItems,
     fallback_contacts: settings.fallbackContacts,
   }
+}
+
+function normalizeOptionalString(value: unknown, maxLength: number) {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim()
+  return normalized ? normalized.slice(0, maxLength) : null
 }
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number) {

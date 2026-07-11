@@ -59,6 +59,10 @@ export class TaliaAiChatAgentProvider implements ChatAgentProvider {
             system_prompt: input.tenant.systemPrompt ?? '',
             response_tone: input.tenant.responseTone,
             ai_settings: chatbotAiSettingsToRuntime(aiSettings),
+            fallback: {
+              ...(aiSettings.fallbackMessage ? { custom_message: aiSettings.fallbackMessage } : {}),
+              whatsapp_enabled: aiSettings.fallbackWhatsApp,
+            },
             ...(aiSettings.fallbackContacts && includeFallbackContacts && input.tenant.fallbackEmail ? { fallback_email: input.tenant.fallbackEmail } : {}),
             ...(aiSettings.fallbackContacts && includeFallbackContacts && input.tenant.fallbackPhone ? { fallback_phone: input.tenant.fallbackPhone } : {}),
           },

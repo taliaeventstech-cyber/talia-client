@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { SettingsForm } from './settings-form'
+import { normalizeChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -22,6 +23,7 @@ export default async function SettingsPage({ params }: Props) {
     .single()
 
   const widgetConfig = getWidgetConfig(theatre?.widget_config)
+  const aiSettings = getAiSettings(theatre?.widget_config)
 
   return (
     <main className="page-shell">
@@ -52,6 +54,8 @@ export default async function SettingsPage({ params }: Props) {
             autoOpen: widgetConfig.autoOpen,
             autoOpenDelay: widgetConfig.autoOpenDelay,
             allowedDomains: widgetConfig.allowedDomains,
+            fallbackMessage: aiSettings.fallbackMessage,
+            fallbackWhatsApp: aiSettings.fallbackWhatsApp,
           }}
           labels={dictionary.settings.form}
           previewLabel={dictionary.settings.preview}
@@ -67,6 +71,14 @@ export default async function SettingsPage({ params }: Props) {
       ) : null}
     </main>
   )
+}
+
+function getAiSettings(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return normalizeChatbotAiSettings(undefined)
+  }
+  const config = value as { chatbotAi?: unknown; chatbot_ai?: unknown }
+  return normalizeChatbotAiSettings(config.chatbotAi ?? config.chatbot_ai)
 }
 
 function getWidgetConfig(value: unknown) {
