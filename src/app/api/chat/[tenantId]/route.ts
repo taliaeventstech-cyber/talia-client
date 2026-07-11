@@ -4,6 +4,7 @@ import { isTaliaAiPrimaryProvider, runChatAgent, type ChatAgentPendingClarificat
 import { corsJson, corsNoContent } from '@/lib/http/cors'
 import { buildRelevantKnowledgeHints, retrieveTenantKnowledge } from '@/lib/knowledge/retrieval'
 import { detectChatLanguage } from '@/lib/chat/language'
+import { summarizeVerifiedChatActions } from '@/lib/chat/agent-actions'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getTenantChatConfig } from '@/lib/tenants/service'
 import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/lib/widget/domain-allowlist'
@@ -281,6 +282,10 @@ export async function POST(
 
   const agentSources = summarizeAgentSources(response.sources)
   const agentMetadata = summarizeAgentMetadata(response.metadata)
+  const agentActions = summarizeVerifiedChatActions(response.actions, {
+    fallbackPhone: tenant.config.fallbackPhone,
+    whatsappEnabled: tenant.config.aiSettings.fallbackWhatsApp,
+  })
   const retrievalTrace = summarizeRetrievalTrace(response.metadata)
   const contactGuard = enforceAllowedContactEmails(response.reply, {
     fallbackEmail: tenant.config.fallbackEmail,
@@ -311,6 +316,7 @@ export async function POST(
       allowed_emails: contactGuard.allowedEmails,
     },
     agent_sources: agentSources,
+    agent_actions: agentActions,
     retrieval: retrievalTrace,
     pending_clarification: pendingClarification ? serializePendingClarification(pendingClarification) : null,
     agent_metadata: agentMetadata,
@@ -360,6 +366,7 @@ export async function POST(
         allowed_emails: contactGuard.allowedEmails,
       },
       agent_sources: agentSources,
+      agent_actions: agentActions,
       retrieval: retrievalTrace,
       pending_clarification: pendingClarification ? serializePendingClarification(pendingClarification) : null,
       agent_metadata: agentMetadata,
@@ -368,6 +375,7 @@ export async function POST(
 
   return corsJson({
     reply: safeReply,
+    actions: agentActions,
     session_id: sessionId,
     source: {
       type: 'agent_runtime',

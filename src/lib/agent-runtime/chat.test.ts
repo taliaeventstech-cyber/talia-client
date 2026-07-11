@@ -109,6 +109,11 @@ describe('TaliaAiChatAgentProvider', () => {
         provider: 'openai',
         model: 'gpt-4o-mini',
         usage: { input_tokens: 10, output_tokens: 4 },
+        actions: [{
+          type: 'whatsapp',
+          label: '+34 000 000 000',
+          href: 'https://wa.me/34000000000',
+        }],
       }),
     }))
 
@@ -139,6 +144,11 @@ describe('TaliaAiChatAgentProvider', () => {
       provider: 'talia-ai',
       reply: 'Respuesta desde talia-ai',
       model: 'gpt-4o-mini',
+      actions: [{
+        type: 'whatsapp',
+        label: '+34 000 000 000',
+        href: 'https://wa.me/34000000000',
+      }],
     })
 
     const [, requestInit] = vi.mocked(fetch).mock.calls[0]

@@ -107,6 +107,9 @@ Implemented:
 - Structured fallback policy delegated to `talia-ai`, with an optional tenant
   message, verified email/phone contacts, an explicit WhatsApp toggle and
   traceable fallback metadata in Backstage.
+- Verified chat actions keep WhatsApp destinations separate from visible reply
+  text, so the widget displays the configured phone number as the link label
+  instead of exposing the full `wa.me` URL.
 - International fallback phone input shared by onboarding, Agora and Backstage;
   country prefix and national number are edited separately while storage and
   service contracts keep a single normalized E.164 value.
