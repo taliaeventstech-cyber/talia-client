@@ -66,6 +66,20 @@
 
     toggle.setAttribute('aria-expanded', 'false');
 
+    // Liquid-glass pointer highlight on the floating toggle only (never the open panel).
+    var prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (widgetTheme === 'glass' && !prefersReducedMotion) {
+      toggle.addEventListener('pointermove', function (event) {
+        var rect = toggle.getBoundingClientRect();
+        toggle.style.setProperty('--tmx', ((event.clientX - rect.left) / rect.width * 100) + '%');
+        toggle.style.setProperty('--tmy', ((event.clientY - rect.top) / rect.height * 100) + '%');
+      });
+      toggle.addEventListener('pointerleave', function () {
+        toggle.style.setProperty('--tmx', '50%');
+        toggle.style.setProperty('--tmy', '12%');
+      });
+    }
+
     function openPanel() {
       panel.classList.add('panel--open');
       toggle.setAttribute('aria-expanded', 'true');
@@ -570,6 +584,12 @@
     var specularBand = glass
       ? '.panel::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 45%; border-radius: inherit; background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0) 90%); pointer-events: none; }'
       : '';
+    // Pointer-following specular highlight — only on the floating toggle, never on
+    // the open chat panel. --tmx/--tmy are updated on pointermove (see mountWidget).
+    var sheenRadius = Math.round(toggleSize * 0.7);
+    var toggleSheen = glass
+      ? '.toggle::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: radial-gradient(circle ' + sheenRadius + 'px at var(--tmx, 50%) var(--tmy, 12%), rgba(255,255,255,.55), rgba(255,255,255,0) 70%); mix-blend-mode: screen; pointer-events: none; }'
+      : '';
     var reducedTransparencyFallback = glass
       ? '@media (prefers-reduced-transparency: reduce) {'
         + ' .panel { background: ' + (glassBackground === 'dark' ? '#1b1622' : '#fff') + '; backdrop-filter: none; -webkit-backdrop-filter: none; }'
@@ -578,6 +598,7 @@
         + ' .messages { background: ' + (glassBackground === 'dark' ? '#161019' : '#F5F2EC') + '; }'
         + ' .form { background: ' + (glassBackground === 'dark' ? '#1b1622' : '#fff') + '; backdrop-filter: none; -webkit-backdrop-filter: none; }'
         + ' .toggle { background: ' + primaryColor + '; backdrop-filter: none; -webkit-backdrop-filter: none; }'
+        + ' .toggle::after { display: none; }'
         + ' }'
       : '';
 
@@ -587,7 +608,8 @@
         .toggle { position: fixed; ' + togglePosition + ' z-index: 2147483647; width: ' + toggleSize + 'px; height: ' + toggleSize + 'px; border: 0; border-radius: 999px; background: ' + toggleBackground + '; ' + toggleFilter + ' color: white; cursor: pointer; display: grid; place-items: center; box-shadow: ' + toggleShadow + '; transition: transform 150ms ease, box-shadow 150ms ease; }\
         .toggle:hover { transform: scale(1.08); }\
         .toggle:active { transform: scale(0.94); }\
-        .toggle svg { width: ' + toggleIconSize + 'px; height: ' + toggleIconSize + 'px; display: block; }\
+        .toggle svg { position: relative; z-index: 1; width: ' + toggleIconSize + 'px; height: ' + toggleIconSize + 'px; display: block; }\
+        ' + toggleSheen + '\
         .panel { position: fixed; ' + panelPosition + ' z-index: 2147483647; width: min(400px, calc(100vw - 32px)); height: min(580px, calc(100vh - 112px)); max-height: calc(100vh - 112px); background: ' + panelBackground + '; ' + glassFilter + ' color: #1A1A2E; ' + panelBorder + ' border-radius: 14px; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; opacity: 0; transform: translateY(14px) scale(0.97); transform-origin: ' + transformOrigin + '; pointer-events: none; transition: opacity 280ms cubic-bezier(0.16,1,0.3,1), transform 280ms cubic-bezier(0.16,1,0.3,1), box-shadow 280ms cubic-bezier(0.16,1,0.3,1); box-shadow: ' + panelShadow + panelInset + '; }\
         .panel--open { opacity: 1 !important; transform: translateY(0) scale(1) !important; pointer-events: auto !important; box-shadow: ' + panelOpenShadow + panelInset + ' !important; }\
         ' + specularBand + '\
@@ -648,12 +670,14 @@
   }
 
   function getGlassBlur(value) {
+    if (value == null || value === '') return 18;
     var numeric = Number(value);
     if (!Number.isFinite(numeric)) return 18;
     return Math.min(30, Math.max(0, Math.round(numeric)));
   }
 
   function getGlassTranslucency(value) {
+    if (value == null || value === '') return 58;
     var numeric = Number(value);
     if (!Number.isFinite(numeric)) return 58;
     return Math.min(85, Math.max(15, Math.round(numeric)));

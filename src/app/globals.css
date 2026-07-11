@@ -7156,8 +7156,64 @@ textarea {
 
 .glass-range-row input[type="range"] {
   flex: 1;
-  accent-color: var(--color-brand);
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  background: transparent;
   cursor: pointer;
+  /* --fill (0%–100%) is set inline from the value so the track fills fully at 100% */
+  --track-fill: linear-gradient(
+    to right,
+    var(--color-brand) var(--fill, 0%),
+    color-mix(in srgb, var(--color-text-tertiary) 32%, transparent) var(--fill, 0%)
+  );
+}
+
+.glass-range-row input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--track-fill);
+}
+
+.glass-range-row input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--track-fill);
+}
+
+.glass-range-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -5px;
+  border-radius: 999px;
+  background: var(--color-brand);
+  border: 2px solid var(--color-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.glass-range-row input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--color-brand);
+  border: 2px solid var(--color-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.glass-range-row input[type="range"]:focus {
+  outline: none;
+}
+
+.glass-range-row input[type="range"]:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.glass-range-row input[type="range"]:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
 }
 
 .glass-range-row output {
