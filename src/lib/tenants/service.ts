@@ -16,6 +16,10 @@ export type PublicWidgetConfig = {
   inlineOffset: number
   blockOffset: number
   collisionStrategy: WidgetCollisionStrategy
+  widgetTheme: WidgetTheme
+  glassBackground: WidgetGlassBackground
+  glassBlur: number
+  glassTranslucency: number
   fallbackEmail: string | null
   fallbackPhone: string | null
   autoOpen: boolean
@@ -26,6 +30,19 @@ export type PublicWidgetConfig = {
 export type WidgetPosition = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
 export type WidgetCollisionStrategy = 'auto' | 'none'
 export type WidgetSize = 'small' | 'medium' | 'large'
+// Visual material of the chat widget. `solid` is the classic opaque look;
+// `glass` renders a translucent, frosted (iOS-style) chrome over the host site.
+export type WidgetTheme = 'solid' | 'glass'
+// Which glass variant to render — picked by the tone of the host site's background,
+// since the widget floats over the client's own page (we can't detect it reliably).
+export type WidgetGlassBackground = 'light' | 'dark'
+// Bounds for the glass tuning controls (shared by settings, widget and normalizers).
+export const GLASS_BLUR_MIN = 0
+export const GLASS_BLUR_MAX = 30
+export const GLASS_BLUR_DEFAULT = 18
+export const GLASS_TRANSLUCENCY_MIN = 15
+export const GLASS_TRANSLUCENCY_MAX = 85
+export const GLASS_TRANSLUCENCY_DEFAULT = 58
 export type ChatbotResponseTone = 'close' | 'formal' | 'brief'
 
 export type PublicAccessibilityConfig = {
@@ -152,6 +169,10 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
       inlineOffset: widgetConfig.inlineOffset,
       blockOffset: widgetConfig.blockOffset,
       collisionStrategy: widgetConfig.collisionStrategy,
+      widgetTheme: widgetConfig.widgetTheme,
+      glassBackground: widgetConfig.glassBackground,
+      glassBlur: widgetConfig.glassBlur,
+      glassTranslucency: widgetConfig.glassTranslucency,
       fallbackEmail: data.fallback_email,
       fallbackPhone: data.fallback_phone,
       autoOpen: widgetConfig.autoOpen,
@@ -331,6 +352,10 @@ function getWidgetConfig(value: unknown) {
       inlineOffset: 20,
       blockOffset: 20,
       collisionStrategy: 'auto' as const,
+      widgetTheme: 'solid' as const,
+      glassBackground: 'light' as const,
+      glassBlur: GLASS_BLUR_DEFAULT,
+      glassTranslucency: GLASS_TRANSLUCENCY_DEFAULT,
       autoOpen: false,
       autoOpenDelay: 3,
       tone: 'close' as const,
@@ -353,6 +378,14 @@ function getWidgetConfig(value: unknown) {
     block_offset?: unknown
     collisionStrategy?: unknown
     collision_strategy?: unknown
+    widgetTheme?: unknown
+    widget_theme?: unknown
+    glassBackground?: unknown
+    glass_background?: unknown
+    glassBlur?: unknown
+    glass_blur?: unknown
+    glassTranslucency?: unknown
+    glass_translucency?: unknown
     autoOpen?: unknown
     autoOpenDelay?: unknown
     tone?: unknown
@@ -371,6 +404,10 @@ function getWidgetConfig(value: unknown) {
     inlineOffset: getPixelOffset(config.inlineOffset ?? config.inline_offset, 20),
     blockOffset: getPixelOffset(config.blockOffset ?? config.block_offset, 20),
     collisionStrategy: getCollisionStrategy(config.collisionStrategy ?? config.collision_strategy),
+    widgetTheme: getWidgetTheme(config.widgetTheme ?? config.widget_theme),
+    glassBackground: getGlassBackground(config.glassBackground ?? config.glass_background),
+    glassBlur: getGlassBlur(config.glassBlur ?? config.glass_blur),
+    glassTranslucency: getGlassTranslucency(config.glassTranslucency ?? config.glass_translucency),
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
     tone: getChatbotResponseTone(config.tone),
@@ -392,6 +429,26 @@ function getCollisionStrategy(value: unknown): WidgetCollisionStrategy {
 function getWidgetSize(value: unknown): WidgetSize {
   if (value === 'small' || value === 'large') return value
   return 'medium'
+}
+
+function getWidgetTheme(value: unknown): WidgetTheme {
+  return value === 'glass' ? 'glass' : 'solid'
+}
+
+function getGlassBackground(value: unknown): WidgetGlassBackground {
+  return value === 'dark' ? 'dark' : 'light'
+}
+
+function getGlassBlur(value: unknown): number {
+  const numeric = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(numeric)) return GLASS_BLUR_DEFAULT
+  return Math.min(GLASS_BLUR_MAX, Math.max(GLASS_BLUR_MIN, Math.round(numeric)))
+}
+
+function getGlassTranslucency(value: unknown): number {
+  const numeric = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(numeric)) return GLASS_TRANSLUCENCY_DEFAULT
+  return Math.min(GLASS_TRANSLUCENCY_MAX, Math.max(GLASS_TRANSLUCENCY_MIN, Math.round(numeric)))
 }
 
 function getChatbotResponseTone(value: unknown): ChatbotResponseTone {
