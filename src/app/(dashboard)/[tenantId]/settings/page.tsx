@@ -3,6 +3,8 @@ import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { SettingsForm } from './settings-form'
 import { normalizeChatbotAiSettings } from '@/lib/chatbot/ai-settings'
+import { normalizeWidgetLauncherIcon } from '@/lib/widget/launcher-icon'
+import { normalizeProactiveGreeting } from '@/lib/widget/proactive-greeting'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -22,7 +24,7 @@ export default async function SettingsPage({ params }: Props) {
     .eq('id', tenantId)
     .single()
 
-  const widgetConfig = getWidgetConfig(theatre?.widget_config)
+  const widgetConfig = getWidgetConfig(theatre?.widget_config, theatre?.primary_language)
   const aiSettings = getAiSettings(theatre?.widget_config)
 
   return (
@@ -53,11 +55,13 @@ export default async function SettingsPage({ params }: Props) {
             blockOffset: widgetConfig.blockOffset,
             collisionStrategy: widgetConfig.collisionStrategy,
             widgetTheme: widgetConfig.widgetTheme,
+            launcherIcon: widgetConfig.launcherIcon,
             glassBackground: widgetConfig.glassBackground,
             glassBlur: widgetConfig.glassBlur,
             glassTranslucency: widgetConfig.glassTranslucency,
             autoOpen: widgetConfig.autoOpen,
             autoOpenDelay: widgetConfig.autoOpenDelay,
+            proactiveMessage: widgetConfig.proactiveMessage,
             allowedDomains: widgetConfig.allowedDomains,
             fallbackMessage: aiSettings.fallbackMessage,
             fallbackWhatsApp: aiSettings.fallbackWhatsApp,
@@ -86,7 +90,7 @@ function getAiSettings(value: unknown) {
   return normalizeChatbotAiSettings(config.chatbotAi ?? config.chatbot_ai)
 }
 
-function getWidgetConfig(value: unknown) {
+function getWidgetConfig(value: unknown, language: unknown) {
   if (!value || typeof value !== 'object') {
     return {
       assistantName: 'TALIA',
@@ -98,11 +102,13 @@ function getWidgetConfig(value: unknown) {
       blockOffset: 20,
       collisionStrategy: 'auto' as const,
       widgetTheme: 'solid' as const,
+      launcherIcon: normalizeWidgetLauncherIcon(undefined),
       glassBackground: 'light' as const,
       glassBlur: 18,
       glassTranslucency: 58,
       autoOpen: false,
       autoOpenDelay: 3,
+      proactiveMessage: normalizeProactiveGreeting(undefined, language),
       allowedDomains: [],
     }
   }
@@ -123,6 +129,8 @@ function getWidgetConfig(value: unknown) {
     collision_strategy?: unknown
     widgetTheme?: unknown
     widget_theme?: unknown
+    launcherIcon?: unknown
+    launcher_icon?: unknown
     glassBackground?: unknown
     glass_background?: unknown
     glassBlur?: unknown
@@ -131,12 +139,16 @@ function getWidgetConfig(value: unknown) {
     glass_translucency?: unknown
     autoOpen?: unknown
     autoOpenDelay?: unknown
+    proactiveMessage?: unknown
+    proactive_message?: unknown
     allowedDomains?: unknown
     allowed_domains?: unknown
   }
 
+  const assistantName = typeof config.assistantName === 'string' ? config.assistantName : 'TALIA'
+
   return {
-    assistantName: typeof config.assistantName === 'string' ? config.assistantName : 'TALIA',
+    assistantName,
     initialMessage: typeof config.initialMessage === 'string' ? config.initialMessage : 'Hola, soc TALIA. En què et puc ajudar?',
     primaryColor: typeof config.primaryColor === 'string' ? config.primaryColor : '#000000',
     position: getWidgetPosition(config.position),
@@ -145,11 +157,13 @@ function getWidgetConfig(value: unknown) {
     blockOffset: getPixelOffset(config.blockOffset ?? config.block_offset, 20),
     collisionStrategy: config.collisionStrategy === 'none' || config.collision_strategy === 'none' ? 'none' as const : 'auto' as const,
     widgetTheme: config.widgetTheme === 'glass' || config.widget_theme === 'glass' ? 'glass' as const : 'solid' as const,
+    launcherIcon: normalizeWidgetLauncherIcon(config.launcherIcon ?? config.launcher_icon),
     glassBackground: config.glassBackground === 'dark' || config.glass_background === 'dark' ? 'dark' as const : 'light' as const,
     glassBlur: getBoundedNumber(config.glassBlur ?? config.glass_blur, 0, 30, 18),
     glassTranslucency: getBoundedNumber(config.glassTranslucency ?? config.glass_translucency, 15, 85, 58),
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
+    proactiveMessage: normalizeProactiveGreeting(config.proactiveMessage ?? config.proactive_message, language, assistantName),
     allowedDomains: getAllowedDomains(config.allowedDomains ?? config.allowed_domains),
   }
 }

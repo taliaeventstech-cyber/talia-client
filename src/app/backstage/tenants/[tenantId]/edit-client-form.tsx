@@ -8,6 +8,7 @@ import { defaultEmailClassificationTopics, getEmailAgentSettings } from '@/lib/e
 import { updateTenantAction, type UpdateTenantState } from '../../actions'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry } from '@/lib/phone/international'
+import { normalizeProactiveGreeting } from '@/lib/widget/proactive-greeting'
 
 const initialState: UpdateTenantState = { ok: false, message: '' }
 
@@ -369,7 +370,7 @@ function ModulePlaceholderPanel({
 }
 
 function ChatbotOperationsPanel({ client }: { client: Client }) {
-  const widgetConfig = getWidgetConfig(client.widget_config)
+  const widgetConfig = getWidgetConfig(client.widget_config, client.primary_language)
   const aiSettings = normalizeChatbotAiSettings(widgetConfig.chatbotAi)
 
   return (
@@ -400,9 +401,15 @@ function ChatbotOperationsPanel({ client }: { client: Client }) {
               </dd>
             </div>
             <div>
-              <dt>Autoapertura</dt>
+              <dt>Saludo proactivo</dt>
               <dd>{widgetConfig.autoOpen ? `Sí, ${widgetConfig.autoOpenDelay}s` : 'No'}</dd>
             </div>
+            {widgetConfig.autoOpen ? (
+              <div>
+                <dt>Texto del saludo</dt>
+                <dd>{widgetConfig.proactiveMessage}</dd>
+              </div>
+            ) : null}
           </dl>
         </div>
 
@@ -1078,7 +1085,7 @@ function getStringList(value: unknown) {
     : []
 }
 
-function getWidgetConfig(value: unknown) {
+function getWidgetConfig(value: unknown, language: unknown) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {
       assistantName: 'TALIA',
@@ -1086,6 +1093,7 @@ function getWidgetConfig(value: unknown) {
       primaryColor: '#000000',
       autoOpen: false,
       autoOpenDelay: 3,
+      proactiveMessage: normalizeProactiveGreeting(undefined, language),
       chatbotAi: undefined,
       allowedDomains: [],
     }
@@ -1097,18 +1105,23 @@ function getWidgetConfig(value: unknown) {
     primaryColor?: unknown
     autoOpen?: unknown
     autoOpenDelay?: unknown
+    proactiveMessage?: unknown
+    proactive_message?: unknown
     chatbotAi?: unknown
     chatbot_ai?: unknown
     allowedDomains?: unknown
     allowed_domains?: unknown
   }
 
+  const assistantName = typeof config.assistantName === 'string' ? config.assistantName : 'TALIA'
+
   return {
-    assistantName: typeof config.assistantName === 'string' ? config.assistantName : 'TALIA',
+    assistantName,
     initialMessage: typeof config.initialMessage === 'string' ? config.initialMessage : 'Hola, soc TALIA. En què et puc ajudar?',
     primaryColor: typeof config.primaryColor === 'string' ? config.primaryColor : '#000000',
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
+    proactiveMessage: normalizeProactiveGreeting(config.proactiveMessage ?? config.proactive_message, language, assistantName),
     chatbotAi: config.chatbotAi ?? config.chatbot_ai,
     allowedDomains: getStringList(config.allowedDomains ?? config.allowed_domains),
   }

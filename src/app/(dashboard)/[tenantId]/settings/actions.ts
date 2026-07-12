@@ -34,6 +34,7 @@ const settingsSchema = z.object({
   blockOffset: z.coerce.number().int().min(12).max(320),
   collisionStrategy: z.enum(['auto', 'none']),
   widgetTheme: z.enum(['solid', 'glass']),
+  launcherIcon: z.enum(['talia', 'chat', 'bubble', 'bot']),
   glassBackground: z.enum(['light', 'dark']),
   glassBlur: z.coerce.number().int().min(0).max(30),
   glassTranslucency: z.coerce.number().int().min(15).max(85),
@@ -43,6 +44,7 @@ const settingsSchema = z.object({
   fallbackWhatsApp: z.boolean(),
   autoOpen: z.boolean(),
   autoOpenDelay: z.coerce.number().int().min(0).max(60),
+  proactiveMessage: z.string().trim().min(1, 'El saludo proactivo es obligatorio').max(160),
   allowedDomains: z.string().trim().max(2000).optional(),
   systemPrompt: z.string().trim().max(8000, 'El prompt no puede superar los 8000 caracteres').optional(),
 })
@@ -82,6 +84,7 @@ export async function updateTenantSettings(
     blockOffset: formData.get('block_offset') ?? 20,
     collisionStrategy: formData.get('collision_strategy') === 'auto' ? 'auto' : 'none',
     widgetTheme: formData.get('widget_theme') === 'glass' ? 'glass' : 'solid',
+    launcherIcon: normalizeLauncherIconFormValue(formData.get('launcher_icon')),
     glassBackground: formData.get('glass_background') === 'dark' ? 'dark' : 'light',
     glassBlur: formData.get('glass_blur') ?? 18,
     glassTranslucency: formData.get('glass_translucency') ?? 58,
@@ -91,6 +94,7 @@ export async function updateTenantSettings(
     fallbackWhatsApp: formData.get('fallback_whatsapp') === 'on',
     autoOpen: formData.get('auto_open') === 'on',
     autoOpenDelay: formData.get('auto_open_delay') ?? 3,
+    proactiveMessage: String(formData.get('proactive_message') ?? '').trim(),
     allowedDomains: String(formData.get('allowed_domains') ?? '').trim(),
     systemPrompt: String(formData.get('system_prompt') ?? '').trim(),
   })
@@ -118,11 +122,13 @@ export async function updateTenantSettings(
       blockOffset: data.blockOffset,
       collisionStrategy: data.collisionStrategy,
       widgetTheme: data.widgetTheme,
+      launcherIcon: data.launcherIcon,
       glassBackground: data.glassBackground,
       glassBlur: data.glassBlur,
       glassTranslucency: data.glassTranslucency,
       autoOpen: data.autoOpen,
       autoOpenDelay: data.autoOpenDelay,
+      proactiveMessage: data.proactiveMessage,
       allowedDomains: normalizeAllowedWidgetDomains(data.allowedDomains ?? ''),
       chatbotAi: chatbotAiSettingsToWidgetConfig({
         ...existingAiSettings,
@@ -155,6 +161,10 @@ async function getExistingWidgetConfig(admin: ReturnType<typeof createAdminClien
 
 function isPlainObject(value: unknown): value is Record<string, Json> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function normalizeLauncherIconFormValue(value: FormDataEntryValue | null) {
+  return value === 'chat' || value === 'bubble' || value === 'bot' ? value : 'talia'
 }
 
 export async function createKnowledgeItem(

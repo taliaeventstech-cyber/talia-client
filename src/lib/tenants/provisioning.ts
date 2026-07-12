@@ -1,6 +1,7 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
 import { createTrialMetadata } from '@/lib/billing/access'
 import type { Json } from '@/types/database.types'
+import { getDefaultProactiveGreeting } from '@/lib/widget/proactive-greeting'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -46,9 +47,13 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
     blockOffset: 20,
     collisionStrategy: 'auto',
     widgetTheme: 'solid',
+    launcherIcon: 'talia',
     glassBackground: 'light',
     glassBlur: 18,
     glassTranslucency: 58,
+    autoOpen: false,
+    autoOpenDelay: 3,
+    proactiveMessage: getDefaultProactiveGreeting(input.primaryLanguage),
     tone: input.chatbotTone || 'close',
     fallbackBehavior: input.fallbackBehavior || 'contact',
     accessibility: {
