@@ -44,6 +44,7 @@ const settingsSchema = z.object({
   fallbackWhatsApp: z.boolean(),
   autoOpen: z.boolean(),
   autoOpenDelay: z.coerce.number().int().min(0).max(60),
+  proactiveMessage: z.string().trim().min(1, 'El saludo proactivo es obligatorio').max(160),
   allowedDomains: z.string().trim().max(2000).optional(),
   systemPrompt: z.string().trim().max(8000, 'El prompt no puede superar los 8000 caracteres').optional(),
 })
@@ -93,6 +94,7 @@ export async function updateTenantSettings(
     fallbackWhatsApp: formData.get('fallback_whatsapp') === 'on',
     autoOpen: formData.get('auto_open') === 'on',
     autoOpenDelay: formData.get('auto_open_delay') ?? 3,
+    proactiveMessage: String(formData.get('proactive_message') ?? '').trim(),
     allowedDomains: String(formData.get('allowed_domains') ?? '').trim(),
     systemPrompt: String(formData.get('system_prompt') ?? '').trim(),
   })
@@ -126,6 +128,7 @@ export async function updateTenantSettings(
       glassTranslucency: data.glassTranslucency,
       autoOpen: data.autoOpen,
       autoOpenDelay: data.autoOpenDelay,
+      proactiveMessage: data.proactiveMessage,
       allowedDomains: normalizeAllowedWidgetDomains(data.allowedDomains ?? ''),
       chatbotAi: chatbotAiSettingsToWidgetConfig({
         ...existingAiSettings,

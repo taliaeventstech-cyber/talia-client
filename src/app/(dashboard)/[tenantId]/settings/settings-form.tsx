@@ -22,6 +22,8 @@ type SettingsFormLabels = {
   fallbackWhatsApp: string
   fallbackWhatsAppHint: string
   autoOpen: string
+  proactiveMessage: string
+  proactiveMessageHint: string
   delay: string
   allowedDomains: string
   allowedDomainsHint: string
@@ -81,6 +83,7 @@ type SettingsFormProps = {
     glassTranslucency: number
     autoOpen: boolean
     autoOpenDelay: number
+    proactiveMessage: string
     allowedDomains: string[]
     fallbackMessage: string | null
     fallbackWhatsApp: boolean
@@ -118,13 +121,15 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
     glassBackground: widgetConfig.glassBackground,
     glassBlur: widgetConfig.glassBlur,
     glassTranslucency: widgetConfig.glassTranslucency,
+    autoOpen: widgetConfig.autoOpen,
+    proactiveMessage: widgetConfig.proactiveMessage,
   })
 
   return (
     <form action={formAction} className="stack">
       <ActionToast state={state} />
 
-      <div className="two-column-grid">
+      <div className="two-column-grid chatbot-settings-grid">
         <div className="stack">
           <section className="card stack">
             <h2>{labels.chatbot}</h2>
@@ -351,6 +356,7 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
                   name="auto_open"
                   defaultChecked={widgetConfig.autoOpen}
                   style={{ width: 16, height: 16 }}
+                  onChange={(event) => setPreviewConfig((current) => ({ ...current, autoOpen: event.target.checked }))}
                 />
                 {labels.autoOpen}
               </label>
@@ -366,6 +372,17 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
                 />
               </label>
             </div>
+            <label className="field">
+              {labels.proactiveMessage}
+              <input
+                name="proactive_message"
+                type="text"
+                maxLength={160}
+                defaultValue={widgetConfig.proactiveMessage}
+                onChange={(event) => setPreviewConfig((current) => ({ ...current, proactiveMessage: event.target.value }))}
+              />
+              <span className="muted">{labels.proactiveMessageHint}</span>
+            </label>
           </section>
 
           <section className="card stack">
@@ -398,9 +415,9 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
         </div>
 
         <aside className="stack">
-          <section className="card stack">
+          <section className="card stack chatbot-preview-card">
             <h2>{previewLabel}</h2>
-            <WidgetPreview widgetConfig={previewConfig} />
+            <WidgetPreview key={previewConfig.autoOpen ? 'proactive' : 'manual'} widgetConfig={previewConfig} />
           </section>
 
           <section className="card stack">
@@ -652,13 +669,17 @@ function WidgetPreview({
     glassBackground: 'light' | 'dark'
     glassBlur: number
     glassTranslucency: number
+    autoOpen: boolean
+    proactiveMessage: string
   }
 }) {
-  const scale = 0.35
-  const chatbotOffset = Math.max(16, Math.round(widgetConfig.blockOffset * scale))
-  const inlineOffset = Math.max(16, Math.round(widgetConfig.inlineOffset * scale))
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [greetingVisible, setGreetingVisible] = useState(widgetConfig.autoOpen)
+  const chatbotOffset = widgetConfig.blockOffset
+  const inlineOffset = widgetConfig.inlineOffset
   const previewSize = getPreviewWidgetSize(widgetConfig.widgetSize)
   const chatbotPosition = getPreviewPosition(widgetConfig.position, chatbotOffset, inlineOffset)
+  const floatingContentPosition = getPreviewFloatingContentPosition(widgetConfig.position, chatbotOffset, inlineOffset, previewSize)
   const glass = widgetConfig.widgetTheme === 'glass'
   const color = widgetConfig.primaryColor
   const skin = getGlassSkin(color, widgetConfig.glassBackground, widgetConfig.glassTranslucency)
@@ -686,62 +707,122 @@ function WidgetPreview({
     ? { background: skin.botBubble, color: skin.botText }
     : { background: '#fff', color: '#1A1A2E' }
 
+  function openPanel() {
+    setGreetingVisible(false)
+    setPanelOpen(true)
+  }
+
   return (
-    <div style={{ minHeight: 260, position: 'relative', borderRadius: 14, overflow: 'hidden', padding: 18, background: glass ? skin.stage : 'transparent' }}>
-      <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', ...panelStyle }}>
+    <div
+      className="widget-live-preview"
+      style={{ background: glass ? skin.stage : 'linear-gradient(135deg, #f4f1eb, #dce3ea)' }}
+    >
+      <section
+        className="widget-preview-panel"
+        data-open={panelOpen}
+        aria-hidden={!panelOpen}
+        style={{ ...floatingContentPosition, ...panelStyle }}
+      >
         {glass ? (
-          <span style={{ position: 'absolute', inset: '0 0 auto 0', height: '45%', background: 'linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0) 90%)', pointerEvents: 'none' }} aria-hidden="true" />
+          <span className="widget-preview-specular" aria-hidden="true" />
         ) : null}
-        <div style={{ ...headerStyle, padding: '0.75rem', fontWeight: 700, position: 'relative' }}>
-          {widgetConfig.assistantName}
+        <div className="widget-preview-header" style={headerStyle}>
+          <span>{widgetConfig.assistantName}</span>
+          <button type="button" className="widget-preview-close" aria-label="Cerrar" onClick={() => setPanelOpen(false)}>×</button>
         </div>
-        {/* message reading zone keeps a legible surface; the translucency slider only tunes the chrome */}
-        <div style={{ padding: '0.75rem', display: 'grid', gap: '0.6rem', fontSize: '0.9rem', background: glass ? skin.msgSurface : 'transparent', position: 'relative' }}>
-          <p style={{ margin: 0, borderRadius: 8, padding: '0.6rem', boxShadow: '0 1px 2px rgba(0,0,0,.08)', ...botBubbleStyle }}>
+        <div className="widget-preview-messages" style={{ background: glass ? skin.msgSurface : '#F5F2EC' }}>
+          <p className="widget-preview-message" style={botBubbleStyle}>
             {widgetConfig.initialMessage}
           </p>
-          <p style={{ margin: 0, justifySelf: 'end', background: color, color: '#fff', borderRadius: 8, padding: '0.6rem' }}>
-            Quiero información
-          </p>
         </div>
-      </div>
-      <div style={{ position: 'absolute', ...chatbotPosition, width: previewSize, height: previewSize, borderRadius: 999, color: '#fff', display: 'grid', placeItems: 'center', ...toggleStyle }}>
-        {widgetConfig.launcherIcon === 'chat' ? (
-          <MessageCircle
-            aria-hidden="true"
-            width={Math.round(previewSize * 0.5)}
-            height={Math.round(previewSize * 0.5)}
-            strokeWidth={2.2}
-            style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.2))' }}
+        <div
+          className="widget-preview-form"
+          style={{
+            background: glass ? skin.chromeFill : '#fff',
+            backdropFilter: glass ? filter : undefined,
+            WebkitBackdropFilter: glass ? filter : undefined,
+          }}
+        >
+          <textarea
+            rows={1}
+            placeholder="Escribe tu mensaje..."
+            onInput={(event) => resizePreviewComposer(event.currentTarget)}
           />
-        ) : widgetConfig.launcherIcon === 'bubble' ? (
-          <MessageCircleMore
-            aria-hidden="true"
-            width={Math.round(previewSize * 0.54)}
-            height={Math.round(previewSize * 0.54)}
-            strokeWidth={2.2}
-            style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.2))' }}
-          />
-        ) : widgetConfig.launcherIcon === 'bot' ? (
-          <Bot
-            aria-hidden="true"
-            width={Math.round(previewSize * 0.54)}
-            height={Math.round(previewSize * 0.54)}
-            strokeWidth={2.2}
-            style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.2))' }}
-          />
-        ) : (
-          <Image
-            src="/icon.svg"
-            alt=""
-            aria-hidden="true"
-            width={500}
-            height={500}
-            style={{ width: Math.round(previewSize * 0.82), height: Math.round(previewSize * 0.82), objectFit: 'contain', filter: 'brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,.2))' }}
-          />
-        )}
-      </div>
+          <button type="button" disabled style={{ background: color }}>Enviar</button>
+        </div>
+      </section>
+
+      <aside
+        className="widget-preview-welcome"
+        data-visible={greetingVisible}
+        aria-hidden={!greetingVisible}
+        style={{
+          ...floatingContentPosition,
+          background: glass ? skin.panelFill : '#fff',
+          color: glass ? skin.botText : '#1A1A2E',
+          borderColor: glass ? skin.hairline : 'rgba(26,26,46,.12)',
+          backdropFilter: glass ? filter : undefined,
+          WebkitBackdropFilter: glass ? filter : undefined,
+        }}
+      >
+        <button type="button" className="widget-preview-welcome-action" onClick={openPanel}>
+          <span className="widget-preview-welcome-brand">
+            <strong>{widgetConfig.assistantName}</strong>
+          </span>
+          <span className="widget-preview-welcome-message">{widgetConfig.proactiveMessage}</span>
+        </button>
+        <button
+          type="button"
+          className="widget-preview-welcome-close"
+          aria-label="Cerrar"
+          onClick={() => setGreetingVisible(false)}
+        >
+          ×
+        </button>
+      </aside>
+
+      <button
+        type="button"
+        className="widget-preview-launcher"
+        aria-label={panelOpen ? 'Cerrar asistente' : 'Abrir asistente'}
+        aria-expanded={panelOpen}
+        style={{ ...chatbotPosition, width: previewSize, height: previewSize, ...toggleStyle }}
+        onClick={() => {
+          if (panelOpen) {
+            setPanelOpen(false)
+          } else {
+            openPanel()
+          }
+        }}
+      >
+        <PreviewLauncherIcon value={widgetConfig.launcherIcon} size={previewSize} />
+      </button>
     </div>
+  )
+}
+
+function PreviewLauncherIcon({ value, size }: { value: WidgetLauncherIcon; size: number }) {
+  const shadow = { filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.2))' }
+
+  if (value === 'chat') {
+    return <MessageCircle aria-hidden="true" width={Math.round(size * 0.5)} height={Math.round(size * 0.5)} strokeWidth={2.2} style={shadow} />
+  }
+  if (value === 'bubble') {
+    return <MessageCircleMore aria-hidden="true" width={Math.round(size * 0.54)} height={Math.round(size * 0.54)} strokeWidth={2.2} style={shadow} />
+  }
+  if (value === 'bot') {
+    return <Bot aria-hidden="true" width={Math.round(size * 0.54)} height={Math.round(size * 0.54)} strokeWidth={2.2} style={shadow} />
+  }
+
+  return (
+    <Image
+      src="/icon.svg"
+      alt=""
+      aria-hidden="true"
+      width={500}
+      height={500}
+      style={{ width: Math.round(size * 0.82), height: Math.round(size * 0.82), objectFit: 'contain', filter: 'brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,.2))' }}
+    />
   )
 }
 
@@ -797,6 +878,21 @@ function getPreviewPosition(position: string, blockOffset: number, inlineOffset:
   if (position === 'top-right') return { right: inlineOffset, top: blockOffset }
   if (position === 'top-left') return { left: inlineOffset, top: blockOffset }
   return { right: inlineOffset, bottom: blockOffset }
+}
+
+function getPreviewFloatingContentPosition(position: string, blockOffset: number, inlineOffset: number, widgetSize: number) {
+  const panelOffset = blockOffset + widgetSize + 12
+  if (position === 'bottom-left') return { left: inlineOffset, bottom: panelOffset }
+  if (position === 'top-right') return { right: inlineOffset, top: panelOffset }
+  if (position === 'top-left') return { left: inlineOffset, top: panelOffset }
+  return { right: inlineOffset, bottom: panelOffset }
+}
+
+function resizePreviewComposer(composer: HTMLTextAreaElement) {
+  composer.style.height = 'auto'
+  const nextHeight = Math.min(composer.scrollHeight, 120)
+  composer.style.height = `${Math.max(nextHeight, 44)}px`
+  composer.style.overflowY = composer.scrollHeight > 120 ? 'auto' : 'hidden'
 }
 
 function getNumericInput(value: string, fallback: number) {
