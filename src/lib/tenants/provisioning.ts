@@ -46,6 +46,7 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
     blockOffset: 20,
     collisionStrategy: 'auto',
     widgetTheme: 'solid',
+    launcherIcon: 'talia',
     glassBackground: 'light',
     glassBlur: 18,
     glassTranslucency: 58,

@@ -41,6 +41,7 @@
     var blockOffset = getPixelOffset(config.blockOffset || script.getAttribute('data-block-offset'), 20);
     var collisionStrategy = getCollisionStrategy(config.collisionStrategy || script.getAttribute('data-collision-strategy'));
     var widgetTheme = getWidgetTheme(config.widgetTheme || script.getAttribute('data-theme'));
+    var launcherIcon = getLauncherIcon(config.launcherIcon || script.getAttribute('data-icon'));
     var glassBackground = getGlassBackground(config.glassBackground || script.getAttribute('data-glass-background'));
     var glassBlur = getGlassBlur(config.glassBlur != null ? config.glassBlur : script.getAttribute('data-glass-blur'));
     var glassTranslucency = getGlassTranslucency(config.glassTranslucency != null ? config.glassTranslucency : script.getAttribute('data-glass-translucency'));
@@ -55,7 +56,7 @@
     });
 
     var root = host.attachShadow({ mode: 'open' });
-    root.innerHTML = getTemplate(assistantName, initialMessage, primaryColor, position, widgetSize, widgetTheme, glassBackground, glassBlur, glassTranslucency);
+    root.innerHTML = getTemplate(assistantName, initialMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, baseUrl + '/icon.svg');
 
     var panel = root.querySelector('[data-panel]');
     var toggle = root.querySelector('[data-toggle]');
@@ -576,11 +577,13 @@
     notice.textContent = message;
   }
 
-  function getTemplate(assistantName, initialMessage, primaryColor, position, widgetSize, widgetTheme, glassBackground, glassBlur, glassTranslucency) {
+  function getTemplate(assistantName, initialMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, iconUrl) {
     var togglePosition = getTogglePositionCss(position);
     var panelPosition = getPanelPositionCss(position);
     var toggleSize = getWidgetSizePixels(widgetSize);
-    var toggleIconSize = Math.round(toggleSize * 0.48);
+    var toggleIconSize = Math.round(toggleSize * 0.82);
+    var chatIconSize = Math.round(toggleSize * 0.5);
+    var launcherIconMarkup = getLauncherIconMarkup(launcherIcon, iconUrl);
     var transformOrigin = position.indexOf('left') >= 0
       ? (position.indexOf('top') >= 0 ? 'top left' : 'bottom left')
       : (position.indexOf('top') >= 0 ? 'top right' : 'bottom right');
@@ -640,7 +643,9 @@
         .toggle { position: fixed; ' + togglePosition + ' z-index: 2147483647; width: ' + toggleSize + 'px; height: ' + toggleSize + 'px; border: 0; border-radius: 999px; background: ' + toggleBackground + '; ' + toggleFilter + ' color: white; cursor: pointer; display: grid; place-items: center; box-shadow: ' + toggleShadow + '; transition: transform 150ms ease, box-shadow 150ms ease; }\
         .toggle:hover { transform: scale(1.08); }\
         .toggle:active { transform: scale(0.94); }\
-        .toggle svg { position: relative; z-index: 1; width: ' + toggleIconSize + 'px; height: ' + toggleIconSize + 'px; display: block; }\
+        .toggle .launcher-icon { position: relative; z-index: 1; display: block; object-fit: contain; }\
+        .toggle .launcher-icon--talia { width: ' + toggleIconSize + 'px; height: ' + toggleIconSize + 'px; filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,.2)); }\
+        .toggle .launcher-icon--chat, .toggle .launcher-icon--bubble, .toggle .launcher-icon--bot { width: ' + chatIconSize + 'px; height: ' + chatIconSize + 'px; fill: none; stroke: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,.2)); }\
         ' + toggleSheen + '\
         .panel { position: fixed; ' + panelPosition + ' z-index: 2147483647; width: min(400px, calc(100vw - 32px)); height: min(580px, calc(100vh - 112px)); max-height: calc(100vh - 112px); background: ' + panelBackground + '; ' + glassFilter + ' color: #1A1A2E; ' + panelBorder + ' border-radius: 14px; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; opacity: 0; transform: translateY(14px) scale(0.97); transform-origin: ' + transformOrigin + '; pointer-events: none; transition: opacity 280ms cubic-bezier(0.16,1,0.3,1), transform 280ms cubic-bezier(0.16,1,0.3,1), box-shadow 280ms cubic-bezier(0.16,1,0.3,1); box-shadow: ' + panelShadow + panelInset + '; }\
         .panel--open { opacity: 1 !important; transform: translateY(0) scale(1) !important; pointer-events: auto !important; box-shadow: ' + panelOpenShadow + panelInset + ' !important; }\
@@ -664,11 +669,24 @@
         <form class="form" data-form><input class="input" data-input placeholder="Escribe tu mensaje..." autocomplete="off" /><button class="send" type="submit">Enviar</button></form>\
       </section>\
       <button class="toggle" data-toggle aria-label="Abrir asistente virtual">\
-        <svg viewBox="0 0 28 28" aria-hidden="true" focusable="false" fill="none" xmlns="http://www.w3.org/2000/svg">\
-          <path d="M5.25 6.8C5.25 4.98 6.73 3.5 8.55 3.5h10.9c1.82 0 3.3 1.48 3.3 3.3v7.7c0 1.82-1.48 3.3-3.3 3.3h-6.17l-5.1 4.2v-4.2h.37c-1.82 0-3.3-1.48-3.3-3.3V6.8Z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>\
-          <path d="M10 10.5h7.2M10 14h4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>\
-        </svg>\
+        ' + launcherIconMarkup + '\
       </button>';
+  }
+
+  function getLauncherIconMarkup(launcherIcon, iconUrl) {
+    if (launcherIcon === 'bubble') {
+      return '<svg class="launcher-icon launcher-icon--bubble" viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path><path d="M8 12h.01"></path><path d="M12 12h.01"></path><path d="M16 12h.01"></path></svg>';
+    }
+
+    if (launcherIcon === 'bot') {
+      return '<svg class="launcher-icon launcher-icon--bot" viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="12" x="4" y="8" rx="2"></rect><path d="M9 4h6"></path><path d="M12 4v4"></path><path d="M8 12h.01"></path><path d="M16 12h.01"></path><path d="M9 16h6"></path></svg>';
+    }
+
+    if (launcherIcon === 'chat') {
+      return '<svg class="launcher-icon launcher-icon--chat" viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path></svg>';
+    }
+
+    return '<img class="launcher-icon launcher-icon--talia" src="' + escapeHtml(iconUrl) + '" alt="" aria-hidden="true" />';
   }
 
   function escapeHtml(value) {
@@ -695,6 +713,10 @@
 
   function getWidgetTheme(value) {
     return value === 'glass' ? 'glass' : 'solid';
+  }
+
+  function getLauncherIcon(value) {
+    return value === 'chat' || value === 'bubble' || value === 'bot' ? value : 'talia';
   }
 
   function getGlassBackground(value) {

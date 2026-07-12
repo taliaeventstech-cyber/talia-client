@@ -34,6 +34,7 @@ const settingsSchema = z.object({
   blockOffset: z.coerce.number().int().min(12).max(320),
   collisionStrategy: z.enum(['auto', 'none']),
   widgetTheme: z.enum(['solid', 'glass']),
+  launcherIcon: z.enum(['talia', 'chat', 'bubble', 'bot']),
   glassBackground: z.enum(['light', 'dark']),
   glassBlur: z.coerce.number().int().min(0).max(30),
   glassTranslucency: z.coerce.number().int().min(15).max(85),
@@ -82,6 +83,7 @@ export async function updateTenantSettings(
     blockOffset: formData.get('block_offset') ?? 20,
     collisionStrategy: formData.get('collision_strategy') === 'auto' ? 'auto' : 'none',
     widgetTheme: formData.get('widget_theme') === 'glass' ? 'glass' : 'solid',
+    launcherIcon: normalizeLauncherIconFormValue(formData.get('launcher_icon')),
     glassBackground: formData.get('glass_background') === 'dark' ? 'dark' : 'light',
     glassBlur: formData.get('glass_blur') ?? 18,
     glassTranslucency: formData.get('glass_translucency') ?? 58,
@@ -118,6 +120,7 @@ export async function updateTenantSettings(
       blockOffset: data.blockOffset,
       collisionStrategy: data.collisionStrategy,
       widgetTheme: data.widgetTheme,
+      launcherIcon: data.launcherIcon,
       glassBackground: data.glassBackground,
       glassBlur: data.glassBlur,
       glassTranslucency: data.glassTranslucency,
@@ -155,6 +158,10 @@ async function getExistingWidgetConfig(admin: ReturnType<typeof createAdminClien
 
 function isPlainObject(value: unknown): value is Record<string, Json> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function normalizeLauncherIconFormValue(value: FormDataEntryValue | null) {
+  return value === 'chat' || value === 'bubble' || value === 'bot' ? value : 'talia'
 }
 
 export async function createKnowledgeItem(

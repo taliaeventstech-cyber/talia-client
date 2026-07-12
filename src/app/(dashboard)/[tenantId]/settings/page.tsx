@@ -3,6 +3,7 @@ import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { SettingsForm } from './settings-form'
 import { normalizeChatbotAiSettings } from '@/lib/chatbot/ai-settings'
+import { normalizeWidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -53,6 +54,7 @@ export default async function SettingsPage({ params }: Props) {
             blockOffset: widgetConfig.blockOffset,
             collisionStrategy: widgetConfig.collisionStrategy,
             widgetTheme: widgetConfig.widgetTheme,
+            launcherIcon: widgetConfig.launcherIcon,
             glassBackground: widgetConfig.glassBackground,
             glassBlur: widgetConfig.glassBlur,
             glassTranslucency: widgetConfig.glassTranslucency,
@@ -98,6 +100,7 @@ function getWidgetConfig(value: unknown) {
       blockOffset: 20,
       collisionStrategy: 'auto' as const,
       widgetTheme: 'solid' as const,
+      launcherIcon: normalizeWidgetLauncherIcon(undefined),
       glassBackground: 'light' as const,
       glassBlur: 18,
       glassTranslucency: 58,
@@ -123,6 +126,8 @@ function getWidgetConfig(value: unknown) {
     collision_strategy?: unknown
     widgetTheme?: unknown
     widget_theme?: unknown
+    launcherIcon?: unknown
+    launcher_icon?: unknown
     glassBackground?: unknown
     glass_background?: unknown
     glassBlur?: unknown
@@ -145,6 +150,7 @@ function getWidgetConfig(value: unknown) {
     blockOffset: getPixelOffset(config.blockOffset ?? config.block_offset, 20),
     collisionStrategy: config.collisionStrategy === 'none' || config.collision_strategy === 'none' ? 'none' as const : 'auto' as const,
     widgetTheme: config.widgetTheme === 'glass' || config.widget_theme === 'glass' ? 'glass' as const : 'solid' as const,
+    launcherIcon: normalizeWidgetLauncherIcon(config.launcherIcon ?? config.launcher_icon),
     glassBackground: config.glassBackground === 'dark' || config.glass_background === 'dark' ? 'dark' as const : 'light' as const,
     glassBlur: getBoundedNumber(config.glassBlur ?? config.glass_blur, 0, 30, 18),
     glassTranslucency: getBoundedNumber(config.glassTranslucency ?? config.glass_translucency, 15, 85, 58),

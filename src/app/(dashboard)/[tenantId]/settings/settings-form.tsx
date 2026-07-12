@@ -6,6 +6,9 @@ import { CopyScriptButton } from './copy-script-button'
 import { updateTenantSettings, type SettingsFormState } from './actions'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry } from '@/lib/phone/international'
+import Image from 'next/image'
+import { Bot, ChevronLeft, MessageCircle, MessageCircleMore } from 'lucide-react'
+import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 
 type SettingsFormLabels = {
   chatbot: string
@@ -30,6 +33,13 @@ type SettingsFormLabels = {
   widgetThemeSolidHint: string
   widgetThemeGlass: string
   widgetThemeGlassHint: string
+  widgetIcon: string
+  widgetIconTalia: string
+  widgetIconChat: string
+  widgetIconBubble: string
+  widgetIconBot: string
+  widgetIconExpand: string
+  widgetIconCollapse: string
   glassBackground: string
   glassBackgroundHint: string
   glassBackgroundLight: string
@@ -65,6 +75,7 @@ type SettingsFormProps = {
     blockOffset: number
     collisionStrategy: 'auto' | 'none'
     widgetTheme: 'solid' | 'glass'
+    launcherIcon: WidgetLauncherIcon
     glassBackground: 'light' | 'dark'
     glassBlur: number
     glassTranslucency: number
@@ -103,6 +114,7 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
     blockOffset: widgetConfig.blockOffset,
     collisionStrategy: widgetConfig.collisionStrategy,
     widgetTheme: widgetConfig.widgetTheme,
+    launcherIcon: widgetConfig.launcherIcon,
     glassBackground: widgetConfig.glassBackground,
     glassBlur: widgetConfig.glassBlur,
     glassTranslucency: widgetConfig.glassTranslucency,
@@ -174,59 +186,39 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
                 </select>
               </label>
 
-              <fieldset className="field widget-theme-field" style={{ gridColumn: '1 / -1', border: 0, padding: 0, margin: 0 }}>
+              <fieldset className="field widget-theme-field widget-appearance-field" style={{ gridColumn: '1 / -1', border: 0, padding: 0, margin: 0 }}>
                 <legend style={{ padding: 0 }}>{labels.widgetTheme}</legend>
-                <div className="widget-theme-options">
-                  <ThemeChoice
-                    value="solid"
-                    checked={previewConfig.widgetTheme === 'solid'}
-                    title={labels.widgetThemeSolid}
-                    onSelect={() => setPreviewConfig((current) => ({ ...current, widgetTheme: 'solid' }))}
+                <div className="widget-appearance-controls">
+                  <ThemeToggle
+                    value={previewConfig.widgetTheme}
+                    color={previewConfig.primaryColor}
+                    solidLabel={labels.widgetThemeSolid}
+                    glassLabel={labels.widgetThemeGlass}
+                    onSelect={(widgetTheme) => setPreviewConfig((current) => ({ ...current, widgetTheme }))}
                   />
-                  <ThemeChoice
-                    value="glass"
-                    checked={previewConfig.widgetTheme === 'glass'}
-                    title={labels.widgetThemeGlass}
-                    onSelect={() => setPreviewConfig((current) => ({ ...current, widgetTheme: 'glass' }))}
+                  <LauncherIconPicker
+                    value={previewConfig.launcherIcon}
+                    color={previewConfig.primaryColor}
+                    label={labels.widgetIcon}
+                    taliaLabel={labels.widgetIconTalia}
+                    chatLabel={labels.widgetIconChat}
+                    bubbleLabel={labels.widgetIconBubble}
+                    botLabel={labels.widgetIconBot}
+                    expandLabel={labels.widgetIconExpand}
+                    collapseLabel={labels.widgetIconCollapse}
+                    onSelect={(launcherIcon) => setPreviewConfig((current) => ({ ...current, launcherIcon }))}
                   />
                 </div>
               </fieldset>
 
               {previewConfig.widgetTheme === 'glass' ? (
                 <div className="glass-controls" style={{ gridColumn: '1 / -1' }}>
-                  <fieldset className="field glass-bg-field" style={{ border: 0, padding: 0, margin: 0 }}>
-                    <legend style={{ padding: 0 }}>{labels.glassBackground}</legend>
-                    <div className="glass-bg-options">
-                      <label className={previewConfig.glassBackground === 'light' ? 'glass-bg-choice glass-bg-choice-active' : 'glass-bg-choice'}>
-                        <input
-                          type="radio"
-                          name="glass_background"
-                          value="light"
-                          checked={previewConfig.glassBackground === 'light'}
-                          onChange={() => setPreviewConfig((current) => ({ ...current, glassBackground: 'light' }))}
-                          className="sr-only"
-                        />
-                        <span className="glass-bg-dot glass-bg-dot-light" aria-hidden="true" />
-                        {labels.glassBackgroundLight}
-                      </label>
-                      <label className={previewConfig.glassBackground === 'dark' ? 'glass-bg-choice glass-bg-choice-active' : 'glass-bg-choice'}>
-                        <input
-                          type="radio"
-                          name="glass_background"
-                          value="dark"
-                          checked={previewConfig.glassBackground === 'dark'}
-                          onChange={() => setPreviewConfig((current) => ({ ...current, glassBackground: 'dark' }))}
-                          className="sr-only"
-                        />
-                        <span className="glass-bg-dot glass-bg-dot-dark" aria-hidden="true" />
-                        {labels.glassBackgroundDark}
-                      </label>
-                    </div>
-                  </fieldset>
-
-                  <label className="field">
-                    {labels.glassBlur}
-                    <div className="glass-range-row">
+                  <div className="glass-range-controls">
+                    <label className="field glass-range-field">
+                      <span className="glass-range-label">
+                        <span>{labels.glassBlur}</span>
+                        <output>{Math.round((previewConfig.glassBlur / 30) * 100)}%</output>
+                      </span>
                       <input
                         type="range"
                         name="glass_blur"
@@ -236,13 +228,13 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
                         style={{ ['--fill' as string]: `${Math.round((previewConfig.glassBlur / 30) * 100)}%` }}
                         onChange={(event) => setPreviewConfig((current) => ({ ...current, glassBlur: Number(event.target.value) }))}
                       />
-                      <output>{Math.round((previewConfig.glassBlur / 30) * 100)}%</output>
-                    </div>
-                  </label>
+                    </label>
 
-                  <label className="field">
-                    {labels.glassTranslucency}
-                    <div className="glass-range-row">
+                    <label className="field glass-range-field">
+                      <span className="glass-range-label">
+                        <span>{labels.glassTranslucency}</span>
+                        <output>{Math.round(((previewConfig.glassTranslucency - 15) / 70) * 100)}%</output>
+                      </span>
                       <input
                         type="range"
                         name="glass_translucency"
@@ -252,9 +244,16 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
                         style={{ ['--fill' as string]: `${Math.round(((previewConfig.glassTranslucency - 15) / 70) * 100)}%` }}
                         onChange={(event) => setPreviewConfig((current) => ({ ...current, glassTranslucency: Number(event.target.value) }))}
                       />
-                      <output>{Math.round(((previewConfig.glassTranslucency - 15) / 70) * 100)}%</output>
-                    </div>
-                  </label>
+                    </label>
+                  </div>
+
+                  <BackgroundToggle
+                    value={previewConfig.glassBackground}
+                    label={labels.glassBackground}
+                    lightLabel={labels.glassBackgroundLight}
+                    darkLabel={labels.glassBackgroundDark}
+                    onSelect={(glassBackground) => setPreviewConfig((current) => ({ ...current, glassBackground }))}
+                  />
                 </div>
               ) : (
                 <>
@@ -437,32 +436,202 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
   )
 }
 
-function ThemeChoice({
+function ThemeToggle({
   value,
-  checked,
-  title,
+  color,
+  solidLabel,
+  glassLabel,
   onSelect,
 }: {
   value: 'solid' | 'glass'
-  checked: boolean
-  title: string
-  onSelect: () => void
+  color: string
+  solidLabel: string
+  glassLabel: string
+  onSelect: (value: 'solid' | 'glass') => void
 }) {
   return (
-    <label className={checked ? 'widget-theme-choice widget-theme-choice-active' : 'widget-theme-choice'}>
-      <input
-        type="radio"
-        name="widget_theme"
-        value={value}
-        checked={checked}
-        onChange={onSelect}
-        className="sr-only"
-      />
-      <span className={`widget-theme-swatch widget-theme-swatch-${value}`} aria-hidden="true" />
-      <span className="widget-theme-choice-text">
-        <strong>{title}</strong>
-      </span>
-    </label>
+    <div
+      className="widget-theme-toggle"
+      data-theme={value}
+      style={{ ['--widget-theme-color' as string]: color }}
+      role="radiogroup"
+      aria-label={`${solidLabel} / ${glassLabel}`}
+    >
+      <span className="widget-theme-toggle-indicator" aria-hidden="true" />
+      <label className="widget-theme-toggle-option" title={solidLabel}>
+        <input
+          type="radio"
+          name="widget_theme"
+          value="solid"
+          checked={value === 'solid'}
+          onChange={() => onSelect('solid')}
+          className="sr-only"
+          aria-label={solidLabel}
+        />
+        <span className="widget-theme-orb widget-theme-orb-solid" aria-hidden="true" />
+      </label>
+      <label className="widget-theme-toggle-option" title={glassLabel}>
+        <input
+          type="radio"
+          name="widget_theme"
+          value="glass"
+          checked={value === 'glass'}
+          onChange={() => onSelect('glass')}
+          className="sr-only"
+          aria-label={glassLabel}
+        />
+        <span className="widget-theme-orb widget-theme-orb-glass" aria-hidden="true" />
+      </label>
+    </div>
+  )
+}
+
+function LauncherIconPicker({
+  value,
+  color,
+  label,
+  taliaLabel,
+  chatLabel,
+  bubbleLabel,
+  botLabel,
+  expandLabel,
+  collapseLabel,
+  onSelect,
+}: {
+  value: WidgetLauncherIcon
+  color: string
+  label: string
+  taliaLabel: string
+  chatLabel: string
+  bubbleLabel: string
+  botLabel: string
+  expandLabel: string
+  collapseLabel: string
+  onSelect: (value: WidgetLauncherIcon) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const options: Array<{ value: WidgetLauncherIcon; label: string }> = [
+    { value: 'talia', label: taliaLabel },
+    { value: 'chat', label: chatLabel },
+    { value: 'bubble', label: bubbleLabel },
+    { value: 'bot', label: botLabel },
+  ]
+
+  return (
+    <div
+      className={expanded ? 'widget-icon-picker widget-icon-picker-expanded' : 'widget-icon-picker'}
+      style={{
+        ['--widget-icon-color' as string]: color,
+        ['--widget-icon-count' as string]: options.length,
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          setExpanded(false)
+          event.currentTarget.querySelector<HTMLButtonElement>('.widget-icon-picker-trigger')?.focus()
+        }
+      }}
+    >
+      <input type="hidden" name="launcher_icon" value={value} />
+      <button
+        type="button"
+        className="widget-icon-picker-trigger"
+        aria-expanded={expanded}
+        aria-label={expanded ? collapseLabel : expandLabel}
+        title={expanded ? collapseLabel : expandLabel}
+        onClick={() => setExpanded((current) => !current)}
+      >
+        {expanded ? <ChevronLeft className="widget-icon-picker-collapse-glyph" aria-hidden="true" /> : <LauncherIconGlyph value={value} />}
+      </button>
+      <div className="widget-icon-picker-options" role="radiogroup" aria-label={label} aria-hidden={!expanded}>
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className={value === option.value ? 'widget-icon-picker-option widget-icon-picker-option-active' : 'widget-icon-picker-option'}
+            role="radio"
+            aria-checked={value === option.value}
+            aria-label={option.label}
+            title={option.label}
+            tabIndex={expanded ? 0 : -1}
+            onClick={() => onSelect(option.value)}
+          >
+            <LauncherIconGlyph value={option.value} />
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function LauncherIconGlyph({ value }: { value: WidgetLauncherIcon }) {
+  if (value === 'bubble') {
+    return <MessageCircleMore className="widget-launcher-glyph widget-launcher-glyph-bubble" strokeWidth={2.2} aria-hidden="true" />
+  }
+
+  if (value === 'bot') {
+    return <Bot className="widget-launcher-glyph widget-launcher-glyph-bot" strokeWidth={2.2} aria-hidden="true" />
+  }
+
+  if (value === 'chat') {
+    return <MessageCircle className="widget-launcher-glyph widget-launcher-glyph-chat" strokeWidth={2.2} aria-hidden="true" />
+  }
+
+  return (
+    <Image
+      className="widget-launcher-glyph widget-launcher-glyph-talia"
+      src="/icon.svg"
+      alt=""
+      aria-hidden="true"
+      width={500}
+      height={500}
+    />
+  )
+}
+
+function BackgroundToggle({
+  value,
+  label,
+  lightLabel,
+  darkLabel,
+  onSelect,
+}: {
+  value: 'light' | 'dark'
+  label: string
+  lightLabel: string
+  darkLabel: string
+  onSelect: (value: 'light' | 'dark') => void
+}) {
+  return (
+    <fieldset className="glass-background-toggle-field">
+      <legend className="sr-only">{label}</legend>
+      <div className="glass-background-toggle" data-background={value} role="radiogroup" aria-label={label} aria-orientation="vertical">
+        <span className="glass-background-toggle-indicator" aria-hidden="true" />
+        <label className="glass-background-toggle-option" title={lightLabel}>
+          <input
+            type="radio"
+            name="glass_background"
+            value="light"
+            checked={value === 'light'}
+            onChange={() => onSelect('light')}
+            className="sr-only"
+            aria-label={lightLabel}
+          />
+          <span className="glass-background-orb glass-background-orb-light" aria-hidden="true" />
+        </label>
+        <label className="glass-background-toggle-option" title={darkLabel}>
+          <input
+            type="radio"
+            name="glass_background"
+            value="dark"
+            checked={value === 'dark'}
+            onChange={() => onSelect('dark')}
+            className="sr-only"
+            aria-label={darkLabel}
+          />
+          <span className="glass-background-orb glass-background-orb-dark" aria-hidden="true" />
+        </label>
+      </div>
+    </fieldset>
   )
 }
 
@@ -479,6 +648,7 @@ function WidgetPreview({
     blockOffset: number
     collisionStrategy: 'auto' | 'none'
     widgetTheme: 'solid' | 'glass'
+    launcherIcon: WidgetLauncherIcon
     glassBackground: 'light' | 'dark'
     glassBlur: number
     glassTranslucency: number
@@ -536,10 +706,40 @@ function WidgetPreview({
         </div>
       </div>
       <div style={{ position: 'absolute', ...chatbotPosition, width: previewSize, height: previewSize, borderRadius: 999, color: '#fff', display: 'grid', placeItems: 'center', ...toggleStyle }}>
-        <svg viewBox="0 0 28 28" aria-hidden="true" focusable="false" width={Math.round(previewSize * 0.54)} height={Math.round(previewSize * 0.54)} fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M5.25 6.8C5.25 4.98 6.73 3.5 8.55 3.5h10.9c1.82 0 3.3 1.48 3.3 3.3v7.7c0 1.82-1.48 3.3-3.3 3.3h-6.17l-5.1 4.2v-4.2h.37c-1.82 0-3.3-1.48-3.3-3.3V6.8Z" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
-          <path d="M10 10.5h7.2M10 14h4.8" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-        </svg>
+        {widgetConfig.launcherIcon === 'chat' ? (
+          <MessageCircle
+            aria-hidden="true"
+            width={Math.round(previewSize * 0.5)}
+            height={Math.round(previewSize * 0.5)}
+            strokeWidth={2.2}
+            style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.2))' }}
+          />
+        ) : widgetConfig.launcherIcon === 'bubble' ? (
+          <MessageCircleMore
+            aria-hidden="true"
+            width={Math.round(previewSize * 0.54)}
+            height={Math.round(previewSize * 0.54)}
+            strokeWidth={2.2}
+            style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.2))' }}
+          />
+        ) : widgetConfig.launcherIcon === 'bot' ? (
+          <Bot
+            aria-hidden="true"
+            width={Math.round(previewSize * 0.54)}
+            height={Math.round(previewSize * 0.54)}
+            strokeWidth={2.2}
+            style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.2))' }}
+          />
+        ) : (
+          <Image
+            src="/icon.svg"
+            alt=""
+            aria-hidden="true"
+            width={500}
+            height={500}
+            style={{ width: Math.round(previewSize * 0.82), height: Math.round(previewSize * 0.82), objectFit: 'contain', filter: 'brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,.2))' }}
+          />
+        )}
       </div>
     </div>
   )
