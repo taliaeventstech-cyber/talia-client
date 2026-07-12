@@ -2,6 +2,7 @@ import type { createAdminClient } from '@/lib/supabase/admin'
 import { getBillingAccess } from '@/lib/billing/access'
 import { normalizeChatbotAiSettings, type ChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import type { Json } from '@/types/database.types'
+import { normalizeWidgetLauncherIcon, type WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -17,6 +18,7 @@ export type PublicWidgetConfig = {
   blockOffset: number
   collisionStrategy: WidgetCollisionStrategy
   widgetTheme: WidgetTheme
+  launcherIcon: WidgetLauncherIcon
   glassBackground: WidgetGlassBackground
   glassBlur: number
   glassTranslucency: number
@@ -170,6 +172,7 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
       blockOffset: widgetConfig.blockOffset,
       collisionStrategy: widgetConfig.collisionStrategy,
       widgetTheme: widgetConfig.widgetTheme,
+      launcherIcon: widgetConfig.launcherIcon,
       glassBackground: widgetConfig.glassBackground,
       glassBlur: widgetConfig.glassBlur,
       glassTranslucency: widgetConfig.glassTranslucency,
@@ -353,6 +356,7 @@ function getWidgetConfig(value: unknown) {
       blockOffset: 20,
       collisionStrategy: 'auto' as const,
       widgetTheme: 'solid' as const,
+      launcherIcon: normalizeWidgetLauncherIcon(undefined),
       glassBackground: 'light' as const,
       glassBlur: GLASS_BLUR_DEFAULT,
       glassTranslucency: GLASS_TRANSLUCENCY_DEFAULT,
@@ -380,6 +384,8 @@ function getWidgetConfig(value: unknown) {
     collision_strategy?: unknown
     widgetTheme?: unknown
     widget_theme?: unknown
+    launcherIcon?: unknown
+    launcher_icon?: unknown
     glassBackground?: unknown
     glass_background?: unknown
     glassBlur?: unknown
@@ -405,6 +411,7 @@ function getWidgetConfig(value: unknown) {
     blockOffset: getPixelOffset(config.blockOffset ?? config.block_offset, 20),
     collisionStrategy: getCollisionStrategy(config.collisionStrategy ?? config.collision_strategy),
     widgetTheme: getWidgetTheme(config.widgetTheme ?? config.widget_theme),
+    launcherIcon: normalizeWidgetLauncherIcon(config.launcherIcon ?? config.launcher_icon),
     glassBackground: getGlassBackground(config.glassBackground ?? config.glass_background),
     glassBlur: getGlassBlur(config.glassBlur ?? config.glass_blur),
     glassTranslucency: getGlassTranslucency(config.glassTranslucency ?? config.glass_translucency),
