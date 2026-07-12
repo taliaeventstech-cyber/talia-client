@@ -3,6 +3,7 @@ import { getBillingAccess } from '@/lib/billing/access'
 import { normalizeChatbotAiSettings, type ChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import type { Json } from '@/types/database.types'
 import { normalizeWidgetLauncherIcon, type WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
+import { normalizeProactiveGreeting } from '@/lib/widget/proactive-greeting'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -26,6 +27,7 @@ export type PublicWidgetConfig = {
   fallbackPhone: string | null
   autoOpen: boolean
   autoOpenDelay: number
+  proactiveMessage: string
   accessibility: PublicAccessibilityConfig
 }
 
@@ -144,7 +146,7 @@ export async function assertTenantAdmin(admin: AdminClient, userId: string, tena
 export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string) {
   const { data, error } = await admin
     .from('theatres')
-    .select('id, name, fallback_email, fallback_phone, widget_config, accounts(status, created_at, metadata)')
+    .select('id, name, primary_language, fallback_email, fallback_phone, widget_config, accounts(status, created_at, metadata)')
     .eq('id', tenantId)
     .single()
 
@@ -180,6 +182,7 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
       fallbackPhone: data.fallback_phone,
       autoOpen: widgetConfig.autoOpen,
       autoOpenDelay: widgetConfig.autoOpenDelay,
+      proactiveMessage: normalizeProactiveGreeting(widgetConfig.proactiveMessage, data.primary_language, widgetConfig.assistantName),
       accessibility: widgetConfig.accessibility,
     } satisfies PublicWidgetConfig,
   }
@@ -362,6 +365,7 @@ function getWidgetConfig(value: unknown) {
       glassTranslucency: GLASS_TRANSLUCENCY_DEFAULT,
       autoOpen: false,
       autoOpenDelay: 3,
+      proactiveMessage: undefined,
       tone: 'close' as const,
       accessibility: getAccessibilityConfig(undefined, '#000000'),
       aiSettings: normalizeChatbotAiSettings(undefined),
@@ -394,6 +398,8 @@ function getWidgetConfig(value: unknown) {
     glass_translucency?: unknown
     autoOpen?: unknown
     autoOpenDelay?: unknown
+    proactiveMessage?: unknown
+    proactive_message?: unknown
     tone?: unknown
     accessibility?: unknown
     chatbotAi?: unknown
@@ -417,6 +423,7 @@ function getWidgetConfig(value: unknown) {
     glassTranslucency: getGlassTranslucency(config.glassTranslucency ?? config.glass_translucency),
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
+    proactiveMessage: config.proactiveMessage ?? config.proactive_message,
     tone: getChatbotResponseTone(config.tone),
     accessibility: getAccessibilityConfig(config.accessibility, primaryColor),
     aiSettings: normalizeChatbotAiSettings(config.chatbotAi ?? config.chatbot_ai),

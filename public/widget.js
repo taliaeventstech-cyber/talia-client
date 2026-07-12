@@ -34,6 +34,7 @@
   function mountWidget(config) {
     var assistantName = config.assistantName || script.getAttribute('data-name') || 'TALIA';
     var initialMessage = config.initialMessage || script.getAttribute('data-initial-message') || 'Hola, soc TALIA. En què et puc ajudar?';
+    var proactiveMessage = getProactiveMessage(config.proactiveMessage || script.getAttribute('data-proactive-message'), assistantName);
     var primaryColor = config.primaryColor || script.getAttribute('data-color') || '#000000';
     var position = getPosition(config.position || script.getAttribute('data-position') || 'bottom-right');
     var widgetSize = getWidgetSize(config.widgetSize || config.size || script.getAttribute('data-size'));
@@ -56,9 +57,12 @@
     });
 
     var root = host.attachShadow({ mode: 'open' });
-    root.innerHTML = getTemplate(assistantName, initialMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, baseUrl + '/icon.svg');
+    root.innerHTML = getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, baseUrl + '/icon.svg');
 
     var panel = root.querySelector('[data-panel]');
+    var welcome = root.querySelector('[data-welcome]');
+    var welcomeAction = root.querySelector('[data-welcome-action]');
+    var welcomeClose = root.querySelector('[data-welcome-close]');
     var toggle = root.querySelector('[data-toggle]');
     var close = root.querySelector('[data-close]');
     var form = root.querySelector('[data-form]');
@@ -82,6 +86,7 @@
     }
 
     function openPanel() {
+      hideWelcome();
       panel.classList.add('panel--open');
       toggle.setAttribute('aria-expanded', 'true');
       setTimeout(function () { input.focus(); }, 280);
@@ -92,10 +97,28 @@
       toggle.setAttribute('aria-expanded', 'false');
     }
 
+    function showWelcome() {
+      if (panel.classList.contains('panel--open')) return;
+      welcome.classList.add('welcome--visible');
+      welcome.setAttribute('aria-hidden', 'false');
+    }
+
+    function hideWelcome() {
+      welcome.classList.remove('welcome--visible');
+      welcome.setAttribute('aria-hidden', 'true');
+    }
+
     if (config.autoOpen) {
       var delay = typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3;
-      setTimeout(openPanel, delay * 1000);
+      setTimeout(showWelcome, delay * 1000);
     }
+
+    welcomeAction.addEventListener('click', openPanel);
+
+    welcomeClose.addEventListener('click', function () {
+      hideWelcome();
+      toggle.focus();
+    });
 
     toggle.addEventListener('click', function () {
       if (panel.classList.contains('panel--open')) {
@@ -113,6 +136,11 @@
 
     root.addEventListener('keydown', function (event) {
       if (event.key === 'Escape') {
+        if (welcome.classList.contains('welcome--visible')) {
+          hideWelcome();
+          toggle.focus();
+          return;
+        }
         closePanel();
         toggle.focus();
       }
@@ -123,9 +151,25 @@
       var text = input.value.trim();
       if (!text) return;
       input.value = '';
+      resizeComposer();
       appendMessage(messages, text, 'user');
       sendMessage(text, messages);
     });
+
+    input.addEventListener('input', resizeComposer);
+    input.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        if (typeof form.requestSubmit === 'function') form.requestSubmit();
+      }
+    });
+
+    function resizeComposer() {
+      input.style.height = 'auto';
+      var nextHeight = Math.min(input.scrollHeight, 120);
+      input.style.height = Math.max(nextHeight, 44) + 'px';
+      input.style.overflowY = input.scrollHeight > 120 ? 'auto' : 'hidden';
+    }
   }
 
   function sendMessage(text, messages) {
@@ -577,10 +621,13 @@
     notice.textContent = message;
   }
 
-  function getTemplate(assistantName, initialMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, iconUrl) {
+  function getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, iconUrl) {
     var togglePosition = getTogglePositionCss(position);
     var panelPosition = getPanelPositionCss(position);
     var toggleSize = getWidgetSizePixels(widgetSize);
+    var welcomePosition = getWelcomePositionCss(position, toggleSize);
+    var welcomeOrigin = position.indexOf('top') >= 0 ? 'top center' : 'bottom center';
+    var welcomeStartTransform = position.indexOf('top') >= 0 ? 'translateY(-8px) scale(.96)' : 'translateY(8px) scale(.96)';
     var toggleIconSize = Math.round(toggleSize * 0.82);
     var chatIconSize = Math.round(toggleSize * 0.5);
     var launcherIconMarkup = getLauncherIconMarkup(launcherIcon, iconUrl);
@@ -611,6 +658,10 @@
     var formFilter = glass ? glassFilter : '';
     var formBorder = glass ? 'box-shadow: inset 0 1px 0 ' + skin.spec + ';' : 'border-top: .5px solid rgba(26,26,46,.12);';
     var inputBackground = glass ? 'rgba(255,255,255,.82)' : '#fff';
+    var welcomeBackground = glass ? skin.panelFill : '#fff';
+    var welcomeColor = glass ? skin.botText : '#1A1A2E';
+    var welcomeFilter = glass ? glassFilter : '';
+    var welcomeBorder = glass ? '1px solid ' + skin.hairline : '1px solid rgba(26,26,46,.12)';
     var toggleBackground = glass ? skin.toggleFill : primaryColor;
     var toggleFilter = glass ? glassFilter : '';
     var toggleShadow = glass
@@ -632,6 +683,7 @@
         + ' .header { background: ' + primaryColor + '; backdrop-filter: none; -webkit-backdrop-filter: none; }'
         + ' .messages { background: ' + (glassBackground === 'dark' ? '#161019' : '#F5F2EC') + '; }'
         + ' .form { background: ' + (glassBackground === 'dark' ? '#1b1622' : '#fff') + '; backdrop-filter: none; -webkit-backdrop-filter: none; }'
+        + ' .welcome { background: ' + (glassBackground === 'dark' ? '#1b1622' : '#fff') + '; backdrop-filter: none; -webkit-backdrop-filter: none; }'
         + ' .toggle { background: ' + primaryColor + '; backdrop-filter: none; -webkit-backdrop-filter: none; }'
         + ' .toggle::after { display: none; }'
         + ' }'
@@ -647,6 +699,19 @@
         .toggle .launcher-icon--talia { width: ' + toggleIconSize + 'px; height: ' + toggleIconSize + 'px; filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,.2)); }\
         .toggle .launcher-icon--chat, .toggle .launcher-icon--bubble, .toggle .launcher-icon--bot { width: ' + chatIconSize + 'px; height: ' + chatIconSize + 'px; fill: none; stroke: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,.2)); }\
         ' + toggleSheen + '\
+        .welcome { position: fixed; ' + welcomePosition + ' z-index: 2147483647; width: min(320px, calc(100vw - 32px)); min-height: 112px; overflow: hidden; border: ' + welcomeBorder + '; border-radius: 12px; background: ' + welcomeBackground + '; ' + welcomeFilter + ' color: ' + welcomeColor + '; box-shadow: 0 14px 38px rgba(0,0,0,.2); opacity: 0; visibility: hidden; pointer-events: none; transform: ' + welcomeStartTransform + '; transform-origin: ' + welcomeOrigin + '; transition: opacity 180ms ease, transform 240ms cubic-bezier(0.16,1,0.3,1), visibility 0s linear 240ms; }\
+        .welcome--visible { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0) scale(1); transition-delay: 0s; }\
+        .welcome-action { display: grid; width: 100%; min-width: 0; gap: 12px; border: 0; padding: 16px 46px 17px 16px; background: transparent; color: inherit; cursor: pointer; text-align: left; }\
+        .welcome-brand { display: flex; align-items: center; gap: 11px; min-width: 0; }\
+        .welcome-mark { flex: 0 0 38px; display: grid; width: 38px; height: 38px; place-items: center; overflow: hidden; border-radius: 50%; background: ' + primaryColor + '; color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.28); }\
+        .welcome-mark .launcher-icon { display: block; object-fit: contain; }\
+        .welcome-mark .launcher-icon--talia { width: 82%; height: 82%; filter: brightness(0) invert(1) drop-shadow(0 1px 1px rgba(0,0,0,.16)); }\
+        .welcome-mark .launcher-icon--chat, .welcome-mark .launcher-icon--bubble, .welcome-mark .launcher-icon--bot { width: 52%; height: 52%; fill: none; stroke: currentColor; }\
+        .welcome-name { min-width: 0; overflow: hidden; color: inherit; font: 700 16px/1.2 "Space Grotesk", system-ui; text-overflow: ellipsis; white-space: nowrap; }\
+        .welcome-message { color: inherit; font: 500 16px/1.42 "Space Grotesk", system-ui; }\
+        .welcome-action:focus-visible, .welcome-close:focus-visible { outline: 2px solid ' + primaryColor + '; outline-offset: 2px; }\
+        .welcome-close { position: absolute; top: 14px; right: 13px; width: 32px; height: 32px; border: 0; border-radius: 50%; padding: 0; background: transparent; color: inherit; cursor: pointer; font: 22px/1 system-ui; opacity: .58; }\
+        .welcome-close:hover { opacity: 1; background: rgba(127,127,127,.12); }\
         .panel { position: fixed; ' + panelPosition + ' z-index: 2147483647; width: min(400px, calc(100vw - 32px)); height: min(580px, calc(100vh - 112px)); max-height: calc(100vh - 112px); background: ' + panelBackground + '; ' + glassFilter + ' color: #1A1A2E; ' + panelBorder + ' border-radius: 14px; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; opacity: 0; transform: translateY(14px) scale(0.97); transform-origin: ' + transformOrigin + '; pointer-events: none; transition: opacity 280ms cubic-bezier(0.16,1,0.3,1), transform 280ms cubic-bezier(0.16,1,0.3,1), box-shadow 280ms cubic-bezier(0.16,1,0.3,1); box-shadow: ' + panelShadow + panelInset + '; }\
         .panel--open { opacity: 1 !important; transform: translateY(0) scale(1) !important; pointer-events: auto !important; box-shadow: ' + panelOpenShadow + panelInset + ' !important; }\
         ' + specularBand + '\
@@ -657,16 +722,23 @@
         .message a { color: inherit; text-decoration: underline; overflow-wrap: anywhere; }\
         .assistant { align-self: flex-start; background: ' + botBubbleBackground + '; color: ' + botBubbleColor + '; box-shadow: 0 1px 2px rgba(0,0,0,.06); }\
         .user { align-self: flex-end; background: ' + primaryColor + '; color: white; }\
-        .form { display: flex; gap: 9px; padding: 13px; background: ' + formBackground + '; ' + formFilter + ' ' + formBorder + ' }\
-        .input { min-width: 0; flex: 1; border: .5px solid rgba(26,26,46,.25); border-radius: 7px; padding: 11px; font: 15px "Space Grotesk", system-ui; background: ' + inputBackground + '; }\
-        .send { border: 0; border-radius: 7px; padding: 0 14px; background: ' + primaryColor + '; color: white; font: 600 14px "Space Grotesk", system-ui; cursor: pointer; }\
-        @media (prefers-reduced-motion: reduce) { .panel { transition: opacity 120ms ease; } .toggle { transition: none; } }\
+        .form { display: flex; align-items: flex-end; gap: 9px; padding: 13px; background: ' + formBackground + '; ' + formFilter + ' ' + formBorder + ' }\
+        .input { min-width: 0; min-height: 44px; max-height: 120px; flex: 1; resize: none; overflow-y: hidden; border: .5px solid rgba(26,26,46,.25); border-radius: 7px; padding: 11px; font: 15px/1.4 "Space Grotesk", system-ui; background: ' + inputBackground + '; box-sizing: border-box; }\
+        .send { flex: 0 0 auto; height: 44px; border: 0; border-radius: 7px; padding: 0 14px; background: ' + primaryColor + '; color: white; font: 600 14px "Space Grotesk", system-ui; cursor: pointer; }\
+        @media (prefers-reduced-motion: reduce) { .panel, .welcome { transition: opacity 120ms ease; } .toggle { transition: none; } }\
         ' + reducedTransparencyFallback + '\
       </style>\
+      <aside class="welcome" data-welcome aria-hidden="true" aria-label="Saludo del asistente">\
+        <button class="welcome-action" data-welcome-action type="button">\
+          <span class="welcome-brand"><span class="welcome-mark">' + launcherIconMarkup + '</span><strong class="welcome-name">' + escapeHtml(assistantName) + '</strong></span>\
+          <span class="welcome-message">' + escapeHtml(proactiveMessage) + '</span>\
+        </button>\
+        <button class="welcome-close" data-welcome-close type="button" aria-label="Cerrar">×</button>\
+      </aside>\
       <section class="panel" data-panel>\
         <div class="header"><span>' + escapeHtml(assistantName) + '</span><button class="close" data-close aria-label="Cerrar">×</button></div>\
         <div class="messages" data-messages><div class="message assistant">' + escapeHtml(initialMessage) + '</div></div>\
-        <form class="form" data-form><input class="input" data-input placeholder="Escribe tu mensaje..." autocomplete="off" /><button class="send" type="submit">Enviar</button></form>\
+        <form class="form" data-form><textarea class="input" data-input rows="1" placeholder="Escribe tu mensaje..." autocomplete="off"></textarea><button class="send" type="submit">Enviar</button></form>\
       </section>\
       <button class="toggle" data-toggle aria-label="Abrir asistente virtual">\
         ' + launcherIconMarkup + '\
@@ -713,6 +785,11 @@
 
   function getWidgetTheme(value) {
     return value === 'glass' ? 'glass' : 'solid';
+  }
+
+  function getProactiveMessage(value, assistantName) {
+    if (typeof value === 'string' && value.trim()) return value.trim().slice(0, 160);
+    return 'Soy ' + assistantName + '. ¿Te ayudo?';
   }
 
   function getLauncherIcon(value) {
@@ -800,6 +877,14 @@
     if (position === 'top-right') return 'right: var(--talia-floating-inline-offset, 20px); top: var(--talia-floating-panel-offset, 88px);';
     if (position === 'top-left') return 'left: var(--talia-floating-inline-offset, 20px); top: var(--talia-floating-panel-offset, 88px);';
     return 'right: var(--talia-floating-inline-offset, 20px); bottom: var(--talia-floating-panel-offset, 88px);';
+  }
+
+  function getWelcomePositionCss(position, toggleSize) {
+    var blockPosition = 'calc(var(--talia-floating-toggle-offset, 20px) + ' + (toggleSize + 12) + 'px)';
+    if (position === 'bottom-left') return 'left: var(--talia-floating-inline-offset, 20px); bottom: ' + blockPosition + ';';
+    if (position === 'top-right') return 'right: var(--talia-floating-inline-offset, 20px); top: ' + blockPosition + ';';
+    if (position === 'top-left') return 'left: var(--talia-floating-inline-offset, 20px); top: ' + blockPosition + ';';
+    return 'right: var(--talia-floating-inline-offset, 20px); bottom: ' + blockPosition + ';';
   }
 
   function registerFloatingWidget(host, type, position, options) {

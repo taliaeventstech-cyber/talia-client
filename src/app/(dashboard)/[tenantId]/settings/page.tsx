@@ -4,6 +4,7 @@ import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { SettingsForm } from './settings-form'
 import { normalizeChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import { normalizeWidgetLauncherIcon } from '@/lib/widget/launcher-icon'
+import { normalizeProactiveGreeting } from '@/lib/widget/proactive-greeting'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -23,7 +24,7 @@ export default async function SettingsPage({ params }: Props) {
     .eq('id', tenantId)
     .single()
 
-  const widgetConfig = getWidgetConfig(theatre?.widget_config)
+  const widgetConfig = getWidgetConfig(theatre?.widget_config, theatre?.primary_language)
   const aiSettings = getAiSettings(theatre?.widget_config)
 
   return (
@@ -60,6 +61,7 @@ export default async function SettingsPage({ params }: Props) {
             glassTranslucency: widgetConfig.glassTranslucency,
             autoOpen: widgetConfig.autoOpen,
             autoOpenDelay: widgetConfig.autoOpenDelay,
+            proactiveMessage: widgetConfig.proactiveMessage,
             allowedDomains: widgetConfig.allowedDomains,
             fallbackMessage: aiSettings.fallbackMessage,
             fallbackWhatsApp: aiSettings.fallbackWhatsApp,
@@ -88,7 +90,7 @@ function getAiSettings(value: unknown) {
   return normalizeChatbotAiSettings(config.chatbotAi ?? config.chatbot_ai)
 }
 
-function getWidgetConfig(value: unknown) {
+function getWidgetConfig(value: unknown, language: unknown) {
   if (!value || typeof value !== 'object') {
     return {
       assistantName: 'TALIA',
@@ -106,6 +108,7 @@ function getWidgetConfig(value: unknown) {
       glassTranslucency: 58,
       autoOpen: false,
       autoOpenDelay: 3,
+      proactiveMessage: normalizeProactiveGreeting(undefined, language),
       allowedDomains: [],
     }
   }
@@ -136,12 +139,16 @@ function getWidgetConfig(value: unknown) {
     glass_translucency?: unknown
     autoOpen?: unknown
     autoOpenDelay?: unknown
+    proactiveMessage?: unknown
+    proactive_message?: unknown
     allowedDomains?: unknown
     allowed_domains?: unknown
   }
 
+  const assistantName = typeof config.assistantName === 'string' ? config.assistantName : 'TALIA'
+
   return {
-    assistantName: typeof config.assistantName === 'string' ? config.assistantName : 'TALIA',
+    assistantName,
     initialMessage: typeof config.initialMessage === 'string' ? config.initialMessage : 'Hola, soc TALIA. En què et puc ajudar?',
     primaryColor: typeof config.primaryColor === 'string' ? config.primaryColor : '#000000',
     position: getWidgetPosition(config.position),
@@ -156,6 +163,7 @@ function getWidgetConfig(value: unknown) {
     glassTranslucency: getBoundedNumber(config.glassTranslucency ?? config.glass_translucency, 15, 85, 58),
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
+    proactiveMessage: normalizeProactiveGreeting(config.proactiveMessage ?? config.proactive_message, language, assistantName),
     allowedDomains: getAllowedDomains(config.allowedDomains ?? config.allowed_domains),
   }
 }

@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: June 29, 2026
+Last updated: July 12, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -102,6 +102,12 @@ Implemented:
 - Configuration per venue.
 - Installable widget/script.
 - Initial message and brand color.
+- Configurable proactive greeting that appears beside the launcher after a delay
+  without opening the chat panel; selecting it starts the conversation.
+- Interactive, production-sized Agora preview for the launcher, proactive
+  greeting and chat panel; message submission stays disabled in preview mode.
+- Auto-growing chat composer in production and preview, with `Enter` to send,
+  `Shift + Enter` for line breaks and a bounded internal scroll for long drafts.
 - Channel prompt.
 - Configurable fallback.
 - Structured fallback policy delegated to `talia-ai`, with an optional tenant
