@@ -419,8 +419,10 @@ function InstalledWebSourceRow({
   labels: KnowledgeFormProps['labels']
 }) {
   const meta = getInstalledWebMeta(source)
+  const sourceUrlLabel = source.sourceUrl ? formatInstalledSourceUrl(source.sourceUrl) : null
+
   return (
-    <article className="knowledge-file-item">
+    <article className="knowledge-file-item knowledge-installed-item">
       <div className="knowledge-file-icon" aria-hidden="true">
         <LinkIcon size={20} strokeWidth={2} />
       </div>
@@ -429,7 +431,11 @@ function InstalledWebSourceRow({
           <h3>{source.name}</h3>
         </div>
         <div className="knowledge-file-meta">
-          {source.sourceUrl ? <span>{source.sourceUrl}</span> : null}
+          {sourceUrlLabel && source.sourceUrl ? (
+            <span className="knowledge-installed-url" title={source.sourceUrl}>
+              {sourceUrlLabel}
+            </span>
+          ) : null}
         </div>
         <div className="knowledge-installed-signals" aria-label="Estado de la web instalada">
           {meta.lastSeenAt ? (
@@ -469,6 +475,22 @@ function InstalledWebSourceRow({
       </div>
     </article>
   )
+}
+
+function formatInstalledSourceUrl(value: string) {
+  try {
+    const url = new URL(value)
+    const label = `${url.hostname}${url.pathname === '/' ? '' : url.pathname}`.replace(/\/$/, '')
+    return truncateMiddle(label || url.hostname, 96)
+  } catch {
+    return truncateMiddle(value, 96)
+  }
+}
+
+function truncateMiddle(value: string, maxLength: number) {
+  if (value.length <= maxLength) return value
+  const edgeLength = Math.floor((maxLength - 3) / 2)
+  return `${value.slice(0, edgeLength)}...${value.slice(value.length - edgeLength)}`
 }
 
 function getInstalledWebMeta(source: KnowledgeSource) {

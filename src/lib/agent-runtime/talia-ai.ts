@@ -54,7 +54,9 @@ export class TaliaAiChatAgentProvider implements ChatAgentProvider {
               },
             }
             : {}),
-          language: input.tenant.language,
+          fallback_language: input.tenant.fallbackLanguage,
+          // Remove after every deployed talia-ai instance accepts fallback_language.
+          language: input.tenant.fallbackLanguage,
           tenant: {
             name: input.tenant.name,
             system_prompt: input.tenant.systemPrompt ?? '',
@@ -113,6 +115,16 @@ export class TaliaAiChatAgentProvider implements ChatAgentProvider {
         }
       }
 
+      if (!getResponseLanguage(body.metadata)) {
+        return {
+          ok: false,
+          provider: this.name,
+          status: 502,
+          error: 'talia-ai response did not include metadata.response_language',
+          details: text,
+        }
+      }
+
       return {
         ok: true,
         provider: this.name,
@@ -152,6 +164,14 @@ function getErrorMessage(body: TaliaAiChatResponse | null) {
 
 function getDetails(body: TaliaAiChatResponse | null) {
   return typeof body?.details === 'string' ? body.details : undefined
+}
+
+function getResponseLanguage(metadata: unknown) {
+  if (!isRecord(metadata)) return null
+  const responseLanguage = metadata.response_language
+  return typeof responseLanguage === 'string' && responseLanguage.trim()
+    ? responseLanguage.trim()
+    : null
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

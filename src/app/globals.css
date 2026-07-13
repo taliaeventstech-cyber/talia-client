@@ -6323,8 +6323,22 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 14px;
+  min-width: 0;
   color: var(--color-text-secondary);
   font-size: 13px;
+}
+
+.knowledge-installed-item {
+  overflow: hidden;
+}
+
+.knowledge-installed-url {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .knowledge-embedding-stats {
