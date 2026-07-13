@@ -42,7 +42,7 @@ POST /api/internal/email/process
 └────────────────────────────────────────────────────┘
 ```
 
-Orchestration lives in TALIA, not inside n8n. This allows classifying without drafting, retrying drafts without reclassifying and measuring costs separately. `TaliaAiEmailClassifierProvider` and `TaliaAiEmailDrafterProvider` are now selectable; n8n remains a temporary fallback during rollout.
+Orchestration lives in TALIA, not inside n8n. This allows classifying without drafting, retrying drafts without reclassifying and measuring costs separately. `TaliaAiEmailClassifierProvider` and `TaliaAiEmailDrafterProvider` are now selectable. n8n remains only as an explicitly selected legacy provider for mailboxes not yet migrated and is not an automatic fallback.
 
 ## MVP Flow
 
@@ -144,7 +144,9 @@ Temporary env:
   override (`inherit`, `talia-ai` or `n8n`) used for canary rollout and rollback.
 - `TALIA_AI_BASE_URL`: server-to-server URL for `talia-ai`.
 - `TALIA_AI_INTERNAL_API_KEY`: bearer credential shared only by TALIA services.
-- `DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL`: n8n webhook for draft generation (legacy fallback).
+- `DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL`: legacy n8n webhook for mailboxes still explicitly assigned to n8n.
+- `INTERNAL_API_KEY`: protects internal endpoints in production.
+- `CRON_SECRET`: protects `/api/cron/email/sync` while it is invoked by an external scheduler.
 
 Provider resolution order:
 
@@ -152,12 +154,16 @@ Provider resolution order:
 2. Global `EMAIL_AGENT_PROVIDER` when the connection is set to `inherit`.
 3. Safe legacy default `n8n` when neither is configured.
 
-Backstage records the requested provider, actual provider and whether a
-transient fallback occurred. A validation error does not trigger fallback.
-- `INTERNAL_API_KEY`: protects internal endpoints in production.
-- `CRON_SECRET`: protects `/api/cron/email/sync` when invoked by an external scheduler such as n8n.
+Backstage records the requested provider and actual provider for the classifier
+and drafter independently. Historical fallback traces remain readable, but a
+new `talia-ai` execution never invokes n8n automatically. Backstage
+also summarizes the latest 25 executions for the mailbox. A validation error
+does not trigger fallback. New execution metadata does not persist the raw
+provider response because it can duplicate email or draft content.
 
-n8n Workflow:
+Canary procedure: `docs/operations/email-agent-canary.md`.
+
+Legacy n8n workflow, pending removal:
 
 - Importable blueprint: `n8n-workflows/TALIA-Generic-Email-Agent-Draft-Workflow.json`.
 - Recommended decoupled blueprints:
@@ -186,15 +192,18 @@ n8n Workflow:
 - Webhooks supported by TALIA:
   - `DEFAULT_N8N_EMAIL_CLASSIFIER_WEBHOOK_URL`;
   - `DEFAULT_N8N_EMAIL_DRAFTER_WEBHOOK_URL`;
-  - `DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL` remains as legacy fallback.
+  - `DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL` remains for the legacy provider path.
 - Per-venue overrides:
   - `email_connections.metadata.n8n_email_classifier_webhook_url`;
   - `email_connections.metadata.n8n_email_drafter_webhook_url`;
-  - `email_connections.metadata.n8n_email_agent_webhook_url` remains as legacy fallback.
+  - `email_connections.metadata.n8n_email_agent_webhook_url` remains for the legacy provider path.
 
 ## Automation — sync cron
 
-On Vercel Hobby we do not use Vercel Cron for email because frequent schedules are not viable. The recommended scheduler is n8n.
+The current deployment uses n8n only to wake the sync endpoint because frequent
+Vercel Hobby schedules are not viable. This dependency must be replaced by a
+managed scheduler before n8n is decommissioned. The scheduler only invokes the
+authenticated endpoint; mailbox sync remains in `talia-client`.
 
 ```txt
 Schedule Trigger every 15 min
