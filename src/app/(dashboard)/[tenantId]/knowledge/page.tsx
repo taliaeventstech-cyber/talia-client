@@ -4,13 +4,16 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { Bot, ChevronLeft, ChevronRight, FileText, Globe2, Plug, Table2 } from 'lucide-react'
 import Link from 'next/link'
 import { KnowledgeForm } from '../settings/knowledge-form'
+import { KnowledgePageSizeSelect } from './page-size-select'
 
 interface Props {
   params: Promise<{ tenantId: string }>
-  searchParams?: Promise<{ page?: string | string[]; tab?: string | string[] }>
+  searchParams?: Promise<{ page?: string | string[]; page_size?: string | string[]; tab?: string | string[] }>
 }
 
-const ITEMS_PER_PAGE = 20
+const DEFAULT_INSTALLED_ITEMS_PER_PAGE = 5
+const DEFAULT_ITEMS_PER_PAGE = 20
+const PAGE_SIZE_OPTIONS = [5, 10, 20]
 const tabs = ['installed', 'files', 'faqs', 'apps', 'spreadsheets'] as const
 type KnowledgeTab = typeof tabs[number]
 type SourceType = 'pdf' | 'xlsx' | 'csv' | 'web_snapshot'
@@ -27,12 +30,14 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
   const { tenantId } = await params
   const query = searchParams ? await searchParams : {}
   const pageParam = Array.isArray(query.page) ? query.page[0] : query.page
+  const pageSizeParam = Array.isArray(query.page_size) ? query.page_size[0] : query.page_size
   const tabParam = Array.isArray(query.tab) ? query.tab[0] : query.tab
   const activeTab = tabs.includes(tabParam as KnowledgeTab) ? tabParam as KnowledgeTab : 'installed'
+  const pageSize = getPageSize(pageSizeParam, activeTab)
   const requestedPage = Number.parseInt(pageParam ?? '1', 10)
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1
-  const from = (page - 1) * ITEMS_PER_PAGE
-  const to = from + ITEMS_PER_PAGE - 1
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
   const dictionary = await getDictionary(await getLocale())
   await requireTenantProductAccess(tenantId, 'manage_knowledge', 'data')
 
@@ -47,6 +52,9 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
       .in('type', sourceTypesForTab)
       .order('created_at', { ascending: false })
     : null
+  const pagedSourcesQuery = sourcesQuery && activeTab !== 'installed'
+    ? sourcesQuery.range(from, to)
+    : sourcesQuery
 
   const [{ data: manualSources }, sourcesResult] = await Promise.all([
     admin
@@ -54,7 +62,7 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
       .select('id')
       .eq('theatre_id', tenantId)
       .eq('type', 'manual'),
-    sourcesQuery ? sourcesQuery.range(from, to) : Promise.resolve({ data: [], count: 0 }),
+    pagedSourcesQuery ?? Promise.resolve({ data: [], count: 0 }),
   ])
   const manualSourceIds = (manualSources ?? []).map((source) => source.id)
   const knowledgeItemsQuery = admin
@@ -72,10 +80,22 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
       : knowledgeItemsQuery.is('source_id', null))
     : { data: [], count: 0 }
 
-  const knowledgeSources = sourcesResult.data ?? []
-  const totalItems = activeTab === 'faqs' ? knowledgeCount ?? 0 : sourcesResult.count ?? 0
-  const pageCount = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE))
-  const sourceIds = (knowledgeSources ?? []).map((source) => source.id)
+  const rawKnowledgeSources = sourcesResult.data ?? []
+  const dedupedInstalledSources = activeTab === 'installed'
+    ? dedupeInstalledSources(rawKnowledgeSources)
+    : rawKnowledgeSources
+  const totalItems = activeTab === 'faqs'
+    ? knowledgeCount ?? 0
+    : activeTab === 'installed'
+      ? dedupedInstalledSources.length
+      : sourcesResult.count ?? 0
+  const pageCount = Math.max(1, Math.ceil(totalItems / pageSize))
+  const currentPage = Math.min(page, pageCount)
+  const currentFrom = (currentPage - 1) * pageSize
+  const knowledgeSources = activeTab === 'installed'
+    ? dedupedInstalledSources.slice(currentFrom, currentFrom + pageSize)
+    : rawKnowledgeSources
+  const sourceIds = knowledgeSources.map((source) => source.id)
   const { data: sourceChunks } = sourceIds.length
     ? await admin
       .from('knowledge_chunks')
@@ -136,10 +156,10 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
             <KnowledgePagination
               tenantId={tenantId}
               tab={activeTab}
-              page={Math.min(page, pageCount)}
+              page={currentPage}
               pageCount={pageCount}
               total={totalItems}
-              pageSize={ITEMS_PER_PAGE}
+              pageSize={pageSize}
             />
           }
           labels={dictionary.settings.knowledge}
@@ -175,14 +195,15 @@ function KnowledgePagination({
 
   const from = (page - 1) * pageSize + 1
   const to = Math.min(total, page * pageSize)
-  const hrefForPage = (targetPage: number) => `/${tenantId}/knowledge?tab=${tab}&page=${targetPage}`
+  const hrefForPage = (targetPage: number) => `/${tenantId}/knowledge?tab=${tab}&page=${targetPage}&page_size=${pageSize}`
 
   return (
     <nav className="table-pagination" aria-label="Paginación de conocimiento">
       <p>
-        Mostrando {from}-{to} de {total} respuestas · Página {page} de {pageCount}
+        Mostrando {from}-{to} de {total} entradas · Página {page} de {pageCount}
       </p>
       <div className="table-pagination-actions">
+        <KnowledgePageSizeSelect value={pageSize} />
         {page > 1 ? (
           <Link className="pagination-icon-button" href={hrefForPage(page - 1)} aria-label="Página anterior" scroll={false}>
             <ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />
@@ -204,4 +225,66 @@ function KnowledgePagination({
       </div>
     </nav>
   )
+}
+
+function getPageSize(value: string | undefined, tab: KnowledgeTab) {
+  const fallback = tab === 'installed' ? DEFAULT_INSTALLED_ITEMS_PER_PAGE : DEFAULT_ITEMS_PER_PAGE
+  const parsed = Number.parseInt(value ?? '', 10)
+  return PAGE_SIZE_OPTIONS.includes(parsed) ? parsed : fallback
+}
+
+function dedupeInstalledSources<T extends {
+  id: string
+  source_url: string | null
+  last_synced_at: string | null
+  created_at?: string | null
+  config: unknown
+}>(sources: T[]) {
+  const byUrl = new Map<string, T>()
+
+  for (const source of sources) {
+    const key = getCanonicalInstalledUrlKey(source.source_url) ?? source.id
+    const current = byUrl.get(key)
+    if (!current || getInstalledSourceActivityTime(source) > getInstalledSourceActivityTime(current)) {
+      byUrl.set(key, source)
+    }
+  }
+
+  return [...byUrl.values()].sort((a, b) => getInstalledSourceActivityTime(b) - getInstalledSourceActivityTime(a))
+}
+
+function getCanonicalInstalledUrlKey(value: string | null) {
+  if (!value) return null
+
+  try {
+    const url = new URL(value)
+    url.hash = ''
+    url.protocol = 'https:'
+    url.hostname = url.hostname.toLowerCase().replace(/^www\./, '')
+    url.pathname = url.pathname.replace(/\/+$/, '') || '/'
+    url.searchParams.sort()
+    return url.toString().replace(/\/$/, '')
+  } catch {
+    return value.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '') || null
+  }
+}
+
+function getInstalledSourceActivityTime(source: { last_synced_at: string | null; created_at?: string | null; config: unknown }) {
+  const config = isRecord(source.config) ? source.config : {}
+  return Math.max(
+    getTime(source.last_synced_at),
+    getTime(typeof config.last_seen_at === 'string' ? config.last_seen_at : null),
+    getTime(typeof config.registered_at === 'string' ? config.registered_at : null),
+    getTime(source.created_at ?? null),
+  )
+}
+
+function getTime(value: string | null) {
+  if (!value) return 0
+  const time = Date.parse(value)
+  return Number.isFinite(time) ? time : 0
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
