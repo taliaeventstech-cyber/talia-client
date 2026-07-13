@@ -337,7 +337,12 @@
     var item = document.createElement('div');
     item.className = 'message ' + role;
     if (typing) item.setAttribute('data-typing', 'true');
-    appendMessageContent(item, text, actions);
+    if (typing) {
+      item.setAttribute('aria-label', 'TALIA está escribiendo');
+      item.innerHTML = '<span class="typing-dots" aria-hidden="true"><span></span><span></span><span></span></span>';
+    } else {
+      appendMessageContent(item, text, actions);
+    }
     container.appendChild(item);
     if (role === 'assistant' && !typing && messageId) {
       container.appendChild(createFeedbackControls(messageId, feedbackSessionId || sessionId));
@@ -1074,6 +1079,11 @@
         .message strong { font-weight: 700; }\
         .message em { font-style: italic; }\
         .message a { color: inherit; text-decoration: underline; overflow-wrap: anywhere; }\
+        .typing-dots { display: inline-flex; align-items: center; gap: 4px; min-width: 34px; height: 18px; }\
+        .typing-dots span { display: block; width: 7px; height: 7px; border-radius: 999px; background: currentColor; opacity: .38; transform: translateY(0); animation: taliaTypingBounce 1s ease-in-out infinite; }\
+        .typing-dots span:nth-child(2) { animation-delay: 140ms; }\
+        .typing-dots span:nth-child(3) { animation-delay: 280ms; }\
+        @keyframes taliaTypingBounce { 0%, 70%, 100% { opacity: .38; transform: translateY(0); } 35% { opacity: .95; transform: translateY(-4px); } }\
         .assistant { align-self: flex-start; border-top-left-radius: 4px; background: ' + botBubbleBackground + '; color: ' + botBubbleColor + '; box-shadow: 0 1px 2px rgba(0,0,0,.06); }\
         .user { align-self: flex-end; border-bottom-right-radius: 4px; background: ' + primaryColor + '; color: white; }\
         .feedback { align-self: flex-start; display: flex; gap: 8px; margin: -5px 0 1px 4px; }\
@@ -1105,7 +1115,7 @@
         .powered { padding: 0 13px 10px; background: ' + formBackground + '; ' + formFilter + ' color: rgba(26,26,46,.52); text-align: center; font: 600 11px/1.25 "Space Grotesk", system-ui; }\
         .powered a { color: inherit; text-decoration: none; }\
         .powered a:hover { color: ' + primaryColor + '; text-decoration: underline; }\
-        @media (prefers-reduced-motion: reduce) { .panel, .welcome { transition: opacity 120ms ease; } .toggle { transition: none; } }\
+        @media (prefers-reduced-motion: reduce) { .panel, .welcome { transition: opacity 120ms ease; } .toggle { transition: none; } .typing-dots span { animation: none; opacity: .62; } }\
         ' + reducedTransparencyFallback + '\
       </style>\
       <aside class="welcome" data-welcome aria-hidden="true" aria-label="Saludo del asistente">\
