@@ -52,11 +52,11 @@ export type EmailAgentDraft = {
 
 export type EmailAgentProviderResult =
   | { ok: true; draft: EmailAgentDraft }
-  | { ok: false; error: string; details?: string }
+  | { ok: false; error: string; details?: string; status?: number }
 
 export type EmailAgentClassificationResult =
   | { ok: true; classification: EmailAgentClassification }
-  | { ok: false; error: string; details?: string }
+  | { ok: false; error: string; details?: string; status?: number }
 
 export interface EmailAgentProvider {
   generateDraft(input: EmailAgentInput): Promise<EmailAgentProviderResult>

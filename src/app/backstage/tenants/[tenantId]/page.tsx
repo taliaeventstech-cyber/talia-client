@@ -13,7 +13,7 @@ interface Props {
 export default async function BackstageClientPage({ params }: Props) {
   const { tenantId } = await params
   const admin = createAdminClient()
-  const [{ data: client }, { data: modules }, { data: emailConnections }, subscriptionResult, usageResult, { data: traceMessages }, { data: knowledgeSources }] = await Promise.all([
+  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, usageResult, { data: traceMessages }, { data: knowledgeSources }] = await Promise.all([
     admin
       .from('theatres')
       .select('id, name, slug, entity_type, primary_language, plan, website_url, fallback_email, fallback_phone, n8n_webhook_url, system_prompt, widget_config, voice_phone_number, voice_phone_provider, voice_phone_mode, voice_public_phone_number, voice_forwarding_notes, voice_operational_status')
@@ -28,6 +28,12 @@ export default async function BackstageClientPage({ params }: Props) {
       .select('id, provider, mailbox_email, status, sync_mode, draft_mode, error_message, metadata')
       .eq('theatre_id', tenantId)
       .order('created_at', { ascending: false })
+      .limit(1),
+    admin
+      .from('email_threads')
+      .select('id, subject, status, metadata, updated_at')
+      .eq('theatre_id', tenantId)
+      .order('updated_at', { ascending: false })
       .limit(1),
     getActiveSubscription(admin, tenantId),
     getTenantUsageForPeriod(admin, tenantId),
@@ -227,6 +233,7 @@ export default async function BackstageClientPage({ params }: Props) {
               const retrievalStatus = typeof metadata.retrieval_status === 'string' ? metadata.retrieval_status : null
               const retrievalChunks = getRetrievalChunks(metadata.retrieval)
               const contextAssembly = getContextAssembly(metadata)
+              const languageTrace = getLanguageTrace(metadata)
               const fallbackTrace = getFallbackTrace(metadata)
               const fallbackReason = typeof metadata.fallback_reason === 'string' ? metadata.fallback_reason : null
               const lowConfidence = metadata.low_confidence === true
@@ -271,6 +278,7 @@ export default async function BackstageClientPage({ params }: Props) {
                       {model ? <span>{model}</span> : null}
                       {retrievalStatus ? <span>{getRetrievalStatusLabel(retrievalStatus)}</span> : null}
                       {contextAssembly ? <span>{getContextAssemblyModeLabel(contextAssembly.mode)}</span> : null}
+                      {languageTrace ? <span>idioma {languageTrace.mode}</span> : null}
                       {fallbackTrace ? <span>{fallbackTrace.strategy}</span> : null}
                       {typeof traceSummary.topScore === 'number' ? <span>score {traceSummary.topScore.toFixed(2)}</span> : null}
                     </div>
@@ -297,6 +305,8 @@ export default async function BackstageClientPage({ params }: Props) {
                       {contextAssembly ? (
                         <ContextAssemblyTrace contextAssembly={contextAssembly} />
                       ) : null}
+
+                      {languageTrace ? <LanguageAgentTrace language={languageTrace} responseLanguage={language} /> : null}
 
                       {fallbackTrace ? <FallbackTrace fallback={fallbackTrace} /> : null}
 
@@ -379,7 +389,12 @@ export default async function BackstageClientPage({ params }: Props) {
         )}
       </section>
 
-      <EditClientForm client={client} modules={modules ?? []} emailConnection={emailConnections?.[0] ?? null} />
+      <EditClientForm
+        client={client}
+        modules={modules ?? []}
+        emailConnection={emailConnections?.[0] ?? null}
+        emailTrace={emailTraceThreads?.[0] ?? null}
+      />
     </div>
   )
 }
@@ -425,6 +440,52 @@ type FallbackTraceData = {
   template_source: string | null
   whatsapp_link_used: boolean
   trigger: string | null
+}
+
+type LanguageTraceData = {
+  requested_language: string | null
+  fallback_language: string
+  confidence: number | null
+  mode: 'deterministic' | 'llm'
+  query_expansions: string[]
+}
+
+function LanguageAgentTrace({
+  language,
+  responseLanguage,
+}: {
+  language: LanguageTraceData
+  responseLanguage: string | null
+}) {
+  return (
+    <div className="context-assembly-trace">
+      <div className="context-assembly-header">
+        <span>LanguageAgent</span>
+        <div>
+          <span>{language.mode}</span>
+          {typeof language.confidence === 'number' ? <span>confianza {language.confidence.toFixed(2)}</span> : null}
+        </div>
+      </div>
+      <dl className="context-assembly-stats">
+        <div>
+          <dt>Detectado</dt>
+          <dd>{language.requested_language ?? '-'}</dd>
+        </div>
+        <div>
+          <dt>Respuesta</dt>
+          <dd>{responseLanguage ?? '-'}</dd>
+        </div>
+        <div>
+          <dt>Fallback tenant</dt>
+          <dd>{language.fallback_language}</dd>
+        </div>
+        <div>
+          <dt>Expansiones</dt>
+          <dd>{language.query_expansions.join(', ') || 'ninguna'}</dd>
+        </div>
+      </dl>
+    </div>
+  )
 }
 
 function FallbackTrace({ fallback }: { fallback: FallbackTraceData }) {
@@ -737,6 +798,35 @@ function getContextAssembly(metadata: unknown): ContextAssembly | null {
       ? contextAssembly.rejected_count
       : rejected.length,
     rejected,
+  }
+}
+
+function getLanguageTrace(metadata: unknown): LanguageTraceData | null {
+  if (!isRecord(metadata)) return null
+  const agentMetadata = isRecord(metadata.agent_metadata) ? metadata.agent_metadata : metadata
+  const languageAgent = isRecord(agentMetadata.language_agent) ? agentMetadata.language_agent : null
+  if (!languageAgent) return null
+
+  const mode = languageAgent.mode === 'deterministic' || languageAgent.mode === 'llm'
+    ? languageAgent.mode
+    : null
+  const fallbackLanguage = typeof languageAgent.fallback_language === 'string'
+    ? languageAgent.fallback_language
+    : null
+  if (!mode || !fallbackLanguage) return null
+
+  return {
+    requested_language: typeof languageAgent.requested_language === 'string'
+      ? languageAgent.requested_language
+      : null,
+    fallback_language: fallbackLanguage,
+    confidence: typeof languageAgent.confidence === 'number' && Number.isFinite(languageAgent.confidence)
+      ? languageAgent.confidence
+      : null,
+    mode,
+    query_expansions: Array.isArray(languageAgent.query_expansions)
+      ? languageAgent.query_expansions.filter((item): item is string => typeof item === 'string').slice(0, 36)
+      : [],
   }
 }
 

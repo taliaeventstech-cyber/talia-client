@@ -11,7 +11,7 @@ const runtimeInput: ChatAgentRuntimeInput = {
   n8nWebhookUrl: 'https://n8n.example.test/webhook/chat',
   tenant: {
     name: 'Sala Test',
-    language: 'es',
+    fallbackLanguage: 'es',
     responseTone: 'close',
     systemPrompt: 'Responde como TALIA.',
     fallbackEmail: 'info@example.test',
@@ -109,6 +109,7 @@ describe('TaliaAiChatAgentProvider', () => {
         provider: 'openai',
         model: 'gpt-4o-mini',
         usage: { input_tokens: 10, output_tokens: 4 },
+        metadata: { response_language: 'es' },
         actions: [{
           type: 'whatsapp',
           label: '+34 000 000 000',
@@ -171,6 +172,7 @@ describe('TaliaAiChatAgentProvider', () => {
         option_keys: ['tickets', 'plans'],
         options: ['entradas', 'planes'],
       },
+      fallback_language: 'es',
       language: 'es',
       tenant: {
         name: 'Sala Test',
@@ -197,6 +199,7 @@ describe('TaliaAiChatAgentProvider', () => {
         ok: true,
         reply: 'Respuesta desde talia-ai',
         provider: 'openai',
+        metadata: { response_language: 'es' },
       }),
     }))
 
@@ -226,6 +229,28 @@ describe('TaliaAiChatAgentProvider', () => {
         custom_message: 'No podemos confirmar esa información.',
         whatsapp_enabled: true,
       },
+    })
+  })
+
+  it('rejects talia-ai responses without the canonical response language', async () => {
+    process.env.TALIA_AI_BASE_URL = 'https://talia-ai.example.test/'
+    process.env.TALIA_AI_INTERNAL_API_KEY = 'secret'
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({
+        ok: true,
+        reply: 'Respuesta sin contrato de idioma',
+        provider: 'openai',
+      }),
+    }))
+
+    const result = await new TaliaAiChatAgentProvider().respond(runtimeInput)
+
+    expect(result).toMatchObject({
+      ok: false,
+      provider: 'talia-ai',
+      status: 502,
+      error: 'talia-ai response did not include metadata.response_language',
     })
   })
 

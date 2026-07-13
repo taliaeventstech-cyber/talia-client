@@ -20,7 +20,8 @@ Allow a venue to install TALIA on its website via a script and answer visitor qu
 
 - Install with a simple script.
 - Identify `tenantId`.
-- Respond in the configured language.
+- Respond in the language of the visitor's latest message when it can be
+  determined, using the configured tenant language only as fallback.
 - Use the knowledge base before generative responses.
 - Save history.
 - Allow configuring:
@@ -44,6 +45,11 @@ Allow a venue to install TALIA on its website via a script and answer visitor qu
 - No dependency on n8n in the browser.
 - Fallback if no webhook is configured.
 - Logging of usage events.
+- When `talia-ai` is the active provider, language detection, multilingual
+  retrieval expansion and response-language selection belong exclusively to
+  `talia-ai`. The client sends `fallback_language` as the canonical field,
+  temporarily mirrors it to the deprecated `language` field for rolling-deploy
+  compatibility, and persists `metadata.response_language`.
 
 ## Pending
 

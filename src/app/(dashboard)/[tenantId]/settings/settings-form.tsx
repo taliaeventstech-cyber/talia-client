@@ -1,7 +1,7 @@
 'use client'
 
 import { ActionToast } from '@/components/ui/action-toast'
-import { useActionState, useState } from 'react'
+import { useActionState, useRef, useState } from 'react'
 import { CopyScriptButton } from './copy-script-button'
 import { updateTenantSettings, type SettingsFormState } from './actions'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
@@ -675,6 +675,8 @@ function WidgetPreview({
 }) {
   const [panelOpen, setPanelOpen] = useState(false)
   const [greetingVisible, setGreetingVisible] = useState(widgetConfig.autoOpen)
+  const launcherRef = useRef<HTMLButtonElement>(null)
+  const composerRef = useRef<HTMLTextAreaElement>(null)
   const chatbotOffset = widgetConfig.blockOffset
   const inlineOffset = widgetConfig.inlineOffset
   const previewSize = getPreviewWidgetSize(widgetConfig.widgetSize)
@@ -708,8 +710,20 @@ function WidgetPreview({
     : { background: '#fff', color: '#1A1A2E' }
 
   function openPanel() {
+    launcherRef.current?.focus()
     setGreetingVisible(false)
     setPanelOpen(true)
+    requestAnimationFrame(() => composerRef.current?.focus())
+  }
+
+  function closePanel() {
+    launcherRef.current?.focus()
+    setPanelOpen(false)
+  }
+
+  function closeGreeting() {
+    launcherRef.current?.focus()
+    setGreetingVisible(false)
   }
 
   return (
@@ -728,7 +742,7 @@ function WidgetPreview({
         ) : null}
         <div className="widget-preview-header" style={headerStyle}>
           <span>{widgetConfig.assistantName}</span>
-          <button type="button" className="widget-preview-close" aria-label="Cerrar" onClick={() => setPanelOpen(false)}>×</button>
+          <button type="button" className="widget-preview-close" aria-label="Cerrar" onClick={closePanel}>×</button>
         </div>
         <div className="widget-preview-messages" style={{ background: glass ? skin.msgSurface : '#F5F2EC' }}>
           <p className="widget-preview-message" style={botBubbleStyle}>
@@ -744,6 +758,7 @@ function WidgetPreview({
           }}
         >
           <textarea
+            ref={composerRef}
             rows={1}
             placeholder="Escribe tu mensaje..."
             onInput={(event) => resizePreviewComposer(event.currentTarget)}
@@ -775,13 +790,14 @@ function WidgetPreview({
           type="button"
           className="widget-preview-welcome-close"
           aria-label="Cerrar"
-          onClick={() => setGreetingVisible(false)}
+          onClick={closeGreeting}
         >
           ×
         </button>
       </aside>
 
       <button
+        ref={launcherRef}
         type="button"
         className="widget-preview-launcher"
         aria-label={panelOpen ? 'Cerrar asistente' : 'Abrir asistente'}
@@ -789,7 +805,7 @@ function WidgetPreview({
         style={{ ...chatbotPosition, width: previewSize, height: previewSize, ...toggleStyle }}
         onClick={() => {
           if (panelOpen) {
-            setPanelOpen(false)
+            closePanel()
           } else {
             openPanel()
           }

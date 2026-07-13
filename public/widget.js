@@ -104,6 +104,9 @@
     }
 
     function hideWelcome() {
+      if (root.activeElement && welcome.contains(root.activeElement)) {
+        toggle.focus();
+      }
       welcome.classList.remove('welcome--visible');
       welcome.setAttribute('aria-hidden', 'true');
     }

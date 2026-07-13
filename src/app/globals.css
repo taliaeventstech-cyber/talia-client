@@ -1324,6 +1324,38 @@ textarea {
   gap: 12px;
 }
 
+.email-agent-trace {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 0.5px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-border);
+}
+
+.email-agent-trace > div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  background: var(--color-surface-1);
+  padding: 11px 12px;
+}
+
+.email-agent-trace span {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.email-agent-trace strong {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .checkbox-row-card {
   align-items: flex-start;
   border: 0.5px solid var(--color-border);
@@ -6291,8 +6323,22 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 14px;
+  min-width: 0;
   color: var(--color-text-secondary);
   font-size: 13px;
+}
+
+.knowledge-installed-item {
+  overflow: hidden;
+}
+
+.knowledge-installed-url {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .knowledge-embedding-stats {
@@ -6885,6 +6931,7 @@ textarea {
   .two-column-grid,
   .module-checkbox-grid,
   .email-config-toggle-grid,
+  .email-agent-trace,
   .chatbot-config-grid,
   .usage-plan-compact-card,
   .usage-plan-side,

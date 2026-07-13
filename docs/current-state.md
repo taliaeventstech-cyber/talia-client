@@ -125,6 +125,10 @@ Implemented:
 - Internal chat runtime in `src/lib/agent-runtime/chat.ts`, with n8n encapsulated as a temporary adapter.
 - Selectable `talia-ai` provider via `CHAT_AGENT_PROVIDER=talia-ai`, with temporary fallback to n8n on 5xx errors.
 - When `CHAT_AGENT_PROVIDER=talia-ai`, Next acts as a gateway: it validates tenant, limits and session, and delegates retrieval + response to `/v1/chat/respond`.
+- In that delegated flow, `talia-ai` is the sole authority for visitor-language
+  detection and response-language selection. Next sends the tenant language as
+  `fallback_language`, requires `metadata.response_language` in successful
+  responses and keeps local language detection only for the legacy n8n path.
 - Agent runtime responses save compact sources (`id`, `source_id`, `source_type`, `score`) in the assistant message metadata, legacy conversation metadata, and usage for auditing.
 - Backstage shows RAG health per venue, response traceability, original question, requested/used provider, model, language, retrieval status, low-confidence/fallback warnings, sources, scores, chunks retrieved from `talia-ai`, and internal actions to reprocess PDFs or retry embeddings.
 
@@ -212,6 +216,16 @@ Implemented:
 - Polling-based sync with configurable limits.
 - Persistence of connections, threads, messages and drafts.
 - Decoupled classifier and drafter.
+- Per-connection email provider selector in Backstage using
+  `email_connections.metadata.email_agent_provider` (`inherit`, `talia-ai` or
+  `n8n`). `EMAIL_AGENT_PROVIDER` is only the default for connections that
+  inherit the global setting.
+- Backstage shows the requested provider, actual provider, fallback state and
+  timestamp from the latest email-agent execution.
+- `talia-ai` owns typed classification, drafting and review policy without
+  receiving OAuth tokens or calling Gmail.
+- n8n remains available only as a temporary fallback for transient provider
+  failures while the migration is validated.
 - Current field: `should_generate_draft`.
 - `should_reply` is removed as a new contract.
 - Drafts visible in Agora and/or created in Gmail depending on mode.
@@ -221,7 +235,8 @@ Pending:
 
 - Complete Google OAuth verification.
 - Complete Microsoft Graph.
-- Move more logic to our own backend when it's time to decouple n8n.
+- Run a controlled `talia-ai` canary from Backstage, validate it in production
+  and then retire the n8n classifier/drafter webhooks.
 - Improve draft review UI.
 
 Reference:
