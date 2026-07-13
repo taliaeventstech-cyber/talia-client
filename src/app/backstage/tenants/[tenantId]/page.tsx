@@ -34,7 +34,7 @@ export default async function BackstageClientPage({ params }: Props) {
       .select('id, subject, status, metadata, updated_at')
       .eq('theatre_id', tenantId)
       .order('updated_at', { ascending: false })
-      .limit(1),
+      .limit(25),
     getActiveSubscription(admin, tenantId),
     getTenantUsageForPeriod(admin, tenantId),
     admin
@@ -432,6 +432,7 @@ export default async function BackstageClientPage({ params }: Props) {
         modules={modules ?? []}
         emailConnection={emailConnections?.[0] ?? null}
         emailTrace={emailTraceThreads?.[0] ?? null}
+        emailCanaryStats={getEmailCanaryStats(emailTraceThreads ?? [])}
       />
     </div>
   )
@@ -1167,6 +1168,61 @@ function isNoSourcesStatus(status: string | null) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function getEmailCanaryStats(threads: Array<{ status: string; metadata: unknown }>) {
+  let sampleSize = 0
+  let taliaAiRequested = 0
+  let taliaAiCompleted = 0
+  let fallbackRuns = 0
+  let errorRuns = 0
+
+  for (const thread of threads) {
+    if (!isRecord(thread.metadata)) continue
+    const metadata = thread.metadata
+    const execution = isRecord(metadata.agent_trace) ? metadata.agent_trace : {}
+    const classifier = isRecord(execution.classifier) ? execution.classifier : null
+    const drafter = isRecord(execution.drafter) ? execution.drafter : null
+    const processing = isRecord(metadata.email_processing) ? metadata.email_processing : null
+    const requestedProvider = getEmailTraceProvider(metadata.requested_provider)
+      ?? getEmailTraceProvider(classifier?.requested_provider)
+      ?? getEmailTraceProvider(drafter?.requested_provider)
+      ?? getEmailTraceProvider(processing?.provider)
+    if (!requestedProvider) continue
+
+    sampleSize += 1
+    if (requestedProvider === 'talia-ai') taliaAiRequested += 1
+
+    const actualProviders = [
+      getEmailTraceProvider(classifier?.provider),
+      getEmailTraceProvider(drafter?.provider),
+      getEmailTraceProvider(metadata.provider),
+    ].filter((provider): provider is 'talia-ai' | 'n8n' => Boolean(provider))
+
+    const fallbackUsed = metadata.fallback_used === true
+      || classifier?.fallback_used === true
+      || drafter?.fallback_used === true
+    if (fallbackUsed) fallbackRuns += 1
+
+    const hasError = thread.status === 'escalated' || typeof processing?.last_error === 'string'
+    if (hasError) errorRuns += 1
+
+    if (
+      requestedProvider === 'talia-ai'
+      && actualProviders.length > 0
+      && actualProviders.every((provider) => provider === 'talia-ai')
+      && !fallbackUsed
+      && !hasError
+    ) {
+      taliaAiCompleted += 1
+    }
+  }
+
+  return { sampleSize, taliaAiRequested, taliaAiCompleted, fallbackRuns, errorRuns }
+}
+
+function getEmailTraceProvider(value: unknown) {
+  return value === 'talia-ai' || value === 'n8n' ? value : null
 }
 
 function shortId(value: string) {

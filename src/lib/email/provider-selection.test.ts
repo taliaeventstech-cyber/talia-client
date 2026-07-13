@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getEmailAgentProviderOverride, getEmailAgentProviderTrace, resolveEmailAgentProvider } from './provider-selection'
+import { getEmailAgentPhaseTrace, getEmailAgentProviderOverride, getEmailAgentProviderTrace, resolveEmailAgentProvider } from './provider-selection'
 
 describe('email provider selection', () => {
   it('inherits n8n when no valid environment default exists', () => {
@@ -45,6 +45,33 @@ describe('email provider selection', () => {
       requested_provider: 'talia-ai',
       provider_override: 'talia-ai',
       fallback_used: true,
+    })
+  })
+
+  it('keeps only compact operational metadata for each canary phase', () => {
+    const selection = { override: 'talia-ai' as const, requestedProvider: 'talia-ai' as const }
+
+    expect(getEmailAgentPhaseTrace({
+      provider: 'talia-ai',
+      metadata: {
+        agent: 'email_classifier',
+        model: 'gpt-4o-mini',
+        action: 'draft_requested',
+        review_required: true,
+        usage: { input_tokens: 120, output_tokens: 20 },
+        body_text: 'must not be copied into the trace',
+      },
+    }, selection)).toEqual({
+      provider: 'talia-ai',
+      requested_provider: 'talia-ai',
+      provider_override: 'talia-ai',
+      fallback_used: false,
+      agent: 'email_classifier',
+      model: 'gpt-4o-mini',
+      action: 'draft_requested',
+      review_required: true,
+      input_tokens: 120,
+      output_tokens: 20,
     })
   })
 })
