@@ -7485,6 +7485,12 @@ textarea {
   color: rgba(26, 26, 46, 0.48);
 }
 
+.widget-preview-form textarea:focus {
+  outline: none;
+  border-color: var(--widget-preview-caret, var(--color-brand));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--widget-preview-caret, var(--color-brand)) 22%, transparent);
+}
+
 .widget-preview-form button {
   flex: 0 0 auto;
   height: 44px;
