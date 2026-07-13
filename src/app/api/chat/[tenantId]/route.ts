@@ -127,7 +127,7 @@ export async function POST(
       current: limit.current,
     } satisfies Record<string, Json>
 
-    await Promise.all([
+    const [saveResult] = await Promise.all([
       saveConversation(admin, {
         tenantId,
         sessionId,
@@ -149,10 +149,14 @@ export async function POST(
         },
       }),
     ])
+    const assistantMessageId = saveResult.ok
+      ? saveResult.messages.find((item) => item.role === 'assistant')?.id
+      : undefined
 
     return corsJson({
       reply: fallbackReply,
       session_id: sessionId,
+      assistant_message_id: assistantMessageId,
       limited: true,
       source: { type: 'usage_limit_fallback' },
     })
@@ -210,7 +214,7 @@ export async function POST(
       ],
     } satisfies Record<string, Json>
 
-    await Promise.all([
+    const [saveResult] = await Promise.all([
       saveConversation(admin, {
         tenantId,
         sessionId,
@@ -227,6 +231,9 @@ export async function POST(
         userMessage: message,
       }),
     ])
+    const assistantMessageId = saveResult.ok
+      ? saveResult.messages.find((item) => item.role === 'assistant')?.id
+      : undefined
 
     await recordChatbotUsage(admin, {
       tenantId,
@@ -244,6 +251,7 @@ export async function POST(
     return corsJson({
       reply: match.answer,
       session_id: sessionId,
+      assistant_message_id: assistantMessageId,
       source: {
         type: 'knowledge_retrieval',
         id: match.id,
@@ -384,6 +392,7 @@ export async function POST(
     reply: safeReply,
     actions: agentActions,
     session_id: sessionId,
+    assistant_message_id: saveResult.messages.find((item) => item.role === 'assistant')?.id,
     source: {
       type: 'agent_runtime',
       provider: response.provider,

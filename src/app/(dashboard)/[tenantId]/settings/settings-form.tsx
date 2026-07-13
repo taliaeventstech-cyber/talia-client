@@ -7,7 +7,7 @@ import { updateTenantSettings, type SettingsFormState } from './actions'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry } from '@/lib/phone/international'
 import Image from 'next/image'
-import { Bot, ChevronLeft, MessageCircle, MessageCircleMore } from 'lucide-react'
+import { Bot, ChevronLeft, MessageCircle, MessageCircleMore, RefreshCcw, ThumbsDown, ThumbsUp } from 'lucide-react'
 import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 
 type SettingsFormLabels = {
@@ -251,18 +251,9 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
                       />
                     </label>
                   </div>
-
-                  <BackgroundToggle
-                    value={previewConfig.glassBackground}
-                    label={labels.glassBackground}
-                    lightLabel={labels.glassBackgroundLight}
-                    darkLabel={labels.glassBackgroundDark}
-                    onSelect={(glassBackground) => setPreviewConfig((current) => ({ ...current, glassBackground }))}
-                  />
                 </div>
               ) : (
                 <>
-                  <input type="hidden" name="glass_background" value={previewConfig.glassBackground} />
                   <input type="hidden" name="glass_blur" value={previewConfig.glassBlur} />
                   <input type="hidden" name="glass_translucency" value={previewConfig.glassTranslucency} />
                 </>
@@ -416,7 +407,16 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
 
         <aside className="stack">
           <section className="card stack chatbot-preview-card">
-            <h2>{previewLabel}</h2>
+            <div className="chatbot-preview-card-header">
+              <h2>{previewLabel}</h2>
+              <BackgroundToggle
+                value={previewConfig.glassBackground}
+                label={labels.glassBackground}
+                lightLabel={labels.glassBackgroundLight}
+                darkLabel={labels.glassBackgroundDark}
+                onSelect={(glassBackground) => setPreviewConfig((current) => ({ ...current, glassBackground }))}
+              />
+            </div>
             <WidgetPreview key={previewConfig.autoOpen ? 'proactive' : 'manual'} widgetConfig={previewConfig} />
           </section>
 
@@ -675,6 +675,8 @@ function WidgetPreview({
 }) {
   const [panelOpen, setPanelOpen] = useState(false)
   const [greetingVisible, setGreetingVisible] = useState(widgetConfig.autoOpen)
+  const [sessionFeedbackOpen, setSessionFeedbackOpen] = useState(false)
+  const [sessionFeedbackResolved, setSessionFeedbackResolved] = useState<boolean | null>(null)
   const launcherRef = useRef<HTMLButtonElement>(null)
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const chatbotOffset = widgetConfig.blockOffset
@@ -685,6 +687,7 @@ function WidgetPreview({
   const glass = widgetConfig.widgetTheme === 'glass'
   const color = widgetConfig.primaryColor
   const skin = getGlassSkin(color, widgetConfig.glassBackground, widgetConfig.glassTranslucency)
+  const stageBackground = glass ? skin.stage : getSolidPreviewStage(widgetConfig.glassBackground)
 
   const filter = `blur(${widgetConfig.glassBlur}px) saturate(200%) brightness(${skin.bright})`
 
@@ -726,10 +729,15 @@ function WidgetPreview({
     setGreetingVisible(false)
   }
 
+  function closeSessionFeedback() {
+    setSessionFeedbackOpen(false)
+    setSessionFeedbackResolved(null)
+  }
+
   return (
     <div
       className="widget-live-preview"
-      style={{ background: glass ? skin.stage : 'linear-gradient(135deg, #f4f1eb, #dce3ea)' }}
+      style={{ background: stageBackground }}
     >
       <section
         className="widget-preview-panel"
@@ -741,21 +749,76 @@ function WidgetPreview({
           <span className="widget-preview-specular" aria-hidden="true" />
         ) : null}
         <div className="widget-preview-header" style={headerStyle}>
-          <span>{widgetConfig.assistantName}</span>
-          <button type="button" className="widget-preview-close" aria-label="Cerrar" onClick={closePanel}>×</button>
+          <span className="widget-preview-header-brand">
+            <span className="widget-preview-header-mark" style={{ color }}>
+              <PreviewLauncherIcon value={widgetConfig.launcherIcon} size={34} tone="brand" />
+            </span>
+            <span className="widget-preview-header-name">{widgetConfig.assistantName}</span>
+          </span>
+          <span className="widget-preview-header-actions">
+            <button
+              type="button"
+              className="widget-preview-icon-button widget-preview-restart"
+              aria-label="Volver a comenzar"
+              title="Volver a comenzar"
+              onClick={() => setSessionFeedbackOpen(true)}
+            >
+              <RefreshCcw aria-hidden="true" strokeWidth={2} />
+            </button>
+            <button type="button" className="widget-preview-icon-button widget-preview-close" aria-label="Cerrar" onClick={closePanel}>×</button>
+          </span>
         </div>
         <div className="widget-preview-messages" style={{ background: glass ? skin.msgSurface : '#F5F2EC' }}>
           <p className="widget-preview-message" style={botBubbleStyle}>
             {widgetConfig.initialMessage}
           </p>
+          <div className="widget-preview-feedback" aria-label="Valorar respuesta">
+            <button type="button" className="widget-preview-feedback-button" aria-label="Respuesta útil" title="Respuesta útil" aria-disabled="true">
+              <ThumbsUp aria-hidden="true" strokeWidth={2} />
+            </button>
+            <button type="button" className="widget-preview-feedback-button" aria-label="Respuesta no útil" title="Respuesta no útil" aria-disabled="true">
+              <ThumbsDown aria-hidden="true" strokeWidth={2} />
+            </button>
+          </div>
+          {sessionFeedbackOpen ? (
+            <div className="widget-preview-message widget-preview-session-feedback" style={botBubbleStyle} aria-label="Feedback antes de reiniciar">
+              <strong>Antes de empezar de nuevo, ¿he resuelto tu consulta?</strong>
+              <div className="widget-preview-session-feedback-choices">
+                <button
+                  type="button"
+                  className={sessionFeedbackResolved === true ? 'widget-preview-session-feedback-choice widget-preview-session-feedback-choice-active' : 'widget-preview-session-feedback-choice'}
+                  data-value="yes"
+                  onClick={() => setSessionFeedbackResolved(true)}
+                >
+                  <ThumbsUp aria-hidden="true" strokeWidth={2} />
+                  <span>Sí</span>
+                </button>
+                <button
+                  type="button"
+                  className={sessionFeedbackResolved === false ? 'widget-preview-session-feedback-choice widget-preview-session-feedback-choice-active' : 'widget-preview-session-feedback-choice'}
+                  data-value="no"
+                  onClick={() => setSessionFeedbackResolved(false)}
+                >
+                  <ThumbsDown aria-hidden="true" strokeWidth={2} />
+                  <span>No</span>
+                </button>
+              </div>
+              <textarea maxLength={1000} placeholder="Añade comentarios adicionales..." />
+              <div className="widget-preview-session-feedback-actions">
+                <button type="button" className="widget-preview-session-feedback-button widget-preview-session-feedback-submit" disabled={sessionFeedbackResolved === null} onClick={closeSessionFeedback}>Enviar y reiniciar</button>
+                <button type="button" className="widget-preview-session-feedback-button" onClick={closeSessionFeedback}>Saltar</button>
+              </div>
+            </div>
+          ) : null}
         </div>
         <div
           className="widget-preview-form"
           style={{
+            '--widget-preview-caret': color,
             background: glass ? skin.chromeFill : '#fff',
             backdropFilter: glass ? filter : undefined,
             WebkitBackdropFilter: glass ? filter : undefined,
-          }}
+          } as React.CSSProperties}
         >
           <textarea
             ref={composerRef}
@@ -764,6 +827,16 @@ function WidgetPreview({
             onInput={(event) => resizePreviewComposer(event.currentTarget)}
           />
           <button type="button" disabled style={{ background: color }}>Enviar</button>
+        </div>
+        <div
+          className="widget-preview-powered"
+          style={{
+            background: glass ? skin.chromeFill : '#fff',
+            backdropFilter: glass ? filter : undefined,
+            WebkitBackdropFilter: glass ? filter : undefined,
+          }}
+        >
+          <a href="https://talia.events" target="_blank" rel="noopener noreferrer">Powered by TALIA</a>
         </div>
       </section>
 
@@ -811,13 +884,13 @@ function WidgetPreview({
           }
         }}
       >
-        <PreviewLauncherIcon value={widgetConfig.launcherIcon} size={previewSize} />
+        <PreviewLauncherIcon value={widgetConfig.launcherIcon} size={previewSize} tone="light" />
       </button>
     </div>
   )
 }
 
-function PreviewLauncherIcon({ value, size }: { value: WidgetLauncherIcon; size: number }) {
+function PreviewLauncherIcon({ value, size, tone = 'light' }: { value: WidgetLauncherIcon; size: number; tone?: 'light' | 'brand' }) {
   const shadow = { filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.2))' }
 
   if (value === 'chat') {
@@ -837,7 +910,12 @@ function PreviewLauncherIcon({ value, size }: { value: WidgetLauncherIcon; size:
       aria-hidden="true"
       width={500}
       height={500}
-      style={{ width: Math.round(size * 0.82), height: Math.round(size * 0.82), objectFit: 'contain', filter: 'brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,.2))' }}
+      style={{
+        width: Math.round(size * 0.82),
+        height: Math.round(size * 0.82),
+        objectFit: 'contain',
+        filter: tone === 'light' ? 'brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,.2))' : undefined,
+      }}
     />
   )
 }
@@ -876,6 +954,14 @@ function getGlassSkin(color: string, background: 'light' | 'dark', translucency:
     botText: '#211018',
     shadow: '0 18px 45px -14px rgba(40,10,25,0.42)',
   }
+}
+
+function getSolidPreviewStage(background: 'light' | 'dark') {
+  if (background === 'dark') {
+    return 'radial-gradient(120% 90% at 14% 8%, rgba(226,93,89,0.26), transparent 50%), linear-gradient(135deg, #211d32, #111827)'
+  }
+
+  return 'linear-gradient(135deg, #f4f1eb, #dce3ea)'
 }
 
 function getWidgetSize(value: string): 'small' | 'medium' | 'large' {

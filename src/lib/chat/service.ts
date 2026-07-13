@@ -9,6 +9,11 @@ export type IncomingChatMessage = {
   metadata?: Json
 }
 
+export type SavedChatMessage = {
+  id: string
+  role: 'user' | 'assistant'
+}
+
 export type SaveConversationInput = {
   tenantId: string
   sessionId: string
@@ -46,7 +51,10 @@ export async function saveConversation(admin: AdminClient, input: SaveConversati
     metadata: message.metadata ?? {},
   }))
 
-  const { error: messagesError } = await admin.from('messages').insert(messages)
+  const { data: savedMessages, error: messagesError } = await admin
+    .from('messages')
+    .insert(messages)
+    .select('id, role')
 
   if (messagesError) {
     return {
@@ -59,6 +67,7 @@ export async function saveConversation(admin: AdminClient, input: SaveConversati
   return {
     ok: true as const,
     conversationId: conversation.id,
+    messages: (savedMessages ?? []) as SavedChatMessage[],
   }
 }
 
