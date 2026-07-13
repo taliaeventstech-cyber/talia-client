@@ -57,6 +57,14 @@ type EmailTrace = {
   updated_at: string
 }
 
+type EmailCanaryStats = {
+  sampleSize: number
+  taliaAiRequested: number
+  taliaAiCompleted: number
+  fallbackRuns: number
+  errorRuns: number
+}
+
 const editableModules = [
   { key: 'chatbot', label: 'Chatbot', locked: true },
   { key: 'data', label: 'Data', locked: true },
@@ -76,11 +84,13 @@ export function EditClientForm({
   modules,
   emailConnection,
   emailTrace,
+  emailCanaryStats,
 }: {
   client: Client
   modules: Module[]
   emailConnection: EmailConnection | null
   emailTrace: EmailTrace | null
+  emailCanaryStats: EmailCanaryStats
 }) {
   const [state, action, pending] = useActionState(updateTenantAction, initialState)
   const activeModules = new Set(
@@ -279,7 +289,12 @@ export function EditClientForm({
             title="Buzón y borradores"
             description="Configuración interna para conectar Gmail/Outlook y crear borradores supervisados."
           />
-          <EmailOperationsFields client={client} connection={emailConnection} trace={emailTrace} />
+          <EmailOperationsFields
+            client={client}
+            connection={emailConnection}
+            trace={emailTrace}
+            canaryStats={emailCanaryStats}
+          />
         </SettingsTabPanel>
       ) : (
         <HiddenEmailOperationsFields connection={emailConnection} />
@@ -654,7 +669,17 @@ function HiddenVoiceOperationsFields({ client }: { client: Client }) {
   )
 }
 
-function EmailOperationsFields({ client, connection, trace }: { client: Client; connection: EmailConnection | null; trace: EmailTrace | null }) {
+function EmailOperationsFields({
+  client,
+  connection,
+  trace,
+  canaryStats,
+}: {
+  client: Client
+  connection: EmailConnection | null
+  trace: EmailTrace | null
+  canaryStats: EmailCanaryStats
+}) {
   const metadata = getEmailMetadata(connection?.metadata)
   const agentSettings = getEmailAgentSettings(connection?.metadata)
   const agentTrace = getEmailAgentTrace(trace)
@@ -881,12 +906,14 @@ function EmailOperationsFields({ client, connection, trace }: { client: Client; 
       >
         <div className="email-agent-trace" aria-label="Última ejecución del agente de email">
           <div>
-            <span>Solicitado</span>
-            <strong>{agentTrace ? formatEmailAgentProvider(agentTrace.requestedProvider) : 'Sin ejecuciones'}</strong>
+            <span>Clasificador</span>
+            <strong>{agentTrace?.classifier ? formatEmailAgentPhase(agentTrace.classifier) : 'Sin ejecución'}</strong>
+            {agentTrace?.classifier ? <small>{formatEmailAgentPhaseDetail(agentTrace.classifier)}</small> : null}
           </div>
           <div>
-            <span>Respondió</span>
-            <strong>{agentTrace?.provider ? formatEmailAgentProvider(agentTrace.provider) : 'Sin respuesta'}</strong>
+            <span>Redactor</span>
+            <strong>{agentTrace?.drafter ? formatEmailAgentPhase(agentTrace.drafter) : 'No ejecutado'}</strong>
+            {agentTrace?.drafter ? <small>{formatEmailAgentPhaseDetail(agentTrace.drafter)}</small> : null}
           </div>
           <div>
             <span>Fallback</span>
@@ -896,6 +923,12 @@ function EmailOperationsFields({ client, connection, trace }: { client: Client; 
             <span>Última actividad</span>
             <strong>{agentTrace ? formatEmailTraceDate(agentTrace.updatedAt) : '—'}</strong>
           </div>
+        </div>
+
+        <div className="email-canary-summary" aria-label="Resumen de las últimas ejecuciones del buzón">
+          <span>Últimas {canaryStats.sampleSize} ejecuciones</span>
+          <strong>{canaryStats.taliaAiCompleted}/{canaryStats.taliaAiRequested} completadas por TALIA AI</strong>
+          <span>{canaryStats.fallbackRuns} fallback · {canaryStats.errorRuns} error</span>
         </div>
 
         <label className="field field-important">
@@ -1138,6 +1171,11 @@ function getEmailAgentTrace(trace: EmailTrace | null) {
   const processing = metadata.email_processing && typeof metadata.email_processing === 'object' && !Array.isArray(metadata.email_processing)
     ? metadata.email_processing as Record<string, unknown>
     : {}
+  const execution = metadata.agent_trace && typeof metadata.agent_trace === 'object' && !Array.isArray(metadata.agent_trace)
+    ? metadata.agent_trace as Record<string, unknown>
+    : {}
+  const tracedClassifier = getEmailAgentPhase(execution.classifier)
+  const tracedDrafter = getEmailAgentPhase(execution.drafter)
   const provider = metadata.provider === 'talia-ai' || metadata.provider === 'n8n'
     ? metadata.provider
     : null
@@ -1147,13 +1185,60 @@ function getEmailAgentTrace(trace: EmailTrace | null) {
       ? processing.provider
       : null
   if (!requestedProvider) return null
+  const legacyPhase = provider ? {
+    provider,
+    requestedProvider,
+    fallbackUsed: metadata.fallback_used === true,
+    model: null,
+    action: null,
+    inputTokens: null,
+    outputTokens: null,
+  } : null
+  const classifier = tracedClassifier ?? (metadata.source === 'email_classifier' ? legacyPhase : null)
+  const drafter = tracedDrafter ?? (metadata.source === 'email_agent' ? legacyPhase : null)
 
   return {
     provider,
     requestedProvider,
-    fallbackUsed: metadata.fallback_used === true,
+    classifier,
+    drafter,
+    fallbackUsed: classifier?.fallbackUsed === true || drafter?.fallbackUsed === true || metadata.fallback_used === true,
     updatedAt: trace.updated_at,
   }
+}
+
+function getEmailAgentPhase(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const phase = value as Record<string, unknown>
+  const provider = phase.provider === 'talia-ai' || phase.provider === 'n8n' ? phase.provider : null
+  const requestedProvider = phase.requested_provider === 'talia-ai' || phase.requested_provider === 'n8n'
+    ? phase.requested_provider
+    : null
+  if (!provider || !requestedProvider) return null
+
+  return {
+    provider,
+    requestedProvider,
+    fallbackUsed: phase.fallback_used === true,
+    model: typeof phase.model === 'string' ? phase.model : null,
+    action: typeof phase.action === 'string' ? phase.action : null,
+    inputTokens: typeof phase.input_tokens === 'number' && Number.isFinite(phase.input_tokens) ? phase.input_tokens : null,
+    outputTokens: typeof phase.output_tokens === 'number' && Number.isFinite(phase.output_tokens) ? phase.output_tokens : null,
+  }
+}
+
+function formatEmailAgentPhase(phase: NonNullable<ReturnType<typeof getEmailAgentPhase>>) {
+  const provider = formatEmailAgentProvider(phase.provider)
+  return phase.model ? `${provider} · ${phase.model}` : provider
+}
+
+function formatEmailAgentPhaseDetail(phase: NonNullable<ReturnType<typeof getEmailAgentPhase>>) {
+  const tokens = (phase.inputTokens ?? 0) + (phase.outputTokens ?? 0)
+  return [
+    phase.fallbackUsed ? `fallback desde ${formatEmailAgentProvider(phase.requestedProvider)}` : null,
+    phase.action,
+    tokens > 0 ? `${tokens} tokens` : null,
+  ].filter(Boolean).join(' · ') || 'Completado'
 }
 
 function formatEmailTraceDate(value: string) {

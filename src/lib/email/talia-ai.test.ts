@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { EmailAgentClassification, EmailAgentInput } from './agent-provider'
-import { FallbackEmailClassifierProvider } from './provider-fallback'
 import { TaliaAiEmailClassifierProvider, TaliaAiEmailDrafterProvider } from './talia-ai'
 
 const input: EmailAgentInput = {
@@ -150,44 +149,24 @@ describe('TALIA AI email providers', () => {
     })
   })
 
-  it('falls back to n8n and records which provider actually answered', async () => {
-    const primary = {
-      classify: vi.fn(async () => ({ ok: false as const, status: 503, error: 'talia-ai unavailable' })),
-    }
-    const fallback = {
-      classify: vi.fn(async () => ({ ok: true as const, classification })),
-    }
-    const provider = new FallbackEmailClassifierProvider(primary, fallback)
-
-    const result = await provider.classify(input)
-
-    expect(result).toMatchObject({
-      ok: true,
-      classification: {
-        raw: {
-          provider: 'n8n',
-          fallback_from: 'talia-ai',
-          primary_error: 'talia-ai unavailable',
-        },
-      },
+  it('surfaces talia-ai failures without invoking another provider', async () => {
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      text: async () => JSON.stringify({ ok: false, error: 'talia-ai unavailable' }),
     })
-    expect(fallback.classify).toHaveBeenCalledOnce()
-  })
-
-  it('does not hide a non-transient contract error behind the n8n fallback', async () => {
-    const primary = {
-      classify: vi.fn(async () => ({ ok: false as const, status: 400, error: 'invalid request' })),
-    }
-    const fallback = {
-      classify: vi.fn(async () => ({ ok: true as const, classification })),
-    }
-    const provider = new FallbackEmailClassifierProvider(primary, fallback)
+    const provider = new TaliaAiEmailClassifierProvider({
+      baseUrl: 'https://talia-ai.example.test',
+      apiKey: 'secret',
+      fetcher,
+    })
 
     await expect(provider.classify(input)).resolves.toEqual({
       ok: false,
-      status: 400,
-      error: 'invalid request',
+      status: 503,
+      error: 'talia-ai unavailable',
+      details: '{"ok":false,"error":"talia-ai unavailable"}',
     })
-    expect(fallback.classify).not.toHaveBeenCalled()
+    expect(fetcher).toHaveBeenCalledOnce()
   })
 })
