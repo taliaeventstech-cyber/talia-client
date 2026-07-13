@@ -68,7 +68,7 @@ export default async function BackstageClientPage({ params }: Props) {
     (traceMessages ?? []).length
       ? admin
         .from('conversations')
-        .select('id, session_id')
+        .select('id, session_id, metadata')
         .in('id', (traceMessages ?? []).map((message) => message.conversation_id))
         .eq('theatre_id', tenantId)
       : Promise.resolve({ data: [] }),
@@ -92,6 +92,7 @@ export default async function BackstageClientPage({ params }: Props) {
   const chunkStatsBySource = getChunkStatsBySource(knowledgeChunks ?? [])
   const ragHealth = getRagHealth(knowledgeSources ?? [], chunkStatsBySource)
   const traceStats = getTraceStats(traceMessages ?? [])
+  const feedbackStats = getTraceFeedbackStats(traceMessages ?? [], traceConversations ?? [])
 
   return (
     <div className="stack">
@@ -219,12 +220,33 @@ export default async function BackstageClientPage({ params }: Props) {
           </div>
         </div>
 
+        <div className="rag-feedback-summary-grid" aria-label="Resumen de feedback del chatbot">
+          <div className="rag-feedback-summary-card rag-feedback-summary-card-positive">
+            <span>Respuestas útiles</span>
+            <strong>{feedbackStats.responsePositive}</strong>
+          </div>
+          <div className="rag-feedback-summary-card rag-feedback-summary-card-negative">
+            <span>Respuestas no útiles</span>
+            <strong>{feedbackStats.responseNegative}</strong>
+          </div>
+          <div className="rag-feedback-summary-card rag-feedback-summary-card-positive">
+            <span>Sesiones resueltas</span>
+            <strong>{feedbackStats.sessionResolved}</strong>
+          </div>
+          <div className="rag-feedback-summary-card rag-feedback-summary-card-negative">
+            <span>Sesiones no resueltas</span>
+            <strong>{feedbackStats.sessionUnresolved}</strong>
+          </div>
+        </div>
+
         {(traceMessages ?? []).length ? (
           <div className="rag-trace-list">
             {(traceMessages ?? []).map((message) => {
               const metadata = isRecord(message.metadata) ? message.metadata : {}
               const sources = getAgentSources(message.metadata)
               const conversation = conversationById.get(message.conversation_id)
+              const responseFeedback = getResponseFeedback(metadata)
+              const sessionFeedback = getSessionFeedback(conversation?.metadata)
               const provider = typeof metadata.source === 'string' ? metadata.source : 'unknown'
               const requestedProvider = typeof metadata.requested_provider === 'string' ? metadata.requested_provider : null
               const model = typeof metadata.model === 'string' ? metadata.model : null
@@ -269,6 +291,22 @@ export default async function BackstageClientPage({ params }: Props) {
                     <span>Respuesta</span>
                     <p>{truncate(message.content, 260)}</p>
                   </div>
+
+                  {responseFeedback || sessionFeedback ? (
+                    <div className="rag-trace-feedback">
+                      {responseFeedback ? (
+                        <span className={`rag-trace-feedback-pill rag-trace-feedback-${responseFeedback.rating}`}>
+                          Respuesta: {getResponseFeedbackLabel(responseFeedback.rating)}
+                        </span>
+                      ) : null}
+                      {sessionFeedback ? (
+                        <span className={`rag-trace-feedback-pill rag-trace-feedback-${getSessionFeedbackTone(sessionFeedback)}`}>
+                          Sesión: {getSessionFeedbackLabel(sessionFeedback)}
+                        </span>
+                      ) : null}
+                      {sessionFeedback?.comments ? <p>{truncate(sessionFeedback.comments, 180)}</p> : null}
+                    </div>
+                  ) : null}
 
                   <div className="rag-trace-foot">
                     <p className="muted mono">
@@ -448,6 +486,18 @@ type LanguageTraceData = {
   confidence: number | null
   mode: 'deterministic' | 'llm'
   query_expansions: string[]
+}
+
+type ResponseFeedback = {
+  rating: 'positive' | 'negative'
+  submittedAt: string | null
+}
+
+type SessionFeedback = {
+  resolved: boolean | null
+  skipped: boolean
+  comments: string | null
+  submittedAt: string | null
 }
 
 function LanguageAgentTrace({
@@ -648,6 +698,82 @@ function getTraceStats(messages: Array<{ metadata: unknown }>) {
     lowConfidence: 0,
     fallbacks: 0,
   })
+}
+
+function getTraceFeedbackStats(
+  messages: Array<{ metadata: unknown }>,
+  conversations: Array<{ metadata: unknown }>
+) {
+  const responseStats = messages.reduce((stats, message) => {
+    const feedback = getResponseFeedback(message.metadata)
+    if (feedback?.rating === 'positive') stats.responsePositive += 1
+    if (feedback?.rating === 'negative') stats.responseNegative += 1
+    return stats
+  }, {
+    responsePositive: 0,
+    responseNegative: 0,
+  })
+
+  return conversations.reduce((stats, conversation) => {
+    const feedback = getSessionFeedback(conversation.metadata)
+    if (feedback?.resolved === true) stats.sessionResolved += 1
+    if (feedback?.resolved === false) stats.sessionUnresolved += 1
+    if (feedback?.skipped) stats.sessionSkipped += 1
+    return stats
+  }, {
+    ...responseStats,
+    sessionResolved: 0,
+    sessionUnresolved: 0,
+    sessionSkipped: 0,
+  })
+}
+
+function getResponseFeedback(metadata: unknown): ResponseFeedback | null {
+  if (!isRecord(metadata) || !isRecord(metadata.feedback)) return null
+  const rating = metadata.feedback.rating
+  if (rating !== 'positive' && rating !== 'negative') return null
+
+  return {
+    rating,
+    submittedAt: typeof metadata.feedback.submitted_at === 'string' ? metadata.feedback.submitted_at : null,
+  }
+}
+
+function getSessionFeedback(metadata: unknown): SessionFeedback | null {
+  if (!isRecord(metadata) || !isRecord(metadata.session_feedback)) return null
+  const feedback = metadata.session_feedback
+  const resolved = typeof feedback.resolved === 'boolean' ? feedback.resolved : null
+  const skipped = feedback.skipped === true
+  const comments = typeof feedback.comments === 'string' && feedback.comments.trim()
+    ? feedback.comments.trim()
+    : null
+
+  if (!skipped && resolved === null && !comments) return null
+
+  return {
+    resolved,
+    skipped,
+    comments,
+    submittedAt: typeof feedback.submitted_at === 'string' ? feedback.submitted_at : null,
+  }
+}
+
+function getResponseFeedbackLabel(rating: ResponseFeedback['rating']) {
+  return rating === 'positive' ? 'útil' : 'no útil'
+}
+
+function getSessionFeedbackLabel(feedback: SessionFeedback) {
+  if (feedback.skipped) return 'saltada'
+  if (feedback.resolved === true) return 'resuelta'
+  if (feedback.resolved === false) return 'no resuelta'
+  return 'sin decisión'
+}
+
+function getSessionFeedbackTone(feedback: SessionFeedback) {
+  if (feedback.skipped) return 'skipped'
+  if (feedback.resolved === true) return 'positive'
+  if (feedback.resolved === false) return 'negative'
+  return 'skipped'
 }
 
 function getTraceSummary({
