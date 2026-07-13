@@ -115,11 +115,12 @@ export async function POST(
 
     // Graceful fallback: reply with the venue fallback message (no model call,
     // not billable) instead of going silent once the allotment is consumed.
-    const fallbackReply = buildLimitFallbackMessage(tenant.config)
+    const fallbackReply = buildLimitFallbackMessage(tenant.config, tenant.config.language)
     const fallbackMetadata = {
       source: 'usage_limit_fallback',
       user_message: message,
-      response_language: detectChatLanguage(message, tenant.config.language),
+      response_language: tenant.config.language,
+      tenant_fallback_language: tenant.config.language,
       retrieval_status: 'not_run',
       fallback_reason: 'usage_limit_reached',
       limit: limit.limit,
@@ -164,9 +165,10 @@ export async function POST(
     phase: 'user_message',
   })
 
-  const visitorLanguage = detectChatLanguage(message, tenant.config.language)
   const shouldDelegateKnowledgeToTaliaAi = isTaliaAiPrimaryProvider()
-  const agentFallbackLanguage = shouldDelegateKnowledgeToTaliaAi ? tenant.config.language : visitorLanguage
+  const legacyVisitorLanguage = shouldDelegateKnowledgeToTaliaAi
+    ? null
+    : detectChatLanguage(message, tenant.config.language)
   const pendingClarification = shouldDelegateKnowledgeToTaliaAi
     ? extractPendingClarification(await getLatestAssistantMessageMetadata(admin, tenantId, sessionId))
     : undefined
@@ -183,15 +185,15 @@ export async function POST(
       tenantId,
       query: message,
       channel: 'chatbot',
-      language: visitorLanguage,
+      language: legacyVisitorLanguage ?? tenant.config.language,
     })
 
-  if (knowledge.shouldAnswerDirectly && knowledge.topMatch && knowledge.topMatch.language === visitorLanguage) {
+  if (legacyVisitorLanguage && knowledge.shouldAnswerDirectly && knowledge.topMatch && knowledge.topMatch.language === legacyVisitorLanguage) {
     const match = knowledge.topMatch
     const directKnowledgeMetadata = {
       source: 'knowledge_retrieval',
       user_message: message,
-      response_language: visitorLanguage,
+      response_language: legacyVisitorLanguage,
       retrieval_status: 'direct_match',
       low_confidence: false,
       knowledge_item_id: match.id,
@@ -263,7 +265,7 @@ export async function POST(
     pendingClarification,
     tenant: {
       name: tenant.config.name,
-      language: agentFallbackLanguage,
+      fallbackLanguage: tenant.config.language,
       responseTone: tenant.config.responseTone,
       systemPrompt: tenant.config.systemPrompt,
       fallbackEmail: tenant.config.fallbackEmail,
@@ -283,7 +285,9 @@ export async function POST(
 
   const agentSources = summarizeAgentSources(response.sources)
   const agentMetadata = summarizeAgentMetadata(response.metadata)
-  const finalResponseLanguage = getAgentResponseLanguage(agentMetadata) ?? visitorLanguage
+  const finalResponseLanguage = response.provider === 'talia-ai'
+    ? requireAgentResponseLanguage(agentMetadata)
+    : detectChatLanguage(message, tenant.config.language)
   const agentActions = summarizeVerifiedChatActions(response.actions, {
     fallbackPhone: tenant.config.fallbackPhone,
     whatsappEnabled: tenant.config.aiSettings.fallbackWhatsApp,
@@ -310,6 +314,7 @@ export async function POST(
     user_message: message,
     page_url: pageUrl ?? null,
     response_language: finalResponseLanguage,
+    tenant_fallback_language: tenant.config.language,
     retrieval_status: retrievalStatus,
     low_confidence: lowConfidence,
     fallback_reason: fallbackReason,
@@ -439,18 +444,57 @@ function getKnowledgeSourceType(metadata: Record<string, unknown> | null) {
 
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi
 
-function buildLimitFallbackMessage(config: { name: string; fallbackEmail: string | null; fallbackPhone: string | null }) {
+function buildLimitFallbackMessage(
+  config: { name: string; fallbackEmail: string | null; fallbackPhone: string | null },
+  language: string,
+) {
+  const copy = getLimitFallbackCopy(language)
   const contactParts = [
-    config.fallbackEmail ? `correu ${config.fallbackEmail}` : null,
-    config.fallbackPhone ? `telèfon ${config.fallbackPhone}` : null,
+    config.fallbackEmail ? `${copy.email} ${config.fallbackEmail}` : null,
+    config.fallbackPhone ? `${copy.phone} ${config.fallbackPhone}` : null,
   ].filter((part): part is string => Boolean(part))
 
-  const base = `Ara mateix no puc respondre la teva consulta. Disculpa les molèsties.`
   if (contactParts.length === 0) {
-    return `${base} Si us plau, torna-ho a provar més tard.`
+    return `${copy.base} ${copy.retry}`
   }
 
-  return `${base} Pots contactar amb ${config.name} per ${contactParts.join(' o ')}.`
+  return `${copy.base} ${copy.contact} ${config.name} ${copy.by} ${contactParts.join(` ${copy.or} `)}.`
+}
+
+function getLimitFallbackCopy(language: string) {
+  if (language === 'ca') {
+    return {
+      base: 'Ara mateix no puc respondre la teva consulta. Disculpa les molèsties.',
+      retry: 'Si us plau, torna-ho a provar més tard.',
+      contact: 'Pots contactar amb',
+      by: 'per',
+      or: 'o',
+      email: 'correu',
+      phone: 'telèfon',
+    }
+  }
+
+  if (language === 'en') {
+    return {
+      base: 'I cannot answer your question right now. Sorry for the inconvenience.',
+      retry: 'Please try again later.',
+      contact: 'You can contact',
+      by: 'by',
+      or: 'or',
+      email: 'email',
+      phone: 'phone',
+    }
+  }
+
+  return {
+    base: 'Ahora mismo no puedo responder tu consulta. Disculpa las molestias.',
+    retry: 'Por favor, vuelve a intentarlo más tarde.',
+    contact: 'Puedes contactar con',
+    by: 'por',
+    or: 'o',
+    email: 'correo',
+    phone: 'teléfono',
+  }
 }
 
 export function OPTIONS() {
@@ -583,7 +627,30 @@ function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): 
   const fallback = summarizeFallback(metadata.fallback)
   if (fallback) result.fallback = fallback
 
+  const languageAgent = summarizeLanguageAgent(metadata.language_agent)
+  if (languageAgent) result.language_agent = languageAgent
+
   return result
+}
+
+function summarizeLanguageAgent(value: unknown): Json | null {
+  if (!isRecord(value)) return null
+
+  const mode = value.mode === 'deterministic' || value.mode === 'llm' ? value.mode : null
+  const fallbackLanguage = typeof value.fallback_language === 'string' ? value.fallback_language : null
+  if (!mode || !fallbackLanguage) return null
+
+  return {
+    requested_language: typeof value.requested_language === 'string' ? value.requested_language : null,
+    fallback_language: fallbackLanguage,
+    confidence: typeof value.confidence === 'number' && Number.isFinite(value.confidence)
+      ? value.confidence
+      : null,
+    mode,
+    query_expansions: Array.isArray(value.query_expansions)
+      ? value.query_expansions.filter((item): item is string => typeof item === 'string').slice(0, 36)
+      : [],
+  }
 }
 
 function getAgentResponseLanguage(metadata: Record<string, Json>) {
@@ -591,6 +658,14 @@ function getAgentResponseLanguage(metadata: Record<string, Json>) {
   return typeof responseLanguage === 'string' && responseLanguage.trim()
     ? responseLanguage
     : null
+}
+
+function requireAgentResponseLanguage(metadata: Record<string, Json>) {
+  const responseLanguage = getAgentResponseLanguage(metadata)
+  if (!responseLanguage) {
+    throw new Error('talia-ai response language contract was not preserved by the gateway')
+  }
+  return responseLanguage
 }
 
 function summarizeFallback(value: unknown): Json | null {

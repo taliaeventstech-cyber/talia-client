@@ -15,7 +15,7 @@ export type ChatAgentRuntimeInput = {
   n8nWebhookUrl: string | null
   tenant: {
     name: string
-    language: string
+    fallbackLanguage: string
     responseTone: ChatbotResponseTone
     systemPrompt: string | null
     fallbackEmail: string | null

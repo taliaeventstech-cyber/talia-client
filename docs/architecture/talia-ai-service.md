@@ -111,7 +111,7 @@ Request:
   "tenant_id": "uuid",
   "session_id": "public-session",
   "message": "User's question",
-  "language": "es",
+  "fallback_language": "es",
   "tenant": {
     "name": "Example Venue",
     "system_prompt": "Assistant rules",
