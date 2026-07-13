@@ -379,7 +379,7 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination,
           </div>
 
           {installedWebSources.length ? (
-            <div className="knowledge-files-list">
+            <div className="knowledge-files-list knowledge-installed-list">
               {installedWebSources.map((source) => (
                 <InstalledWebSourceRow key={source.id} tenantId={tenantId} source={source} labels={labels} />
               ))}

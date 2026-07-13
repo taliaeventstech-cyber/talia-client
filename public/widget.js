@@ -141,7 +141,7 @@
     });
 
     restart.addEventListener('click', function () {
-      if (conversationHasActivity) {
+      if (conversationHasActivity || hasConversationActivity(messages)) {
         showSessionFeedback();
         return;
       }
@@ -280,6 +280,7 @@
       resizeComposer();
       removeSessionFeedbackPrompt();
       appendMessage(messages, text, 'user');
+      conversationHasActivity = true;
       sendMessage(text, messages);
     });
 
@@ -315,7 +316,6 @@
       .then(function (data) {
         if (requestSessionId !== sessionId) return;
         removeTyping(messages);
-        if (data.assistant_message_id || data.assistantMessageId) conversationHasActivity = true;
         appendMessage(
           messages,
           data.reply || getChatErrorMessage(data.error) || 'No he podido responder ahora mismo.',
@@ -557,6 +557,13 @@
       if (value[index] === '*' && value[index - 1] !== '*' && value[index + 1] !== '*') return index;
     }
     return -1;
+  }
+
+  function hasConversationActivity(container) {
+    return Array.prototype.some.call(container.children, function (child) {
+      if (!child.classList || child.hasAttribute('data-session-feedback')) return false;
+      return child.classList.contains('user') || (child.classList.contains('assistant') && child.hasAttribute('data-rendered-reply'));
+    });
   }
 
   function normalizeMessageActions(actions) {

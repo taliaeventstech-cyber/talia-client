@@ -819,6 +819,13 @@ function normalizeSourceUrl(value: string) {
   try {
     const url = new URL(value)
     url.hash = ''
+    url.hostname = url.hostname.toLowerCase()
+    if (url.hostname.startsWith('www.')) url.hostname = url.hostname.slice(4)
+    if ((url.protocol === 'http:' && url.port === '80') || (url.protocol === 'https:' && url.port === '443')) {
+      url.port = ''
+    }
+    url.pathname = url.pathname.replace(/\/+$/, '') || '/'
+    url.searchParams.sort()
     return url.toString()
   } catch {
     return null
