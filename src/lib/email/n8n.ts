@@ -85,6 +85,7 @@ async function postN8n(webhookUrl: string, payload: Record<string, unknown>) {
       ok: false as const,
       error: `n8n responded with ${response.status}`,
       details: text,
+      status: response.status,
     }
   }
 

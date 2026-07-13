@@ -212,6 +212,16 @@ Implemented:
 - Polling-based sync with configurable limits.
 - Persistence of connections, threads, messages and drafts.
 - Decoupled classifier and drafter.
+- Per-connection email provider selector in Backstage using
+  `email_connections.metadata.email_agent_provider` (`inherit`, `talia-ai` or
+  `n8n`). `EMAIL_AGENT_PROVIDER` is only the default for connections that
+  inherit the global setting.
+- Backstage shows the requested provider, actual provider, fallback state and
+  timestamp from the latest email-agent execution.
+- `talia-ai` owns typed classification, drafting and review policy without
+  receiving OAuth tokens or calling Gmail.
+- n8n remains available only as a temporary fallback for transient provider
+  failures while the migration is validated.
 - Current field: `should_generate_draft`.
 - `should_reply` is removed as a new contract.
 - Drafts visible in Agora and/or created in Gmail depending on mode.
@@ -221,7 +231,8 @@ Pending:
 
 - Complete Google OAuth verification.
 - Complete Microsoft Graph.
-- Move more logic to our own backend when it's time to decouple n8n.
+- Run a controlled `talia-ai` canary from Backstage, validate it in production
+  and then retire the n8n classifier/drafter webhooks.
 - Improve draft review UI.
 
 Reference:

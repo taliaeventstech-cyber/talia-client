@@ -13,7 +13,7 @@ interface Props {
 export default async function BackstageClientPage({ params }: Props) {
   const { tenantId } = await params
   const admin = createAdminClient()
-  const [{ data: client }, { data: modules }, { data: emailConnections }, subscriptionResult, usageResult, { data: traceMessages }, { data: knowledgeSources }] = await Promise.all([
+  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, usageResult, { data: traceMessages }, { data: knowledgeSources }] = await Promise.all([
     admin
       .from('theatres')
       .select('id, name, slug, entity_type, primary_language, plan, website_url, fallback_email, fallback_phone, n8n_webhook_url, system_prompt, widget_config, voice_phone_number, voice_phone_provider, voice_phone_mode, voice_public_phone_number, voice_forwarding_notes, voice_operational_status')
@@ -28,6 +28,12 @@ export default async function BackstageClientPage({ params }: Props) {
       .select('id, provider, mailbox_email, status, sync_mode, draft_mode, error_message, metadata')
       .eq('theatre_id', tenantId)
       .order('created_at', { ascending: false })
+      .limit(1),
+    admin
+      .from('email_threads')
+      .select('id, subject, status, metadata, updated_at')
+      .eq('theatre_id', tenantId)
+      .order('updated_at', { ascending: false })
       .limit(1),
     getActiveSubscription(admin, tenantId),
     getTenantUsageForPeriod(admin, tenantId),
@@ -379,7 +385,12 @@ export default async function BackstageClientPage({ params }: Props) {
         )}
       </section>
 
-      <EditClientForm client={client} modules={modules ?? []} emailConnection={emailConnections?.[0] ?? null} />
+      <EditClientForm
+        client={client}
+        modules={modules ?? []}
+        emailConnection={emailConnections?.[0] ?? null}
+        emailTrace={emailTraceThreads?.[0] ?? null}
+      />
     </div>
   )
 }

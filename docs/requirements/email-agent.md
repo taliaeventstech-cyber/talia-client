@@ -42,7 +42,7 @@ POST /api/internal/email/process
 └────────────────────────────────────────────────────┘
 ```
 
-Orchestration lives in TALIA, not inside n8n. This allows classifying without drafting, retrying drafts without reclassifying, measuring costs separately and decoupling the backend later on. n8n only acts as a temporary adapter for classification/generation (`N8nEmailAgentProvider` today, `TaliaEmailAgentProvider` in the future via `talia-ai`).
+Orchestration lives in TALIA, not inside n8n. This allows classifying without drafting, retrying drafts without reclassifying and measuring costs separately. `TaliaAiEmailClassifierProvider` and `TaliaAiEmailDrafterProvider` are now selectable; n8n remains a temporary fallback during rollout.
 
 ## MVP Flow
 
@@ -139,7 +139,21 @@ Expected result:
 
 Temporary env:
 
+- `EMAIL_AGENT_PROVIDER=talia-ai|n8n`: selects the primary classifier/drafter provider.
+- `email_connections.metadata.email_agent_provider`: optional per-connection
+  override (`inherit`, `talia-ai` or `n8n`) used for canary rollout and rollback.
+- `TALIA_AI_BASE_URL`: server-to-server URL for `talia-ai`.
+- `TALIA_AI_INTERNAL_API_KEY`: bearer credential shared only by TALIA services.
 - `DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL`: n8n webhook for draft generation (legacy fallback).
+
+Provider resolution order:
+
+1. Per-connection `email_agent_provider` when set to `talia-ai` or `n8n`.
+2. Global `EMAIL_AGENT_PROVIDER` when the connection is set to `inherit`.
+3. Safe legacy default `n8n` when neither is configured.
+
+Backstage records the requested provider, actual provider and whether a
+transient fallback occurred. A validation error does not trigger fallback.
 - `INTERNAL_API_KEY`: protects internal endpoints in production.
 - `CRON_SECRET`: protects `/api/cron/email/sync` when invoked by an external scheduler such as n8n.
 

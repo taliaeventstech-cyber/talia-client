@@ -5,6 +5,7 @@ import { useActionState, useState } from 'react'
 import { ActionToast } from '@/components/ui/action-toast'
 import { normalizeChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import { defaultEmailClassificationTopics, getEmailAgentSettings } from '@/lib/email/settings'
+import { getEmailAgentProviderOverride } from '@/lib/email/provider-selection'
 import { updateTenantAction, type UpdateTenantState } from '../../actions'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry } from '@/lib/phone/international'
@@ -48,6 +49,14 @@ type EmailConnection = {
   metadata: unknown
 }
 
+type EmailTrace = {
+  id: string
+  subject: string | null
+  status: string
+  metadata: unknown
+  updated_at: string
+}
+
 const editableModules = [
   { key: 'chatbot', label: 'Chatbot', locked: true },
   { key: 'data', label: 'Data', locked: true },
@@ -66,10 +75,12 @@ export function EditClientForm({
   client,
   modules,
   emailConnection,
+  emailTrace,
 }: {
   client: Client
   modules: Module[]
   emailConnection: EmailConnection | null
+  emailTrace: EmailTrace | null
 }) {
   const [state, action, pending] = useActionState(updateTenantAction, initialState)
   const activeModules = new Set(
@@ -268,7 +279,7 @@ export function EditClientForm({
             title="Buzón y borradores"
             description="Configuración interna para conectar Gmail/Outlook y crear borradores supervisados."
           />
-          <EmailOperationsFields client={client} connection={emailConnection} />
+          <EmailOperationsFields client={client} connection={emailConnection} trace={emailTrace} />
         </SettingsTabPanel>
       ) : (
         <HiddenEmailOperationsFields connection={emailConnection} />
@@ -643,9 +654,10 @@ function HiddenVoiceOperationsFields({ client }: { client: Client }) {
   )
 }
 
-function EmailOperationsFields({ client, connection }: { client: Client; connection: EmailConnection | null }) {
+function EmailOperationsFields({ client, connection, trace }: { client: Client; connection: EmailConnection | null; trace: EmailTrace | null }) {
   const metadata = getEmailMetadata(connection?.metadata)
   const agentSettings = getEmailAgentSettings(connection?.metadata)
+  const agentTrace = getEmailAgentTrace(trace)
   const [activeEmailTab, setActiveEmailTab] = useState<EmailTabKey>('connection')
   const emailTabs = [
     {
@@ -663,7 +675,7 @@ function EmailOperationsFields({ client, connection }: { client: Client; connect
     {
       key: 'agent',
       label: 'Agente',
-      summary: `${formatAgentTone(agentSettings.tone)} · borrador ${agentSettings.draftStyle}`,
+      summary: `${formatEmailAgentProvider(metadata.agentProvider)} · ${formatAgentTone(agentSettings.tone)}`,
       icon: Bot,
     },
     {
@@ -863,10 +875,43 @@ function EmailOperationsFields({ client, connection }: { client: Client; connect
         id="agent"
         title="Comportamiento del agente"
         description="Separa el estilo del canal email de la base de conocimiento común."
-        summary={`${formatAgentTone(agentSettings.tone)} · borrador ${agentSettings.draftStyle}`}
+        summary={`${formatEmailAgentProvider(metadata.agentProvider)} · ${formatAgentTone(agentSettings.tone)} · borrador ${agentSettings.draftStyle}`}
         active={activeEmailTab === 'agent'}
         important
       >
+        <div className="email-agent-trace" aria-label="Última ejecución del agente de email">
+          <div>
+            <span>Solicitado</span>
+            <strong>{agentTrace ? formatEmailAgentProvider(agentTrace.requestedProvider) : 'Sin ejecuciones'}</strong>
+          </div>
+          <div>
+            <span>Respondió</span>
+            <strong>{agentTrace?.provider ? formatEmailAgentProvider(agentTrace.provider) : 'Sin respuesta'}</strong>
+          </div>
+          <div>
+            <span>Fallback</span>
+            <strong>{agentTrace?.fallbackUsed ? 'Sí' : 'No'}</strong>
+          </div>
+          <div>
+            <span>Última actividad</span>
+            <strong>{agentTrace ? formatEmailTraceDate(agentTrace.updatedAt) : '—'}</strong>
+          </div>
+        </div>
+
+        <label className="field field-important">
+          <span className="field-label-row">
+            Motor del agente
+          </span>
+          <select name="email_agent_provider" defaultValue={metadata.agentProvider}>
+            <option value="inherit">Heredar configuración global</option>
+            <option value="talia-ai">TALIA AI</option>
+            <option value="n8n">n8n legacy</option>
+          </select>
+          <span className="field-hint">
+            Se aplica solo a este buzón. Usa TALIA AI para el rollout canary y n8n como rollback controlado.
+          </span>
+        </label>
+
         <div className="form-row">
           <label className="field field-important">
             <span className="field-label-row">
@@ -1036,6 +1081,7 @@ function HiddenEmailOperationsFields({ connection }: { connection: EmailConnecti
       <input type="hidden" name="email_blocked_senders" value="" />
       <input type="hidden" name="email_blocked_domains" value="" />
       <input type="hidden" name="email_agent_tone" value="professional_cercano" />
+      <input type="hidden" name="email_agent_provider" value={getEmailAgentProviderOverride(connection?.metadata)} />
       <input type="hidden" name="email_agent_draft_style" value="breve" />
       <input type="hidden" name="email_agent_signature" value="" />
       <input type="hidden" name="email_channel_prompt" value="" />
@@ -1061,6 +1107,7 @@ function getEmailMetadata(value: unknown) {
     : 15
 
   return {
+    agentProvider: getEmailAgentProviderOverride(record),
     syncWindowDays: [1, 7, 14, 30].includes(syncWindowDays) ? syncWindowDays : 14,
     syncLimit: [10, 25, 50, 100, 250, 500].includes(syncLimit) ? syncLimit : 100,
     syncFrequencyMinutes: [15, 30, 60, 240].includes(syncFrequencyMinutes) ? syncFrequencyMinutes : 15,
@@ -1083,6 +1130,42 @@ function getStringList(value: unknown) {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string')
     : []
+}
+
+function getEmailAgentTrace(trace: EmailTrace | null) {
+  if (!trace || !trace.metadata || typeof trace.metadata !== 'object' || Array.isArray(trace.metadata)) return null
+  const metadata = trace.metadata as Record<string, unknown>
+  const processing = metadata.email_processing && typeof metadata.email_processing === 'object' && !Array.isArray(metadata.email_processing)
+    ? metadata.email_processing as Record<string, unknown>
+    : {}
+  const provider = metadata.provider === 'talia-ai' || metadata.provider === 'n8n'
+    ? metadata.provider
+    : null
+  const requestedProvider = metadata.requested_provider === 'talia-ai' || metadata.requested_provider === 'n8n'
+    ? metadata.requested_provider
+    : processing.provider === 'talia-ai' || processing.provider === 'n8n'
+      ? processing.provider
+      : null
+  if (!requestedProvider) return null
+
+  return {
+    provider,
+    requestedProvider,
+    fallbackUsed: metadata.fallback_used === true,
+    updatedAt: trace.updated_at,
+  }
+}
+
+function formatEmailTraceDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return new Intl.DateTimeFormat('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Madrid',
+  }).format(date)
 }
 
 function getWidgetConfig(value: unknown, language: unknown) {
@@ -1144,6 +1227,12 @@ function formatAgentTone(value: string) {
   if (value === 'formal') return 'Formal'
   if (value === 'directo') return 'Directo'
   return 'Profesional cercano'
+}
+
+function formatEmailAgentProvider(value: string) {
+  if (value === 'talia-ai') return 'TALIA AI'
+  if (value === 'n8n') return 'n8n'
+  return 'Proveedor global'
 }
 
 function getModuleTabDescription(key: EditableModuleKey) {

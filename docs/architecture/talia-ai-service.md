@@ -260,7 +260,10 @@ Response:
 
 ### POST /v1/email/draft
 
-Not first-cut if Google/Microsoft are still blocking the product, but it should be planned for.
+The email runtime also exposes `POST /v1/email/classify`. Classification and
+drafting are separate server-to-server decisions. `talia-ai` does not receive
+OAuth tokens and does not call Gmail or Outlook; provider draft creation remains
+in `talia-client`.
 
 Rule:
 

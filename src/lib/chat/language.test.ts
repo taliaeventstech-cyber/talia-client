@@ -10,6 +10,7 @@ describe('detectChatLanguage', () => {
 
   it('detects Spanish visitor questions', () => {
     expect(detectChatLanguage('¿Puedo llevar a mi perro al teatro?', 'ca')).toBe('es')
+    expect(detectChatLanguage('Cuál es vuestra programación?', 'ca')).toBe('es')
   })
 
   it('detects English visitor questions', () => {

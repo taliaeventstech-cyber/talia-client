@@ -164,8 +164,9 @@ export async function POST(
     phase: 'user_message',
   })
 
-  const responseLanguage = detectChatLanguage(message, tenant.config.language)
+  const visitorLanguage = detectChatLanguage(message, tenant.config.language)
   const shouldDelegateKnowledgeToTaliaAi = isTaliaAiPrimaryProvider()
+  const agentFallbackLanguage = shouldDelegateKnowledgeToTaliaAi ? tenant.config.language : visitorLanguage
   const pendingClarification = shouldDelegateKnowledgeToTaliaAi
     ? extractPendingClarification(await getLatestAssistantMessageMetadata(admin, tenantId, sessionId))
     : undefined
@@ -182,15 +183,15 @@ export async function POST(
       tenantId,
       query: message,
       channel: 'chatbot',
-      language: responseLanguage,
+      language: visitorLanguage,
     })
 
-  if (knowledge.shouldAnswerDirectly && knowledge.topMatch && knowledge.topMatch.language === responseLanguage) {
+  if (knowledge.shouldAnswerDirectly && knowledge.topMatch && knowledge.topMatch.language === visitorLanguage) {
     const match = knowledge.topMatch
     const directKnowledgeMetadata = {
       source: 'knowledge_retrieval',
       user_message: message,
-      response_language: responseLanguage,
+      response_language: visitorLanguage,
       retrieval_status: 'direct_match',
       low_confidence: false,
       knowledge_item_id: match.id,
@@ -262,7 +263,7 @@ export async function POST(
     pendingClarification,
     tenant: {
       name: tenant.config.name,
-      language: responseLanguage,
+      language: agentFallbackLanguage,
       responseTone: tenant.config.responseTone,
       systemPrompt: tenant.config.systemPrompt,
       fallbackEmail: tenant.config.fallbackEmail,
@@ -282,6 +283,7 @@ export async function POST(
 
   const agentSources = summarizeAgentSources(response.sources)
   const agentMetadata = summarizeAgentMetadata(response.metadata)
+  const finalResponseLanguage = getAgentResponseLanguage(agentMetadata) ?? visitorLanguage
   const agentActions = summarizeVerifiedChatActions(response.actions, {
     fallbackPhone: tenant.config.fallbackPhone,
     whatsappEnabled: tenant.config.aiSettings.fallbackWhatsApp,
@@ -307,7 +309,7 @@ export async function POST(
     model: response.model ?? null,
     user_message: message,
     page_url: pageUrl ?? null,
-    response_language: responseLanguage,
+    response_language: finalResponseLanguage,
     retrieval_status: retrievalStatus,
     low_confidence: lowConfidence,
     fallback_reason: fallbackReason,
@@ -357,7 +359,7 @@ export async function POST(
       model: response.model ?? null,
       knowledge_matches: knowledge.matches.length,
       top_knowledge_score: knowledge.topMatch?.score ?? null,
-      response_language: responseLanguage,
+      response_language: finalResponseLanguage,
       retrieval_status: retrievalStatus,
       low_confidence: lowConfidence,
       fallback_reason: fallbackReason,
@@ -582,6 +584,13 @@ function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): 
   if (fallback) result.fallback = fallback
 
   return result
+}
+
+function getAgentResponseLanguage(metadata: Record<string, Json>) {
+  const responseLanguage = metadata.response_language
+  return typeof responseLanguage === 'string' && responseLanguage.trim()
+    ? responseLanguage
+    : null
 }
 
 function summarizeFallback(value: unknown): Json | null {
