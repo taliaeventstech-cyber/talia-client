@@ -1,10 +1,10 @@
 'use client'
 
-import { ChevronDown, FileText, Link as LinkIcon, RefreshCw, Table2, Trash2 } from 'lucide-react'
+import { ChevronDown, FileText, Globe2, Link as LinkIcon, RefreshCw, Table2, Trash2, Workflow } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useActionState, useState, useTransition, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { createKnowledgeItem, uploadKnowledgeExcel, uploadKnowledgePdf, updateKnowledgeItem, deleteKnowledgeItem, deleteKnowledgeSource, retryKnowledgeSourceEmbeddings, type SettingsFormState, type ExcelUploadState, type PdfUploadState } from './actions'
+import { createKnowledgeItem, createManagedWebKnowledgeSource, uploadKnowledgeExcel, uploadKnowledgePdf, updateKnowledgeItem, deleteKnowledgeItem, deleteKnowledgeSource, requestManagedWebSourceSync, retryKnowledgeSourceEmbeddings, updateManagedWebSourceSchedule, type SettingsFormState, type ExcelUploadState, type PdfUploadState, type ManagedWebSourceState } from './actions'
 
 type KnowledgeItem = {
   id: string
@@ -22,8 +22,20 @@ type KnowledgeSource = {
   status: string
   config: unknown
   sourceUrl: string | null
+  refreshInterval: string
+  nextSyncAt: string | null
   lastSyncedAt: string | null
   lastError: string | null
+  documentCount: number
+  latestSyncRun: {
+    status: string
+    checked_count: number
+    changed_count: number
+    failed_count: number
+    blocked_count: number
+    created_at: string
+    finished_at: string | null
+  } | null
   chunkCount: number
   embeddingCounts: {
     ready: number
@@ -71,6 +83,40 @@ type KnowledgeFormProps = {
     importPdfWarning: string
     importPdfButton: string
     urlProcessing: string
+    managedWeb: string
+    managedWebHelp: string
+    sourceName: string
+    sourceNamePlaceholder: string
+    sourceType: string
+    sourceTypeUrl: string
+    sourceTypeSitemap: string
+    sourceTypeWebsite: string
+    sourceUrl: string
+    sourceUrlPlaceholder: string
+    refreshInterval: string
+    refreshManual: string
+    refreshDaily: string
+    refreshWeekly: string
+    refreshMonthly: string
+    addManagedSource: string
+    addingManagedSource: string
+    noManagedSources: string
+    syncNow: string
+    syncingNow: string
+    sourceDocuments: string
+    sourceLastSync: string
+    sourceNextSync: string
+    sourceNeverSynced: string
+    sourceChecked: string
+    sourceChanged: string
+    sourceIssues: string
+    sourceStatusQueued: string
+    sourceStatusRunning: string
+    sourceStatusReady: string
+    sourceStatusError: string
+    sourceStatusPartial: string
+    sourceStatusPending: string
+    widgetCapturedPages: string
     installedWeb: string
     installedWebHelp: string
     noInstalledPagesTitle: string
@@ -125,15 +171,25 @@ const pdfInitialState: PdfUploadState = {
   message: '',
 }
 
+const managedWebInitialState: ManagedWebSourceState = {
+  ok: false,
+  message: '',
+}
+
 export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination, labels }: KnowledgeFormProps) {
   const router = useRouter()
   const [state, formAction, pending] = useActionState(createKnowledgeItem.bind(null, tenantId), initialState)
   const [excelState, excelFormAction, excelPending] = useActionState(uploadKnowledgeExcel.bind(null, tenantId), excelInitialState)
   const [pdfState, pdfFormAction, pdfPending] = useActionState(uploadKnowledgePdf.bind(null, tenantId), pdfInitialState)
+  const [managedWebState, managedWebFormAction, managedWebPending] = useActionState(
+    createManagedWebKnowledgeSource.bind(null, tenantId),
+    managedWebInitialState
+  )
   const [isRefreshingInstalled, startInstalledRefresh] = useTransition()
   const fileSources = sources.filter((source) => source.type === 'pdf')
   const spreadsheetSources = sources.filter((source) => source.type === 'xlsx' || source.type === 'csv')
   const installedWebSources = sources.filter((source) => source.type === 'web_snapshot')
+  const managedWebSources = sources.filter((source) => source.type === 'url' || source.type === 'sitemap' || source.type === 'website')
 
   return (
     <>
@@ -340,57 +396,115 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination,
       ) : null}
 
       {activeTab === 'installed' ? (
-        <section className="card stack">
-          <div className="section-heading-row">
-            <div>
-              <h2>{labels.installedWeb}</h2>
-              <p className="muted">{labels.installedWebHelp}</p>
+        <>
+          <section className="card stack">
+            <div className="section-heading-row">
+              <div>
+                <h2>{labels.managedWeb}</h2>
+                <p className="muted">{labels.managedWebHelp}</p>
+              </div>
             </div>
-            <div className="section-heading-actions">
-              {installedWebSources.length > 1 ? (
-                <a
-                  className="button-primary button-fit"
-                  href={getCaptureAllHref(tenantId, installedWebSources)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {labels.captureAllPages}
-                </a>
-              ) : null}
-              <button
-                type="button"
-                className={`button-outline button-fit knowledge-installed-refresh ${isRefreshingInstalled ? 'knowledge-installed-refresh-active' : ''}`}
-                disabled={isRefreshingInstalled}
-                onClick={() => startInstalledRefresh(() => router.refresh())}
-              >
-                {isRefreshingInstalled ? (
-                  <>
-                    <span>{labels.refreshingInstalled}</span>
-                    <span className="processing-line" aria-hidden="true" />
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw size={15} strokeWidth={2} aria-hidden="true" />
-                    <span>{labels.refreshInstalled}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
 
-          {installedWebSources.length ? (
-            <div className="knowledge-files-list knowledge-installed-list">
-              {installedWebSources.map((source) => (
-                <InstalledWebSourceRow key={source.id} tenantId={tenantId} source={source} labels={labels} />
-              ))}
+            <form action={managedWebFormAction} className="knowledge-managed-create">
+              {managedWebState.message ? (
+                <p role="status" className={`notice ${managedWebState.ok ? 'notice-success' : 'notice-error'} knowledge-managed-notice`}>
+                  {managedWebState.message}
+                </p>
+              ) : null}
+              <label className="field">
+                {labels.sourceName}
+                <input name="name" placeholder={labels.sourceNamePlaceholder} maxLength={120} required />
+              </label>
+              <label className="field">
+                {labels.sourceType}
+                <select name="source_type" defaultValue="website">
+                  <option value="url">{labels.sourceTypeUrl}</option>
+                  <option value="sitemap">{labels.sourceTypeSitemap}</option>
+                  <option value="website">{labels.sourceTypeWebsite}</option>
+                </select>
+              </label>
+              <label className="field knowledge-managed-url-field">
+                {labels.sourceUrl}
+                <input name="source_url" type="url" placeholder={labels.sourceUrlPlaceholder} maxLength={2048} required />
+              </label>
+              <label className="field">
+                {labels.refreshInterval}
+                <select name="refresh_interval" defaultValue="daily">
+                  <option value="manual">{labels.refreshManual}</option>
+                  <option value="daily">{labels.refreshDaily}</option>
+                  <option value="weekly">{labels.refreshWeekly}</option>
+                  <option value="monthly">{labels.refreshMonthly}</option>
+                </select>
+              </label>
+              <button className="button-primary button-fit knowledge-managed-submit" type="submit" disabled={managedWebPending}>
+                {managedWebPending ? labels.addingManagedSource : labels.addManagedSource}
+              </button>
+            </form>
+
+            {managedWebSources.length ? (
+              <div className="knowledge-files-list">
+                {managedWebSources.map((source) => (
+                  <ManagedWebSourceRow key={source.id} tenantId={tenantId} source={source} labels={labels} />
+                ))}
+              </div>
+            ) : (
+              <p className="muted">{labels.noManagedSources}</p>
+            )}
+          </section>
+
+          <section className="card stack">
+            <div className="section-heading-row">
+              <div>
+                <h2>{labels.widgetCapturedPages}</h2>
+                <p className="muted">{labels.installedWebHelp}</p>
+              </div>
+              <div className="section-heading-actions">
+                {installedWebSources.length > 1 ? (
+                  <a
+                    className="button-primary button-fit"
+                    href={getCaptureAllHref(tenantId, installedWebSources)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {labels.captureAllPages}
+                  </a>
+                ) : null}
+                <button
+                  type="button"
+                  className={`button-outline button-fit knowledge-installed-refresh ${isRefreshingInstalled ? 'knowledge-installed-refresh-active' : ''}`}
+                  disabled={isRefreshingInstalled}
+                  onClick={() => startInstalledRefresh(() => router.refresh())}
+                >
+                  {isRefreshingInstalled ? (
+                    <>
+                      <span>{labels.refreshingInstalled}</span>
+                      <span className="processing-line" aria-hidden="true" />
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw size={15} strokeWidth={2} aria-hidden="true" />
+                      <span>{labels.refreshInstalled}</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
-          ) : (
-            <div className="knowledge-installed-empty">
-              <strong>{labels.noInstalledPagesTitle}</strong>
-              <p>{labels.noInstalledPages}</p>
-            </div>
-          )}
-        </section>
+
+            {installedWebSources.length ? (
+              <div className="knowledge-files-list knowledge-installed-list">
+                {installedWebSources.map((source) => (
+                  <InstalledWebSourceRow key={source.id} tenantId={tenantId} source={source} labels={labels} />
+                ))}
+              </div>
+            ) : (
+              <div className="knowledge-installed-empty">
+                <strong>{labels.noInstalledPagesTitle}</strong>
+                <p>{labels.noInstalledPages}</p>
+              </div>
+            )}
+          </section>
+          {pagination}
+        </>
       ) : null}
 
       {activeTab === 'apps' ? (
@@ -405,6 +519,144 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination,
       ) : null}
     </>
   )
+}
+
+function ManagedWebSourceRow({
+  tenantId,
+  source,
+  labels,
+}: {
+  tenantId: string
+  source: KnowledgeSource
+  labels: KnowledgeFormProps['labels']
+}) {
+  const router = useRouter()
+  const [isSyncing, startSync] = useTransition()
+  const [isSavingSchedule, startScheduleSave] = useTransition()
+  const [refreshInterval, setRefreshInterval] = useState(source.refreshInterval || 'manual')
+  const [message, setMessage] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+  const sourceUrlLabel = source.sourceUrl ? formatInstalledSourceUrl(source.sourceUrl) : null
+  const activeRunStatus = source.latestSyncRun?.status === 'queued' || source.latestSyncRun?.status === 'running'
+    ? source.latestSyncRun.status
+    : null
+  const visibleStatus = activeRunStatus ?? source.status
+
+  function handleSync() {
+    setMessage(null)
+    setFailed(false)
+    startSync(async () => {
+      const result = await requestManagedWebSourceSync(tenantId, source.id)
+      setFailed(!result.ok)
+      setMessage(result.message)
+      router.refresh()
+    })
+  }
+
+  function handleScheduleChange(value: string) {
+    const previous = refreshInterval
+    setRefreshInterval(value)
+    setMessage(null)
+    setFailed(false)
+    startScheduleSave(async () => {
+      const result = await updateManagedWebSourceSchedule(tenantId, source.id, value)
+      if (!result.ok) setRefreshInterval(previous)
+      setFailed(!result.ok)
+      setMessage(result.message)
+      router.refresh()
+    })
+  }
+
+  return (
+    <article className="knowledge-file-item knowledge-managed-item">
+      <div className="knowledge-file-icon" aria-hidden="true">
+        {source.type === 'sitemap' ? (
+          <Workflow size={20} strokeWidth={2} />
+        ) : source.type === 'website' ? (
+          <Globe2 size={20} strokeWidth={2} />
+        ) : (
+          <LinkIcon size={20} strokeWidth={2} />
+        )}
+      </div>
+      <div className="knowledge-file-main">
+        <div className="knowledge-file-title-row">
+          <h3>{source.name}</h3>
+          <span className={`knowledge-file-status knowledge-file-status-${visibleStatus}`}>
+            {getManagedSourceStatusLabel(visibleStatus, labels)}
+          </span>
+        </div>
+        {sourceUrlLabel && source.sourceUrl ? (
+          <span className="knowledge-installed-url" title={source.sourceUrl}>{sourceUrlLabel}</span>
+        ) : null}
+        <div className="knowledge-installed-signals">
+          <span className="knowledge-installed-signal">
+            {source.documentCount} {labels.sourceDocuments}
+          </span>
+          {source.lastSyncedAt ? (
+            <span className="knowledge-installed-signal">
+              {labels.sourceLastSync}: {formatDate(source.lastSyncedAt)}
+            </span>
+          ) : (
+            <span className="knowledge-installed-signal knowledge-installed-signal-muted">
+              {labels.sourceNeverSynced}
+            </span>
+          )}
+          {source.nextSyncAt && refreshInterval !== 'manual' ? (
+            <span className="knowledge-installed-signal">
+              {labels.sourceNextSync}: {formatDate(source.nextSyncAt)}
+            </span>
+          ) : null}
+          {source.latestSyncRun && source.latestSyncRun.status !== 'queued' ? (
+            <span className="knowledge-installed-signal knowledge-managed-run-summary">
+              {source.latestSyncRun.checked_count} {labels.sourceChecked} · {source.latestSyncRun.changed_count} {labels.sourceChanged}
+              {source.latestSyncRun.failed_count + source.latestSyncRun.blocked_count > 0
+                ? ` · ${source.latestSyncRun.failed_count + source.latestSyncRun.blocked_count} ${labels.sourceIssues}`
+                : ''}
+            </span>
+          ) : null}
+        </div>
+        {source.lastError ? <p className="knowledge-file-error">{source.lastError}</p> : null}
+        {message ? (
+          <p className={failed ? 'knowledge-managed-message knowledge-managed-message-error' : 'knowledge-managed-message'} role="status">
+            {message}
+          </p>
+        ) : null}
+      </div>
+      <div className="knowledge-file-actions knowledge-managed-actions">
+        <select
+          className="knowledge-managed-schedule"
+          aria-label={`${labels.refreshInterval}: ${source.name}`}
+          value={refreshInterval}
+          disabled={isSavingSchedule}
+          onChange={(event) => handleScheduleChange(event.target.value)}
+        >
+          <option value="manual">{labels.refreshManual}</option>
+          <option value="daily">{labels.refreshDaily}</option>
+          <option value="weekly">{labels.refreshWeekly}</option>
+          <option value="monthly">{labels.refreshMonthly}</option>
+        </select>
+        <button
+          type="button"
+          className="button-outline button-fit"
+          disabled={isSyncing || activeRunStatus !== null}
+          onClick={handleSync}
+        >
+          <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
+          {isSyncing || activeRunStatus ? labels.syncingNow : labels.syncNow}
+        </button>
+        <DeleteKnowledgeSourceButton tenantId={tenantId} sourceId={source.id} sourceName={source.name} />
+      </div>
+    </article>
+  )
+}
+
+function getManagedSourceStatusLabel(status: string, labels: KnowledgeFormProps['labels']) {
+  if (status === 'queued') return labels.sourceStatusQueued
+  if (status === 'running' || status === 'processing') return labels.sourceStatusRunning
+  if (status === 'ready') return labels.sourceStatusReady
+  if (status === 'error' || status === 'failed') return labels.sourceStatusError
+  if (status === 'partial') return labels.sourceStatusPartial
+  return labels.sourceStatusPending
 }
 
 const SPRING = '600ms cubic-bezier(0.16, 1, 0.3, 1)'

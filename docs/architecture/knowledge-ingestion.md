@@ -8,6 +8,7 @@ The knowledge base must accept several sources without coupling the product to n
 - Excel/CSV.
 - PDFs.
 - Installed web with signed snapshots from the widget.
+- Managed single-page, sitemap, and bounded website sources.
 - Google Sheets and other apps later on.
 
 ## Current State
@@ -15,8 +16,10 @@ The knowledge base must accept several sources without coupling the product to n
 TALIA stores normalized knowledge in:
 
 - `knowledge_sources`: origin of the information.
+- `knowledge_documents`: canonical pages owned by a multi-page source.
 - `knowledge_items`: units consumable by chatbot, email, and future channels.
 - `knowledge_chunks`: document fragments prepared for retrieval and future embeddings.
+- `knowledge_sync_runs`: auditable, idempotent refresh executions.
 
 Ingestion begins behind the internal module `src/lib/knowledge/ingestion.ts`. Agora validates permissions/form and coordinates the source, but PDF parsing, chunking, document writing, and embeddings live in `talia-ai`.
 
@@ -74,6 +77,56 @@ The client's own pages are incorporated as RAG sources without server-side URL r
 
 The tenant's official website remains administrative data. It is not used to automatically create URL sources.
 
+## Managed Web Sources
+
+TALIA also supports logical web sources whose lifecycle is independent from an
+individual browser visit:
+
+- `url`: one public page;
+- `sitemap`: URLs discovered from an XML sitemap;
+- `website`: a bounded same-site crawl starting from an approved URL.
+
+Agora owns source configuration and exposes `manual`, `daily`, `weekly`, and
+`monthly` refresh policies. A source owns many `knowledge_documents`; documents
+own their chunks through `knowledge_chunks.document_id`. This prevents one row
+per widget visit and lets the system preserve unchanged chunks.
+
+Each refresh is represented by `knowledge_sync_runs`. The database guarantees:
+
+- one queued/running execution per source;
+- tenant-scoped idempotency keys;
+- worker leases with expiry and safe reclaim;
+- bounded terminal errors and per-run counters;
+- a deterministic next refresh after a successful, partial, or failed run.
+
+The service-role worker contract is:
+
+```sql
+select * from claim_due_knowledge_sync_runs(worker_id, batch_size, lease_seconds);
+select finish_knowledge_sync_run(run_id, worker_id, terminal_status, ...counters);
+```
+
+`talia-ai` owns discovery, network safety after DNS resolution, HTML rendering,
+main-content extraction, content hashing, chunk replacement, and embeddings.
+It must reindex only changed documents. `talia-client` owns authorization,
+source configuration, persistence contracts, Agora/Backstage state, and quotas.
+
+Capture uses a controlled waterfall:
+
+1. safe HTTP fetch and conditional headers;
+2. rendered browser for public JavaScript-heavy pages;
+3. installed-widget or explicit manual browser capture when direct capture is blocked;
+4. CMS/provider API when a deterministic integration exists.
+
+No worker may bypass CAPTCHA, authentication, explicit access controls, robots
+rules, or provider terms. Checkout, account, authentication, form, and private
+routes are excluded by default. The installed widget remains a first-party
+fallback rather than being removed.
+
+Operational reference:
+
+- `docs/operations/knowledge-web-sync.md`.
+
 ## Seams Toward RAG
 
 ### Knowledge Ingestion
@@ -123,6 +176,11 @@ Current implementation:
 - requests embeddings from `talia-ai` via server-to-server HTTP if the service is configured;
 - leaves chunks as `pending` if the embeddings step fails;
 - limits PDF size.
+
+The managed-web persistence and Agora configuration are already in
+`talia-client`. The scheduled discovery/capture worker is intentionally pending
+in `talia-ai`; queued sources remain visible and auditable until that worker is
+deployed.
 
 Future implementation:
 
@@ -213,7 +271,8 @@ Future implementation:
 ## MVP Limitations
 
 - There is no embeddings worker or automatic backfill of old chunks.
-- URLs are ingested one at a time; there is no recursive crawler or automatic sitemap.
+- Managed URL, sitemap, and website sources can be configured, but their scheduled
+  crawler must still be implemented and deployed in `talia-ai`.
 - There is a limit on chunk size and number to avoid huge prompts.
 - Scanned PDFs without selectable text are not processed.
 
@@ -221,8 +280,11 @@ Future implementation:
 
 When we decouple backend/AI:
 
-1. Create a dedicated ingestion service:
+1. Complete the dedicated ingestion worker in `talia-ai`:
    - PDF parsing;
+   - safe sitemap and bounded website discovery;
+   - HTTP/browser/first-party capture waterfall;
+   - conditional fetch and normalized content hashes;
    - chunking;
    - optional OCR;
    - embeddings;
@@ -233,7 +295,7 @@ When we decouple backend/AI:
    - returns relevant chunks with score and source.
 3. Keep TALIA's contract stable:
    - the widget still talks to `/api/chat/:tenantId`;
-   - n8n or the in-house backend consume internal endpoints;
+   - `talia-ai` consumes the service-role sync-run contract;
    - the dashboard doesn't depend on the AI provider.
 
 ## n8n

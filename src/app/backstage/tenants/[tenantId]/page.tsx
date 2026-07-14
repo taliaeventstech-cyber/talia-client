@@ -46,7 +46,7 @@ export default async function BackstageClientPage({ params }: Props) {
       .limit(8),
     admin
       .from('knowledge_sources')
-      .select('id, name, type, status, config, source_url, last_synced_at, last_error, created_at')
+      .select('id, name, type, status, config, source_url, refresh_interval, next_sync_at, last_synced_at, last_error, created_at')
       .eq('theatre_id', tenantId)
       .order('created_at', { ascending: false }),
   ])
@@ -64,7 +64,7 @@ export default async function BackstageClientPage({ params }: Props) {
     .map((source) => source.source_id)
     .filter((sourceId): sourceId is string => Boolean(sourceId))))
   const knowledgeSourceIds = (knowledgeSources ?? []).map((source) => source.id)
-  const [{ data: traceConversations }, { data: traceSources }, { data: knowledgeChunks }] = await Promise.all([
+  const [{ data: traceConversations }, { data: traceSources }, { data: knowledgeChunks }, { data: knowledgeDocuments }, { data: knowledgeSyncRuns }] = await Promise.all([
     (traceMessages ?? []).length
       ? admin
         .from('conversations')
@@ -86,10 +86,27 @@ export default async function BackstageClientPage({ params }: Props) {
         .eq('theatre_id', tenantId)
         .in('source_id', knowledgeSourceIds)
       : Promise.resolve({ data: [] }),
+    knowledgeSourceIds.length
+      ? admin
+        .from('knowledge_documents')
+        .select('source_id, status')
+        .eq('theatre_id', tenantId)
+        .in('source_id', knowledgeSourceIds)
+      : Promise.resolve({ data: [] }),
+    knowledgeSourceIds.length
+      ? admin
+        .from('knowledge_sync_runs')
+        .select('source_id, status, trigger, checked_count, changed_count, failed_count, blocked_count, created_at, finished_at, error_code, error_details')
+        .eq('theatre_id', tenantId)
+        .in('source_id', knowledgeSourceIds)
+        .order('created_at', { ascending: false })
+      : Promise.resolve({ data: [] }),
   ])
   const conversationById = new Map((traceConversations ?? []).map((conversation) => [conversation.id, conversation]))
   const sourceById = new Map((traceSources ?? []).map((source) => [source.id, source]))
   const chunkStatsBySource = getChunkStatsBySource(knowledgeChunks ?? [])
+  const documentCountsBySource = getDocumentCountsBySource(knowledgeDocuments ?? [])
+  const latestSyncRunBySource = getLatestSyncRunBySource(knowledgeSyncRuns ?? [])
   const ragHealth = getRagHealth(knowledgeSources ?? [], chunkStatsBySource)
   const traceStats = getTraceStats(traceMessages ?? [])
   const feedbackStats = getTraceFeedbackStats(traceMessages ?? [], traceConversations ?? [])
@@ -381,6 +398,8 @@ export default async function BackstageClientPage({ params }: Props) {
           <div className="knowledge-files-list">
             {(knowledgeSources ?? []).map((source) => {
               const stats = chunkStatsBySource.get(source.id) ?? createEmptyChunkStats()
+              const documentCount = documentCountsBySource.get(source.id) ?? 0
+              const latestSyncRun = latestSyncRunBySource.get(source.id)
               const fileName = getKnowledgeSourceName(source)
 
               return (
@@ -400,8 +419,25 @@ export default async function BackstageClientPage({ params }: Props) {
                       <span>{stats.total} fragmentos</span>
                       {source.source_url ? <span>{source.source_url}</span> : null}
                       {source.last_synced_at ? <span>Actualizado {formatDate(source.last_synced_at)}</span> : null}
+                      {isManagedWebSource(source.type) ? (
+                        <>
+                          <span>{documentCount} páginas</span>
+                          <span>Frecuencia: {getRefreshIntervalLabel(source.refresh_interval)}</span>
+                          {source.next_sync_at ? <span>Próxima: {formatDate(source.next_sync_at)}</span> : null}
+                        </>
+                      ) : null}
                       <span className="mono">{shortId(source.id)}</span>
                     </div>
+                    {latestSyncRun ? (
+                      <div className="knowledge-installed-signals" aria-label="Última sincronización web">
+                        <span className="knowledge-installed-signal">Run {latestSyncRun.status}</span>
+                        <span className="knowledge-installed-signal">{latestSyncRun.checked_count} revisadas</span>
+                        <span className="knowledge-installed-signal knowledge-installed-signal-ok">{latestSyncRun.changed_count} cambiadas</span>
+                        {latestSyncRun.failed_count + latestSyncRun.blocked_count > 0 ? (
+                          <span className="knowledge-installed-signal">{latestSyncRun.failed_count + latestSyncRun.blocked_count} incidencias</span>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {stats.total > 0 ? (
                       <div className="knowledge-embedding-stats" aria-label="Estado de embeddings">
                         <span className="knowledge-embedding-stat knowledge-embedding-stat-ready">{stats.ready} listos</span>
@@ -1114,7 +1150,37 @@ function getSourceTypeLabel(type: string) {
   if (type === 'xlsx') return 'Excel'
   if (type === 'csv') return 'CSV'
   if (type === 'url') return 'URL'
+  if (type === 'sitemap') return 'Sitemap'
+  if (type === 'website') return 'Web completa'
   return type
+}
+
+function isManagedWebSource(type: string) {
+  return type === 'url' || type === 'sitemap' || type === 'website'
+}
+
+function getRefreshIntervalLabel(interval: string) {
+  if (interval === 'daily') return 'cada 24 horas'
+  if (interval === 'weekly') return 'semanal'
+  if (interval === 'monthly') return 'mensual'
+  return 'manual'
+}
+
+function getDocumentCountsBySource(documents: Array<{ source_id: string; status: string }>) {
+  const counts = new Map<string, number>()
+  for (const document of documents) {
+    if (document.status === 'removed') continue
+    counts.set(document.source_id, (counts.get(document.source_id) ?? 0) + 1)
+  }
+  return counts
+}
+
+function getLatestSyncRunBySource<T extends { source_id: string }>(runs: T[]) {
+  const latest = new Map<string, T>()
+  for (const run of runs) {
+    if (!latest.has(run.source_id)) latest.set(run.source_id, run)
+  }
+  return latest
 }
 
 function getRetrievalStatusLabel(status: string) {

@@ -131,7 +131,7 @@ export function BackstageRetryEmbeddingsButton({
 
 function getReprocessLabel(sourceType: string) {
   if (sourceType === 'pdf') return 'Reprocesar PDF'
-  if (sourceType === 'url') return 'Releer URL'
+  if (sourceType === 'url' || sourceType === 'sitemap' || sourceType === 'website') return 'Actualizar fuente'
   if (sourceType === 'manual') return 'Reindexar FAQs'
   if (sourceType === 'xlsx' || sourceType === 'csv') return 'Reindexar archivo'
   return 'Reindexar fuente'

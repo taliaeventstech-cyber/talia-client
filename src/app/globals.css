@@ -6491,6 +6491,74 @@ textarea {
   gap: 10px;
 }
 
+.knowledge-managed-create {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(150px, 0.65fr) minmax(240px, 1.5fr) minmax(150px, 0.7fr) auto;
+  align-items: end;
+  gap: 12px;
+  border-bottom: 0.5px solid var(--color-border-subtle);
+  padding-bottom: 18px;
+}
+
+.knowledge-managed-create .field {
+  min-width: 0;
+  margin: 0;
+}
+
+.knowledge-managed-notice {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.knowledge-managed-submit {
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+.knowledge-managed-item {
+  align-items: start;
+}
+
+.knowledge-managed-actions {
+  max-width: 420px;
+}
+
+.knowledge-managed-schedule {
+  min-height: 36px;
+  max-width: 180px;
+  padding: 7px 30px 7px 10px;
+}
+
+.knowledge-managed-message {
+  margin: 0;
+  color: var(--color-brand);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.knowledge-managed-message-error {
+  color: #ef4444;
+}
+
+.knowledge-managed-run-summary {
+  color: var(--color-text-tertiary);
+}
+
+@media (max-width: 1180px) {
+  .knowledge-managed-create {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .knowledge-managed-url-field,
+  .knowledge-managed-submit {
+    grid-column: 1 / -1;
+  }
+
+  .knowledge-managed-submit {
+    justify-content: center;
+  }
+}
+
 .knowledge-installed-list {
   grid-auto-rows: max-content;
   align-content: start;
@@ -6557,6 +6625,25 @@ textarea {
 }
 
 @media (max-width: 720px) {
+  .knowledge-managed-create {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .knowledge-managed-url-field,
+  .knowledge-managed-submit {
+    grid-column: auto;
+  }
+
+  .knowledge-managed-actions {
+    max-width: none;
+    width: 100%;
+  }
+
+  .knowledge-managed-schedule {
+    max-width: none;
+    width: 100%;
+  }
+
   .section-heading-row {
     align-items: stretch;
     flex-direction: column;
@@ -6748,6 +6835,14 @@ textarea {
 .knowledge-file-status-connected {
   border-color: color-mix(in srgb, var(--color-brand) 38%, var(--color-border));
   color: var(--color-brand);
+}
+
+.knowledge-file-status-queued,
+.knowledge-file-status-pending,
+.knowledge-file-status-running,
+.knowledge-file-status-processing {
+  border-color: color-mix(in srgb, var(--color-gold) 42%, var(--color-border));
+  color: var(--color-gold);
 }
 
 .knowledge-file-status-error {

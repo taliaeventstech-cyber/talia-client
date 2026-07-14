@@ -16,10 +16,10 @@ const DEFAULT_ITEMS_PER_PAGE = 20
 const PAGE_SIZE_OPTIONS = [5, 10, 20]
 const tabs = ['installed', 'files', 'faqs', 'apps', 'spreadsheets'] as const
 type KnowledgeTab = typeof tabs[number]
-type SourceType = 'pdf' | 'xlsx' | 'csv' | 'web_snapshot'
+type SourceType = 'pdf' | 'xlsx' | 'csv' | 'web_snapshot' | 'url' | 'sitemap' | 'website'
 
 const sourceTypes = [
-  { key: 'installed', label: 'Web instalada', icon: Globe2 },
+  { key: 'installed', label: 'Web', icon: Globe2 },
   { key: 'files', label: 'Files', icon: FileText },
   { key: 'faqs', label: 'FAQs', icon: Bot },
   { key: 'apps', label: 'Apps', icon: Plug },
@@ -47,7 +47,7 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
   const sourcesQuery = shouldLoadSources
     ? admin
       .from('knowledge_sources')
-      .select('id, type, name, status, config, source_url, last_synced_at, last_error, created_at', { count: 'exact' })
+      .select('id, type, name, status, config, source_url, refresh_interval, next_sync_at, last_synced_at, last_error, created_at', { count: 'exact' })
       .eq('theatre_id', tenantId)
       .in('type', sourceTypesForTab)
       .order('created_at', { ascending: false })
@@ -82,7 +82,10 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
 
   const rawKnowledgeSources = sourcesResult.data ?? []
   const dedupedInstalledSources = activeTab === 'installed'
-    ? dedupeInstalledSources(rawKnowledgeSources)
+    ? [
+      ...rawKnowledgeSources.filter((source) => source.type !== 'web_snapshot'),
+      ...dedupeInstalledSources(rawKnowledgeSources.filter((source) => source.type === 'web_snapshot')),
+    ].sort((a, b) => getInstalledSourceActivityTime(b) - getInstalledSourceActivityTime(a))
     : rawKnowledgeSources
   const totalItems = activeTab === 'faqs'
     ? knowledgeCount ?? 0
@@ -96,13 +99,24 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
     ? dedupedInstalledSources.slice(currentFrom, currentFrom + pageSize)
     : rawKnowledgeSources
   const sourceIds = knowledgeSources.map((source) => source.id)
-  const { data: sourceChunks } = sourceIds.length
-    ? await admin
-      .from('knowledge_chunks')
-      .select('source_id, embedding_status')
-      .in('source_id', sourceIds)
-      .eq('active', true)
-    : { data: [] }
+  const [{ data: sourceChunks }, { data: sourceDocuments }, { data: sourceSyncRuns }] = sourceIds.length
+    ? await Promise.all([
+      admin
+        .from('knowledge_chunks')
+        .select('source_id, embedding_status')
+        .in('source_id', sourceIds)
+        .eq('active', true),
+      admin
+        .from('knowledge_documents')
+        .select('source_id, status')
+        .in('source_id', sourceIds),
+      admin
+        .from('knowledge_sync_runs')
+        .select('source_id, status, checked_count, changed_count, failed_count, blocked_count, created_at, finished_at')
+        .in('source_id', sourceIds)
+        .order('created_at', { ascending: false }),
+    ])
+    : [{ data: [] }, { data: [] }, { data: [] }]
   const chunkCounts = new Map<string, number>()
   const embeddingCounts = new Map<string, { ready: number; pending: number; processing: number; error: number }>()
   for (const chunk of sourceChunks ?? []) {
@@ -114,6 +128,15 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
     else if (chunk.embedding_status === 'error') current.error += 1
     else current.pending += 1
     embeddingCounts.set(chunk.source_id, current)
+  }
+  const documentCounts = new Map<string, number>()
+  for (const document of sourceDocuments ?? []) {
+    if (document.status === 'removed') continue
+    documentCounts.set(document.source_id, (documentCounts.get(document.source_id) ?? 0) + 1)
+  }
+  const latestSyncRuns = new Map<string, NonNullable<typeof sourceSyncRuns>[number]>()
+  for (const run of sourceSyncRuns ?? []) {
+    if (!latestSyncRuns.has(run.source_id)) latestSyncRuns.set(run.source_id, run)
   }
 
   return (
@@ -146,8 +169,12 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
             status: source.status,
             config: source.config,
             sourceUrl: source.source_url,
+            refreshInterval: source.refresh_interval,
+            nextSyncAt: source.next_sync_at,
             lastSyncedAt: source.last_synced_at,
             lastError: source.last_error,
+            documentCount: documentCounts.get(source.id) ?? 0,
+            latestSyncRun: latestSyncRuns.get(source.id) ?? null,
             chunkCount: chunkCounts.get(source.id) ?? 0,
             embeddingCounts: embeddingCounts.get(source.id) ?? { ready: 0, pending: 0, processing: 0, error: 0 },
           }))}
@@ -170,7 +197,7 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
 }
 
 function getSourceTypesForTab(tab: KnowledgeTab): SourceType[] {
-  if (tab === 'installed') return ['web_snapshot']
+  if (tab === 'installed') return ['web_snapshot', 'url', 'sitemap', 'website']
   if (tab === 'files') return ['pdf']
   if (tab === 'spreadsheets') return ['xlsx', 'csv']
   return []

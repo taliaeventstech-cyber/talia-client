@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: July 12, 2026
+Last updated: July 14, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -190,6 +190,15 @@ Implemented:
 - Backstage allows reindexing all of a venue's knowledge and reprocessing individual RAG sources.
 - Local text-only fallback in Next over chunks/items.
 - Installed-web sources connected to `knowledge_sources` of type `web_snapshot`: Agora generates a signed capture URL, the installed widget extracts visible DOM text from the landing page, and `talia-ai` normalizes, chunks and generates embeddings.
+- Installed-web URLs are canonicalized across the widget, API and database. Tracking parameters are discarded, functional query parameters are preserved, duplicate rows are merged before a unique tenant/type/URL index is enforced, and page-presence writes are throttled to once per hour per source.
+- Agora can configure managed single-page, sitemap and bounded-website sources
+  with manual, daily, weekly or monthly refresh policies. The persistence model
+  separates logical sources, canonical documents and auditable sync runs, with
+  worker leases, idempotency and per-run counters.
+- The installed widget remains available as a first-party capture fallback for
+  public pages that direct HTTP/browser capture cannot read reliably.
+- Backstage shows managed-source frequency, next refresh, document count and the
+  latest sync-run counters, and can enqueue an operator-triggered refresh.
 - Ingestion via external URLs is outside the main Agora flow for clients; the recommended path is to install the script on the client's own website and capture detected pages.
 - Structured import per the configuration screen, already connected to RAG for manual FAQs and Excel/CSV.
 
@@ -198,7 +207,9 @@ Product direction:
 - Keep Knowledge as the common core for chatbot, email, voice and future channels.
 - Expand in the future toward Sources, Guidelines, Workflows and Actions.
 - Recommended evolution: keep moving ingestion/retrieval/AI to `talia-ai` while keeping TALIA's internal contract stable.
-- Key pending item: cron/worker deployed on Fly for `/v1/knowledge/embed/pending` and improve installed-web capture with controlled exploration of the client's own pages.
+- Key pending items: deploy the embeddings worker on Fly and implement the
+  managed web discovery/capture worker in `talia-ai`, starting with single URL,
+  then sitemap and bounded full-site crawling.
 
 ### Email Agent
 

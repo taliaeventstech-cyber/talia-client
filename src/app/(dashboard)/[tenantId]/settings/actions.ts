@@ -18,6 +18,14 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { optionalInternationalPhoneSchema } from '@/lib/phone/schema'
+import { getTenantContentHosts } from '@/lib/widget/domain-allowlist'
+import {
+  getNextKnowledgeSyncAt,
+  isKnowledgeRefreshInterval,
+  isManagedWebSourceType,
+  validateManagedWebSourceInput,
+} from '@/lib/knowledge/managed-web-sources'
+import { randomUUID } from 'node:crypto'
 
 export type SettingsFormState = {
   ok: boolean
@@ -57,6 +65,8 @@ const knowledgeItemSchema = z.object({
   language: z.enum(['es', 'ca', 'en']),
   priority: z.coerce.number().int().min(0).max(100),
 })
+
+export type ManagedWebSourceState = SettingsFormState
 
 export async function updateTenantSettings(
   tenantId: string,
@@ -238,6 +248,201 @@ export async function createKnowledgeItem(
       ? 'FAQ añadida e indexada correctamente.'
       : `FAQ añadida. Pendiente de indexar en RAG: ${indexed.message}`,
   }
+}
+
+export async function createManagedWebKnowledgeSource(
+  tenantId: string,
+  _previousState: ManagedWebSourceState,
+  formData: FormData
+): Promise<ManagedWebSourceState> {
+  await requireTenantProductAccess(tenantId, 'manage_knowledge', 'data')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const admin = createAdminClient()
+  if (!await assertTenantAdmin(admin, user.id, tenantId)) {
+    return { ok: false, message: 'No tienes permisos para añadir esta fuente.' }
+  }
+
+  const { data: theatre, error: theatreError } = await admin
+    .from('theatres')
+    .select('website_url, widget_config')
+    .eq('id', tenantId)
+    .maybeSingle()
+
+  if (theatreError || !theatre) {
+    return { ok: false, message: 'No se pudo validar el dominio del espacio.' }
+  }
+
+  const parsed = validateManagedWebSourceInput({
+    name: formData.get('name'),
+    sourceType: formData.get('source_type'),
+    sourceUrl: formData.get('source_url'),
+    refreshInterval: formData.get('refresh_interval'),
+    authorizedHosts: getTenantContentHosts({
+      websiteUrl: theatre.website_url,
+      widgetConfig: theatre.widget_config,
+    }),
+  })
+
+  if (!parsed.ok) return { ok: false, message: parsed.error }
+
+  const now = new Date().toISOString()
+  const created = await admin
+    .from('knowledge_sources')
+    .insert({
+      theatre_id: tenantId,
+      type: parsed.data.sourceType,
+      name: parsed.data.name,
+      source_url: parsed.data.sourceUrl,
+      status: 'pending',
+      refresh_interval: parsed.data.refreshInterval,
+      next_sync_at: now,
+      config: {
+        discovery_mode: parsed.data.sourceType,
+        original_url: parsed.data.originalUrl,
+        capture_waterfall: ['http', 'browser', 'installed_widget', 'manual_browser'],
+      },
+    })
+    .select('id')
+    .single()
+
+  if (created.error || !created.data) {
+    const duplicate = created.error?.code === '23505'
+    return {
+      ok: false,
+      message: duplicate
+        ? 'Esta fuente web ya está configurada.'
+        : `No se pudo crear la fuente: ${created.error?.message ?? 'error desconocido'}`,
+    }
+  }
+
+  const queued = await admin
+    .from('knowledge_sync_runs')
+    .insert({
+      theatre_id: tenantId,
+      source_id: created.data.id,
+      trigger: 'initial',
+      status: 'queued',
+      idempotency_key: `initial:${created.data.id}`,
+    })
+
+  revalidatePath(`/${tenantId}/knowledge`)
+  return {
+    ok: true,
+    message: queued.error
+      ? 'Fuente creada. La sincronización inicial quedará disponible para el worker programado.'
+      : 'Fuente creada y sincronización inicial en cola.',
+  }
+}
+
+export async function requestManagedWebSourceSync(
+  tenantId: string,
+  sourceId: string
+): Promise<SettingsFormState> {
+  await requireTenantProductAccess(tenantId, 'manage_knowledge', 'data')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const admin = createAdminClient()
+  if (!await assertTenantAdmin(admin, user.id, tenantId)) {
+    return { ok: false, message: 'No tienes permisos para actualizar esta fuente.' }
+  }
+
+  const { data: source, error: sourceError } = await admin
+    .from('knowledge_sources')
+    .select('id, type')
+    .eq('id', sourceId)
+    .eq('theatre_id', tenantId)
+    .maybeSingle()
+
+  if (sourceError || !source || !isManagedWebSourceType(source.type)) {
+    return { ok: false, message: 'Fuente web no encontrada.' }
+  }
+
+  const existing = await admin
+    .from('knowledge_sync_runs')
+    .select('id')
+    .eq('source_id', sourceId)
+    .in('status', ['queued', 'running'])
+    .maybeSingle()
+
+  if (existing.data) return { ok: true, message: 'La actualización ya está en cola o en curso.' }
+
+  const queued = await admin
+    .from('knowledge_sync_runs')
+    .insert({
+      theatre_id: tenantId,
+      source_id: sourceId,
+      trigger: 'manual',
+      status: 'queued',
+      idempotency_key: `manual:${sourceId}:${randomUUID()}`,
+    })
+
+  if (queued.error && queued.error.code !== '23505') {
+    return { ok: false, message: `No se pudo solicitar la actualización: ${queued.error.message}` }
+  }
+
+  await admin
+    .from('knowledge_sources')
+    .update({ next_sync_at: new Date().toISOString() })
+    .eq('id', sourceId)
+    .eq('theatre_id', tenantId)
+
+  revalidatePath(`/${tenantId}/knowledge`)
+  return { ok: true, message: 'Actualización añadida a la cola.' }
+}
+
+export async function updateManagedWebSourceSchedule(
+  tenantId: string,
+  sourceId: string,
+  refreshInterval: string
+): Promise<SettingsFormState> {
+  await requireTenantProductAccess(tenantId, 'manage_knowledge', 'data')
+  if (!isKnowledgeRefreshInterval(refreshInterval)) {
+    return { ok: false, message: 'Frecuencia de actualización no válida.' }
+  }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const admin = createAdminClient()
+  if (!await assertTenantAdmin(admin, user.id, tenantId)) {
+    return { ok: false, message: 'No tienes permisos para editar esta fuente.' }
+  }
+
+  const { data: source, error: sourceError } = await admin
+    .from('knowledge_sources')
+    .select('id, type, last_synced_at')
+    .eq('id', sourceId)
+    .eq('theatre_id', tenantId)
+    .maybeSingle()
+
+  if (sourceError || !source || !isManagedWebSourceType(source.type)) {
+    return { ok: false, message: 'Fuente web no encontrada.' }
+  }
+
+  const nextSync = source.last_synced_at
+    ? getNextKnowledgeSyncAt(refreshInterval, new Date())?.toISOString() ?? null
+    : new Date().toISOString()
+  const updated = await admin
+    .from('knowledge_sources')
+    .update({
+      refresh_interval: refreshInterval,
+      next_sync_at: nextSync,
+    })
+    .eq('id', sourceId)
+    .eq('theatre_id', tenantId)
+
+  if (updated.error) {
+    return { ok: false, message: `No se pudo cambiar la frecuencia: ${updated.error.message}` }
+  }
+
+  revalidatePath(`/${tenantId}/knowledge`)
+  return { ok: true, message: 'Frecuencia actualizada.' }
 }
 
 export type ExcelUploadState = {
