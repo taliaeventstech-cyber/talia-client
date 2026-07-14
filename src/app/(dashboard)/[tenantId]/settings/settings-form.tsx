@@ -1,7 +1,9 @@
 'use client'
 
 import { ActionToast } from '@/components/ui/action-toast'
-import { useActionState, useRef, useState } from 'react'
+import { ConfirmationToast } from '@/components/ui/confirmation-toast'
+import { useActionState, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { CopyScriptButton } from './copy-script-button'
 import { updateTenantSettings, type SettingsFormState } from './actions'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
@@ -12,6 +14,10 @@ import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 
 type SettingsFormLabels = {
   chatbot: string
+  widgetAvailability: string
+  widgetAvailabilityHint: string
+  widgetEnabled: string
+  widgetDisabled: string
   plan: string
   initialMessage: string
   primaryColor: string
@@ -55,6 +61,10 @@ type SettingsFormLabels = {
   offsetHint: string
   channelPrompt: string
   channelPromptHint: string
+  unsavedChanges: string
+  unsavedChangesWarning: string
+  keepEditing: string
+  leaveWithoutSaving: string
   saving: string
   save: string
 }
@@ -69,6 +79,7 @@ type SettingsFormProps = {
     primary_language: string
   }
   widgetConfig: {
+    enabled: boolean
     initialMessage: string
     primaryColor: string
     position: string
@@ -106,7 +117,14 @@ const initialState: SettingsFormState = {
 }
 
 export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewLabel, integration }: SettingsFormProps) {
+  const router = useRouter()
   const [state, formAction, pending] = useActionState(updateTenantSettings.bind(null, tenantId), initialState)
+  const [widgetEnabled, setWidgetEnabled] = useState(widgetConfig.enabled)
+  const [dirty, setDirty] = useState(false)
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
+  const changeVersionRef = useRef(0)
+  const submittedVersionRef = useRef(0)
+  const navigationTriggerRef = useRef<HTMLAnchorElement | null>(null)
   const [previewConfig, setPreviewConfig] = useState({
     assistantName: 'TALIA',
     initialMessage: widgetConfig.initialMessage,
@@ -125,12 +143,124 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
     proactiveMessage: widgetConfig.proactiveMessage,
   })
 
+  useEffect(() => {
+    if (!state.ok) return
+
+    const timer = setTimeout(() => {
+      if (changeVersionRef.current === submittedVersionRef.current) setDirty(false)
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [state])
+
+  useEffect(() => {
+    if (!dirty) return
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    const handleDocumentClick = (event: MouseEvent) => {
+      if (
+        event.defaultPrevented
+        || event.button !== 0
+        || event.metaKey
+        || event.ctrlKey
+        || event.shiftKey
+        || event.altKey
+        || !(event.target instanceof Element)
+      ) return
+
+      const anchor = event.target.closest<HTMLAnchorElement>('a[href]')
+      if (!anchor || anchor.target === '_blank' || anchor.hasAttribute('download')) return
+
+      const destination = new URL(anchor.href, window.location.href)
+      if (destination.href === window.location.href) return
+      if (destination.origin !== window.location.origin) return
+
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      navigationTriggerRef.current = anchor
+      setPendingNavigation(`${destination.pathname}${destination.search}${destination.hash}`)
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    document.addEventListener('click', handleDocumentClick, true)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.removeEventListener('click', handleDocumentClick, true)
+    }
+  }, [dirty])
+
+  const keepEditing = () => {
+    setPendingNavigation(null)
+    navigationTriggerRef.current?.focus()
+    navigationTriggerRef.current = null
+  }
+
+  const leaveWithoutSaving = () => {
+    if (!pendingNavigation) return
+    const destination = pendingNavigation
+    setPendingNavigation(null)
+    setDirty(false)
+    navigationTriggerRef.current = null
+    router.push(destination)
+  }
+
   return (
-    <form action={formAction} className="stack">
+    <form
+      action={formAction}
+      className="stack"
+      onChange={() => {
+        changeVersionRef.current += 1
+        setDirty(true)
+      }}
+      onSubmit={() => {
+        submittedVersionRef.current = changeVersionRef.current
+      }}
+    >
       <ActionToast state={state} />
+      {pendingNavigation ? (
+        <ConfirmationToast
+          message={labels.unsavedChangesWarning}
+          cancelLabel={labels.keepEditing}
+          confirmLabel={labels.leaveWithoutSaving}
+          onCancel={keepEditing}
+          onConfirm={leaveWithoutSaving}
+        />
+      ) : null}
+
+      <div className="chatbot-settings-save-bar">
+        <span className="chatbot-settings-unsaved" aria-live="polite">
+          {dirty ? labels.unsavedChanges : ''}
+        </span>
+        <button className="button-primary" type="submit" disabled={!dirty || pending}>
+          {pending ? labels.saving : labels.save}
+        </button>
+      </div>
 
       <div className="two-column-grid chatbot-settings-grid">
         <div className="stack">
+          <section className="card chatbot-availability-card" data-enabled={widgetEnabled}>
+            <div>
+              <h2>{labels.widgetAvailability}</h2>
+              <p className="muted">{labels.widgetAvailabilityHint}</p>
+            </div>
+            <label className="chatbot-availability-control">
+              <input
+                type="checkbox"
+                name="widget_enabled"
+                checked={widgetEnabled}
+                onChange={(event) => setWidgetEnabled(event.target.checked)}
+              />
+              <span className="chatbot-availability-switch" aria-hidden="true">
+                <span />
+              </span>
+              <strong>{widgetEnabled ? labels.widgetEnabled : labels.widgetDisabled}</strong>
+            </label>
+          </section>
+
           <section className="card stack">
             <h2>{labels.chatbot}</h2>
             <div className="form-grid">
@@ -400,9 +530,6 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
             />
           </section>
 
-          <button className="button-primary" type="submit" disabled={pending} style={{ opacity: pending ? 0.7 : 1 }}>
-            {pending ? labels.saving : labels.save}
-          </button>
         </div>
 
         <aside className="stack">

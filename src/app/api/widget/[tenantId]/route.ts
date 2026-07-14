@@ -29,6 +29,10 @@ export async function GET(
     return corsJson({ error: result.error }, { status: 404 })
   }
 
+  if (!result.config.enabled) {
+    return corsJson({ error: 'Chatbot is disabled' }, { status: 404 })
+  }
+
   return corsJson(result.config)
 }
 
