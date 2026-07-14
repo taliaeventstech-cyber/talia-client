@@ -5,6 +5,7 @@ import { SettingsForm } from './settings-form'
 import { normalizeChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import { normalizeWidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { normalizeProactiveGreeting } from '@/lib/widget/proactive-greeting'
+import { isChatbotEnabled } from '@/lib/widget/availability'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -47,6 +48,7 @@ export default async function SettingsPage({ params }: Props) {
             primary_language: theatre.primary_language ?? 'es',
           }}
           widgetConfig={{
+            enabled: widgetConfig.enabled,
             initialMessage: widgetConfig.initialMessage,
             primaryColor: widgetConfig.primaryColor,
             position: widgetConfig.position,
@@ -93,6 +95,7 @@ function getAiSettings(value: unknown) {
 function getWidgetConfig(value: unknown, language: unknown) {
   if (!value || typeof value !== 'object') {
     return {
+      enabled: true,
       assistantName: 'TALIA',
       initialMessage: 'Hola, soc TALIA. En què et puc ajudar?',
       primaryColor: '#000000',
@@ -114,6 +117,7 @@ function getWidgetConfig(value: unknown, language: unknown) {
   }
 
   const config = value as {
+    enabled?: unknown
     assistantName?: unknown
     initialMessage?: unknown
     primaryColor?: unknown
@@ -148,6 +152,7 @@ function getWidgetConfig(value: unknown, language: unknown) {
   const assistantName = typeof config.assistantName === 'string' ? config.assistantName : 'TALIA'
 
   return {
+    enabled: isChatbotEnabled(config.enabled),
     assistantName,
     initialMessage: typeof config.initialMessage === 'string' ? config.initialMessage : 'Hola, soc TALIA. En què et puc ajudar?',
     primaryColor: typeof config.primaryColor === 'string' ? config.primaryColor : '#000000',

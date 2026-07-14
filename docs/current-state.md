@@ -100,6 +100,10 @@ Status: active.
 Implemented:
 
 - Configuration per venue.
+- General active/inactive control in Agora. Disabling it hides the public widget
+  and blocks new chat requests without affecting Accessibility or Knowledge.
+- Settings save action is shown above the editor, activates only after a change,
+  and warns before leaving the page with unsaved changes.
 - Installable widget/script.
 - Initial message and brand color.
 - Configurable proactive greeting that appears beside the launcher after a delay

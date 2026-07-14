@@ -25,6 +25,7 @@ export type SettingsFormState = {
 }
 
 const settingsSchema = z.object({
+  widgetEnabled: z.boolean(),
   plan: z.enum(['esencial', 'profesional', 'pro']),
   initialMessage: z.string().trim().min(1, 'El mensaje inicial es obligatorio').max(300),
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'El color debe estar en formato hexadecimal'),
@@ -75,6 +76,7 @@ export async function updateTenantSettings(
   }
 
   const parsed = settingsSchema.safeParse({
+    widgetEnabled: formData.get('widget_enabled') === 'on',
     plan: formData.get('plan'),
     initialMessage: formData.get('initial_message'),
     primaryColor: formData.get('primary_color'),
@@ -113,6 +115,7 @@ export async function updateTenantSettings(
     fallbackPhone: data.fallbackPhone,
     widgetConfig: {
       ...existingWidget,
+      enabled: data.widgetEnabled,
       assistantName: 'TALIA',
       initialMessage: data.initialMessage,
       primaryColor: data.primaryColor,
