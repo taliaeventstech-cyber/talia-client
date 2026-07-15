@@ -37,6 +37,7 @@ as $$
       source.id,
       source.theatre_id,
       source.name,
+      source.sync_enabled,
       source.refresh_interval,
       source.next_sync_at,
       theatre.name as theatre_name
@@ -109,6 +110,7 @@ as $$
      and latest.run_number = 1
     join problem_streaks as streak on streak.source_id = source.id
     where latest.status in ('failed', 'partial')
+      and source.sync_enabled
       and streak.problem_streak >= 2
   ), source_overdue_alerts as (
     select
@@ -131,6 +133,7 @@ as $$
     from managed_sources as source
     left join active_runs as active on active.source_id = source.id
     where source.refresh_interval <> 'manual'
+      and source.sync_enabled
       and source.next_sync_at <= p_now - interval '6 hours'
       and active.source_id is null
   ), managed_tenants as (

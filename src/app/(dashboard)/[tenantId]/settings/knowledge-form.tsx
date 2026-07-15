@@ -21,6 +21,7 @@ type KnowledgeSource = {
   type: string
   name: string
   status: string
+  syncEnabled: boolean
   config: unknown
   sourceUrl: string | null
   refreshInterval: string
@@ -124,6 +125,8 @@ type KnowledgeFormProps = {
     sourceStatusError: string
     sourceStatusPartial: string
     sourceStatusPending: string
+    sourceStatusPaused: string
+    sourceSyncPaused: string
     widgetCapturedPages: string
     installedWeb: string
     installedWebHelp: string
@@ -567,7 +570,7 @@ function ManagedWebSourceRow({
   const activeRunStatus = source.latestSyncRun?.status === 'queued' || source.latestSyncRun?.status === 'running'
     ? source.latestSyncRun.status
     : null
-  const visibleStatus = activeRunStatus ?? source.status
+  const visibleStatus = source.syncEnabled ? activeRunStatus ?? source.status : 'paused'
 
   function handleSync() {
     setMessage(null)
@@ -669,7 +672,8 @@ function ManagedWebSourceRow({
         <button
           type="button"
           className="button-outline button-fit"
-          disabled={isSyncing || activeRunStatus !== null}
+          disabled={!source.syncEnabled || isSyncing || activeRunStatus !== null}
+          title={!source.syncEnabled ? labels.sourceSyncPaused : undefined}
           onClick={handleSync}
         >
           <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
@@ -682,6 +686,7 @@ function ManagedWebSourceRow({
 }
 
 function getManagedSourceStatusLabel(status: string, labels: KnowledgeFormProps['labels']) {
+  if (status === 'paused') return labels.sourceStatusPaused
   if (status === 'queued') return labels.sourceStatusQueued
   if (status === 'running' || status === 'processing') return labels.sourceStatusRunning
   if (status === 'ready') return labels.sourceStatusReady

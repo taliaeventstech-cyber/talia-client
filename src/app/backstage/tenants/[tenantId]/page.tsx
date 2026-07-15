@@ -6,7 +6,7 @@ import { FileText, LayoutDashboard, MailPlus } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { EditClientForm } from './edit-client-form'
-import { BackstageReindexTenantKnowledgeButton, BackstageReprocessSourceButton, BackstageRetryEmbeddingsButton } from './knowledge-source-actions'
+import { BackstageManagedWebSyncToggle, BackstageReindexTenantKnowledgeButton, BackstageReprocessSourceButton, BackstageRetryEmbeddingsButton } from './knowledge-source-actions'
 import { KnowledgeWebAlerts } from '../../knowledge-web-alerts'
 
 interface Props {
@@ -49,7 +49,7 @@ export default async function BackstageClientPage({ params }: Props) {
       .limit(8),
     admin
       .from('knowledge_sources')
-      .select('id, name, type, status, config, source_url, refresh_interval, next_sync_at, last_synced_at, last_error, created_at')
+      .select('id, name, type, status, sync_enabled, config, source_url, refresh_interval, next_sync_at, last_synced_at, last_error, created_at')
       .eq('theatre_id', tenantId)
       .order('created_at', { ascending: false }),
     getManagedWebQuotaUsage(admin, tenantId),
@@ -433,9 +433,16 @@ export default async function BackstageClientPage({ params }: Props) {
                   <div className="knowledge-file-main">
                     <div className="knowledge-file-title-row">
                       <h3>{fileName}</h3>
-                      <span className={`knowledge-file-status knowledge-file-status-${source.status}`}>
-                        {getSourceStatusLabel(source.status)}
-                      </span>
+                      <div className="knowledge-file-title-statuses">
+                        {isManagedWebSource(source.type) ? (
+                          <span className={`knowledge-file-status ${source.sync_enabled ? 'knowledge-file-status-ready' : 'knowledge-file-status-paused'}`}>
+                            {source.sync_enabled ? 'Sync activa' : 'Sync pausada'}
+                          </span>
+                        ) : null}
+                        <span className={`knowledge-file-status knowledge-file-status-${source.status}`}>
+                          {getSourceStatusLabel(source.status)}
+                        </span>
+                      </div>
                     </div>
                     <div className="knowledge-file-meta">
                       <span>{getSourceTypeLabel(source.type)}</span>
@@ -477,10 +484,19 @@ export default async function BackstageClientPage({ params }: Props) {
                     {source.last_error ? <p className="knowledge-file-error">{source.last_error}</p> : null}
                   </div>
                   <div className="knowledge-file-actions">
+                    {isManagedWebSource(source.type) ? (
+                      <BackstageManagedWebSyncToggle
+                        tenantId={tenantId}
+                        sourceId={source.id}
+                        enabled={source.sync_enabled}
+                      />
+                    ) : null}
                     {stats.pending + stats.error > 0 ? (
                       <BackstageRetryEmbeddingsButton tenantId={tenantId} sourceId={source.id} />
                     ) : null}
-                    <BackstageReprocessSourceButton tenantId={tenantId} sourceId={source.id} sourceType={source.type} />
+                    {!isManagedWebSource(source.type) || source.sync_enabled ? (
+                      <BackstageReprocessSourceButton tenantId={tenantId} sourceId={source.id} sourceType={source.type} />
+                    ) : null}
                   </div>
                 </article>
               )

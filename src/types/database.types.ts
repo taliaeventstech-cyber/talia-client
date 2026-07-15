@@ -720,6 +720,7 @@ export type Database = {
           refresh_interval: string
           source_url: string | null
           status: string
+          sync_enabled: boolean
           theatre_id: string
           type: string
           updated_at: string
@@ -736,6 +737,7 @@ export type Database = {
           refresh_interval?: string
           source_url?: string | null
           status?: string
+          sync_enabled?: boolean
           theatre_id: string
           type?: string
           updated_at?: string
@@ -752,6 +754,7 @@ export type Database = {
           refresh_interval?: string
           source_url?: string | null
           status?: string
+          sync_enabled?: boolean
           theatre_id?: string
           type?: string
           updated_at?: string
@@ -1610,6 +1613,14 @@ export type Database = {
           theatre_id: string
           theatre_name: string
         }[]
+      }
+      set_knowledge_web_sync_enabled: {
+        Args: {
+          p_enabled: boolean
+          p_source_id: string
+          p_theatre_id: string
+        }
+        Returns: Database["public"]["Tables"]["knowledge_sources"]["Row"]
       }
       increment_tenant_usage_daily: {
         Args: {

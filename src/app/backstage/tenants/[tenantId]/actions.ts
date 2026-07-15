@@ -17,7 +17,7 @@ export async function reprocessBackstageKnowledgeSource(
   const admin = createAdminClient()
   const { data: source, error: sourceError } = await admin
     .from('knowledge_sources')
-    .select('id, type, name')
+    .select('id, type, name, sync_enabled')
     .eq('id', sourceId)
     .eq('theatre_id', tenantId)
     .maybeSingle()
@@ -26,7 +26,9 @@ export async function reprocessBackstageKnowledgeSource(
   if (!source) return { ok: false, message: 'Fuente no encontrada.' }
 
   const result = isManagedWebSourceType(source.type)
-    ? await queueManagedWebSourceFromBackstage(admin, tenantId, sourceId)
+    ? source.sync_enabled
+      ? await queueManagedWebSourceFromBackstage(admin, tenantId, sourceId)
+      : { ok: false, message: 'Reactiva la sincronización antes de actualizar esta fuente.' }
     : source.type === 'pdf'
     ? await reprocessStoredKnowledgeSource({ admin, tenantId, sourceId })
     : source.type === 'manual' || source.type === 'xlsx' || source.type === 'csv'
@@ -44,6 +46,36 @@ export async function reprocessBackstageKnowledgeSource(
 
   if (!result.ok) return { ok: false, message: result.message }
   return { ok: true, message: result.message }
+}
+
+export async function setBackstageManagedWebSyncEnabled(
+  tenantId: string,
+  sourceId: string,
+  enabled: boolean,
+): Promise<{ ok: boolean; message: string }> {
+  await requirePlatformAdmin()
+
+  const admin = createAdminClient()
+  const { error } = await admin.rpc('set_knowledge_web_sync_enabled', {
+    p_theatre_id: tenantId,
+    p_source_id: sourceId,
+    p_enabled: enabled,
+  })
+
+  if (error) {
+    return { ok: false, message: `No se pudo ${enabled ? 'reactivar' : 'pausar'} la fuente: ${error.message}` }
+  }
+
+  revalidatePath('/backstage')
+  revalidatePath(`/backstage/tenants/${tenantId}`)
+  revalidatePath(`/${tenantId}/knowledge`)
+
+  return {
+    ok: true,
+    message: enabled
+      ? 'Sincronización reactivada. La fuente programada queda preparada para el siguiente worker.'
+      : 'Sincronización pausada. Los jobs en cola se han cancelado y el conocimiento actual se conserva.',
+  }
 }
 
 async function queueManagedWebSourceFromBackstage(

@@ -209,6 +209,9 @@ Implemented:
   source/per-source-page/document/manual-sync quota pressure with warning and critical
   severities; healthy state clears alerts automatically without a second alert
   persistence model.
+- Backstage has a per-source managed-web rollout control. Pausing a source
+  cancels queued runs and excludes it from worker claims while preserving the
+  last known-good documents and chunks; this is the normal canary rollback.
 - Ingestion via external URLs is outside the main Agora flow for clients; the recommended path is to install the script on the client's own website and capture detected pages.
 - Structured import per the configuration screen, already connected to RAG for manual FAQs and Excel/CSV.
 
@@ -217,9 +220,8 @@ Product direction:
 - Keep Knowledge as the common core for chatbot, email, voice and future channels.
 - Expand in the future toward Sources, Guidelines, Workflows and Actions.
 - Recommended evolution: keep moving ingestion/retrieval/AI to `talia-ai` while keeping TALIA's internal contract stable.
-- Key pending items: deploy the embeddings worker on Fly and implement the
-  managed web discovery/capture worker in `talia-ai`, starting with single URL,
-  then sitemap and bounded full-site crawling.
+- Key pending item: deploy the managed web worker and complete the controlled
+  single-source canary before expanding to sitemap and bounded full-site sources.
 
 ### Email Agent
 

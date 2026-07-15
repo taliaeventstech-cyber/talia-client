@@ -167,10 +167,21 @@ global Backstage view links to the affected venue and, for source incidents, to
 the exact source row. External notifications and acknowledgement history are
 not part of this cut.
 
+## Canary And Rollback
+
+Managed sources have an authoritative `sync_enabled` control. Backstage can
+pause or reactivate one source without changing every tenant. Pausing cancels
+queued runs, prevents future claims and preserves current documents and chunks;
+an already-running job is allowed to finish safely.
+
+Follow the UI-first procedure, pass criteria and rollback steps in
+[knowledge-web-canary.md](knowledge-web-canary.md). Browserless remains disabled
+for the initial HTTP plus installed-widget canary.
+
 ## Deployment Order
 
 1. Apply the database migrations before deploying the Agora or Backstage UI.
 2. Deploy `talia-ai` support for claim/finish and single-URL capture.
 3. Enable sitemap discovery.
 4. Add bounded website crawling and rendered-browser fallback.
-5. Validate Backstage retry/inspection and derived production alerts.
+5. Run the single-source canary before expanding source types or venues.

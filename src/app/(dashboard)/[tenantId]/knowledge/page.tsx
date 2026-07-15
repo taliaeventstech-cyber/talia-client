@@ -48,7 +48,7 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
   const sourcesQuery = shouldLoadSources
     ? admin
       .from('knowledge_sources')
-      .select('id, type, name, status, config, source_url, refresh_interval, next_sync_at, last_synced_at, last_error, created_at', { count: 'exact' })
+      .select('id, type, name, status, sync_enabled, config, source_url, refresh_interval, next_sync_at, last_synced_at, last_error, created_at', { count: 'exact' })
       .eq('theatre_id', tenantId)
       .in('type', sourceTypesForTab)
       .order('created_at', { ascending: false })
@@ -169,6 +169,7 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
             type: source.type,
             name: source.name,
             status: source.status,
+            syncEnabled: source.sync_enabled,
             config: source.config,
             sourceUrl: source.source_url,
             refreshInterval: source.refresh_interval,

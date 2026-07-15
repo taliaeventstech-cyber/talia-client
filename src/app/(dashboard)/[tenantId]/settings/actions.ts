@@ -312,6 +312,7 @@ export async function createManagedWebKnowledgeSource(
       name: parsed.data.name,
       source_url: parsed.data.sourceUrl,
       status: 'pending',
+      sync_enabled: false,
       refresh_interval: parsed.data.refreshInterval,
       next_sync_at: now,
       config: {
@@ -353,8 +354,8 @@ export async function createManagedWebKnowledgeSource(
   return {
     ok: true,
     message: queued.error
-      ? 'Fuente creada. La sincronización inicial quedará disponible para el worker programado.'
-      : 'Fuente creada y sincronización inicial en cola.',
+      ? 'Fuente creada y pausada. El equipo de TALIA debe activarla desde Backstage.'
+      : 'Fuente creada. La sincronización inicial queda en espera de activación supervisada.',
   }
 }
 
@@ -374,13 +375,16 @@ export async function requestManagedWebSourceSync(
 
   const { data: source, error: sourceError } = await admin
     .from('knowledge_sources')
-    .select('id, type')
+    .select('id, type, sync_enabled')
     .eq('id', sourceId)
     .eq('theatre_id', tenantId)
     .maybeSingle()
 
   if (sourceError || !source || !isManagedWebSourceType(source.type)) {
     return { ok: false, message: 'Fuente web no encontrada.' }
+  }
+  if (!source.sync_enabled) {
+    return { ok: false, message: 'La sincronización está pausada por el equipo de TALIA.' }
   }
 
   const quota = await getManagedWebQuotaUsage(admin, tenantId)

@@ -6862,6 +6862,13 @@ textarea {
   white-space: nowrap;
 }
 
+.knowledge-file-title-statuses {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .knowledge-file-meta {
   display: flex;
   flex-wrap: wrap;
@@ -7001,6 +7008,11 @@ textarea {
 .knowledge-file-status-error {
   border-color: color-mix(in srgb, #ef4444 48%, var(--color-border));
   color: #ef4444;
+}
+
+.knowledge-file-status-paused {
+  border-color: color-mix(in srgb, var(--color-text-tertiary) 42%, var(--color-border));
+  color: var(--color-text-tertiary);
 }
 
 .knowledge-file-error {
