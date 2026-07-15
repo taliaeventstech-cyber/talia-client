@@ -199,6 +199,16 @@ Implemented:
   public pages that direct HTTP/browser capture cannot read reliably.
 - Backstage shows managed-source frequency, next refresh, document count and the
   latest sync-run counters, and can enqueue an operator-triggered refresh.
+- Managed web ingestion currently applies one universal quota across plans: 10
+  sources, 500 active documents per tenant, 100 documents per source and 10
+  manual refreshes per UTC day. The database enforces limits atomically while
+  Agora and Backstage show current usage; entitlement overrides are reserved for
+  a future plan decision.
+- Backstage exposes derived managed-web operational alerts globally and per
+  venue. Postgres aggregates repeated sync failures, overdue schedules and
+  source/per-source-page/document/manual-sync quota pressure with warning and critical
+  severities; healthy state clears alerts automatically without a second alert
+  persistence model.
 - Ingestion via external URLs is outside the main Agora flow for clients; the recommended path is to install the script on the client's own website and capture detected pages.
 - Structured import per the configuration screen, already connected to RAG for manual FAQs and Excel/CSV.
 

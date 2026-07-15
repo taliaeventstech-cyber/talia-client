@@ -4,6 +4,7 @@ import { ChevronDown, FileText, Globe2, Link as LinkIcon, RefreshCw, Table2, Tra
 import { useRouter } from 'next/navigation'
 import { useActionState, useState, useTransition, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
+import type { ManagedWebQuotaUsage } from '@/lib/knowledge/web-source-quotas'
 import { createKnowledgeItem, createManagedWebKnowledgeSource, uploadKnowledgeExcel, uploadKnowledgePdf, updateKnowledgeItem, deleteKnowledgeItem, deleteKnowledgeSource, requestManagedWebSourceSync, retryKnowledgeSourceEmbeddings, updateManagedWebSourceSchedule, type SettingsFormState, type ExcelUploadState, type PdfUploadState, type ManagedWebSourceState } from './actions'
 
 type KnowledgeItem = {
@@ -33,6 +34,8 @@ type KnowledgeSource = {
     changed_count: number
     failed_count: number
     blocked_count: number
+    error_code: string | null
+    error_details: string | null
     created_at: string
     finished_at: string | null
   } | null
@@ -50,6 +53,7 @@ type KnowledgeFormProps = {
   activeTab: 'installed' | 'files' | 'faqs' | 'apps' | 'spreadsheets'
   sources: KnowledgeSource[]
   items: KnowledgeItem[]
+  managedWebQuota: ManagedWebQuotaUsage | null
   pagination?: ReactNode
   labels: {
     officialAnswers: string
@@ -85,6 +89,9 @@ type KnowledgeFormProps = {
     urlProcessing: string
     managedWeb: string
     managedWebHelp: string
+    managedWebSourcesUsage: string
+    managedWebDocumentsUsage: string
+    managedWebQuotaReached: string
     sourceName: string
     sourceNamePlaceholder: string
     sourceType: string
@@ -110,6 +117,7 @@ type KnowledgeFormProps = {
     sourceChecked: string
     sourceChanged: string
     sourceIssues: string
+    sourceQuotaExceeded: string
     sourceStatusQueued: string
     sourceStatusRunning: string
     sourceStatusReady: string
@@ -176,7 +184,7 @@ const managedWebInitialState: ManagedWebSourceState = {
   message: '',
 }
 
-export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination, labels }: KnowledgeFormProps) {
+export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQuota, pagination, labels }: KnowledgeFormProps) {
   const router = useRouter()
   const [state, formAction, pending] = useActionState(createKnowledgeItem.bind(null, tenantId), initialState)
   const [excelState, excelFormAction, excelPending] = useActionState(uploadKnowledgeExcel.bind(null, tenantId), excelInitialState)
@@ -188,6 +196,10 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination,
   const [isRefreshingInstalled, startInstalledRefresh] = useTransition()
   const fileSources = sources.filter((source) => source.type === 'pdf')
   const spreadsheetSources = sources.filter((source) => source.type === 'xlsx' || source.type === 'csv')
+  const managedWebQuotaReached = managedWebQuota
+    ? managedWebQuota.sources >= managedWebQuota.limits.maxSources
+      || managedWebQuota.documents >= managedWebQuota.limits.maxDocuments
+    : false
   const installedWebSources = sources.filter((source) => source.type === 'web_snapshot')
   const managedWebSources = sources.filter((source) => source.type === 'url' || source.type === 'sitemap' || source.type === 'website')
 
@@ -403,6 +415,16 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination,
                 <h2>{labels.managedWeb}</h2>
                 <p className="muted">{labels.managedWebHelp}</p>
               </div>
+              {managedWebQuota ? (
+                <div className="knowledge-managed-quota">
+                  <span>
+                    {managedWebQuota.sources}/{managedWebQuota.limits.maxSources} {labels.managedWebSourcesUsage}
+                  </span>
+                  <span>
+                    {managedWebQuota.documents}/{managedWebQuota.limits.maxDocuments} {labels.managedWebDocumentsUsage}
+                  </span>
+                </div>
+              ) : null}
             </div>
 
             <form action={managedWebFormAction} className="knowledge-managed-create">
@@ -436,7 +458,12 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, pagination,
                   <option value="monthly">{labels.refreshMonthly}</option>
                 </select>
               </label>
-              <button className="button-primary button-fit knowledge-managed-submit" type="submit" disabled={managedWebPending}>
+              <button
+                className="button-primary button-fit knowledge-managed-submit"
+                type="submit"
+                disabled={managedWebPending || managedWebQuotaReached}
+                title={managedWebQuotaReached ? labels.managedWebQuotaReached : undefined}
+              >
                 {managedWebPending ? labels.addingManagedSource : labels.addManagedSource}
               </button>
             </form>
@@ -615,7 +642,11 @@ function ManagedWebSourceRow({
             </span>
           ) : null}
         </div>
-        {source.lastError ? <p className="knowledge-file-error">{source.lastError}</p> : null}
+        {source.latestSyncRun?.error_code?.includes('quota_exceeded') ? (
+          <p className="knowledge-file-error">{labels.sourceQuotaExceeded}</p>
+        ) : source.lastError ? (
+          <p className="knowledge-file-error">{source.lastError}</p>
+        ) : null}
         {message ? (
           <p className={failed ? 'knowledge-managed-message knowledge-managed-message-error' : 'knowledge-managed-message'} role="status">
             {message}

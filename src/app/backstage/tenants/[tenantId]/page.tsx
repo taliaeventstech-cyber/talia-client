@@ -1,10 +1,13 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getKnowledgeWebOperationalAlerts } from '@/lib/knowledge/web-source-alerts'
 import { getActiveSubscription, getTenantUsageForPeriod } from '@/lib/usage/service'
+import { getManagedWebQuotaUsage } from '@/lib/knowledge/web-source-quotas'
 import { FileText, LayoutDashboard, MailPlus } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { EditClientForm } from './edit-client-form'
 import { BackstageReindexTenantKnowledgeButton, BackstageReprocessSourceButton, BackstageRetryEmbeddingsButton } from './knowledge-source-actions'
+import { KnowledgeWebAlerts } from '../../knowledge-web-alerts'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -13,7 +16,7 @@ interface Props {
 export default async function BackstageClientPage({ params }: Props) {
   const { tenantId } = await params
   const admin = createAdminClient()
-  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, usageResult, { data: traceMessages }, { data: knowledgeSources }] = await Promise.all([
+  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, usageResult, { data: traceMessages }, { data: knowledgeSources }, managedWebQuota, webAlerts] = await Promise.all([
     admin
       .from('theatres')
       .select('id, name, slug, entity_type, primary_language, plan, website_url, fallback_email, fallback_phone, n8n_webhook_url, system_prompt, widget_config, voice_phone_number, voice_phone_provider, voice_phone_mode, voice_public_phone_number, voice_forwarding_notes, voice_operational_status')
@@ -49,6 +52,8 @@ export default async function BackstageClientPage({ params }: Props) {
       .select('id, name, type, status, config, source_url, refresh_interval, next_sync_at, last_synced_at, last_error, created_at')
       .eq('theatre_id', tenantId)
       .order('created_at', { ascending: false }),
+    getManagedWebQuotaUsage(admin, tenantId),
+    getKnowledgeWebOperationalAlerts(admin, { tenantId }),
   ])
 
   if (!client) notFound()
@@ -385,14 +390,32 @@ export default async function BackstageClientPage({ params }: Props) {
         )}
       </section>
 
-      <section className="card stack">
+      <section className="card stack" id="knowledge-web-sources">
         <div className="section-title-row">
           <div>
             <p className="eyebrow">Conocimiento</p>
             <h2>Fuentes procesadas</h2>
           </div>
-          <span className="status-pill status-pill-muted">{knowledgeSources?.length ?? 0} fuentes</span>
+          <div className="section-heading-actions">
+            <span className="status-pill status-pill-muted">{knowledgeSources?.length ?? 0} fuentes totales</span>
+            <span className="status-pill status-pill-muted">
+              Web {managedWebQuota.sources}/{managedWebQuota.limits.maxSources} fuentes
+            </span>
+            <span className="status-pill status-pill-muted">
+              {managedWebQuota.documents}/{managedWebQuota.limits.maxDocuments} páginas
+            </span>
+            <span className="status-pill status-pill-muted">
+              {managedWebQuota.manualSyncsToday}/{managedWebQuota.limits.maxManualSyncsPerDay} sync manual hoy
+            </span>
+          </div>
         </div>
+
+        <KnowledgeWebAlerts
+          alerts={webAlerts.alerts}
+          error={webAlerts.error}
+          showTenant={false}
+          title="Alertas de actualización web"
+        />
 
         {(knowledgeSources ?? []).length ? (
           <div className="knowledge-files-list">
@@ -403,7 +426,7 @@ export default async function BackstageClientPage({ params }: Props) {
               const fileName = getKnowledgeSourceName(source)
 
               return (
-                <article className="knowledge-file-item" key={source.id}>
+                <article className="knowledge-file-item" id={`source-${source.id}`} key={source.id}>
                   <div className="knowledge-file-icon" aria-hidden="true">
                     <FileText size={20} strokeWidth={2} />
                   </div>
@@ -437,6 +460,11 @@ export default async function BackstageClientPage({ params }: Props) {
                           <span className="knowledge-installed-signal">{latestSyncRun.failed_count + latestSyncRun.blocked_count} incidencias</span>
                         ) : null}
                       </div>
+                    ) : null}
+                    {latestSyncRun?.error_code ? (
+                      <p className="knowledge-file-error">
+                        {latestSyncRun.error_code}: {latestSyncRun.error_details ?? 'Sin detalle adicional'}
+                      </p>
                     ) : null}
                     {stats.total > 0 ? (
                       <div className="knowledge-embedding-stats" aria-label="Estado de embeddings">

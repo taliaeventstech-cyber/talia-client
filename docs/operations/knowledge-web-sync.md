@@ -112,10 +112,65 @@ and redirect-to-private targets on every network hop.
 - A failed page can make the run `partial`; it must not erase previously valid chunks.
 - Unchanged content must not consume chunking or embedding work.
 
+Every network attempt must claim a short domain lease through
+`claim_knowledge_domain_fetch_lease`. The lease is global across worker replicas,
+limits simultaneous requests to one hostname, and enforces a minimum interval
+between starts. Workers release it in a `finally` block; abandoned leases expire
+automatically so a crashed worker cannot block a domain indefinitely.
+
+Transient network failures, HTTP 408/425/429 and HTTP 5xx responses may be
+retried with bounded exponential backoff. `Retry-After` takes precedence when it
+fits inside the configured retry window. Authentication failures, CAPTCHA,
+robots exclusions and other explicit blocks are never retried or bypassed.
+
+## Universal Tenant Quotas
+
+Managed web ingestion initially uses the same conservative quota for every
+plan:
+
+- 10 managed web sources;
+- 500 active managed documents per tenant;
+- 100 active documents per source;
+- 10 manual refresh requests per UTC day.
+
+The database enforces these limits atomically with tenant-scoped advisory locks.
+Agora performs the same checks only to provide immediate feedback. Values live
+under the `data` module entitlement (`tenant_module_entitlements.limits`), so a
+future plan policy can override them without changing the worker contract.
+
+Scheduled refreshes do not consume the manual-refresh allowance. Quota errors
+are persisted in `knowledge_sync_runs.error_code` and remain visible in
+Backstage; previously valid chunks are not deleted.
+
+## Operational Alerts
+
+Backstage derives active alerts from source state, terminal sync runs and quota
+usage through `get_knowledge_web_operational_alerts`. The aggregation runs in
+Postgres so the UI does not load unbounded sync history or calculate tenant
+health in application memory.
+
+Initial thresholds:
+
+- warning after 2 consecutive `partial` or `failed` runs;
+- critical after 3 consecutive runs when the latest run is `failed`;
+- warning when a scheduled source is at least 6 hours overdue and has no queued
+  or running sync;
+- critical when that delay reaches 24 hours;
+- warning at 80% of the tenant source, per-source page, tenant document or
+  daily manual-sync quota;
+- critical at 100% of a quota.
+
+A `succeeded` or `cancelled` terminal run closes the previous incident streak.
+Alerts are derived rather than persisted: they disappear automatically when a
+healthy run completes, the source catches up or UTC daily usage resets. The
+global Backstage view links to the affected venue and, for source incidents, to
+the exact source row. External notifications and acknowledgement history are
+not part of this cut.
+
 ## Deployment Order
 
-1. Apply the database migrations before deploying the Agora UI.
+1. Apply the database migrations before deploying the Agora or Backstage UI.
 2. Deploy `talia-ai` support for claim/finish and single-URL capture.
 3. Enable sitemap discovery.
 4. Add bounded website crawling and rendered-browser fallback.
-5. Add Backstage retry/inspection and production alerts.
+5. Validate Backstage retry/inspection and derived production alerts.

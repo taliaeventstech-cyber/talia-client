@@ -1,6 +1,7 @@
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getManagedWebQuotaUsage } from '@/lib/knowledge/web-source-quotas'
 import { Bot, ChevronLeft, ChevronRight, FileText, Globe2, Plug, Table2 } from 'lucide-react'
 import Link from 'next/link'
 import { KnowledgeForm } from '../settings/knowledge-form'
@@ -56,13 +57,14 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
     ? sourcesQuery.range(from, to)
     : sourcesQuery
 
-  const [{ data: manualSources }, sourcesResult] = await Promise.all([
+  const [{ data: manualSources }, sourcesResult, managedWebQuota] = await Promise.all([
     admin
       .from('knowledge_sources')
       .select('id')
       .eq('theatre_id', tenantId)
       .eq('type', 'manual'),
     pagedSourcesQuery ?? Promise.resolve({ data: [], count: 0 }),
+    activeTab === 'installed' ? getManagedWebQuotaUsage(admin, tenantId) : Promise.resolve(null),
   ])
   const manualSourceIds = (manualSources ?? []).map((source) => source.id)
   const knowledgeItemsQuery = admin
@@ -112,7 +114,7 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
         .in('source_id', sourceIds),
       admin
         .from('knowledge_sync_runs')
-        .select('source_id, status, checked_count, changed_count, failed_count, blocked_count, created_at, finished_at')
+        .select('source_id, status, checked_count, changed_count, failed_count, blocked_count, error_code, error_details, created_at, finished_at')
         .in('source_id', sourceIds)
         .order('created_at', { ascending: false }),
     ])
@@ -179,6 +181,7 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
             embeddingCounts: embeddingCounts.get(source.id) ?? { ready: 0, pending: 0, processing: 0, error: 0 },
           }))}
           items={knowledgeItems ?? []}
+          managedWebQuota={managedWebQuota}
           pagination={
             <KnowledgePagination
               tenantId={tenantId}

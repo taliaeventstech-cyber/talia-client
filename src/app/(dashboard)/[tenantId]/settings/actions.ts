@@ -25,6 +25,7 @@ import {
   isManagedWebSourceType,
   validateManagedWebSourceInput,
 } from '@/lib/knowledge/managed-web-sources'
+import { getManagedWebQuotaUsage, isManagedWebQuotaError } from '@/lib/knowledge/web-source-quotas'
 import { randomUUID } from 'node:crypto'
 
 export type SettingsFormState = {
@@ -275,6 +276,20 @@ export async function createManagedWebKnowledgeSource(
     return { ok: false, message: 'No se pudo validar el dominio del espacio.' }
   }
 
+  const quota = await getManagedWebQuotaUsage(admin, tenantId)
+  if (quota.sources >= quota.limits.maxSources) {
+    return {
+      ok: false,
+      message: `Has alcanzado el límite de ${quota.limits.maxSources} fuentes web gestionadas.`,
+    }
+  }
+  if (quota.documents >= quota.limits.maxDocuments) {
+    return {
+      ok: false,
+      message: `Has alcanzado el límite de ${quota.limits.maxDocuments} páginas web activas.`,
+    }
+  }
+
   const parsed = validateManagedWebSourceInput({
     name: formData.get('name'),
     sourceType: formData.get('source_type'),
@@ -302,6 +317,7 @@ export async function createManagedWebKnowledgeSource(
       config: {
         discovery_mode: parsed.data.sourceType,
         original_url: parsed.data.originalUrl,
+        max_pages: quota.limits.maxPagesPerSource,
         capture_waterfall: ['http', 'browser', 'installed_widget', 'manual_browser'],
       },
     })
@@ -310,9 +326,14 @@ export async function createManagedWebKnowledgeSource(
 
   if (created.error || !created.data) {
     const duplicate = created.error?.code === '23505'
+    const quotaError = isManagedWebQuotaError(created.error)
     return {
       ok: false,
-      message: duplicate
+      message: quotaError === 'managed_web_source_quota_exceeded'
+        ? `Has alcanzado el límite de ${quota.limits.maxSources} fuentes web gestionadas.`
+        : quotaError === 'managed_web_document_quota_exceeded'
+          ? `Has alcanzado el límite de ${quota.limits.maxDocuments} páginas web activas.`
+          : duplicate
         ? 'Esta fuente web ya está configurada.'
         : `No se pudo crear la fuente: ${created.error?.message ?? 'error desconocido'}`,
     }
@@ -362,6 +383,14 @@ export async function requestManagedWebSourceSync(
     return { ok: false, message: 'Fuente web no encontrada.' }
   }
 
+  const quota = await getManagedWebQuotaUsage(admin, tenantId)
+  if (quota.manualSyncsToday >= quota.limits.maxManualSyncsPerDay) {
+    return {
+      ok: false,
+      message: `Has alcanzado el límite diario de ${quota.limits.maxManualSyncsPerDay} actualizaciones manuales.`,
+    }
+  }
+
   const existing = await admin
     .from('knowledge_sync_runs')
     .select('id')
@@ -382,7 +411,13 @@ export async function requestManagedWebSourceSync(
     })
 
   if (queued.error && queued.error.code !== '23505') {
-    return { ok: false, message: `No se pudo solicitar la actualización: ${queued.error.message}` }
+    const quotaError = isManagedWebQuotaError(queued.error)
+    return {
+      ok: false,
+      message: quotaError === 'managed_web_manual_sync_quota_exceeded'
+        ? `Has alcanzado el límite diario de ${quota.limits.maxManualSyncsPerDay} actualizaciones manuales.`
+        : `No se pudo solicitar la actualización: ${queued.error.message}`,
+    }
   }
 
   await admin

@@ -1588,6 +1588,29 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_knowledge_web_operational_alerts: {
+        Args: {
+          p_limit?: number
+          p_now?: string
+          p_theatre_id?: string
+          p_warning_ratio?: number
+        }
+        Returns: {
+          alert_key: string
+          current_value: number
+          error_code: string | null
+          kind: string
+          latest_status: string | null
+          limit_value: number
+          occurred_at: string
+          ratio: number
+          severity: string
+          source_id: string | null
+          source_name: string | null
+          theatre_id: string
+          theatre_name: string
+        }[]
+      }
       increment_tenant_usage_daily: {
         Args: {
           p_channel: string
