@@ -1,11 +1,14 @@
 'use client'
 
-import { ChevronDown, FileText, Globe2, Link as LinkIcon, RefreshCw, Table2, Trash2, Workflow } from 'lucide-react'
+import { ChevronDown, FileText, Globe2, LifeBuoy, Link as LinkIcon, RefreshCw, Table2, Trash2, Workflow } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useActionState, useState, useTransition, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
+import { KnowledgeSyncRealtime } from '@/components/knowledge-sync-realtime'
+import { ToastNotice } from '@/components/ui/toast-notice'
 import type { ManagedWebQuotaUsage } from '@/lib/knowledge/web-source-quotas'
-import { createKnowledgeItem, createManagedWebKnowledgeSource, uploadKnowledgeExcel, uploadKnowledgePdf, updateKnowledgeItem, deleteKnowledgeItem, deleteKnowledgeSource, requestManagedWebSourceSync, retryKnowledgeSourceEmbeddings, updateManagedWebSourceSchedule, type SettingsFormState, type ExcelUploadState, type PdfUploadState, type ManagedWebSourceState } from './actions'
+import { getManagedWebPresentation, type ManagedWebOutcome } from '@/lib/knowledge/managed-web-presentation'
+import { createKnowledgeItem, createManagedWebKnowledgeSource, uploadKnowledgeExcel, uploadKnowledgePdf, updateKnowledgeItem, deleteKnowledgeItem, deleteKnowledgeSource, requestKnowledgeSourceSupport, requestManagedWebSourceSync, retryKnowledgeSourceEmbeddings, updateManagedWebSourceSchedule, type SettingsFormState, type ExcelUploadState, type PdfUploadState, type ManagedWebSourceState } from './actions'
 
 type KnowledgeItem = {
   id: string
@@ -31,12 +34,15 @@ type KnowledgeSource = {
   documentCount: number
   latestSyncRun: {
     status: string
+    discovered_count: number
     checked_count: number
     changed_count: number
+    unchanged_count: number
     failed_count: number
     blocked_count: number
     error_code: string | null
     error_details: string | null
+    metadata: unknown
     created_at: string
     finished_at: string | null
   } | null
@@ -116,8 +122,32 @@ type KnowledgeFormProps = {
     sourceNextSync: string
     sourceNeverSynced: string
     sourceChecked: string
+    syncPhaseDiscovering: string
+    syncPhaseFetching: string
+    syncPhaseChunking: string
+    syncPhaseFinishing: string
     sourceChanged: string
     sourceIssues: string
+    sourceFragments: string
+    sourceOutcomeQueued: string
+    sourceOutcomeRunning: string
+    sourceOutcomeUpdated: string
+    sourceOutcomeUnchanged: string
+    sourceOutcomePartialDiscovery: string
+    sourceOutcomePartialCapture: string
+    sourceOutcomeQuota: string
+    sourceOutcomeBlocked: string
+    sourceOutcomeFailed: string
+    sourceOutcomePending: string
+    sourceOutcomePaused: string
+    sourceRetry: string
+    sourceUseWidget: string
+    sourceContactSupport: string
+    sourceSupportPrompt: string
+    sourceSupportPlaceholder: string
+    sourceSupportSend: string
+    sourceSupportSending: string
+    sourceSupportCancel: string
     sourceQuotaExceeded: string
     sourceStatusQueued: string
     sourceStatusRunning: string
@@ -205,9 +235,11 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
     : false
   const installedWebSources = sources.filter((source) => source.type === 'web_snapshot')
   const managedWebSources = sources.filter((source) => source.type === 'url' || source.type === 'sitemap' || source.type === 'website')
+  const hasActiveManagedRun = managedWebSources.some((source) => ['queued', 'running'].includes(source.latestSyncRun?.status ?? ''))
 
   return (
     <>
+      {activeTab === 'installed' ? <KnowledgeSyncRealtime tenantId={tenantId} hasActiveRun={hasActiveManagedRun} /> : null}
       {activeTab === 'files' ? (
         <>
           <section className="card stack">
@@ -482,7 +514,7 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
             )}
           </section>
 
-          <section className="card stack">
+          <section className="card stack" id="installed-widget-pages">
             <div className="section-heading-row">
               <div>
                 <h2>{labels.widgetCapturedPages}</h2>
@@ -563,22 +595,27 @@ function ManagedWebSourceRow({
   const router = useRouter()
   const [isSyncing, startSync] = useTransition()
   const [isSavingSchedule, startScheduleSave] = useTransition()
+  const [isSendingSupport, startSupport] = useTransition()
   const [refreshInterval, setRefreshInterval] = useState(source.refreshInterval || 'manual')
-  const [message, setMessage] = useState<string | null>(null)
-  const [failed, setFailed] = useState(false)
+  const [toast, setToast] = useState<{ id: number; message: string; tone: 'success' | 'error' } | null>(null)
+  const [supportOpen, setSupportOpen] = useState(false)
+  const [supportMessage, setSupportMessage] = useState('')
+  const [supportIdempotencyKey, setSupportIdempotencyKey] = useState<string | null>(null)
   const sourceUrlLabel = source.sourceUrl ? formatInstalledSourceUrl(source.sourceUrl) : null
   const activeRunStatus = source.latestSyncRun?.status === 'queued' || source.latestSyncRun?.status === 'running'
     ? source.latestSyncRun.status
     : null
-  const visibleStatus = source.syncEnabled ? activeRunStatus ?? source.status : 'paused'
+  const presentation = getManagedWebPresentation({
+    syncEnabled: source.syncEnabled,
+    sourceStatus: source.status,
+    run: source.latestSyncRun,
+  })
+  const visibleStatus = getManagedOutcomeStatus(presentation.outcome)
 
   function handleSync() {
-    setMessage(null)
-    setFailed(false)
     startSync(async () => {
       const result = await requestManagedWebSourceSync(tenantId, source.id)
-      setFailed(!result.ok)
-      setMessage(result.message)
+      setToast({ id: Date.now(), message: result.message, tone: result.ok ? 'success' : 'error' })
       router.refresh()
     })
   }
@@ -586,19 +623,40 @@ function ManagedWebSourceRow({
   function handleScheduleChange(value: string) {
     const previous = refreshInterval
     setRefreshInterval(value)
-    setMessage(null)
-    setFailed(false)
     startScheduleSave(async () => {
       const result = await updateManagedWebSourceSchedule(tenantId, source.id, value)
       if (!result.ok) setRefreshInterval(previous)
-      setFailed(!result.ok)
-      setMessage(result.message)
+      setToast({ id: Date.now(), message: result.message, tone: result.ok ? 'success' : 'error' })
       router.refresh()
     })
   }
 
+  function handleSupportSubmit() {
+    const idempotencyKey = supportIdempotencyKey ?? crypto.randomUUID()
+    if (!supportIdempotencyKey) setSupportIdempotencyKey(idempotencyKey)
+    startSupport(async () => {
+      const result = await requestKnowledgeSourceSupport(tenantId, {
+        sourceId: source.id,
+        idempotencyKey,
+        message: supportMessage,
+      })
+      setToast({ id: Date.now(), message: result.message, tone: result.ok ? 'success' : 'error' })
+      if (result.ok) {
+        setSupportMessage('')
+        setSupportIdempotencyKey(null)
+        setSupportOpen(false)
+      }
+    })
+  }
+
+  function toggleSupport() {
+    if (!supportOpen) setSupportIdempotencyKey(crypto.randomUUID())
+    setSupportOpen(!supportOpen)
+  }
+
   return (
     <article className="knowledge-file-item knowledge-managed-item">
+      {toast ? <ToastNotice key={toast.id} message={toast.message} tone={toast.tone} /> : null}
       <div className="knowledge-file-icon" aria-hidden="true">
         {source.type === 'sitemap' ? (
           <Workflow size={20} strokeWidth={2} />
@@ -644,16 +702,61 @@ function ManagedWebSourceRow({
                 : ''}
             </span>
           ) : null}
+          {source.latestSyncRun?.status === 'running' ? (
+            <span className="knowledge-installed-signal knowledge-installed-signal-ok">
+              {getSyncPhaseLabel(source.latestSyncRun.metadata, labels)}
+              {source.latestSyncRun.discovered_count > 0 ? ` · ${source.latestSyncRun.checked_count}/${source.latestSyncRun.discovered_count}` : ''}
+            </span>
+          ) : null}
+          {source.chunkCount > 0 ? (
+            <span className="knowledge-installed-signal">
+              {source.chunkCount} {labels.sourceFragments}
+            </span>
+          ) : null}
         </div>
-        {source.latestSyncRun?.error_code?.includes('quota_exceeded') ? (
-          <p className="knowledge-file-error">{labels.sourceQuotaExceeded}</p>
-        ) : source.lastError ? (
-          <p className="knowledge-file-error">{source.lastError}</p>
-        ) : null}
-        {message ? (
-          <p className={failed ? 'knowledge-managed-message knowledge-managed-message-error' : 'knowledge-managed-message'} role="status">
-            {message}
-          </p>
+        <div className={`knowledge-managed-outcome knowledge-managed-outcome-${presentation.tone}`}>
+          <strong>{getManagedSourceStatusLabel(visibleStatus, labels)}</strong>
+          <p>{getManagedOutcomeDescription(presentation.outcome, labels)}</p>
+          {presentation.actions.includes('widget') ? (
+            <a className="knowledge-managed-outcome-action" href="#installed-widget-pages">
+              {labels.sourceUseWidget}
+            </a>
+          ) : null}
+          {presentation.actions.includes('support') ? (
+            <button
+              type="button"
+              className="knowledge-managed-outcome-action"
+              onClick={toggleSupport}
+            >
+              <LifeBuoy size={14} strokeWidth={2} aria-hidden="true" />
+              {labels.sourceContactSupport}
+            </button>
+          ) : null}
+        </div>
+        {supportOpen ? (
+          <div className="knowledge-managed-support">
+            <p>{labels.sourceSupportPrompt}</p>
+            <textarea
+              rows={3}
+              maxLength={2000}
+              value={supportMessage}
+              placeholder={labels.sourceSupportPlaceholder}
+              onChange={(event) => setSupportMessage(event.target.value)}
+            />
+            <div className="knowledge-managed-support-actions">
+              <button type="button" className="button-outline button-fit" disabled={isSendingSupport} onClick={() => setSupportOpen(false)}>
+                {labels.sourceSupportCancel}
+              </button>
+              <button
+                type="button"
+                className="button-primary button-fit"
+                disabled={isSendingSupport || supportMessage.trim().length < 10}
+                onClick={handleSupportSubmit}
+              >
+                {isSendingSupport ? labels.sourceSupportSending : labels.sourceSupportSend}
+              </button>
+            </div>
+          </div>
         ) : null}
       </div>
       <div className="knowledge-file-actions knowledge-managed-actions">
@@ -677,12 +780,47 @@ function ManagedWebSourceRow({
           onClick={handleSync}
         >
           <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
-          {isSyncing || activeRunStatus ? labels.syncingNow : labels.syncNow}
+          {isSyncing || activeRunStatus
+            ? labels.syncingNow
+            : presentation.actions.includes('retry')
+              ? labels.sourceRetry
+              : labels.syncNow}
         </button>
         <DeleteKnowledgeSourceButton tenantId={tenantId} sourceId={source.id} sourceName={source.name} />
       </div>
     </article>
   )
+}
+
+function getSyncPhaseLabel(metadata: unknown, labels: KnowledgeFormProps['labels']) {
+  const phase = metadata && typeof metadata === 'object' && 'phase' in metadata
+    ? (metadata as { phase?: unknown }).phase
+    : null
+  if (phase === 'discovering') return labels.syncPhaseDiscovering
+  if (phase === 'fetching') return labels.syncPhaseFetching
+  if (phase === 'chunking') return labels.syncPhaseChunking
+  return labels.syncPhaseFinishing
+}
+
+function getManagedOutcomeStatus(outcome: ManagedWebOutcome) {
+  if (outcome === 'queued' || outcome === 'running' || outcome === 'paused' || outcome === 'pending') return outcome
+  if (outcome === 'updated' || outcome === 'unchanged') return 'ready'
+  if (outcome === 'partial_discovery' || outcome === 'partial_capture') return 'partial'
+  return 'error'
+}
+
+function getManagedOutcomeDescription(outcome: ManagedWebOutcome, labels: KnowledgeFormProps['labels']) {
+  if (outcome === 'queued') return labels.sourceOutcomeQueued
+  if (outcome === 'running') return labels.sourceOutcomeRunning
+  if (outcome === 'updated') return labels.sourceOutcomeUpdated
+  if (outcome === 'unchanged') return labels.sourceOutcomeUnchanged
+  if (outcome === 'partial_discovery') return labels.sourceOutcomePartialDiscovery
+  if (outcome === 'partial_capture') return labels.sourceOutcomePartialCapture
+  if (outcome === 'quota') return labels.sourceOutcomeQuota
+  if (outcome === 'blocked') return labels.sourceOutcomeBlocked
+  if (outcome === 'failed') return labels.sourceOutcomeFailed
+  if (outcome === 'paused') return labels.sourceOutcomePaused
+  return labels.sourceOutcomePending
 }
 
 function getManagedSourceStatusLabel(status: string, labels: KnowledgeFormProps['labels']) {

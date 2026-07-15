@@ -506,30 +506,6 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
             </label>
           </section>
 
-          <section className="card stack">
-            <h2>{labels.allowedDomains}</h2>
-            <p className="muted">{labels.allowedDomainsHint}</p>
-            <textarea
-              name="allowed_domains"
-              defaultValue={widgetConfig.allowedDomains.join('\n')}
-              rows={4}
-              className="mono"
-              placeholder="staging.example.com&#10;preview.example.com"
-            />
-          </section>
-
-          <section className="card stack">
-            <h2>{labels.channelPrompt}</h2>
-            <p className="muted">{labels.channelPromptHint}</p>
-            <textarea
-              name="system_prompt"
-              defaultValue={theatre.system_prompt ?? ''}
-              rows={8}
-              className="mono"
-              placeholder="Instrucciones específicas para el asistente de IA."
-            />
-          </section>
-
         </div>
 
         <aside className="stack">
@@ -573,6 +549,30 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
                 </p>
               </div>
             )}
+          </section>
+
+          <section className="card stack">
+            <h2>{labels.allowedDomains}</h2>
+            <p className="muted">{labels.allowedDomainsHint}</p>
+            <textarea
+              name="allowed_domains"
+              defaultValue={widgetConfig.allowedDomains.join('\n')}
+              rows={4}
+              className="mono"
+              placeholder="staging.example.com&#10;preview.example.com"
+            />
+          </section>
+
+          <section className="card stack">
+            <h2>{labels.channelPrompt}</h2>
+            <p className="muted">{labels.channelPromptHint}</p>
+            <textarea
+              name="system_prompt"
+              defaultValue={theatre.system_prompt ?? ''}
+              rows={8}
+              className="mono"
+              placeholder="Instrucciones específicas para el asistente de IA."
+            />
           </section>
         </aside>
       </div>

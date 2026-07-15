@@ -91,6 +91,12 @@ Terminal statuses are `succeeded`, `partial`, `failed`, and `cancelled`.
 Repeating a terminal callback returns the existing result, making completion
 idempotent.
 
+An incomplete discovery scope is `partial` even when every discovered page was
+captured successfully. This distinction matters for website and sitemap
+sources: usable homepage or subset chunks must be preserved, but the customer
+must not be told that the complete configured source was refreshed. The bounded
+code for this condition is `discovery_incomplete`.
+
 ## Capture Waterfall
 
 1. HTTP with redirect validation, content limits, timeouts, and conditional headers.
@@ -144,6 +150,22 @@ Backstage; previously valid chunks are not deleted.
 
 ## Operational Alerts
 
+### Realtime progress
+
+`knowledge_sync_runs` is published through Supabase Realtime. Agora and
+Backstage subscribe with the authenticated browser session and a strict
+`theatre_id` filter. RLS remains authoritative; service-role credentials are
+never sent to the browser.
+
+Events are invalidation signals. The client reconciles through the
+server-rendered route instead of trusting event payloads. While a run is active,
+an eight-second polling fallback is enabled only if the channel is unavailable.
+Channels and timers are removed on navigation.
+
+The worker checkpoints `discovering`, `fetching`, `chunking` and `finishing`.
+Document counters are checkpointed after ten documents or two seconds,
+whichever happens first; there is no write per chunk.
+
 Backstage derives active alerts from source state, terminal sync runs and quota
 usage through `get_knowledge_web_operational_alerts`. The aggregation runs in
 Postgres so the UI does not load unbounded sync history or calculate tenant
@@ -165,7 +187,30 @@ Alerts are derived rather than persisted: they disappear automatically when a
 healthy run completes, the source catches up or UTC daily usage resets. The
 global Backstage view links to the affected venue and, for source incidents, to
 the exact source row. External notifications and acknowledgement history are
-not part of this cut.
+not part of this alerting cut.
+
+## Customer-facing outcomes and support
+
+Agora maps run status, counters and bounded error codes to customer-facing
+outcomes. It never renders `error_details` directly. Backstage remains the
+technical source for exact codes and operational details.
+
+When an outcome requires help, a tenant administrator can submit an in-product
+support request. `knowledge_source_support_requests` stores only the requester,
+tenant, source, latest run, bounded error code and customer note. Page bodies,
+chunks, credentials and provider secrets are excluded. A tenant-scoped
+idempotency key prevents duplicate submissions.
+
+Email delivery uses these server-only variables:
+
+- `RESEND_API_KEY`;
+- `TALIA_SUPPORT_FROM_EMAIL`;
+- `TALIA_SUPPORT_EMAIL`.
+
+If they are not configured or the provider is unavailable, the request remains
+persisted with a pending or failed delivery status. The customer receives a
+truthful confirmation that the request was registered; delivery can be retried
+operationally without asking them to submit it again.
 
 ## Canary And Rollback
 

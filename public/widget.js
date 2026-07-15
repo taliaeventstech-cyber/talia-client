@@ -657,6 +657,8 @@
       body: JSON.stringify({
         url: pageUrl,
         title: getSafeDocumentTitle(),
+        heading: getSafePageHeading(),
+        http_status: getNavigationResponseStatus(),
       }),
     })
       .then(function (response) {
@@ -679,6 +681,19 @@
   function getSafeDocumentTitle() {
     var title = (document.title || '').trim();
     return title.length > 200 ? title.slice(0, 200) : title;
+  }
+
+  function getSafePageHeading() {
+    var heading = document.querySelector('h1');
+    var text = heading ? (heading.textContent || '').trim() : '';
+    return text.length > 300 ? text.slice(0, 300) : text;
+  }
+
+  function getNavigationResponseStatus() {
+    if (!window.performance || !window.performance.getEntriesByType) return undefined;
+    var entries = window.performance.getEntriesByType('navigation');
+    var status = entries.length ? Number(entries[0].responseStatus) : 0;
+    return status >= 100 && status <= 599 ? status : undefined;
   }
 
   function maybeCaptureInstalledPage() {
@@ -711,6 +726,8 @@
             token: token,
             url: getCurrentPageUrl(),
             title: document.title || '',
+            heading: getSafePageHeading(),
+            http_status: getNavigationResponseStatus(),
             text: pageText,
           }),
         });

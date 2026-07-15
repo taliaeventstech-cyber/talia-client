@@ -26,6 +26,7 @@ import {
   validateManagedWebSourceInput,
 } from '@/lib/knowledge/managed-web-sources'
 import { getManagedWebQuotaUsage, isManagedWebQuotaError } from '@/lib/knowledge/web-source-quotas'
+import { sendKnowledgeSourceSupportNotification } from '@/lib/support/knowledge-source-notification'
 import { randomUUID } from 'node:crypto'
 
 export type SettingsFormState = {
@@ -65,6 +66,12 @@ const knowledgeItemSchema = z.object({
   category: z.string().trim().max(80).optional(),
   language: z.enum(['es', 'ca', 'en']),
   priority: z.coerce.number().int().min(0).max(100),
+})
+
+const knowledgeSourceSupportSchema = z.object({
+  sourceId: z.string().uuid(),
+  idempotencyKey: z.string().uuid(),
+  message: z.string().trim().min(10).max(2000),
 })
 
 export type ManagedWebSourceState = SettingsFormState
@@ -432,6 +439,101 @@ export async function requestManagedWebSourceSync(
 
   revalidatePath(`/${tenantId}/knowledge`)
   return { ok: true, message: 'Actualización añadida a la cola.' }
+}
+
+export async function requestKnowledgeSourceSupport(
+  tenantId: string,
+  input: { sourceId: string; idempotencyKey: string; message: string }
+): Promise<SettingsFormState> {
+  await requireTenantProductAccess(tenantId, 'manage_knowledge', 'data')
+  const parsed = knowledgeSourceSupportSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, message: 'Describe brevemente el problema antes de enviar la solicitud.' }
+  }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const admin = createAdminClient()
+  if (!await assertTenantAdmin(admin, user.id, tenantId)) {
+    return { ok: false, message: 'No tienes permisos para solicitar soporte para esta fuente.' }
+  }
+
+  const [{ data: source, error: sourceError }, { data: theatre }] = await Promise.all([
+    admin
+      .from('knowledge_sources')
+      .select('id, name, source_url, last_sync_run_id')
+      .eq('id', parsed.data.sourceId)
+      .eq('theatre_id', tenantId)
+      .in('type', ['url', 'sitemap', 'website'])
+      .maybeSingle(),
+    admin.from('theatres').select('name').eq('id', tenantId).maybeSingle(),
+  ])
+  if (sourceError || !source) {
+    return { ok: false, message: 'Fuente web no encontrada.' }
+  }
+
+  const { data: run } = source.last_sync_run_id
+    ? await admin
+      .from('knowledge_sync_runs')
+      .select('id, error_code')
+      .eq('id', source.last_sync_run_id)
+      .eq('source_id', source.id)
+      .eq('theatre_id', tenantId)
+      .maybeSingle()
+    : { data: null }
+
+  const inserted = await admin
+    .from('knowledge_source_support_requests')
+    .insert({
+      theatre_id: tenantId,
+      source_id: source.id,
+      sync_run_id: run?.id ?? null,
+      requested_by: user.id,
+      idempotency_key: parsed.data.idempotencyKey,
+      customer_message: parsed.data.message,
+      error_code: run?.error_code ?? null,
+      delivery_status: 'pending',
+    })
+    .select('id')
+    .single()
+
+  if (inserted.error?.code === '23505') {
+    return { ok: true, message: 'La solicitud de soporte ya estaba registrada.' }
+  }
+  if (inserted.error || !inserted.data) {
+    return { ok: false, message: 'No se pudo registrar la solicitud de soporte.' }
+  }
+
+  const delivery = await sendKnowledgeSourceSupportNotification({
+    requestId: inserted.data.id,
+    tenantId,
+    tenantName: theatre?.name ?? tenantId,
+    sourceId: source.id,
+    sourceName: source.name,
+    sourceUrl: source.source_url,
+    runId: run?.id ?? null,
+    errorCode: run?.error_code ?? null,
+    requesterEmail: user.email ?? null,
+    customerMessage: parsed.data.message,
+  })
+
+  await admin
+    .from('knowledge_source_support_requests')
+    .update(delivery.status === 'sent'
+      ? { delivery_status: 'sent', delivery_error: null, delivered_at: new Date().toISOString() }
+      : { delivery_status: delivery.status, delivery_error: delivery.error })
+    .eq('id', inserted.data.id)
+    .eq('theatre_id', tenantId)
+
+  revalidatePath(`/${tenantId}/knowledge`)
+  return {
+    ok: true,
+    message: delivery.status === 'sent'
+      ? 'Solicitud enviada al equipo de soporte de TALIA.'
+      : 'Solicitud registrada. El equipo de TALIA podrá revisarla desde soporte.',
+  }
 }
 
 export async function updateManagedWebSourceSchedule(

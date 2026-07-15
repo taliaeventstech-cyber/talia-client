@@ -14,6 +14,8 @@ const captureSchema = z.object({
   token: z.string().min(20).max(5_000),
   url: z.string().url().max(2_000),
   title: z.string().trim().max(200).optional(),
+  heading: z.string().trim().max(300).optional(),
+  http_status: z.number().int().min(100).max(599).optional(),
   text: z.string().trim().min(MIN_CAPTURE_TEXT_LENGTH).max(MAX_CAPTURE_TEXT_LENGTH),
 })
 
@@ -62,6 +64,8 @@ export async function POST(
     sourceId: token.sourceId,
     url: parsed.data.url,
     title: parsed.data.title,
+    heading: parsed.data.heading,
+    httpStatus: parsed.data.http_status,
     text: parsed.data.text,
   })
 
