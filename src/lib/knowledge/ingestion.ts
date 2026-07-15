@@ -1,6 +1,7 @@
 import { embedKnowledgeSourceWithTaliaAi } from './talia-ai-embeddings'
 import { ingestKnowledgeTextWithTaliaAi } from './talia-ai-ingestion'
 import { normalizeKnowledgeSourceUrl } from './source-url'
+import { getWebPageRejection } from './web-page-validity'
 import type { createAdminClient } from '@/lib/supabase/admin'
 
 type AdminClient = ReturnType<typeof createAdminClient>
@@ -217,11 +218,15 @@ export async function registerInstalledWebPage({
   tenantId,
   url,
   title,
+  heading,
+  httpStatus,
 }: {
   admin: AdminClient
   tenantId: string
   url: string
   title?: string | null
+  heading?: string | null
+  httpStatus?: number | null
 }): Promise<KnowledgeImportResult & { sourceId?: string }> {
   const normalizedUrl = normalizeKnowledgeSourceUrl(url)
   if (!normalizedUrl) return { ok: false, message: 'URL no válida.' }
@@ -241,6 +246,14 @@ export async function registerInstalledWebPage({
     .maybeSingle()
 
   if (existing.error) return { ok: false, message: existing.error.message }
+
+  const rejection = getWebPageRejection({ httpStatus, title, heading })
+  if (rejection) {
+    if (existing.data) {
+      await markInstalledWebPageUnavailable(admin, tenantId, existing.data.id, rejection.message)
+    }
+    return { ok: false, message: rejection.message }
+  }
 
   if (existing.data) {
     return touchInstalledWebPage({ admin, tenantId, normalizedUrl, name, pageTitle, now, source: existing.data })
@@ -341,6 +354,8 @@ export async function ingestWebSnapshotSource({
   sourceId,
   url,
   title,
+  heading,
+  httpStatus,
   text,
 }: {
   admin: AdminClient
@@ -348,10 +363,18 @@ export async function ingestWebSnapshotSource({
   sourceId: string
   url: string
   title?: string | null
+  heading?: string | null
+  httpStatus?: number | null
   text: string
 }): Promise<KnowledgeImportResult> {
   const normalizedUrl = normalizeKnowledgeSourceUrl(url)
   if (!normalizedUrl) return { ok: false, message: 'URL no válida.' }
+
+  const rejection = getWebPageRejection({ httpStatus, title, heading })
+  if (rejection) {
+    await markInstalledWebPageUnavailable(admin, tenantId, sourceId, rejection.message)
+    return { ok: false, message: rejection.message }
+  }
 
   const cleanText = text.trim()
   if (cleanText.length < 40) {
@@ -930,6 +953,27 @@ async function markKnowledgeSourceError(admin: AdminClient, sourceId: string, me
       last_error: message,
     })
     .eq('id', sourceId)
+}
+
+async function markInstalledWebPageUnavailable(
+  admin: AdminClient,
+  tenantId: string,
+  sourceId: string,
+  message: string
+) {
+  await Promise.all([
+    admin
+      .from('knowledge_sources')
+      .update({ status: 'error', last_error: message })
+      .eq('id', sourceId)
+      .eq('theatre_id', tenantId)
+      .eq('type', 'web_snapshot'),
+    admin
+      .from('knowledge_chunks')
+      .update({ active: false })
+      .eq('source_id', sourceId)
+      .eq('theatre_id', tenantId),
+  ])
 }
 
 const markPdfSourceError = markKnowledgeSourceError

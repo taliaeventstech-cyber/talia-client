@@ -14,6 +14,8 @@ const installedPageSchema = z.object({
       const title = value?.trim()
       return title ? title.slice(0, 200) : undefined
     }),
+  heading: z.string().trim().max(300).optional(),
+  http_status: z.number().int().min(100).max(599).optional(),
 })
 
 export async function POST(
@@ -49,6 +51,8 @@ export async function POST(
     tenantId,
     url: parsed.data.url,
     title: parsed.data.title,
+    heading: parsed.data.heading,
+    httpStatus: parsed.data.http_status,
   })
 
   if (!result.ok) return corsJson({ error: result.message }, { status: 400 })

@@ -2,12 +2,13 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getKnowledgeWebOperationalAlerts } from '@/lib/knowledge/web-source-alerts'
 import { getActiveSubscription, getTenantUsageForPeriod } from '@/lib/usage/service'
 import { getManagedWebQuotaUsage } from '@/lib/knowledge/web-source-quotas'
-import { FileText, LayoutDashboard, MailPlus } from 'lucide-react'
+import { FileText, LayoutDashboard, LifeBuoy, MailPlus } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { EditClientForm } from './edit-client-form'
 import { BackstageManagedWebSyncToggle, BackstageReindexTenantKnowledgeButton, BackstageReprocessSourceButton, BackstageRetryEmbeddingsButton } from './knowledge-source-actions'
 import { KnowledgeWebAlerts } from '../../knowledge-web-alerts'
+import { KnowledgeSyncRealtime } from '@/components/knowledge-sync-realtime'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -16,7 +17,7 @@ interface Props {
 export default async function BackstageClientPage({ params }: Props) {
   const { tenantId } = await params
   const admin = createAdminClient()
-  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, usageResult, { data: traceMessages }, { data: knowledgeSources }, managedWebQuota, webAlerts] = await Promise.all([
+  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, usageResult, { data: traceMessages }, { data: knowledgeSources }, managedWebQuota, webAlerts, { data: knowledgeSupportRequests }] = await Promise.all([
     admin
       .from('theatres')
       .select('id, name, slug, entity_type, primary_language, plan, website_url, fallback_email, fallback_phone, n8n_webhook_url, system_prompt, widget_config, voice_phone_number, voice_phone_provider, voice_phone_mode, voice_public_phone_number, voice_forwarding_notes, voice_operational_status')
@@ -54,6 +55,12 @@ export default async function BackstageClientPage({ params }: Props) {
       .order('created_at', { ascending: false }),
     getManagedWebQuotaUsage(admin, tenantId),
     getKnowledgeWebOperationalAlerts(admin, { tenantId }),
+    admin
+      .from('knowledge_source_support_requests')
+      .select('id, source_id, sync_run_id, requested_by, customer_message, error_code, status, delivery_status, delivery_error, created_at')
+      .eq('theatre_id', tenantId)
+      .order('created_at', { ascending: false })
+      .limit(20),
   ])
 
   if (!client) notFound()
@@ -101,7 +108,7 @@ export default async function BackstageClientPage({ params }: Props) {
     knowledgeSourceIds.length
       ? admin
         .from('knowledge_sync_runs')
-        .select('source_id, status, trigger, checked_count, changed_count, failed_count, blocked_count, created_at, finished_at, error_code, error_details')
+        .select('source_id, status, trigger, discovered_count, checked_count, changed_count, failed_count, blocked_count, metadata, created_at, finished_at, error_code, error_details')
         .eq('theatre_id', tenantId)
         .in('source_id', knowledgeSourceIds)
         .order('created_at', { ascending: false })
@@ -112,6 +119,8 @@ export default async function BackstageClientPage({ params }: Props) {
   const chunkStatsBySource = getChunkStatsBySource(knowledgeChunks ?? [])
   const documentCountsBySource = getDocumentCountsBySource(knowledgeDocuments ?? [])
   const latestSyncRunBySource = getLatestSyncRunBySource(knowledgeSyncRuns ?? [])
+  const hasActiveKnowledgeSync = (knowledgeSyncRuns ?? []).some((run) => run.status === 'queued' || run.status === 'running')
+  const knowledgeSourceNameById = new Map((knowledgeSources ?? []).map((source) => [source.id, getKnowledgeSourceName(source)]))
   const ragHealth = getRagHealth(knowledgeSources ?? [], chunkStatsBySource)
   const traceStats = getTraceStats(traceMessages ?? [])
   const feedbackStats = getTraceFeedbackStats(traceMessages ?? [], traceConversations ?? [])
@@ -397,6 +406,7 @@ export default async function BackstageClientPage({ params }: Props) {
             <h2>Fuentes procesadas</h2>
           </div>
           <div className="section-heading-actions">
+            <KnowledgeSyncRealtime tenantId={tenantId} hasActiveRun={hasActiveKnowledgeSync} />
             <span className="status-pill status-pill-muted">{knowledgeSources?.length ?? 0} fuentes totales</span>
             <span className="status-pill status-pill-muted">
               Web {managedWebQuota.sources}/{managedWebQuota.limits.maxSources} fuentes
@@ -461,6 +471,12 @@ export default async function BackstageClientPage({ params }: Props) {
                     {latestSyncRun ? (
                       <div className="knowledge-installed-signals" aria-label="Última sincronización web">
                         <span className="knowledge-installed-signal">Run {latestSyncRun.status}</span>
+                        {latestSyncRun.status === 'running' ? (
+                          <span className="knowledge-installed-signal knowledge-installed-signal-ok">
+                            {getBackstageSyncPhase(latestSyncRun.metadata)}
+                            {latestSyncRun.discovered_count > 0 ? ` · ${latestSyncRun.checked_count}/${latestSyncRun.discovered_count}` : ''}
+                          </span>
+                        ) : null}
                         <span className="knowledge-installed-signal">{latestSyncRun.checked_count} revisadas</span>
                         <span className="knowledge-installed-signal knowledge-installed-signal-ok">{latestSyncRun.changed_count} cambiadas</span>
                         {latestSyncRun.failed_count + latestSyncRun.blocked_count > 0 ? (
@@ -506,6 +522,47 @@ export default async function BackstageClientPage({ params }: Props) {
           <p className="muted">Este venue todavía no tiene fuentes cargadas como base de conocimiento.</p>
         )}
       </section>
+
+      {(knowledgeSupportRequests ?? []).length ? (
+        <section className="card stack">
+          <div className="section-title-row">
+            <div>
+              <p className="eyebrow">Soporte</p>
+              <h2>Solicitudes sobre fuentes web</h2>
+            </div>
+            <span className="status-pill status-pill-muted">{knowledgeSupportRequests?.length ?? 0} recientes</span>
+          </div>
+          <div className="knowledge-files-list">
+            {(knowledgeSupportRequests ?? []).map((request) => (
+              <article className="knowledge-file-item" key={request.id}>
+                <div className="knowledge-file-icon" aria-hidden="true">
+                  <LifeBuoy size={20} strokeWidth={2} />
+                </div>
+                <div className="knowledge-file-main">
+                  <div className="knowledge-file-title-row">
+                    <h3>{knowledgeSourceNameById.get(request.source_id) ?? 'Fuente web'}</h3>
+                    <div className="knowledge-file-title-statuses">
+                      <span className="knowledge-file-status knowledge-file-status-pending">{request.status}</span>
+                      <span className={`knowledge-file-status knowledge-file-status-${request.delivery_status === 'sent' ? 'ready' : 'partial'}`}>
+                        Email {request.delivery_status}
+                      </span>
+                    </div>
+                  </div>
+                  <p>{request.customer_message}</p>
+                  <div className="knowledge-file-meta">
+                    <span>{formatDate(request.created_at)}</span>
+                    <span className="mono">request {shortId(request.id)}</span>
+                    <span className="mono">source {shortId(request.source_id)}</span>
+                    {request.sync_run_id ? <span className="mono">run {shortId(request.sync_run_id)}</span> : null}
+                    {request.error_code ? <span className="mono">{request.error_code}</span> : null}
+                  </div>
+                  {request.delivery_error ? <p className="knowledge-file-error">{request.delivery_error}</p> : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <EditClientForm
         client={client}
@@ -1186,6 +1243,16 @@ function getSourceStatusLabel(status: string) {
   if (status === 'processing') return 'Procesando'
   if (status === 'error') return 'Error'
   return 'Pendiente'
+}
+
+function getBackstageSyncPhase(metadata: unknown) {
+  const phase = metadata && typeof metadata === 'object' && 'phase' in metadata
+    ? (metadata as { phase?: unknown }).phase
+    : null
+  if (phase === 'discovering') return 'Descubriendo páginas'
+  if (phase === 'fetching') return 'Revisando contenido'
+  if (phase === 'chunking') return 'Preparando conocimiento'
+  return 'Finalizando actualización'
 }
 
 function getSourceTypeLabel(type: string) {

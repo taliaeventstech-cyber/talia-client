@@ -212,6 +212,14 @@ Implemented:
 - Backstage has a per-source managed-web rollout control. Pausing a source
   cancels queued runs and excludes it from worker claims while preserving the
   last known-good documents and chunks; this is the normal canary rollback.
+- Agora presents managed-web outcomes in customer language and prioritizes the
+  latest sync run over the generic source status. Complete, unchanged, partial,
+  blocked, quota and failed results have bounded explanations and relevant
+  actions without exposing raw worker errors.
+- Customers can register an idempotent support request from an affected source.
+  The request stores tenant/source/run context without page or chunk bodies and
+  sends a traceable support email when the application mail provider is
+  configured; otherwise it remains pending for operational follow-up.
 - Ingestion via external URLs is outside the main Agora flow for clients; the recommended path is to install the script on the client's own website and capture detected pages.
 - Structured import per the configuration screen, already connected to RAG for manual FAQs and Excel/CSV.
 
