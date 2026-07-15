@@ -118,10 +118,18 @@ export function validateWidgetRequestDomain(input: DomainValidationInput): Domai
 
 export function getAuthorizedWidgetHosts(input: DomainSettings) {
   const hosts = [
-    hostFromUrl(input.websiteUrl),
-    ...getHostsFromWidgetConfig(input.widgetConfig),
+    ...getTenantContentHosts(input),
     hostFromUrl(process.env.NEXT_PUBLIC_APP_URL),
     hostFromUrl(process.env.NEXT_PUBLIC_SITE_URL),
+  ]
+
+  return uniqueStrings(hosts.flatMap((host) => getHostVariants(host)))
+}
+
+export function getTenantContentHosts(input: DomainSettings) {
+  const hosts = [
+    hostFromUrl(input.websiteUrl),
+    ...getHostsFromWidgetConfig(input.widgetConfig),
   ]
 
   return uniqueStrings(hosts.flatMap((host) => getHostVariants(host)))

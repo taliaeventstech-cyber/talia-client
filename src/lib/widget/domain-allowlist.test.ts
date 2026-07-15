@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { afterEach, describe, expect, it } from 'vitest'
-import { getAuthorizedWidgetHosts, normalizeAllowedWidgetDomains, validateWidgetRequestDomain } from './domain-allowlist'
+import { getAuthorizedWidgetHosts, getTenantContentHosts, normalizeAllowedWidgetDomains, validateWidgetRequestDomain } from './domain-allowlist'
 
 describe('widget domain allowlist', () => {
   afterEach(() => {
@@ -89,6 +89,23 @@ describe('widget domain allowlist', () => {
       websiteUrl: 'https://talia.events',
       widgetConfig: {},
     })).toEqual(expect.arrayContaining(['talia.events', 'www.talia.events']))
+  })
+
+  it('keeps platform origins out of tenant knowledge source domains', () => {
+    process.env.NEXT_PUBLIC_APP_URL = 'https://agora.talia.events'
+
+    expect(getTenantContentHosts({
+      websiteUrl: 'https://venue.example',
+      widgetConfig: { allowedDomains: ['programme.venue.example'] },
+    })).toEqual(expect.arrayContaining([
+      'venue.example',
+      'www.venue.example',
+      'programme.venue.example',
+    ]))
+    expect(getTenantContentHosts({
+      websiteUrl: 'https://venue.example',
+      widgetConfig: {},
+    })).not.toContain('agora.talia.events')
   })
 
   it('normalizes operator-entered domain lists', () => {

@@ -1,10 +1,12 @@
 # Competitive Analysis: DocsBot AI vs TALIA
 
-Last updated: July 1, 2026
+Last updated: July 14, 2026
 
 Reference document to position TALIA against DocsBot AI (https://docsbot.ai).
-This is not a roadmap: it's a comparative snapshot to decide where to compete, where to
-differentiate, and what NOT to copy. For TALIA's real state, see `docs/current-state.md`.
+This is not the committed roadmap. It combines a competitive snapshot with an aspiration
+map: which DocsBot capabilities are worth translating into TALIA for culture, events and
+entertainment, and which ones should remain outside the product. For TALIA's real state,
+see `docs/current-state.md`.
 
 ---
 
@@ -145,31 +147,192 @@ a third tier or billed overage (Intercom-style) if high-volume accounts appear.
 
 ---
 
-## 7. Prioritized gaps for TALIA
+## 7. Product aspiration for TALIA
 
-Ordered by impact/effort ratio for the cultural vertical.
+The useful ambition is not to become a smaller horizontal DocsBot. It is to reach a
+similar level of product completeness around the jobs that cultural venues actually
+have:
 
-**High impact, achievable:**
+> TALIA understands the venue's official knowledge and live programme, helps a visitor
+> decide what to attend, completes or routes the next safe step, and shows the venue what
+> its audience needs.
 
-1. **Expand knowledge sources**: add 2-3 high-value cultural connectors
-   (Google Drive, Notion, or import of season programming/websites) without chasing DocsBot's 37.
-2. **Resolution analytics**: add resolution rate and basic sentiment — closes a
-   visible gap versus DocsBot and adds real value to the venue.
-3. **Source traceability per response** (already in Chatbot's pending items): reinforce which source
-   each response used. DocsBot sells this as trust/citations.
+DocsBot's current product suggests a reusable progression:
 
-**Medium term:**
+1. **Trusted answers** from governed sources.
+2. **Conversation intelligence** to know whether those answers helped.
+3. **Controlled actions** against live, deterministic systems.
+4. **Continuous improvement** from unanswered demand and operational outcomes.
 
-4. **Documented public API** to reduce dependency on n8n and open up integrations.
-5. **Additional channel** aligned with the cultural audience (WhatsApp/Instagram already planned) before
-   Slack/Teams (less relevant for venues).
-6. **More visible compliance baseline** (DPA, retention, GDPR) — important for public
-   institutions, without reaching SOC 2/HIPAA in the short term.
+For TALIA, those layers should remain shared by web chat, supervised email and future
+voice/WhatsApp channels. Channel count is not the goal; a coherent visitor journey is.
 
-**Do not copy (avoid distraction):**
+### 7.1 Capability map, translated to the cultural vertical
 
-- Deep Research docs+web, self-hosting, generic skill builder, 7,000-app marketplace:
-  outside the vertical focus and high maintenance cost.
+| DocsBot pattern | TALIA interpretation | Cultural / event use case | Priority |
+|---|---|---|:---:|
+| Source tags and retrieval filters | Govern knowledge by venue, season, language, audience, validity and content type | Keep a past season, touring production or internal policy from contaminating a current public answer | P0 |
+| Conversation view, summaries and statuses | One auditable visitor journey with topic, outcome, sentiment, escalation and sources | Understand whether a visitor found an accessible session, ticket price or transport answer | P0 |
+| Question/topic/problem reports | Audience-demand and knowledge-gap intelligence | Detect repeated demand for family activities, sold-out dates, accessibility, parking or late admission | P0 |
+| Source citations and response trace | Visitor-facing trust plus operator-facing evidence | Cite the official programme, access policy, venue page or live provider result used | P0 |
+| Lead collection tied to conversation | Consent-based interest capture, not a generic sales form | Notify about a new date, school-group visit, membership, press request or private hire | P1 |
+| Agent actions and approved tools | Domain actions with strict schemas, scopes, confirmation and audit | Search sessions, check live availability, open official checkout, create an assisted handoff | P1 |
+| Source refresh and cloud connectors | Programme ingestion with ownership and freshness controls | Sync season spreadsheets, Drive folders, CMS feeds and approved event/ticketing sources | P1 |
+| Glossary / terminology normalization | Cultural vocabulary and multilingual entity resolution | Resolve local names, acronyms, translated production titles, artists, spaces and accessibility terms | P1 |
+| Custom action buttons | Contextual next steps selected by the agent | `Buy tickets`, `See accessible sessions`, `How to get there`, `Contact the box office` | P1 |
+| Public APIs, webhooks and MCP | A narrow integration surface around TALIA domain contracts | Let a CMS publish programme changes or a provider expose availability without leaking raw credentials | P2 |
+| Voice and image input | Multimodal visitor access after the core journey is reliable | Ask by voice; identify a poster or programme image and retrieve the corresponding event | P2 |
+| PII redaction and retention controls | Privacy by design for public-institution channels | Minimize personal data in chats, assisted handoffs and order-support questions | P0 foundation |
+
+`P0` means product foundation or near-term measurement; `P1` means the first useful
+vertical expansion; `P2` means an enabling platform capability after the flows are proven.
+
+### 7.2 The highest-value TALIA experiences
+
+#### A. Programme and discovery concierge
+
+Move beyond FAQ retrieval into guided discovery over structured event data:
+
+- understand constraints such as date, location, age, language, accessibility and budget;
+- compare suitable performances without inventing availability or prices;
+- explain *why* a recommendation fits and link to the official event/session;
+- preserve the visitor's constraints across follow-up questions.
+
+This is more valuable to the vertical than DocsBot's generic Deep Research. The answer
+should combine editorial knowledge with deterministic programme facts, while live prices
+and availability come from the Ticketing Integration Hub described in
+`docs/architecture/ticketing-integrations-prestudy.md`.
+
+#### B. Ticketing-aware assistance
+
+The first action layer should be discovery/referral-first, not autonomous purchasing:
+
+- search events, performances and offers;
+- check live availability when the provider supports it;
+- generate a tracked handoff to official checkout;
+- help route order-support requests to a human with conversation context;
+- record tool calls and outcomes for audit and attribution.
+
+Reservations, payments, refunds and order mutations require explicit provider support,
+identity, confirmation and stronger operational controls. They are not implied by adding
+a generic agent-action framework.
+
+#### C. Audience intelligence for the venue
+
+Agora should turn conversations into a cultural-demand dashboard, not only support KPIs:
+
+- top interests by production, discipline, audience type and language;
+- unmet demand and knowledge gaps;
+- questions that precede ticketing referrals;
+- accessibility needs and failed discovery paths;
+- resolved, escalated and abandoned journeys;
+- feedback grounded in explicit visitor signals where possible, with AI-inferred labels
+  shown separately.
+
+This distinction matters: sentiment is useful, but a theatre benefits more from knowing
+that visitors cannot find relaxed performances or do not understand a discount rule.
+
+#### D. Assisted relationship capture
+
+TALIA can collect structured intent at the moment it becomes useful, with consent and
+minimal data:
+
+- notify me when another session opens;
+- request information for schools or groups;
+- membership, sponsorship, press or venue-hire enquiries;
+- accessible-attendance assistance;
+- human escalation with an AI-generated summary.
+
+The record should stay linked to the conversation and preserve provenance, consent,
+retention policy and delivery status. It should not become an ungoverned CRM clone.
+
+### 7.3 Architecture principles
+
+Adopting DocsBot-like features should deepen TALIA's existing boundaries:
+
+- **`talia-ai` owns conversational decisions**: intent, clarification, source/tool
+  selection, answer composition, summaries and inferred conversation labels.
+- **TALIA's service/backend layer owns deterministic facts and effects**: provider
+  credentials, ticketing connectors, API contracts, authorization, consent, idempotency,
+  rate limits and audit logs.
+- **`talia-client` owns gateway, persistence and product surfaces**: tenant validation,
+  Agora/Backstage configuration, conversations, traces, analytics views and operator
+  controls.
+- **Knowledge and live operational data remain distinct**: RAG can explain a refund
+  policy; only a verified provider action can state current availability or order status.
+- **Actions are allowlisted per venue and channel**: public web chat, supervised email
+  and internal users may have different read/write capabilities.
+- **Every consequential action is observable**: requested tool, authorization scope,
+  sanitized input, outcome, latency, provider reference and fallback are auditable.
+
+A generic public skill marketplace is unnecessary. TALIA needs a small, versioned
+catalogue of cultural capabilities with shared contracts, starting with programme and
+ticketing discovery.
+
+### 7.4 Suggested sequence
+
+#### Horizon 1 — trustworthy and measurable Attention
+
+1. Add governed source metadata and retrieval filters: language, venue/space, season,
+   audience, validity dates, public/internal visibility and source authority.
+2. Complete response citations in the visitor experience and keep the deeper trace in
+   Backstage.
+3. Add conversation outcome, escalation, feedback and summary fields; distinguish
+   explicit signals from AI inference.
+4. Deliver Agora reports for top topics, problem questions, knowledge gaps and common
+   paths to human contact.
+
+#### Horizon 2 — vertical discovery and safe conversion
+
+5. Introduce structured programme entities and guided event discovery.
+6. Connect the first ticketing provider through the normalized Ticketing Integration Hub.
+7. Add contextual widget actions and tracked official-checkout referrals.
+8. Add consent-based interest/handoff forms linked to the conversation.
+9. Pilot one managed programme source such as Drive, a CMS feed or a season spreadsheet;
+   prioritize freshness/status visibility over connector count.
+
+#### Horizon 3 — reusable ecosystem
+
+10. Expose narrow, versioned APIs and webhooks for programme, referrals and outcomes.
+11. Add WhatsApp or Instagram only when the same knowledge, action and analytics
+    contracts can be reused safely.
+12. Add voice and multimodal input as another interface to the same visitor journey.
+13. Consider MCP compatibility for trusted partners, not as the primary venue-facing
+    integration model.
+
+### 7.5 Success measures
+
+Feature parity is the wrong scorecard. Measure whether TALIA improves the visitor and
+venue outcome:
+
+- grounded-answer rate and citation coverage;
+- explicit helpful/unhelpful feedback;
+- resolved journey rate, with transparent classification rules;
+- human handoff rate and handoff completeness;
+- event-discovery to official-checkout referral rate;
+- referral-to-purchase conversion when providers can return it;
+- recurring knowledge gaps and time to close them;
+- programme freshness failures detected before visitors see stale information;
+- accessibility journeys successfully answered or assisted;
+- operator review time saved in chat and supervised email.
+
+Do not present AI-inferred resolution, sentiment or conversion as an observed fact. Agora
+should label inferred, visitor-confirmed and provider-confirmed outcomes separately.
+
+### 7.6 What not to copy now
+
+- **Connector count as a vanity metric**: five governed cultural sources are more useful
+  than 40 generic integrations.
+- **Generic Skill Builder / marketplace**: too broad before TALIA has stable domain action
+  contracts and operational governance.
+- **Autonomous purchase or refund flows**: high-risk and provider-dependent; start with
+  discovery, availability and referral.
+- **Slack, Teams and developer channels as product priorities**: useful internally for
+  some clients, but behind visitor-facing web, email, WhatsApp/Instagram and voice.
+- **Self-hosting and Deep Research**: enterprise/platform breadth without a strong initial
+  cultural job to be done.
+- **Opaque AI analytics**: resolution and sentiment must be explainable and separated
+  from explicit or provider-confirmed signals.
 
 ---
 
@@ -181,7 +344,9 @@ analytics. TALIA should not try to match its breadth; it should **go deeper into
 accessibility, human supervision in email, Catalan/cultural context, and a limit
 experience that protects the theatre visitor. The gaps worth closing are specific:
 more high-value cultural knowledge sources, resolution analytics, and source
-traceability. The rest of DocsBot's catalog is, for the most part, noise for TALIA's target market.
+traceability. The larger aspiration is a cultural Attention platform that connects trusted
+knowledge, audience understanding and safe actions. That is a meaningful path toward
+DocsBot-level usefulness without copying DocsBot's horizontal product surface.
 
 ---
 
@@ -266,7 +431,16 @@ API docs (https://docsbot.ai/documentation/developer/source-api).
 ## References
 
 - DocsBot AI: https://docsbot.ai · https://docsbot.ai/pricing
+- DocsBot documentation index: https://docsbot.ai/documentation
+- DocsBot conversation view: https://docsbot.ai/documentation/doc/conversation-view-complete-visibility-into-every-chat
+- DocsBot reports and analytics: https://docsbot.ai/documentation/doc/docsbot-ai-reports-and-analytics
+- DocsBot source tags and filters: https://docsbot.ai/documentation/doc/using-source-tags-and-source-filters
+- DocsBot AI Actions: https://docsbot.ai/ai-actions
+- DocsBot remote MCP connections: https://docsbot.ai/documentation/doc/connect-remote-mcp-servers-docsbot-agent
+- DocsBot lead collection: https://docsbot.ai/documentation/doc/__trashed-3
+- DocsBot client-side PII redaction: https://docsbot.ai/documentation/doc/client-side-pii-redaction
 - TALIA status: `docs/current-state.md`
 - TALIA pricing: `docs/product/pricing.md`
 - Usage/billing: `docs/architecture/usage-billing.md`
 - Roadmap: `docs/product/roadmap.md`
+- Ticketing integration pre-study: `docs/architecture/ticketing-integrations-prestudy.md`

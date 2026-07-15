@@ -825,6 +825,7 @@
     url.searchParams.delete('talia_capture_batch');
     url.searchParams.delete('talia_capture_index');
     url.searchParams.delete('talia_capture_total');
+    removeTrackingParameters(url);
     return url.toString();
   }
 
@@ -860,6 +861,7 @@
       url.searchParams.delete('talia_capture_batch');
       url.searchParams.delete('talia_capture_index');
       url.searchParams.delete('talia_capture_total');
+      removeTrackingParameters(url);
       url.hash = '';
       return url.toString();
     } catch {
@@ -879,10 +881,35 @@
       url.searchParams.delete('talia_capture_batch');
       url.searchParams.delete('talia_capture_index');
       url.searchParams.delete('talia_capture_total');
+      removeTrackingParameters(url);
       return url.toString();
     } catch {
       return null;
     }
+  }
+
+  function removeTrackingParameters(url) {
+    var trackingParameters = {
+      '_ga': true,
+      '_gl': true,
+      'dclid': true,
+      'fbclid': true,
+      'gclid': true,
+      'igshid': true,
+      'mc_cid': true,
+      'mc_eid': true,
+      'msclkid': true,
+      'ttclid': true,
+      'twclid': true,
+      'yclid': true
+    };
+    Array.from(url.searchParams.keys()).forEach(function (key) {
+      var normalizedKey = key.toLowerCase();
+      if (normalizedKey.indexOf('utm_') === 0 || trackingParameters[normalizedKey]) {
+        url.searchParams.delete(key);
+      }
+    });
+    url.searchParams.sort();
   }
 
   function cleanCaptureParams() {

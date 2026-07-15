@@ -5,6 +5,8 @@ import { reindexStructuredKnowledgeSource, reindexTenantKnowledgeSources, reproc
 import { embedKnowledgeSourceWithTaliaAi } from '@/lib/knowledge/talia-ai-embeddings'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { isManagedWebSourceType } from '@/lib/knowledge/managed-web-sources'
+import { randomUUID } from 'node:crypto'
 
 export async function reprocessBackstageKnowledgeSource(
   tenantId: string,
@@ -15,7 +17,7 @@ export async function reprocessBackstageKnowledgeSource(
   const admin = createAdminClient()
   const { data: source, error: sourceError } = await admin
     .from('knowledge_sources')
-    .select('id, type, name')
+    .select('id, type, name, sync_enabled')
     .eq('id', sourceId)
     .eq('theatre_id', tenantId)
     .maybeSingle()
@@ -23,7 +25,11 @@ export async function reprocessBackstageKnowledgeSource(
   if (sourceError) return { ok: false, message: sourceError.message }
   if (!source) return { ok: false, message: 'Fuente no encontrada.' }
 
-  const result = source.type === 'pdf'
+  const result = isManagedWebSourceType(source.type)
+    ? source.sync_enabled
+      ? await queueManagedWebSourceFromBackstage(admin, tenantId, sourceId)
+      : { ok: false, message: 'Reactiva la sincronización antes de actualizar esta fuente.' }
+    : source.type === 'pdf'
     ? await reprocessStoredKnowledgeSource({ admin, tenantId, sourceId })
     : source.type === 'manual' || source.type === 'xlsx' || source.type === 'csv'
       ? await reindexStructuredKnowledgeSource({
@@ -40,6 +46,74 @@ export async function reprocessBackstageKnowledgeSource(
 
   if (!result.ok) return { ok: false, message: result.message }
   return { ok: true, message: result.message }
+}
+
+export async function setBackstageManagedWebSyncEnabled(
+  tenantId: string,
+  sourceId: string,
+  enabled: boolean,
+): Promise<{ ok: boolean; message: string }> {
+  await requirePlatformAdmin()
+
+  const admin = createAdminClient()
+  const { error } = await admin.rpc('set_knowledge_web_sync_enabled', {
+    p_theatre_id: tenantId,
+    p_source_id: sourceId,
+    p_enabled: enabled,
+  })
+
+  if (error) {
+    return { ok: false, message: `No se pudo ${enabled ? 'reactivar' : 'pausar'} la fuente: ${error.message}` }
+  }
+
+  revalidatePath('/backstage')
+  revalidatePath(`/backstage/tenants/${tenantId}`)
+  revalidatePath(`/${tenantId}/knowledge`)
+
+  return {
+    ok: true,
+    message: enabled
+      ? 'Sincronización reactivada. La fuente programada queda preparada para el siguiente worker.'
+      : 'Sincronización pausada. Los jobs en cola se han cancelado y el conocimiento actual se conserva.',
+  }
+}
+
+async function queueManagedWebSourceFromBackstage(
+  admin: ReturnType<typeof createAdminClient>,
+  tenantId: string,
+  sourceId: string,
+) {
+  const { data: activeRun, error: activeError } = await admin
+    .from('knowledge_sync_runs')
+    .select('id')
+    .eq('source_id', sourceId)
+    .in('status', ['queued', 'running'])
+    .maybeSingle()
+
+  if (activeError) return { ok: false, message: activeError.message }
+  if (activeRun) return { ok: true, message: 'La fuente ya está en cola o actualizándose.' }
+
+  const queued = await admin
+    .from('knowledge_sync_runs')
+    .insert({
+      theatre_id: tenantId,
+      source_id: sourceId,
+      trigger: 'manual',
+      status: 'queued',
+      idempotency_key: `backstage:${sourceId}:${randomUUID()}`,
+    })
+
+  if (queued.error && queued.error.code !== '23505') {
+    return { ok: false, message: queued.error.message }
+  }
+
+  await admin
+    .from('knowledge_sources')
+    .update({ next_sync_at: new Date().toISOString() })
+    .eq('id', sourceId)
+    .eq('theatre_id', tenantId)
+
+  return { ok: true, message: 'Actualización web añadida a la cola.' }
 }
 
 export async function reindexBackstageTenantKnowledge(

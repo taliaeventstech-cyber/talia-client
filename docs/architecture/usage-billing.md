@@ -37,6 +37,11 @@ Contains:
 - specific limits;
 - metadata.
 
+The `data` entitlement also carries managed-web ingestion limits. These are
+universal defaults for now, not commercial plan differentiation. The database
+reads the entitlement at enforcement time so future per-plan or per-tenant
+overrides do not require a worker contract change.
+
 ### `usage_events`
 
 Granular event.

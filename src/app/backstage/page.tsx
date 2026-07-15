@@ -1,14 +1,16 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getKnowledgeWebOperationalAlerts } from '@/lib/knowledge/web-source-alerts'
 import { getCurrentBillingPeriod } from '@/lib/usage/service'
 import { Building2, Edit3, LayoutDashboard } from 'lucide-react'
 import Link from 'next/link'
 import { AccountRowActions } from './account-row-actions'
 import { CreateTenantForm } from './create-tenant-form'
+import { KnowledgeWebAlerts } from './knowledge-web-alerts'
 
 export default async function BackstageHomePage() {
   const admin = createAdminClient()
   const period = getCurrentBillingPeriod()
-  const [{ data: accounts }, { data: tenants }, { data: invites }, { data: subscriptions }, { data: usageRows }] = await Promise.all([
+  const [{ data: accounts }, { data: tenants }, { data: invites }, { data: subscriptions }, { data: usageRows }, webAlerts] = await Promise.all([
     admin
       .from('accounts')
       .select('id, name, slug, plan, status, created_at')
@@ -33,6 +35,7 @@ export default async function BackstageHomePage() {
       .gte('date', period.startDate)
       .lt('date', period.endDate)
       .eq('channel', 'chatbot'),
+    getKnowledgeWebOperationalAlerts(admin),
   ])
 
   const venuesByAccount = new Map<string, NonNullable<typeof tenants>>()
@@ -65,7 +68,8 @@ export default async function BackstageHomePage() {
     <div className="stack">
       <CreateTenantForm />
 
-      
+      <KnowledgeWebAlerts alerts={webAlerts.alerts} error={webAlerts.error} />
+
       <div className="backstage-tabs" role="tablist" aria-label="Secciones de backstage">
         <button className="backstage-tab backstage-tab-active" type="button" role="tab" aria-selected="true">
           Clientes
