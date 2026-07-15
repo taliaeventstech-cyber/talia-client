@@ -5,6 +5,7 @@ import { verifyWebCaptureToken } from '@/lib/knowledge/web-capture-token'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPublicWidgetConfig } from '@/lib/tenants/service'
 import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/lib/widget/domain-allowlist'
+import { normalizeKnowledgeSourceUrl } from '@/lib/knowledge/source-url'
 
 const MAX_CAPTURE_TEXT_LENGTH = 200_000
 const MIN_CAPTURE_TEXT_LENGTH = 40
@@ -33,7 +34,7 @@ export async function POST(
     return corsJson({ error: error instanceof Error ? error.message : 'invalid_capture_token' }, { status: 401 })
   }
 
-  if (token.tenantId !== tenantId || token.url !== stripHash(parsed.data.url)) {
+  if (token.tenantId !== tenantId || token.url !== normalizeKnowledgeSourceUrl(parsed.data.url)) {
     return corsJson({ error: 'capture_token_mismatch' }, { status: 403 })
   }
 
@@ -81,10 +82,4 @@ async function safeJson(request: Request) {
   } catch {
     return null
   }
-}
-
-function stripHash(value: string) {
-  const url = new URL(value)
-  url.hash = ''
-  return url.toString()
 }

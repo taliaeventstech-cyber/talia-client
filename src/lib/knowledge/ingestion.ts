@@ -1,5 +1,6 @@
 import { embedKnowledgeSourceWithTaliaAi } from './talia-ai-embeddings'
 import { ingestKnowledgeTextWithTaliaAi } from './talia-ai-ingestion'
+import { normalizeKnowledgeSourceUrl } from './source-url'
 import type { createAdminClient } from '@/lib/supabase/admin'
 
 type AdminClient = ReturnType<typeof createAdminClient>
@@ -39,6 +40,7 @@ export type TenantKnowledgeReindexResult = {
 
 const MAX_PDF_SIZE_BYTES = 8 * 1024 * 1024
 const KNOWLEDGE_FILES_BUCKET = process.env.KNOWLEDGE_FILES_BUCKET || 'knowledge-files'
+const INSTALLED_PAGE_TOUCH_INTERVAL_MS = 60 * 60 * 1000
 
 export async function reindexTenantKnowledgeSources({
   admin,
@@ -74,7 +76,7 @@ export async function reindexTenantKnowledgeSources({
   }
 
   for (const source of sources ?? []) {
-    if (source.type === 'url' || source.type === 'web_snapshot') continue
+    if (source.type === 'url' || source.type === 'sitemap' || source.type === 'website' || source.type === 'web_snapshot') continue
 
     checked += 1
     let result: KnowledgeImportResult
@@ -221,15 +223,12 @@ export async function registerInstalledWebPage({
   url: string
   title?: string | null
 }): Promise<KnowledgeImportResult & { sourceId?: string }> {
-  const normalizedUrl = normalizeSourceUrl(url)
+  const normalizedUrl = normalizeKnowledgeSourceUrl(url)
   if (!normalizedUrl) return { ok: false, message: 'URL no válida.' }
 
   const name = title?.trim() || getPageSourceName(normalizedUrl)
-  const config = {
-    capture_url: normalizedUrl,
-    page_title: title?.trim() || null,
-    registered_at: new Date().toISOString(),
-  }
+  const pageTitle = title?.trim() || null
+  const now = new Date().toISOString()
 
   const existing = await admin
     .from('knowledge_sources')
@@ -237,30 +236,14 @@ export async function registerInstalledWebPage({
     .eq('theatre_id', tenantId)
     .eq('type', 'web_snapshot')
     .eq('source_url', normalizedUrl)
+    .order('updated_at', { ascending: false })
+    .limit(1)
     .maybeSingle()
 
   if (existing.error) return { ok: false, message: existing.error.message }
 
   if (existing.data) {
-    const existingConfig = isRecord(existing.data.config) ? existing.data.config : {}
-    const update = await admin
-      .from('knowledge_sources')
-      .update({
-        name,
-        source_url: normalizedUrl,
-        status: existing.data.status === 'ready' ? 'ready' : 'connected',
-        last_error: null,
-        config: {
-          ...existingConfig,
-          ...config,
-          last_seen_at: new Date().toISOString(),
-        },
-      })
-      .eq('id', existing.data.id)
-      .eq('theatre_id', tenantId)
-
-    if (update.error) return { ok: false, message: update.error.message }
-    return { ok: true, message: 'Página instalada actualizada.', sourceId: existing.data.id }
+    return touchInstalledWebPage({ admin, tenantId, normalizedUrl, name, pageTitle, now, source: existing.data })
   }
 
   const created = await admin
@@ -271,16 +254,85 @@ export async function registerInstalledWebPage({
       name,
       source_url: normalizedUrl,
       status: 'connected',
-      config,
+      config: {
+        capture_url: normalizedUrl,
+        page_title: pageTitle,
+        registered_at: now,
+        last_seen_at: now,
+      },
     })
     .select('id')
     .single()
+
+  if (created.error?.code === '23505') {
+    const concurrent = await admin
+      .from('knowledge_sources')
+      .select('id, status, config')
+      .eq('theatre_id', tenantId)
+      .eq('type', 'web_snapshot')
+      .eq('source_url', normalizedUrl)
+      .limit(1)
+      .maybeSingle()
+
+    if (concurrent.data) {
+      return touchInstalledWebPage({ admin, tenantId, normalizedUrl, name, pageTitle, now, source: concurrent.data })
+    }
+  }
 
   if (created.error || !created.data) {
     return { ok: false, message: created.error?.message ?? 'No se pudo registrar la página instalada.' }
   }
 
   return { ok: true, message: 'Página instalada registrada.', sourceId: created.data.id }
+}
+
+async function touchInstalledWebPage({
+  admin,
+  tenantId,
+  normalizedUrl,
+  name,
+  pageTitle,
+  now,
+  source,
+}: {
+  admin: AdminClient
+  tenantId: string
+  normalizedUrl: string
+  name: string
+  pageTitle: string | null
+  now: string
+  source: { id: string; status: string; config: unknown }
+}): Promise<KnowledgeImportResult & { sourceId?: string }> {
+  const existingConfig = isRecord(source.config) ? source.config : {}
+  const lastSeenAt = typeof existingConfig.last_seen_at === 'string'
+    ? Date.parse(existingConfig.last_seen_at)
+    : Number.NaN
+  const recentlyTouched = Number.isFinite(lastSeenAt)
+    && Date.now() - lastSeenAt < INSTALLED_PAGE_TOUCH_INTERVAL_MS
+
+  if (recentlyTouched && (source.status === 'ready' || source.status === 'connected')) {
+    return { ok: true, message: 'Página instalada ya registrada.', sourceId: source.id }
+  }
+
+  const update = await admin
+    .from('knowledge_sources')
+    .update({
+      name,
+      source_url: normalizedUrl,
+      status: source.status,
+      config: {
+        ...existingConfig,
+        capture_url: normalizedUrl,
+        page_title: pageTitle,
+        registered_at: typeof existingConfig.registered_at === 'string' ? existingConfig.registered_at : now,
+        last_seen_at: now,
+      },
+    })
+    .eq('id', source.id)
+    .eq('theatre_id', tenantId)
+
+  if (update.error) return { ok: false, message: update.error.message }
+  return { ok: true, message: 'Página instalada actualizada.', sourceId: source.id }
 }
 
 export async function ingestWebSnapshotSource({
@@ -298,7 +350,7 @@ export async function ingestWebSnapshotSource({
   title?: string | null
   text: string
 }): Promise<KnowledgeImportResult> {
-  const normalizedUrl = normalizeSourceUrl(url)
+  const normalizedUrl = normalizeKnowledgeSourceUrl(url)
   if (!normalizedUrl) return { ok: false, message: 'URL no válida.' }
 
   const cleanText = text.trim()
@@ -812,23 +864,6 @@ function getPageSourceName(value: string) {
     return `${url.hostname}${url.pathname === '/' ? '' : url.pathname}`.slice(0, 120)
   } catch {
     return value.slice(0, 120)
-  }
-}
-
-function normalizeSourceUrl(value: string) {
-  try {
-    const url = new URL(value)
-    url.hash = ''
-    url.hostname = url.hostname.toLowerCase()
-    if (url.hostname.startsWith('www.')) url.hostname = url.hostname.slice(4)
-    if ((url.protocol === 'http:' && url.port === '80') || (url.protocol === 'https:' && url.port === '443')) {
-      url.port = ''
-    }
-    url.pathname = url.pathname.replace(/\/+$/, '') || '/'
-    url.searchParams.sort()
-    return url.toString()
-  } catch {
-    return null
   }
 }
 

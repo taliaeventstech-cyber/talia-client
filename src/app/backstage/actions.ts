@@ -7,6 +7,7 @@ import {
 } from '@/lib/chatbot/ai-settings'
 import { emailAgentSettingsToMetadata, normalizeEmailAgentSettings } from '@/lib/email/settings'
 import { createSignupInvite } from '@/lib/platform/invites'
+import { DEFAULT_MANAGED_WEB_QUOTA_LIMITS } from '@/lib/knowledge/web-source-quotas'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getActiveSubscription } from '@/lib/usage/service'
 import { normalizeAllowedWidgetDomains } from '@/lib/widget/domain-allowlist'
@@ -687,16 +688,30 @@ async function syncModuleEntitlements(
   tenantId: string,
   selectedModules: Set<(typeof moduleKeys)[number]>,
 ) {
+  const { data: currentEntitlements } = await admin
+    .from('tenant_module_entitlements')
+    .select('module_key, limits')
+    .eq('theatre_id', tenantId)
+  const currentLimits = new Map((currentEntitlements ?? []).map((entry) => [entry.module_key, entry.limits]))
   const rows = moduleKeys.map((moduleKey) => ({
     theatre_id: tenantId,
     module_key: moduleKey,
     enabled: selectedModules.has(moduleKey),
-    limits: getDefaultModuleLimits(moduleKey),
+    limits: {
+      ...getDefaultModuleLimits(moduleKey),
+      ...asJsonObject(currentLimits.get(moduleKey)),
+    },
   }))
 
   await admin
     .from('tenant_module_entitlements')
     .upsert(rows, { onConflict: 'theatre_id,module_key' })
+}
+
+function asJsonObject(value: Json | null | undefined) {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, Json>
+    : {}
 }
 
 async function syncEmailConnection(
@@ -851,6 +866,14 @@ function getDefaultModuleLimits(moduleKey: (typeof moduleKeys)[number]) {
   if (moduleKey === 'chatbot') return { monthly_conversations: 1000 }
   if (moduleKey === 'email') return { monthly_conversations: 0 }
   if (moduleKey === 'voice') return { monthly_minutes: 0 }
+  if (moduleKey === 'data') {
+    return {
+      managed_web_sources: DEFAULT_MANAGED_WEB_QUOTA_LIMITS.maxSources,
+      managed_web_documents: DEFAULT_MANAGED_WEB_QUOTA_LIMITS.maxDocuments,
+      managed_web_pages_per_source: DEFAULT_MANAGED_WEB_QUOTA_LIMITS.maxPagesPerSource,
+      managed_web_manual_syncs_per_day: DEFAULT_MANAGED_WEB_QUOTA_LIMITS.maxManualSyncsPerDay,
+    }
+  }
   return {}
 }
 

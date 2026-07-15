@@ -4,10 +4,12 @@ import { normalizeChatbotAiSettings, type ChatbotAiSettings } from '@/lib/chatbo
 import type { Json } from '@/types/database.types'
 import { normalizeWidgetLauncherIcon, type WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { normalizeProactiveGreeting } from '@/lib/widget/proactive-greeting'
+import { isChatbotEnabled } from '@/lib/widget/availability'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
 export type PublicWidgetConfig = {
+  enabled: boolean
   tenantId: string
   name: string
   assistantName: string
@@ -163,6 +165,7 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
   return {
     ok: true as const,
     config: {
+      enabled: widgetConfig.enabled,
       tenantId: data.id,
       name: data.name,
       assistantName: widgetConfig.assistantName,
@@ -204,6 +207,10 @@ export async function getTenantChatConfig(admin: AdminClient, tenantId: string) 
   }
 
   const widgetConfig = getWidgetConfig(data.widget_config)
+
+  if (!widgetConfig.enabled) {
+    return { ok: false as const, error: 'Chatbot is disabled' }
+  }
 
   return {
     ok: true as const,
@@ -350,6 +357,7 @@ export async function getTenantRuntimeChatConfig(admin: AdminClient, tenantId: s
 function getWidgetConfig(value: unknown) {
   if (!value || typeof value !== 'object') {
     return {
+      enabled: true,
       assistantName: 'TALIA',
       initialMessage: 'Hola, soc TALIA. En què et puc ajudar?',
       primaryColor: '#000000',
@@ -373,6 +381,7 @@ function getWidgetConfig(value: unknown) {
   }
 
   const config = value as {
+    enabled?: unknown
     assistantName?: unknown
     initialMessage?: unknown
     primaryColor?: unknown
@@ -408,6 +417,7 @@ function getWidgetConfig(value: unknown) {
   const primaryColor = typeof config.primaryColor === 'string' ? config.primaryColor : '#000000'
 
   return {
+    enabled: isChatbotEnabled(config.enabled),
     assistantName: typeof config.assistantName === 'string' ? config.assistantName : 'TALIA',
     initialMessage: typeof config.initialMessage === 'string' ? config.initialMessage : 'Hola, soc TALIA. En què et puc ajudar?',
     primaryColor,
