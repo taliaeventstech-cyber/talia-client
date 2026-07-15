@@ -707,6 +707,79 @@ export type Database = {
           },
         ]
       }
+      knowledge_source_support_requests: {
+        Row: {
+          created_at: string
+          customer_message: string
+          delivered_at: string | null
+          delivery_error: string | null
+          delivery_status: string
+          error_code: string | null
+          id: string
+          idempotency_key: string
+          requested_by: string | null
+          source_id: string
+          status: string
+          sync_run_id: string | null
+          theatre_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_message: string
+          delivered_at?: string | null
+          delivery_error?: string | null
+          delivery_status?: string
+          error_code?: string | null
+          id?: string
+          idempotency_key: string
+          requested_by?: string | null
+          source_id: string
+          status?: string
+          sync_run_id?: string | null
+          theatre_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_message?: string
+          delivered_at?: string | null
+          delivery_error?: string | null
+          delivery_status?: string
+          error_code?: string | null
+          id?: string
+          idempotency_key?: string
+          requested_by?: string | null
+          source_id?: string
+          status?: string
+          sync_run_id?: string | null
+          theatre_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_source_support_requests_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_source_support_requests_sync_run_id_fkey"
+            columns: ["sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_sync_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_source_support_requests_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_sources: {
         Row: {
           config: Json

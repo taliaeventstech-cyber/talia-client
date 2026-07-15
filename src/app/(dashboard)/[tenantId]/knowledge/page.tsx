@@ -114,7 +114,7 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
         .in('source_id', sourceIds),
       admin
         .from('knowledge_sync_runs')
-        .select('source_id, status, checked_count, changed_count, failed_count, blocked_count, error_code, error_details, created_at, finished_at')
+        .select('source_id, status, discovered_count, checked_count, changed_count, unchanged_count, failed_count, blocked_count, error_code, error_details, metadata, created_at, finished_at')
         .in('source_id', sourceIds)
         .order('created_at', { ascending: false }),
     ])
