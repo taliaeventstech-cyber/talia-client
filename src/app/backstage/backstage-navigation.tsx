@@ -1,12 +1,13 @@
 'use client'
 
-import { Building2, LayoutDashboard } from 'lucide-react'
+import { Building2, CircleDollarSign, LayoutDashboard } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const navigation = [
   { href: '/backstage', label: 'Resumen', icon: LayoutDashboard, section: 'home' },
   { href: '/backstage/clients', label: 'Clientes', icon: Building2, section: 'clients' },
+  { href: '/backstage/ai-costs', label: 'Costes IA', icon: CircleDollarSign, section: 'ai-costs' },
 ] as const
 
 export function BackstageNavigation() {
@@ -17,7 +18,9 @@ export function BackstageNavigation() {
       {navigation.map(({ href, label, icon: Icon, section }) => {
         const isActive = section === 'home'
           ? pathname === '/backstage'
-          : pathname.startsWith('/backstage/clients') || pathname.startsWith('/backstage/tenants')
+          : section === 'clients'
+            ? pathname.startsWith('/backstage/clients') || pathname.startsWith('/backstage/tenants')
+            : pathname.startsWith('/backstage/ai-costs')
 
         return (
           <Link

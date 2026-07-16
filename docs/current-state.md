@@ -176,6 +176,13 @@ Implemented:
   `fallback_language`, requires `metadata.response_language` in successful
   responses and keeps local language detection only for the legacy n8n path.
 - Agent runtime responses save compact sources (`id`, `source_id`, `source_type`, `score`) in the assistant message metadata, legacy conversation metadata, and usage for auditing.
+- `talia-ai` reports measured usage separately for the Answer Agent, optional
+  Language Agent and retrieval embedding. `talia-client` persists each
+  component against a versioned OpenAI price in fractional USD microdollars.
+- Backstage includes an AI cost view with current-month measured cost,
+  projection, cost per response, token/cache totals and breakdowns by venue,
+  model and component. It updates when the view is loaded instead of polling in
+  the background. Legacy heuristic estimates remain visibly separate.
 - Backstage shows RAG health per venue, response traceability, original question, requested/used provider, model, language, retrieval status, low-confidence/fallback warnings, sources, scores, chunks retrieved from `talia-ai`, and internal actions to reprocess PDFs or retry embeddings.
 
 Pending:

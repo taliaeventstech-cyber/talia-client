@@ -109,6 +109,16 @@ describe('TaliaAiChatAgentProvider', () => {
         provider: 'openai',
         model: 'gpt-4o-mini',
         usage: { input_tokens: 10, output_tokens: 4 },
+        usage_components: [{
+          component: 'answer_agent',
+          provider: 'openai',
+          model: 'gpt-4o-mini',
+          request_count: 1,
+          input_tokens: 10,
+          cached_input_tokens: 3,
+          output_tokens: 4,
+        }],
+        usage_summary: { request_count: 1, input_tokens: 10, cached_input_tokens: 3, output_tokens: 4 },
         metadata: { response_language: 'es' },
         actions: [{
           type: 'whatsapp',
@@ -145,6 +155,16 @@ describe('TaliaAiChatAgentProvider', () => {
       provider: 'talia-ai',
       reply: 'Respuesta desde talia-ai',
       model: 'gpt-4o-mini',
+      usageComponents: [{
+        component: 'answer_agent',
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        request_count: 1,
+        input_tokens: 10,
+        cached_input_tokens: 3,
+        output_tokens: 4,
+      }],
+      usageSummary: { request_count: 1, input_tokens: 10, cached_input_tokens: 3, output_tokens: 4 },
       actions: [{
         type: 'whatsapp',
         label: '+34 000 000 000',
