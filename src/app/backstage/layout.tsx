@@ -10,7 +10,7 @@ export default async function BackstageLayout({ children }: { children: React.Re
     <div className="auth-shell backstage-shell">
       <aside className="backstage-sidebar">
         <Link className="backstage-brand" href="/backstage" aria-label="TALIA Backstage">
-          <span className="backstage-brand-mark">T</span>
+          <span className="backstage-brand-mark" aria-hidden="true" />
           <span>
             <strong>TALIA</strong>
             <small>Backstage</small>

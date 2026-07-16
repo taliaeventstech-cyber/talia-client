@@ -185,6 +185,7 @@ type KnowledgeFormProps = {
     captureSettingsHelp: string
     captureDetectionEnabled: string
     captureDetectionDisabled: string
+    captureDisabledKnowledgeAvailable: string
     captureMode: string
     captureModeManual: string
     captureModeManualHelp: string
@@ -546,7 +547,7 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
                 <p className="muted">{labels.installedWebHelp}</p>
               </div>
               <div className="section-heading-actions">
-                {savedInstalledWebCapture.enabled && savedInstalledWebCapture.mode === 'manual' && installedWebSources.length > 1 ? (
+                {savedInstalledWebCapture.mode === 'manual' && installedWebSources.length > 1 ? (
                   <a
                     className="button-primary button-fit"
                     href={getCaptureAllHref(tenantId, installedWebSources)}
@@ -594,7 +595,11 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
               settings={savedInstalledWebCapture}
             />
 
-            {savedInstalledWebCapture.enabled && installedWebSources.length ? (
+            {!savedInstalledWebCapture.enabled && installedWebSources.some((source) => source.chunkCount > 0) ? (
+              <p className="notice notice-info">{labels.captureDisabledKnowledgeAvailable}</p>
+            ) : null}
+
+            {installedWebSources.length ? (
               <div className="knowledge-files-list knowledge-installed-list">
                 {installedWebSources.map((source) => (
                   <InstalledWebSourceRow
@@ -613,7 +618,7 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
               </div>
             ) : null}
           </section>
-          {savedInstalledWebCapture.enabled ? pagination : null}
+          {installedWebSources.length ? pagination : null}
         </>
       ) : null}
 

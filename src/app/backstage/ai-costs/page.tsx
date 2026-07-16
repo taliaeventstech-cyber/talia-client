@@ -1,6 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentBillingPeriod } from '@/lib/usage/service'
-import { CostLiveRefresh } from './cost-live-refresh'
 
 export default async function BackstageAiCostsPage() {
   const admin = createAdminClient()
@@ -54,7 +53,7 @@ export default async function BackstageAiCostsPage() {
           <h1>Costes de IA</h1>
           <p className="muted">Consumo medido por cliente, modelo y componente durante el mes actual.</p>
         </div>
-        <CostLiveRefresh />
+        <span className="status-pill status-pill-muted">Periodo actual</span>
       </header>
 
       <section className="backstage-metrics" aria-label="Resumen de costes de IA">

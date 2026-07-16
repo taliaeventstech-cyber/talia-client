@@ -93,12 +93,11 @@ export default async function BackstageClientsPage({ searchParams }: Props) {
           <h1>Clientes</h1>
           <p className="muted">Cuentas, venues, planes, consumo y accesos operativos.</p>
         </div>
-        <span className="status-pill status-pill-muted">{totalAccounts} cuentas</span>
       </header>
 
       <section className="backstage-table-section" id="clients" aria-labelledby="clients-title">
         <h2 className="sr-only" id="clients-title">Clientes</h2>
-        <div className="backstage-table-scroll">
+        <div className="backstage-table-scroll backstage-clients-table-scroll">
           <table className="data-table backstage-accounts-table">
             <thead>
               <tr>

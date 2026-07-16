@@ -181,7 +181,8 @@ Implemented:
   component against a versioned OpenAI price in fractional USD microdollars.
 - Backstage includes an AI cost view with current-month measured cost,
   projection, cost per response, token/cache totals and breakdowns by venue,
-  model and component. Legacy heuristic estimates remain visibly separate.
+  model and component. It updates when the view is loaded instead of polling in
+  the background. Legacy heuristic estimates remain visibly separate.
 - Backstage shows RAG health per venue, response traceability, original question, requested/used provider, model, language, retrieval status, low-confidence/fallback warnings, sources, scores, chunks retrieved from `talia-ai`, and internal actions to reprocess PDFs or retry embeddings.
 
 Pending:

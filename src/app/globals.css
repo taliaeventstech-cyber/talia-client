@@ -402,14 +402,13 @@ textarea {
 }
 
 .backstage-brand-mark {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border-radius: 8px;
-  background: var(--color-brand);
-  color: var(--color-base);
-  font-weight: 850;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  background: #00e5c8;
+  filter: drop-shadow(0 0 7px rgba(0, 229, 200, 0.22));
+  mask: url("/icon.svg") center / contain no-repeat;
+  -webkit-mask: url("/icon.svg") center / contain no-repeat;
 }
 
 .backstage-brand > span:last-child {
@@ -523,7 +522,7 @@ textarea {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   border: 0.5px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--color-surface);
   overflow: hidden;
 }
@@ -561,7 +560,7 @@ textarea {
   gap: 0;
   min-width: 0;
   border: 0.5px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--color-surface);
   padding: 0;
   overflow: hidden;
@@ -582,6 +581,47 @@ textarea {
 .backstage-accounts-table {
   min-width: 780px;
   table-layout: fixed;
+}
+
+.backstage-clients-table-scroll {
+  max-height: min(68dvh, 720px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: color-mix(in srgb, var(--color-brand) 58%, var(--color-text-tertiary)) color-mix(in srgb, var(--color-surface-2) 72%, transparent);
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.backstage-clients-table-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.backstage-clients-table-scroll::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--color-surface-2) 72%, transparent);
+}
+
+.backstage-clients-table-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid var(--color-surface);
+  border-radius: 0;
+  background: color-mix(in srgb, var(--color-brand) 58%, var(--color-text-tertiary));
+}
+
+.backstage-clients-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand);
+}
+
+.backstage-clients-table-scroll::-webkit-scrollbar-corner {
+  background: var(--color-surface);
+}
+
+.backstage-clients-table-scroll .backstage-accounts-table thead th {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  border-bottom: 0.5px solid var(--color-border-strong);
+  background: color-mix(in srgb, var(--color-surface-2) 94%, var(--color-surface));
+  box-shadow: 0 5px 10px color-mix(in srgb, var(--color-base) 18%, transparent);
 }
 
 .backstage-accounts-table th,
@@ -636,20 +676,6 @@ textarea {
   padding: 12px 18px;
 }
 
-.backstage-live-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-}
-
-.backstage-live-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
 .backstage-cost-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.85fr);
@@ -660,7 +686,7 @@ textarea {
 .backstage-cost-panel {
   min-width: 0;
   border: 0.5px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--color-surface);
   overflow: hidden;
 }
@@ -847,7 +873,7 @@ textarea {
 .backstage-venue-header {
   align-items: center;
   border: 0.5px solid var(--color-border);
-  border-radius: 14px;
+  border-radius: 0;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--color-surface) 82%, transparent), color-mix(in srgb, var(--color-surface-2) 82%, transparent));
   padding: 20px;
@@ -2385,6 +2411,17 @@ textarea {
 .notice-success::before {
   background: var(--color-success);
   box-shadow: inset 0 0 0 7px color-mix(in srgb, var(--color-success) 22%, #ffffff);
+}
+
+.notice-info {
+  border-color: color-mix(in srgb, var(--color-ia) 30%, transparent);
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-ia) 7%, var(--color-surface-2));
+}
+
+.notice-info::before {
+  background: var(--color-ia);
+  box-shadow: inset 0 0 0 7px color-mix(in srgb, var(--color-ia) 22%, #ffffff);
 }
 
 .button-link {

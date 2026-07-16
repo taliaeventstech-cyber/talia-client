@@ -17,7 +17,7 @@ export async function GET(
 ) {
   const { tenantId } = await params
   await requireTenantProductAccess(tenantId, 'manage_knowledge', 'data')
-  if (!await isManualCaptureEnabled(tenantId)) {
+  if (!await isManualCaptureMode(tenantId)) {
     return noStoreJson({ error: 'manual_capture_disabled' }, { status: 409 })
   }
 
@@ -83,7 +83,7 @@ export async function POST(
 ) {
   const { tenantId } = await params
   await requireTenantProductAccess(tenantId, 'manage_knowledge', 'data')
-  if (!await isManualCaptureEnabled(tenantId)) {
+  if (!await isManualCaptureMode(tenantId)) {
     return noStoreJson({ error: 'manual_capture_disabled' }, { status: 409 })
   }
 
@@ -185,7 +185,7 @@ async function safeJson(request: Request) {
   }
 }
 
-async function isManualCaptureEnabled(tenantId: string) {
+async function isManualCaptureMode(tenantId: string) {
   const admin = createAdminClient()
   const { data } = await admin
     .from('theatres')
@@ -193,5 +193,5 @@ async function isManualCaptureEnabled(tenantId: string) {
     .eq('id', tenantId)
     .maybeSingle()
   const settings = getInstalledWebCaptureSettingsFromWidgetConfig(data?.widget_config)
-  return settings.enabled && settings.mode === 'manual'
+  return settings.mode === 'manual'
 }
