@@ -9,7 +9,6 @@ import {
   normalizeChatbotAiSettings,
 } from '@/lib/chatbot/ai-settings'
 import { emailAgentSettingsToMetadata, normalizeEmailAgentSettings } from '@/lib/email/settings'
-import { createSignupInvite } from '@/lib/platform/invites'
 import { DEFAULT_MANAGED_WEB_QUOTA_LIMITS } from '@/lib/knowledge/web-source-quotas'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getActiveSubscription } from '@/lib/usage/service'
@@ -21,22 +20,9 @@ import { z } from 'zod'
 import { optionalInternationalPhoneSchema } from '@/lib/phone/schema'
 import { cancelStripeSubscription, retrieveStripeSubscription } from '@/lib/stripe/server'
 
-export type CreateTenantState = {
-  ok: boolean
-  message: string
-  tenantId?: string
-  accountId?: string
-}
-
 export type UpdateTenantState = {
   ok: boolean
   message: string
-}
-
-export type CreateAccountInviteState = {
-  ok: boolean
-  message: string
-  inviteUrl?: string
 }
 
 export type AdminBillingCancellationState = {
@@ -83,22 +69,23 @@ const createTenantSchema = z.object({
   modules: z.array(z.enum(moduleKeys)).default(['chatbot', 'data']),
 })
 
-const createAccountSchema = z.object({
-  name: z.string().trim().min(2, 'El nombre debe tener al menos 2 caracteres.'),
-  billingEmail: z.string().trim().email('El email de facturación no es válido.').optional().or(z.literal('')),
-})
+async function revalidateAccountVenuePaths(
+  admin: ReturnType<typeof createAdminClient>,
+  accountId: string,
+) {
+  const { data: venues } = await admin
+    .from('theatres')
+    .select('id')
+    .eq('account_id', accountId)
 
-const createVenueSchema = createTenantSchema.extend({
-  accountId: z.string().uuid(),
-})
+  revalidatePath('/backstage')
+  for (const venue of venues ?? []) {
+    revalidatePath(`/backstage/tenants/${venue.id}`)
+  }
+}
 
 const deleteAccountSchema = z.object({
   accountId: z.string().uuid(),
-})
-
-const deleteInviteSchema = z.object({
-  accountId: z.string().uuid(),
-  inviteId: z.string().uuid(),
 })
 
 const adminBillingCancellationSchema = z.object({
@@ -106,13 +93,6 @@ const adminBillingCancellationSchema = z.object({
   mode: z.enum(['period_end', 'immediate']),
   reason: z.string().trim().min(10, 'Explica el motivo con al menos 10 caracteres.').max(500),
   confirmation: z.string().trim(),
-})
-
-const createAccountInviteSchema = z.object({
-  accountId: z.string().uuid(),
-  theatreId: z.string().uuid().optional().or(z.literal('')),
-  email: z.string().trim().email('El email no es válido.'),
-  role: z.enum(['owner', 'admin', 'operator', 'analyst', 'viewer']),
 })
 
 const updateTenantSchema = createTenantSchema.extend({
@@ -163,241 +143,6 @@ const updateTenantSchema = createTenantSchema.extend({
   emailClassificationRules: z.string().trim().max(2000, 'Las reglas de clasificación son demasiado largas.').optional(),
 })
 
-function slugify(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48)
-}
-
-async function getAvailableSlug(admin: ReturnType<typeof createAdminClient>, name: string) {
-  const base = slugify(name) || 'tenant'
-  let candidate = base
-
-  for (let index = 2; index < 100; index += 1) {
-    const { data } = await admin
-      .from('theatres')
-      .select('id')
-      .eq('slug', candidate)
-      .maybeSingle()
-
-    if (!data) return candidate
-    candidate = `${base}-${index}`
-  }
-
-  return `${base}-${Date.now()}`
-}
-
-async function getAvailableAccountSlug(admin: ReturnType<typeof createAdminClient>, name: string) {
-  const base = slugify(name) || 'account'
-  let candidate = base
-
-  for (let index = 2; index < 100; index += 1) {
-    const { data } = await admin
-      .from('accounts')
-      .select('id')
-      .eq('slug', candidate)
-      .maybeSingle()
-
-    if (!data) return candidate
-    candidate = `${base}-${index}`
-  }
-
-  return `${base}-${Date.now()}`
-}
-
-function getDefaultN8nWebhookUrl() {
-  return process.env.DEFAULT_N8N_WEBHOOK_URL || null
-}
-
-async function createVenueForAccount(
-  admin: ReturnType<typeof createAdminClient>,
-  input: {
-    accountId: string
-    plan: 'essential' | 'professional' | 'enterprise'
-    name: string
-    entityType: 'theatre' | 'museum' | 'cinema' | 'auditorium' | 'festival' | 'cultural_center' | 'other'
-    primaryLanguage: 'ca' | 'es' | 'en'
-    websiteUrl?: string
-    fallbackEmail?: string
-    fallbackPhone?: string
-    modules: readonly (typeof moduleKeys)[number][]
-  }
-) {
-  const slug = await getAvailableSlug(admin, input.name)
-
-  const { data: tenant, error: tenantError } = await admin
-    .from('theatres')
-    .insert({
-      account_id: input.accountId,
-      name: input.name,
-      slug,
-      entity_type: input.entityType,
-      primary_language: input.primaryLanguage,
-      plan: input.plan,
-      website_url: input.websiteUrl || null,
-      fallback_email: input.fallbackEmail || null,
-      fallback_phone: input.fallbackPhone || null,
-      widget_config: {
-        assistantName: 'TALÍA',
-        initialMessage:
-          input.primaryLanguage === 'ca'
-            ? 'Hola, soc TALÍA. En què et puc ajudar?'
-            : 'Hola, soy TALÍA. ¿En qué puedo ayudarte?',
-        primaryColor: '#000000',
-      },
-      n8n_webhook_url: getDefaultN8nWebhookUrl(),
-      voice_enabled: input.modules.includes('voice'),
-      voice_language: input.primaryLanguage,
-    })
-    .select('id')
-    .single()
-
-  if (tenantError || !tenant) {
-    return { ok: false as const, message: tenantError?.message ?? 'No se ha podido crear la venue.' }
-  }
-
-  const selectedModules = new Set(input.modules)
-  selectedModules.add('chatbot')
-  selectedModules.add('data')
-
-  const moduleRows = moduleKeys.map((moduleKey) => ({
-    theatre_id: tenant.id,
-    module_key: moduleKey,
-    status: selectedModules.has(moduleKey) ? 'active' : 'disabled',
-    enabled_at: selectedModules.has(moduleKey) ? new Date().toISOString() : null,
-  }))
-
-  const { error: modulesError } = await admin.from('tenant_modules').insert(moduleRows)
-
-  if (modulesError) {
-    return {
-      ok: false as const,
-      message: `Venue creada, pero no se pudieron crear los módulos: ${modulesError.message}`,
-      tenantId: tenant.id,
-    }
-  }
-
-  await Promise.all([
-    syncCurrentSubscription(admin, tenant.id, input.plan),
-    syncModuleEntitlements(admin, tenant.id, selectedModules),
-    syncEmailConnection(admin, tenant.id, {
-      enabled: selectedModules.has('email'),
-      mailboxEmail: input.fallbackEmail,
-      provider: 'google',
-      status: 'draft',
-      draftMode: 'provider_drafts',
-      syncMode: 'polling',
-    }),
-  ])
-
-  return { ok: true as const, message: 'Venue creada correctamente.', tenantId: tenant.id }
-}
-
-export async function createTenantAction(
-  _previousState: CreateTenantState,
-  formData: FormData
-): Promise<CreateTenantState> {
-  await requirePlatformAdmin()
-
-  const parsed = createAccountSchema.safeParse({
-    name: formData.get('name'),
-    billingEmail: formData.get('billing_email') || '',
-  })
-
-  if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? 'Datos no válidos.' }
-  }
-
-  const admin = createAdminClient()
-  const slug = await getAvailableAccountSlug(admin, parsed.data.name)
-
-  const { data: account, error: accountError } = await admin
-    .from('accounts')
-    .insert({
-      name: parsed.data.name,
-      slug,
-      billing_email: parsed.data.billingEmail || null,
-      status: 'active',
-    })
-    .select('id')
-    .single()
-
-  if (accountError || !account) {
-    return { ok: false, message: accountError?.message ?? 'No se ha podido crear la cuenta del cliente.' }
-  }
-
-  revalidatePath('/backstage')
-
-  return {
-    ok: true,
-    message: 'Cliente creado. Ahora añade la primera venue para configurar TALÍA.',
-    accountId: account.id,
-  }
-}
-
-export async function createVenueAction(
-  _previousState: CreateTenantState,
-  formData: FormData
-): Promise<CreateTenantState> {
-  await requirePlatformAdmin()
-
-  const modules = formData.getAll('modules').filter((value): value is string => typeof value === 'string')
-  const parsed = createVenueSchema.safeParse({
-    accountId: formData.get('account_id'),
-    name: formData.get('name'),
-    entityType: formData.get('entity_type') || 'theatre',
-    primaryLanguage: formData.get('primary_language') || 'es',
-    plan: formData.get('plan') || 'essential',
-    websiteUrl: formData.get('website_url') || '',
-    fallbackEmail: formData.get('fallback_email') || '',
-    fallbackPhone: formData.get('fallback_phone') || '',
-    modules: modules.length ? modules : ['chatbot', 'data'],
-  })
-
-  if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? 'Datos no válidos.' }
-  }
-
-  const admin = createAdminClient()
-  const { data: account, error: accountError } = await admin
-    .from('accounts')
-    .select('id')
-    .eq('id', parsed.data.accountId)
-    .single()
-
-  if (accountError || !account) {
-    return { ok: false, message: accountError?.message ?? 'No se ha encontrado la cuenta.' }
-  }
-
-  const venue = await createVenueForAccount(admin, {
-    accountId: account.id,
-    plan: parsed.data.plan,
-    name: parsed.data.name,
-    entityType: parsed.data.entityType,
-    primaryLanguage: parsed.data.primaryLanguage,
-    websiteUrl: parsed.data.websiteUrl,
-    fallbackEmail: parsed.data.fallbackEmail,
-    fallbackPhone: parsed.data.fallbackPhone,
-    modules: parsed.data.modules,
-  })
-
-  if (!venue.ok) return { ok: false, message: venue.message, tenantId: venue.tenantId, accountId: account.id }
-
-  revalidatePath('/backstage')
-  revalidatePath(`/backstage/accounts/${account.id}`)
-
-  return {
-    ok: true,
-    message: 'Venue creada correctamente.',
-    tenantId: venue.tenantId,
-    accountId: account.id,
-  }
-}
-
 export async function deleteAccountAction(formData: FormData) {
   await requirePlatformAdmin()
 
@@ -421,33 +166,6 @@ export async function deleteAccountAction(formData: FormData) {
 
   revalidatePath('/backstage')
   redirect('/backstage')
-}
-
-export async function deleteInviteAction(formData: FormData) {
-  await requirePlatformAdmin()
-
-  const parsed = deleteInviteSchema.safeParse({
-    accountId: formData.get('account_id'),
-    inviteId: formData.get('invite_id'),
-  })
-
-  if (!parsed.success) {
-    throw new Error('Invitación no válida.')
-  }
-
-  const admin = createAdminClient()
-  const { error } = await admin
-    .from('signup_invites')
-    .delete()
-    .eq('id', parsed.data.inviteId)
-    .eq('account_id', parsed.data.accountId)
-
-  if (error) {
-    throw new Error(`No se pudo borrar la invitación: ${error.message}`)
-  }
-
-  revalidatePath('/backstage')
-  revalidatePath(`/backstage/accounts/${parsed.data.accountId}`)
 }
 
 export async function cancelCustomerSubscriptionAction(
@@ -540,8 +258,7 @@ export async function cancelCustomerSubscriptionAction(
       },
     })
 
-    revalidatePath('/backstage')
-    revalidatePath(`/backstage/accounts/${account.id}`)
+    await revalidateAccountVenuePaths(admin, account.id)
     return {
       ok: true,
       message: parsed.data.mode === 'immediate'
@@ -563,60 +280,6 @@ export async function cancelCustomerSubscriptionAction(
       },
     })
     return { ok: false, message: 'Stripe no ha podido cancelar la suscripción. Revisa el evento de auditoría.' }
-  }
-}
-
-export async function createAccountInviteAction(
-  _previousState: CreateAccountInviteState,
-  formData: FormData
-): Promise<CreateAccountInviteState> {
-  const platformAdmin = await requirePlatformAdmin()
-  const parsed = createAccountInviteSchema.safeParse({
-    accountId: formData.get('account_id'),
-    theatreId: formData.get('theatre_id'),
-    email: formData.get('email'),
-    role: formData.get('role') || 'admin',
-  })
-
-  if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? 'Datos no válidos.' }
-  }
-
-  const admin = createAdminClient()
-  const theatreId = parsed.data.theatreId || undefined
-  const { data: theatre, error: theatreError } = theatreId
-    ? await admin
-      .from('theatres')
-      .select('id')
-      .eq('id', theatreId)
-      .eq('account_id', parsed.data.accountId)
-      .maybeSingle()
-    : { data: null, error: null }
-
-  if (theatreId && (theatreError || !theatre)) {
-    return { ok: false, message: theatreError?.message ?? 'La venue no pertenece a este account.' }
-  }
-
-  const invite = await createSignupInvite(admin, {
-    accountId: parsed.data.accountId,
-    theatreId,
-    email: parsed.data.email,
-    role: parsed.data.role,
-    invitedBy: platformAdmin.user.id,
-  })
-
-  if (!invite.ok) {
-    return { ok: false, message: invite.error }
-  }
-
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'http://localhost:3000'
-  revalidatePath('/backstage')
-  revalidatePath(`/backstage/accounts/${parsed.data.accountId}`)
-
-  return {
-    ok: true,
-    message: 'Invitación creada. Copia este enlace ahora; el token no se guarda en claro.',
-    inviteUrl: `${appUrl}/invite/${invite.token}`,
   }
 }
 

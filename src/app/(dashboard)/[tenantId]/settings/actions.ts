@@ -28,6 +28,10 @@ import {
 import { getManagedWebQuotaUsage, isManagedWebQuotaError } from '@/lib/knowledge/web-source-quotas'
 import { sendKnowledgeSourceSupportNotification } from '@/lib/support/knowledge-source-notification'
 import { randomUUID } from 'node:crypto'
+import {
+  normalizeInstalledWebCaptureSettings,
+  type InstalledWebCaptureSettings,
+} from '@/lib/knowledge/installed-web-capture-settings'
 
 export type SettingsFormState = {
   ok: boolean
@@ -74,6 +78,57 @@ const knowledgeSourceSupportSchema = z.object({
 })
 
 export type ManagedWebSourceState = SettingsFormState
+
+export type InstalledWebCaptureSettingsState = SettingsFormState & {
+  settings?: InstalledWebCaptureSettings
+}
+
+const installedWebCaptureSchema = z.object({
+  enabled: z.boolean(),
+  mode: z.enum(['manual', 'automatic']),
+})
+
+export async function updateInstalledWebCaptureSettings(
+  tenantId: string,
+  _previousState: InstalledWebCaptureSettingsState,
+  formData: FormData,
+): Promise<InstalledWebCaptureSettingsState> {
+  await requireTenantProductAccess(tenantId, 'manage_knowledge', 'data')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const admin = createAdminClient()
+  if (!await assertTenantAdmin(admin, user.id, tenantId)) {
+    return { ok: false, message: 'No tienes permisos para editar esta configuración.' }
+  }
+
+  const parsed = installedWebCaptureSchema.safeParse({
+    enabled: formData.get('installed_web_capture_enabled') === 'on',
+    mode: formData.get('installed_web_capture_mode') === 'automatic' ? 'automatic' : 'manual',
+  })
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? 'La configuración no es válida.' }
+  }
+
+  const existingWidget = await getExistingWidgetConfig(admin, tenantId)
+  const settings = normalizeInstalledWebCaptureSettings(parsed.data)
+  const { error } = await admin
+    .from('theatres')
+    .update({
+      widget_config: {
+        ...existingWidget,
+        installedWebCapture: settings,
+      },
+    })
+    .eq('id', tenantId)
+
+  if (error) return { ok: false, message: `No se pudo guardar: ${error.message}` }
+
+  revalidatePath(`/${tenantId}/knowledge`)
+  revalidatePath(`/${tenantId}/settings`)
+  return { ok: true, message: 'Configuración de captura actualizada.', settings }
+}
 
 export async function updateTenantSettings(
   tenantId: string,

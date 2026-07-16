@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { corsJson, corsNoContent } from '@/lib/http/cors'
-import { registerInstalledWebPage } from '@/lib/knowledge/ingestion'
+import { ingestWebSnapshotSource, registerInstalledWebPage } from '@/lib/knowledge/ingestion'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPublicWidgetConfig } from '@/lib/tenants/service'
 import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/lib/widget/domain-allowlist'
@@ -16,6 +16,7 @@ const installedPageSchema = z.object({
     }),
   heading: z.string().trim().max(300).optional(),
   http_status: z.number().int().min(100).max(599).optional(),
+  text: z.string().trim().min(40).max(200_000).optional(),
 })
 
 export async function POST(
@@ -45,6 +46,9 @@ export async function POST(
 
   const tenant = await getPublicWidgetConfig(admin, tenantId)
   if (!tenant.ok) return corsJson({ error: tenant.error }, { status: 404 })
+  if (!tenant.config.installedWebCapture.enabled) {
+    return corsJson({ error: 'installed_web_capture_disabled' }, { status: 403 })
+  }
 
   const result = await registerInstalledWebPage({
     admin,
@@ -56,7 +60,27 @@ export async function POST(
   })
 
   if (!result.ok) return corsJson({ error: result.message }, { status: 400 })
-  return corsJson({ ok: true, source_id: result.sourceId })
+  if (
+    tenant.config.installedWebCapture.mode === 'automatic'
+    && parsed.data.text
+    && result.sourceId
+  ) {
+    const ingest = await ingestWebSnapshotSource({
+      admin,
+      tenantId,
+      sourceId: result.sourceId,
+      url: parsed.data.url,
+      title: parsed.data.title,
+      heading: parsed.data.heading,
+      httpStatus: parsed.data.http_status,
+      text: parsed.data.text,
+      captureMode: 'automatic',
+    })
+    if (!ingest.ok) return corsJson({ ok: false, error: ingest.message }, { status: 422 })
+    return corsJson({ ok: true, source_id: result.sourceId, processed: true, chunks: ingest.count ?? 0 })
+  }
+
+  return corsJson({ ok: true, source_id: result.sourceId, processed: false })
 }
 
 export function OPTIONS() {
