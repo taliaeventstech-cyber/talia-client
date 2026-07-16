@@ -1,162 +1,143 @@
-# Auditoría de Backstage — UI · UX · Visualización de datos
+# Auditoría de Backstage
 
-Fecha: 9 julio 2026
-Alcance: panel interno **Backstage** (`src/app/backstage/**`). No cubre Agora (dashboard de cliente).
-Objetivo: diagnosticar el estado actual y proponer un rediseño priorizado de interfaz, experiencia y visualización de datos.
+Fecha de revisión: 16 julio 2026
 
----
+Issue: TAL-29
+Alcance: panel interno `src/app/backstage/**`. Ágora queda fuera de este rediseño.
 
-## 1. Qué es hoy Backstage (estado real)
+## Objetivo
 
-Panel interno de TALIA para el equipo de plataforma (`platform_admins`). Tres niveles de navegación:
+Convertir Backstage en una consola de operaciones sencilla para el equipo de TALIA y retirar las decisiones de interfaz heredadas del modelo inicial por invitación. Backstage no es el onboarding del cliente: el alta ordinaria es self-service y ocurre fuera de este panel.
 
-| Nivel | Ruta | Contenido |
-|-------|------|-----------|
-| Home | `/backstage` | Tabla de accounts + crear account (FAB) |
-| Account | `/backstage/accounts/[accountId]` | Tabs: Venues · Usuarios · Plan y módulos · Actividad |
-| Venue | `/backstage/tenants/[tenantId]` | Uso del plan, salud RAG, trazabilidad de respuestas, fuentes de conocimiento, edición |
-| Invitaciones | `/backstage/tenants/[tenantId]/invites` | Alta/gestión de invites por venue |
+## Modelo vigente
 
-Stack visual: reutiliza el shell de autenticación (`auth-shell` / `auth-card`) con tokens de color de `globals.css`. Sin librería de gráficos activa (Recharts está en el stack pero **no se usa en Backstage**).
+- `platform_admins` autoriza el acceso a Backstage.
+- Los clientes se registran libremente y reciben rol global `User`.
+- `account_memberships` define pertenencia y ownership de una cuenta.
+- `venue_memberships` limita acceso cuando un miembro solo debe ver venues concretas.
+- Las invitaciones siguen siendo válidas para añadir equipo a una cuenta ya creada.
+- La cancelación administrativa de Stripe está limitada a founders mediante `manage_customer_billing`.
 
-**Lo que ya está bien y hay que conservar:**
-- La **trazabilidad RAG por respuesta** es excelente en profundidad de datos (provider pedido/usado, modelo, score, chunks, ContextAssembler, motivos de fallback). Es el activo más valioso del panel.
-- Los tokens de diseño (paleta, modo día/noche) están centralizados y son coherentes.
-- Acciones internas reales y útiles: reprocesar PDF, reintentar embeddings, reindexar venue.
+La tabla `signup_invites` no es legacy por sí misma. Lo obsoleto es usar la invitación como flujo principal de creación de clientes o mostrarla como eje de la portada.
 
----
+## Hallazgos
 
-## 2. Diagnóstico por capas
+### 1. Shell impropio
 
-### 2.1 Arquitectura de UI / shell (severidad: **alta**)
+Backstage reutilizaba `auth-shell` y `auth-card`, con una anchura de 1080 px y apariencia de formulario de login. Esto recortaba tablas y no ofrecía navegación persistente. El primer corte de TAL-29 introduce un shell operativo a ancho completo y navegación propia.
 
-1. **Backstage vive dentro de un `auth-card` centrado y limitado a `max-width: 1080px`** ([layout.tsx](../src/app/backstage/layout.tsx#L7-L9), [globals.css:350](../src/app/globals.css#L350)). Es un panel operativo metido en el chrome de una pantalla de login. Una consola de operaciones necesita ancho completo, densidad y un shell propio, no una tarjeta estrecha.
-2. **No hay navegación global.** El header solo tiene "Cerrar sesión" ([layout.tsx:14-20](../src/app/backstage/layout.tsx#L14-L20)). No hay sidebar ni menú a secciones. El `CLAUDE.md` describe Backstage como "accounts/venues/config/diagnostics", pero **config y diagnostics no existen** como navegación.
-3. **La pestaña "Clientes" del home es inerte** ([page.tsx:69-73](../src/app/backstage/page.tsx#L69-L73)): un `role="tablist"` con un solo tab que no lleva a ningún sitio. Aparenta navegación que no existe.
-4. **Sin breadcrumbs.** El movimiento entre niveles depende de "back-links" de texto ("Volver a clientes") y de iconos. No hay rastro Backstage › Account › Venue.
-5. **Terminología inconsistente en rutas y labels:** la ficha de venue vive en `/tenants/[tenantId]` y se etiqueta como "Ficha Backstage", "Editar venue" y "tenant" indistintamente. Filtra el nombre de tabla legacy `theatres`/`tenant`. El propio `CLAUDE.md` prohíbe decir "theatre" y fija "venue".
+### 2. Portada orientada al onboarding antiguo
 
-### 2.2 Visualización de datos (severidad: **alta** — es el foco del encargo)
+La portada daba prioridad a un botón flotante de “Nuevo cliente”, una única pestaña inerte y métricas de invitaciones. Para el modelo self-service son más útiles:
 
-6. **El home abre con una tabla plana, sin cabecera de salud de plataforma.** No hay KPIs agregados (nº de accounts, venues, conversaciones del periodo, coste IA total, venues cerca de límite, fuentes en error). Una consola de operaciones debería abrir con un pulso del sistema, no con una tabla de 50 filas.
-7. **Todo el "uso" es texto plano.** `"123 / 500"`, `"€4,20 · 1,2k tokens"` ([page.tsx:126-127](../src/app/backstage/page.tsx#L126-L127)). Sin barras de progreso en la tabla, sin sparklines, sin color por severidad. La celda "Uso chatbot" mezcla 3 métricas apretadas y no se puede escanear en vertical.
-8. **No hay dimensión temporal en ningún sitio.** Todo es agregado del periodo de facturación actual. No hay tendencia día a día, ni comparación con el periodo anterior, ni detección de picos. `tenant_usage_daily` **ya tiene granularidad diaria** y se está colapsando a un único total.
-9. **Las tarjetas de salud RAG son solo números** ([tenants/page.tsx:162-183](../src/app/backstage/tenants/[tenantId]/page.tsx#L162-L183)). El `readinessPercent` (el dato más accionable) queda enterrado en un `<small>`. No hay barra de distribución listos/pendientes/error que comunique el estado de un vistazo.
-10. **Recharts está disponible y sin usar.** Toda la visualización cuantitativa se está resolviendo con strings.
+- cuentas y venues activas;
+- consumo y coste estimado;
+- alertas de conocimiento;
+- estado de cada cuenta;
+- acceso rápido a Ágora y a la ficha operativa.
 
-### 2.3 UX / flujo de trabajo (severidad: **media-alta**)
+El alta manual incompleta se retira de Backstage. El registro self-service es el
+único flujo ordinario y crea conjuntamente la cuenta, su propietario y la venue.
 
-11. **Tabla de accounts sin búsqueda, orden ni filtro,** con `limit(50)` fijo y sin paginación ([page.tsx:16](../src/app/backstage/page.tsx#L16)). A 30-40 clientes ya es inmanejable encontrar uno concreto o "los que tienen RAG roto".
-12. **La lista de trazas RAG es un muro de texto.** Datos excelentes, presentación densa: no se puede filtrar por "solo fallbacks" o "solo baja confianza", que es justo lo que un operador busca. Se listan las 8 últimas sin control.
-13. **El botón primario de crear es un FAB flotante** y el empty-state tiene que *explicar dónde está*: "Usa el botón flotante para añadir la primera" ([accounts/page.tsx:180](../src/app/backstage/accounts/[accountId]/page.tsx#L180)). Si hay que explicar dónde está la acción principal, la acción está mal colocada.
-14. **Acciones solo-icono con tooltip** en cada fila. Funciona para expertos, pero sin etiqueta visible aumenta la carga cognitiva y el riesgo de clic erróneo (p. ej. el borrar-invitación destructivo junto al resto).
-15. **Estados como texto corrido:** `"2 pendientes · 3 aceptadas"` en vez de badges escaneables. El ojo no distingue rápido lo que requiere acción.
-16. **Sin observabilidad del canal Email a nivel plataforma:** el email agent está en testing (drafts supervisados) pero Backstage no muestra conexiones con error ni drafts pendientes de forma agregada.
+### 3. Detalle de cliente duplicado
 
-### 2.4 Consistencia y mantenibilidad (severidad: **baja**, pero fácil de saldar)
+Existían dos superficies, account y venue, que obligaban a alternar entre
+pantallas para entender un mismo cliente.
 
-17. **Formatters duplicados** (`formatCurrency`, `formatTokens`, `formatDate`, `IconAction`) copiados en los tres `page.tsx`. Deben vivir en un módulo compartido (`src/lib/backstage/format.ts` + un `<IconAction>` compartido).
-18. **Mezcla de idioma en labels** ("Account" vs "cuenta", eyebrows en inglés sobre contenido en español). El `CLAUDE.md` fija español en producto.
+La superficie canónica pasa a ser el venue. Contiene dos vistas operativas:
+salud del conocimiento y trazabilidad de respuestas. El contexto del cliente,
+el uso del plan, la configuración y las operaciones restringidas de facturación
+se abren desde el control de configuración del header. La ruta de account y la
+ruta administrativa de invitaciones por venue se eliminan por completo.
 
----
+### 4. Archivos sobredimensionados
 
-## 3. Propuesta de rediseño
+`backstage/actions.ts`, la ficha de account y la ficha de venue concentran consultas, mutaciones, formato y presentación. Esto dificulta probar cambios y hace que cualquier rediseño tenga demasiado radio de impacto.
 
-### 3.1 Nuevo shell de Backstage
+Límites objetivo:
 
-Sustituir el `auth-card` por un **shell de consola de ancho completo** con navegación lateral persistente:
+- servicios de lectura por dominio para account, venue, uso y conocimiento;
+- acciones separadas por capacidad (`accounts`, `billing`, `invites`, `venues`);
+- componentes de tabla, estado y formato compartidos;
+- páginas servidoras dedicadas a composición y autorización.
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│ TALIA · Backstage          [buscar…]        admin@…  ⏻        │  ← topbar
-├────────────┬─────────────────────────────────────────────────┤
-│ ▸ Resumen  │  Backstage › Accounts › Teatre Lliure › RAG      │  ← breadcrumb
-│ ▸ Accounts │ ┌─────────────────────────────────────────────┐ │
-│ ▸ Venues   │ │                                             │ │
-│ ▸ RAG      │ │            contenido de la sección          │ │
-│ ▸ Email    │ │                                             │ │
-│ ▸ Diagnos. │ └─────────────────────────────────────────────┘ │
-└────────────┴─────────────────────────────────────────────────┘
-```
+### 5. Lenguaje inconsistente
 
-- Sidebar con secciones reales: **Resumen · Accounts · Venues · RAG · Email · Diagnóstico**.
-- Breadcrumb en cada nivel (elimina el patrón "back-link").
-- Ancho completo (`max-width` ~1440px), densidad de consola.
-- Terminología unificada a **venue** en toda la UI (rutas pueden seguir siendo `tenants` por compatibilidad, pero los labels no).
+Conviven “cliente”, “account”, “tenant”, “venue” y “teatro”. Criterio de producto:
 
-### 3.2 Nueva Home = "Resumen de plataforma"
+| Concepto interno | Texto de interfaz |
+| --- | --- |
+| `account` | Cuenta |
+| `theatre` / tenant | Venue |
+| `account_membership` | Miembro del equipo |
+| `signup_invite` | Invitación de equipo |
+| Agora customer UI | Ágora |
 
-Antes de la tabla, una **fila de KPIs + un panel de alertas + una mini-tendencia**:
+Los identificadores técnicos pueden aparecer como dato secundario, nunca como título principal.
 
-```
-┌── Accounts ──┐ ┌── Venues ──┐ ┌─ Conversaciones ─┐ ┌── Coste IA ──┐
-│     42       │ │     67     │ │   12.480  ▲8%    │ │  €318,40 ▲12%│
-│ 3 nuevos 30d │ │ 61 activas │ │  vs periodo ant. │ │ periodo actual│
-└──────────────┘ └────────────┘ └──────────────────┘ └──────────────┘
+## Inventario de decisiones
 
-┌─ Necesita atención ────────────────────────────────────────────┐
-│ ● 4 venues con RAG en error      → ver                          │
-│ ● 2 venues > 90% del límite      → ver                          │
-│ ● 3 fuentes con embeddings stuck → ver                          │
-│ ● 1 conexión email con error     → ver                          │
-└────────────────────────────────────────────────────────────────┘
+| Área | Decisión | Estado |
+| --- | --- | --- |
+| Autorización con `platform_admins` | Conservar | Activa |
+| Registro self-service y onboarding | Conservar fuera de Backstage | Activa |
+| Alta manual de cuenta sin venue | Eliminar; producía cuentas incompletas | Retirada |
+| Invitaciones de equipo a nivel account | Conservar | Activa |
+| Invitaciones como alta inicial del cliente | Eliminar del lenguaje y navegación | Retirada |
+| Gestión de invitaciones desde Backstage | Eliminar UI huérfana; conservar el mecanismo de equipo | Retirada |
+| `public.users` como fuente de autorización | No reintroducir | Retirada |
+| Roles globales distintos de Admin/User | No reintroducir | Retirada |
+| Roles de membership dentro de una cuenta | Conservar; no son roles globales | Activa |
 
-Conversaciones / día (periodo actual)   [▁▂▄▆█▇▅▆█▇ sparkline/area]
-```
+## Arquitectura de información objetivo
 
-- **KPI tiles** con valor + delta vs periodo anterior (usa `tenant_usage_daily`, que ya guarda el diario).
-- **Panel de alertas accionables**: la vista que un operador quiere abrir cada mañana. Cada alerta enlaza a la lista filtrada.
-- **Gráfico de área de conversaciones/día** con Recharts (ya en el stack). Opcional: coste IA/día.
+1. **Resumen**: salud de plataforma, uso, coste y alertas operativas.
+2. **Clientes**: cuentas y venues con estado, plan, consumo y accesos.
+3. **Venue**: salud RAG y fuentes, trazabilidad paginada y diagnóstico. El
+   contexto de cuenta, plan, configuración y facturación vive en un panel
+   secundario de esta misma vista.
 
-### 3.3 Tabla de accounts mejorada
+No se añadirán secciones vacías para aparentar una navegación completa. Cada entrada del shell debe llevar a una capacidad real.
 
-- **Buscador** (nombre/slug/id) + **orden por columna** + **filtros rápidos** (con alertas, cerca de límite, plan).
-- **Paginación** real en vez de `limit(50)` mudo.
-- **Progreso de uso como mini-barra** dentro de la celda, con color por umbral (verde <70%, ámbar 70-90%, rojo >90%):
-  ```
-  Uso chatbot   ▓▓▓▓▓▓▓░░░  72%   123/500   €4,20
-  ```
-- **Estados como badges** en vez de texto corrido.
-- Separar la métrica principal (conversaciones/límite) de las secundarias (coste, tokens) en columnas propias, escaneables en vertical.
+## Cortes de implementación
 
-### 3.4 Ficha de venue — salud RAG visual
+### Corte 1: estructura y legacy visible
 
-- Convertir las 4 tarjetas numéricas en un **bloque con barra de distribución** listos / pendientes / procesando / error, con `readinessPercent` como número protagonista (no en `<small>`).
-  ```
-  Preparación RAG    88%   ▓▓▓▓▓▓▓▓▓░  340 listos · 30 pend · 12 error
-  ```
-- **Trazabilidad RAG con filtros**: chips "Todo · Con fuentes · Sin fuentes · Baja confianza · Fallback" sobre la lista actual (los datos ya se calculan en `getTraceStats`). Colapsar el detalle por defecto y permitir ver solo lo problemático.
-- Mantener toda la profundidad de datos actual (es el activo estrella), solo mejorar el filtrado y la jerarquía visual.
+- shell propio y responsive;
+- portada con métricas operativas;
+- retirada del alta manual incompleta;
+- venue como vista canónica del detalle de cliente;
+- eliminación de las rutas account e invitaciones por venue;
+- dos tabs operativos: conocimiento y trazabilidad;
+- configuración, uso y facturación en el panel del header;
+- trazabilidad server-side con tamaños de 10, 25 y 50 respuestas;
+- paginación server-side de cuentas con tamaños de 10, 25 y 50 filas.
 
-### 3.5 Consistencia técnica
+### Corte 2: cuentas escalables
 
-- Extraer `formatCurrency` / `formatTokens` / `formatDate` / `shortId` a `src/lib/backstage/format.ts`.
-- Extraer `<IconAction>` a un componente compartido en la carpeta de Backstage.
-- Considerar un `<StatTile>`, `<UsageBar>` y `<StatusBadge>` compartidos para KPIs y estados.
-- Al construir cualquier gráfico, seguir la skill `dataviz` del repo (paleta y accesibilidad).
+- búsqueda por nombre, email e ID;
+- filtros por estado, plan y salud;
+- estados vacíos y errores de consulta explícitos.
 
----
+### Corte 3: modularización
 
-## 4. Plan por fases (esfuerzo → impacto)
+- extraer consultas de las páginas;
+- dividir `actions.ts` por dominio;
+- unificar formatters, pills, tablas y breadcrumbs;
+- cubrir permisos y mutaciones críticas con tests.
 
-| Fase | Alcance | Esfuerzo | Impacto |
-|------|---------|----------|---------|
-| **F1 — Quick wins** | Quitar tab inerte; badges de estado; barra de uso en tabla; `readinessPercent` protagonista; extraer formatters compartidos; unificar "venue" en labels. | S | Alto visible, bajo riesgo |
-| **F2 — Resumen de plataforma** | Fila de KPIs con delta + panel de alertas accionables + buscador/orden/filtro en tabla de accounts. | M | Muy alto (cambia el propósito del panel) |
-| **F3 — Visualización temporal** | Shell de consola con sidebar + breadcrumbs; gráfico conversaciones/día y coste/día con Recharts; comparación periodo anterior. | M-L | Alto |
-| **F4 — RAG & Email ops** | Filtros en trazabilidad RAG; barra de distribución RAG; sección/observabilidad de Email a nivel plataforma; secciones Diagnóstico. | M | Alto para operación diaria |
+### Corte 4: operaciones y trazabilidad
 
-**Recomendación:** empezar por **F1 + F2**. F1 sube la calidad percibida sin riesgo; F2 es donde Backstage deja de ser "un CRUD en tabla" y pasa a ser una consola de operaciones con la que se trabaja de verdad.
+- actividad administrativa real desde audit log;
+- alertas priorizadas por severidad y antigüedad;
+- vistas progresivas para RAG, email y facturación;
+- enlaces de soporte y runbooks desde errores accionables.
 
----
+## Criterios de salida
 
-## 5. Preguntas abiertas antes de implementar
-
-1. ¿Quién usa Backstage a diario y para qué tarea principal? (soporte, comercial, ops técnica → define qué va en el Resumen).
-2. ¿Volumen esperado de accounts/venues a 6-12 meses? (define si la paginación/búsqueda es urgente o cosmética).
-3. ¿El "coste IA estimado" es un dato interno sensible o se quiere destacar? (define su peso visual).
-4. ¿Se quiere que Backstage sea responsive/móvil o es siempre escritorio? (una consola densa suele asumir escritorio).
-
----
-
-*Documento de auditoría. No modifica código. Siguiente paso sugerido: validar las 4 preguntas de §5 y arrancar F1.*
+- Un admin identifica en menos de un minuto qué cuenta o venue requiere atención.
+- Ningún flujo sugiere que el alta ordinaria de clientes se hace por invitación.
+- El detalle operativo de cliente tiene una única superficie canónica por venue.
+- Las tablas funcionan a zoom 100 % y en viewport estrecho sin cortar acciones.
+- Las mutaciones críticas mantienen autorización, auditoría y confirmación explícita.
+- Backstage no depende de `public.users` ni amplía los roles globales más allá de Admin/User.

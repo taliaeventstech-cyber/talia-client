@@ -1,17 +1,15 @@
 'use client'
 
 import { DeleteAccountButton } from './delete-account-button'
-import { Edit3, MailPlus, MoreHorizontal } from 'lucide-react'
-import Link from 'next/link'
+import { MoreHorizontal } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 interface AccountRowActionsProps {
   accountId: string
   accountName: string
-  firstVenueId?: string
 }
 
-export function AccountRowActions({ accountId, accountName, firstVenueId }: AccountRowActionsProps) {
+export function AccountRowActions({ accountId, accountName }: AccountRowActionsProps) {
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -51,16 +49,6 @@ export function AccountRowActions({ accountId, accountName, firstVenueId }: Acco
       </button>
       {open ? (
         <div className="row-action-menu-content" role="menu">
-          {firstVenueId ? (
-            <Link className="row-action-menu-item" href={`/backstage/tenants/${firstVenueId}`} role="menuitem">
-              <Edit3 aria-hidden="true" size={15} strokeWidth={2} />
-              Editar primera venue
-            </Link>
-          ) : null}
-          <Link className="row-action-menu-item" href={`/backstage/accounts/${accountId}?tab=users`} role="menuitem">
-            <MailPlus aria-hidden="true" size={15} strokeWidth={2} />
-            Gestionar accesos
-          </Link>
           <DeleteAccountButton accountId={accountId} accountName={accountName} />
         </div>
       ) : null}

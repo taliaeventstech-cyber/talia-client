@@ -12,6 +12,7 @@
   var pageUrlOverride = script.getAttribute('data-page-url') || '';
   var siteOriginOverride = script.getAttribute('data-site-origin') || '';
   var sessionKey = 'talia-session-' + tenantId;
+  var installedWebCapture = { enabled: false, mode: 'manual' };
   var sessionId = localStorage.getItem(sessionKey);
   if (!sessionId) {
     sessionId = createSessionId();
@@ -19,12 +20,13 @@
   }
 
   installNavigationObserver();
-  schedulePageContextSync(0);
 
   fetch(baseUrl + '/api/widget/' + tenantId)
     .then(function (response) { return response.json(); })
     .then(function (config) {
       if (config.error) throw new Error(config.error);
+      installedWebCapture = getInstalledWebCapturePolicy(config.installedWebCapture);
+      schedulePageContextSync(0);
       mountWidget(config);
     })
     .catch(function (error) {
@@ -646,20 +648,35 @@
   }
 
   function registerInstalledPage() {
+    if (!installedWebCapture.enabled) return;
     var pageUrl = getCurrentPageUrl();
     var key = 'talia-installed-page-' + tenantId + '-' + pageUrl;
     var lastSeen = Number(localStorage.getItem(key) || '0');
     if (Date.now() - lastSeen < 10 * 60 * 1000) return;
 
+    var payload = {
+      url: pageUrl,
+      title: getSafeDocumentTitle(),
+      heading: getSafePageHeading(),
+      http_status: getNavigationResponseStatus()
+    };
+
+    if (installedWebCapture.mode === 'automatic') {
+      waitForCapturableText().then(function (pageText) {
+        if (pageText && pageText.length >= 40) payload.text = pageText;
+        sendInstalledPage(payload, key);
+      });
+      return;
+    }
+
+    sendInstalledPage(payload, key);
+  }
+
+  function sendInstalledPage(payload, key) {
     fetch(baseUrl + '/api/widget/' + tenantId + '/installed-page', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: pageUrl,
-        title: getSafeDocumentTitle(),
-        heading: getSafePageHeading(),
-        http_status: getNavigationResponseStatus(),
-      }),
+      body: JSON.stringify(payload),
     })
       .then(function (response) {
         if (response.ok) localStorage.setItem(key, String(Date.now()));
@@ -697,6 +714,7 @@
   }
 
   function maybeCaptureInstalledPage() {
+    if (!installedWebCapture.enabled || installedWebCapture.mode !== 'manual') return;
     var params = getCaptureParams();
     if (params.get('talia_capture') !== '1') return;
 
@@ -788,6 +806,14 @@
         window.setTimeout(tick, 250);
       }
     });
+  }
+
+  function getInstalledWebCapturePolicy(value) {
+    if (!value || typeof value !== 'object') return { enabled: false, mode: 'manual' };
+    return {
+      enabled: value.enabled === true,
+      mode: value.mode === 'automatic' ? 'automatic' : 'manual'
+    };
   }
 
   function getCaptureErrorMessage(error) {

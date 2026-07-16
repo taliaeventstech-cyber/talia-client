@@ -50,7 +50,11 @@ export function KnowledgeSyncRealtime({ tenantId, hasActiveRun }: { tenantId: st
   return (
     <span className={`knowledge-realtime-status knowledge-realtime-status-${connection}`} role="status">
       <span aria-hidden="true" />
-      {connection === 'connected' ? 'Actualización en directo' : connection === 'reconnecting' ? 'Reconectando' : 'Conectando'}
+      {connection === 'connected'
+        ? 'Sincronización en curso'
+        : connection === 'reconnecting'
+          ? 'Reconectando seguimiento'
+          : 'Conectando seguimiento'}
     </span>
   )
 }

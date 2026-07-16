@@ -5,6 +5,10 @@ import type { Json } from '@/types/database.types'
 import { normalizeWidgetLauncherIcon, type WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { normalizeProactiveGreeting } from '@/lib/widget/proactive-greeting'
 import { isChatbotEnabled } from '@/lib/widget/availability'
+import {
+  getInstalledWebCaptureSettingsFromWidgetConfig,
+  type InstalledWebCaptureSettings,
+} from '@/lib/knowledge/installed-web-capture-settings'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -30,6 +34,7 @@ export type PublicWidgetConfig = {
   autoOpen: boolean
   autoOpenDelay: number
   proactiveMessage: string
+  installedWebCapture: InstalledWebCaptureSettings
   accessibility: PublicAccessibilityConfig
 }
 
@@ -213,6 +218,7 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
       autoOpen: widgetConfig.autoOpen,
       autoOpenDelay: widgetConfig.autoOpenDelay,
       proactiveMessage: normalizeProactiveGreeting(widgetConfig.proactiveMessage, data.primary_language, widgetConfig.assistantName),
+      installedWebCapture: widgetConfig.installedWebCapture,
       accessibility: widgetConfig.accessibility,
     } satisfies PublicWidgetConfig,
   }
@@ -401,6 +407,7 @@ function getWidgetConfig(value: unknown) {
       autoOpen: false,
       autoOpenDelay: 3,
       proactiveMessage: undefined,
+      installedWebCapture: getInstalledWebCaptureSettingsFromWidgetConfig(undefined),
       tone: 'close' as const,
       accessibility: getAccessibilityConfig(undefined, '#000000'),
       aiSettings: normalizeChatbotAiSettings(undefined),
@@ -440,6 +447,8 @@ function getWidgetConfig(value: unknown) {
     accessibility?: unknown
     chatbotAi?: unknown
     chatbot_ai?: unknown
+    installedWebCapture?: unknown
+    installed_web_capture?: unknown
   }
   const primaryColor = typeof config.primaryColor === 'string' ? config.primaryColor : '#000000'
 
@@ -461,6 +470,7 @@ function getWidgetConfig(value: unknown) {
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
     proactiveMessage: config.proactiveMessage ?? config.proactive_message,
+    installedWebCapture: getInstalledWebCaptureSettingsFromWidgetConfig(config),
     tone: getChatbotResponseTone(config.tone),
     accessibility: getAccessibilityConfig(config.accessibility, primaryColor),
     aiSettings: normalizeChatbotAiSettings(config.chatbotAi ?? config.chatbot_ai),

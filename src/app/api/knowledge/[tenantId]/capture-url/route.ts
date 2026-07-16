@@ -4,6 +4,7 @@ import { getSignedCaptureUrl } from '@/lib/knowledge/web-capture-url'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { getInstalledWebCaptureSettingsFromWidgetConfig } from '@/lib/knowledge/installed-web-capture-settings'
 
 const batchCaptureSchema = z.object({
   sourceIds: z.array(z.string().uuid()).min(1).max(20),
@@ -16,6 +17,9 @@ export async function GET(
 ) {
   const { tenantId } = await params
   await requireTenantProductAccess(tenantId, 'manage_knowledge', 'data')
+  if (!await isManualCaptureEnabled(tenantId)) {
+    return noStoreJson({ error: 'manual_capture_disabled' }, { status: 409 })
+  }
 
   const sourceIdsParam = request.nextUrl.searchParams.get('sourceIds')
   if (sourceIdsParam) {
@@ -79,6 +83,9 @@ export async function POST(
 ) {
   const { tenantId } = await params
   await requireTenantProductAccess(tenantId, 'manage_knowledge', 'data')
+  if (!await isManualCaptureEnabled(tenantId)) {
+    return noStoreJson({ error: 'manual_capture_disabled' }, { status: 409 })
+  }
 
   const parsed = batchCaptureSchema.safeParse(await safeJson(request))
   if (!parsed.success) {
@@ -176,4 +183,15 @@ async function safeJson(request: Request) {
   } catch {
     return null
   }
+}
+
+async function isManualCaptureEnabled(tenantId: string) {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('theatres')
+    .select('widget_config')
+    .eq('id', tenantId)
+    .maybeSingle()
+  const settings = getInstalledWebCaptureSettingsFromWidgetConfig(data?.widget_config)
+  return settings.enabled && settings.mode === 'manual'
 }

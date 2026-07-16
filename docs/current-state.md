@@ -35,6 +35,20 @@ Implemented:
   without granting Backstage access.
 - Backstage support access to customer accounts and venues is recorded in
   `audit_events`; legacy `public.users.role` is no longer an authorization source.
+- Backstage uses the venue as the canonical customer-detail surface. The venue
+  page contains two primary operational views, Knowledge Health and Response
+  Traceability; plan usage, venue configuration and restricted billing actions
+  are available from the settings control in its header. The former account
+  detail and venue-invite routes have been removed from Backstage.
+- Backstage separates the operational summary from customer management:
+  `/backstage` contains only platform metrics and alerts, while
+  `/backstage/clients` owns the paginated accounts and venues dashboard.
+- The processed knowledge-source list is server-side paginated with 10, 25, 50
+  or 100 entries per page while global RAG health remains calculated across all
+  venue sources.
+- Backstage can filter processed sources by their persisted source type. It only
+  exposes per-source reprocessing for types supported by the ingestion path;
+  legacy `web_snapshot` rows remain inspectable but do not show a broken action.
 - Customer billing intervention from Backstage requires the explicit
   `manage_customer_billing` platform capability, reserved for approved founders.
   Authorized founders can schedule period-end cancellation or perform an
@@ -209,6 +223,9 @@ Implemented:
 - FAQs/official answers.
 - PDF import with text extraction and knowledge fragments.
 - Manual FAQs and Excel/CSV are saved as `knowledge_items` for UI/fallback, but are reindexed as `knowledge_chunks` via `talia-ai`.
+- Agora currently exposes Web, Files and FAQs as knowledge-source tabs. Apps and
+  Spreadsheets remain implemented but hidden, including from direct tab URLs,
+  until their product reliability is audited.
 - `knowledge_chunks` table for documentary fragments prepared for retrieval and embeddings.
 - Internal ingestion seam in `src/lib/knowledge/ingestion.ts`, which uploads PDFs to Storage and delegates parsing/chunking to `talia-ai`; for structured sources it normalizes text and delegates chunking/embeddings to `talia-ai`.
 - Internal retrieval seam in `src/lib/knowledge/retrieval.ts`.
@@ -217,7 +234,14 @@ Implemented:
 - Reprocessable PDFs from Storage: Backstage can ask `talia-ai` to regenerate chunks and embeddings without re-uploading the file.
 - Backstage allows reindexing all of a venue's knowledge and reprocessing individual RAG sources.
 - Local text-only fallback in Next over chunks/items.
-- Installed-web sources connected to `knowledge_sources` of type `web_snapshot`: Agora generates a signed capture URL, the installed widget extracts visible DOM text from the landing page, and `talia-ai` normalizes, chunks and generates embeddings.
+- Installed-web detection is opt-in per venue and defaults to disabled. Agora
+  offers a manual mode, which exposes the explicit capture actions, and an
+  automatic mode, in which the installed widget submits the visible page text
+  as pages are visited. Capture actions are hidden outside manual mode.
+- Installed-web sources are connected to `knowledge_sources` as
+  `web_snapshot`: the installed widget extracts visible DOM text and `talia-ai`
+  normalizes, chunks and generates embeddings. Automatic captures persist a
+  content hash and skip reingestion when the page has not changed.
 - Installed-web URLs are canonicalized across the widget, API and database. Tracking parameters are discarded, functional query parameters are preserved, duplicate rows are merged before a unique tenant/type/URL index is enforced, and page-presence writes are throttled to once per hour per source.
 - Agora can configure managed single-page, sitemap and bounded-website sources
   with manual, daily, weekly or monthly refresh policies. The persistence model

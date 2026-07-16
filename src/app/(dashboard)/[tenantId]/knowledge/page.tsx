@@ -2,10 +2,11 @@ import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getManagedWebQuotaUsage } from '@/lib/knowledge/web-source-quotas'
-import { Bot, ChevronLeft, ChevronRight, FileText, Globe2, Plug, Table2 } from 'lucide-react'
+import { Bot, ChevronLeft, ChevronRight, FileText, Globe2 } from 'lucide-react'
 import Link from 'next/link'
 import { KnowledgeForm } from '../settings/knowledge-form'
 import { KnowledgePageSizeSelect } from './page-size-select'
+import { getInstalledWebCaptureSettingsFromWidgetConfig } from '@/lib/knowledge/installed-web-capture-settings'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -15,17 +16,16 @@ interface Props {
 const DEFAULT_INSTALLED_ITEMS_PER_PAGE = 5
 const DEFAULT_ITEMS_PER_PAGE = 20
 const PAGE_SIZE_OPTIONS = [5, 10, 20]
-const tabs = ['installed', 'files', 'faqs', 'apps', 'spreadsheets'] as const
-type KnowledgeTab = typeof tabs[number]
+type KnowledgeTab = 'installed' | 'files' | 'faqs' | 'apps' | 'spreadsheets'
+const visibleTabs = ['installed', 'files', 'faqs'] as const satisfies readonly KnowledgeTab[]
+type VisibleKnowledgeTab = typeof visibleTabs[number]
 type SourceType = 'pdf' | 'xlsx' | 'csv' | 'web_snapshot' | 'url' | 'sitemap' | 'website'
 
 const sourceTypes = [
   { key: 'installed', label: 'Web', icon: Globe2 },
   { key: 'files', label: 'Files', icon: FileText },
   { key: 'faqs', label: 'FAQs', icon: Bot },
-  { key: 'apps', label: 'Apps', icon: Plug },
-  { key: 'spreadsheets', label: 'Spreadsheets', icon: Table2 },
-] satisfies Array<{ key: KnowledgeTab; label: string; icon: typeof Globe2 }>
+] satisfies Array<{ key: VisibleKnowledgeTab; label: string; icon: typeof Globe2 }>
 
 export default async function KnowledgePage({ params, searchParams }: Props) {
   const { tenantId } = await params
@@ -33,7 +33,9 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
   const pageParam = Array.isArray(query.page) ? query.page[0] : query.page
   const pageSizeParam = Array.isArray(query.page_size) ? query.page_size[0] : query.page_size
   const tabParam = Array.isArray(query.tab) ? query.tab[0] : query.tab
-  const activeTab = tabs.includes(tabParam as KnowledgeTab) ? tabParam as KnowledgeTab : 'installed'
+  const activeTab = visibleTabs.includes(tabParam as VisibleKnowledgeTab)
+    ? tabParam as VisibleKnowledgeTab
+    : 'installed'
   const pageSize = getPageSize(pageSizeParam, activeTab)
   const requestedPage = Number.parseInt(pageParam ?? '1', 10)
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1
@@ -57,7 +59,7 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
     ? sourcesQuery.range(from, to)
     : sourcesQuery
 
-  const [{ data: manualSources }, sourcesResult, managedWebQuota] = await Promise.all([
+  const [{ data: manualSources }, sourcesResult, managedWebQuota, { data: theatreSettings }] = await Promise.all([
     admin
       .from('knowledge_sources')
       .select('id')
@@ -65,6 +67,11 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
       .eq('type', 'manual'),
     pagedSourcesQuery ?? Promise.resolve({ data: [], count: 0 }),
     activeTab === 'installed' ? getManagedWebQuotaUsage(admin, tenantId) : Promise.resolve(null),
+    admin
+      .from('theatres')
+      .select('widget_config')
+      .eq('id', tenantId)
+      .maybeSingle(),
   ])
   const manualSourceIds = (manualSources ?? []).map((source) => source.id)
   const knowledgeItemsQuery = admin
@@ -183,6 +190,7 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
           }))}
           items={knowledgeItems ?? []}
           managedWebQuota={managedWebQuota}
+          installedWebCapture={getInstalledWebCaptureSettingsFromWidgetConfig(theatreSettings?.widget_config)}
           pagination={
             <KnowledgePagination
               tenantId={tenantId}
