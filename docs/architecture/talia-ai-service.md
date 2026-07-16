@@ -440,7 +440,8 @@ Done when:
 
 - a tenant can get a response without n8n;
 - n8n still works as a fallback;
-- usage is still logged in `talia-client`.
+- per-component provider usage is returned by `talia-ai` and persisted against
+  versioned pricing in `talia-client`.
 
 ### Phase 3 - Retrieval
 

@@ -6,6 +6,7 @@ import { normalizeChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import { normalizeWidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { normalizeProactiveGreeting } from '@/lib/widget/proactive-greeting'
 import { isChatbotEnabled } from '@/lib/widget/availability'
+import { getBillingPlan, type BillingPlanKey } from '@/lib/billing/plans'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -16,12 +17,16 @@ export default async function SettingsPage({ params }: Props) {
   const dictionary = await getDictionary(await getLocale())
   const access = await requireTenantProductAccess(tenantId, 'manage_chatbot', 'chatbot')
   const hasScriptAccess = access.billingAccess.hasProductAccess && access.chatbotSetupCompleted
+  const commercialPlanKey = getCommercialPlanKey(
+    isPlainObject(access.accountMetadata) ? access.accountMetadata.commercial_plan : undefined
+  )
+  const commercialPlan = getBillingPlan(commercialPlanKey) ?? getBillingPlan('chatbot_web')!
 
   const admin = createAdminClient()
 
   const { data: theatre } = await admin
     .from('theatres')
-    .select('name, slug, plan, primary_language, system_prompt, fallback_email, fallback_phone, website_url, widget_config, n8n_webhook_url')
+    .select('name, slug, primary_language, system_prompt, fallback_email, fallback_phone, website_url, widget_config, n8n_webhook_url')
     .eq('id', tenantId)
     .single()
 
@@ -41,11 +46,16 @@ export default async function SettingsPage({ params }: Props) {
         <SettingsForm
           tenantId={tenantId}
           theatre={{
-            plan: theatre.plan,
             system_prompt: theatre.system_prompt,
             fallback_email: theatre.fallback_email,
             fallback_phone: theatre.fallback_phone,
             primary_language: theatre.primary_language ?? 'es',
+          }}
+          commercialPlan={{
+            title: dictionary.upgrade.plans[commercialPlanKey].title,
+            priceMonthly: commercialPlan.priceMonthly,
+            includedLabel: dictionary.upgrade.plans[commercialPlanKey].includedLabel,
+            monthlyLabel: dictionary.upgrade.monthly,
           }}
           widgetConfig={{
             enabled: widgetConfig.enabled,
@@ -82,6 +92,15 @@ export default async function SettingsPage({ params }: Props) {
       ) : null}
     </main>
   )
+}
+
+function getCommercialPlanKey(value: unknown): BillingPlanKey {
+  if (value === 'chatbot_web' || value === 'chatbot_email' || value === 'email_agent') return value
+  return 'chatbot_web'
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
 function getAiSettings(value: unknown) {

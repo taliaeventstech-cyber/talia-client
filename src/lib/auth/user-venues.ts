@@ -61,17 +61,6 @@ export async function getUserVenueAccess(admin: AdminClient, userId: string) {
     })
   }
 
-  const { data: legacyMemberships } = await admin
-    .from('users')
-    .select('theatre_id, role')
-    .eq('id', userId)
-
-  ;(legacyMemberships ?? []).forEach((membership) => {
-    if (!venueRoles.has(membership.theatre_id)) {
-      venueRoles.set(membership.theatre_id, membership.role)
-    }
-  })
-
   return hydrateVenueAccess(admin, Array.from(venueRoles.entries()).map(([theatreId, role]) => ({ theatreId, role })))
 }
 

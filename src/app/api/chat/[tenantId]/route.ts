@@ -9,6 +9,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getTenantChatConfig } from '@/lib/tenants/service'
 import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/lib/widget/domain-allowlist'
 import type { Json } from '@/types/database.types'
+import type { ChatAiUsageComponent } from '@/lib/agent-runtime/chat'
+import { recordMeasuredAiUsage } from '@/lib/usage/ai-cost'
 import {
   checkTenantLimit,
   estimateOpenAiTextCostCents,
@@ -367,6 +369,9 @@ export async function POST(
     message: safeReply,
     phase: 'assistant_message',
     inputText: message,
+    assistantMessageId: saveResult.messages.find((item) => item.role === 'assistant')?.id,
+    usageMeasurement: response.provider === 'talia-ai' ? 'precise' : 'legacy',
+    usageComponents: response.usageComponents,
     metadata: {
       source: response.provider,
       model: response.model ?? null,
@@ -518,6 +523,9 @@ async function recordChatbotUsage(
     message: string
     phase: 'user_message' | 'assistant_message'
     inputText?: string
+    assistantMessageId?: string
+    usageMeasurement?: 'precise' | 'legacy'
+    usageComponents?: ChatAiUsageComponent[]
     metadata?: Record<string, Json | undefined>
   },
 ) {
@@ -549,46 +557,94 @@ async function recordChatbotUsage(
     return
   }
 
-  const inputTokens = estimateTokenCount(input.inputText ?? '')
-  const outputTokens = estimateTokenCount(input.message)
-  const costEstimateCents = input.inputText
-    ? estimateOpenAiTextCostCents(inputTokens, outputTokens, 'gpt-4o')
-    : 0
+  const components = input.usageComponents ?? []
+  const preciseMeasurement = input.usageMeasurement === 'precise'
+  const usageCorrelationId = input.assistantMessageId ?? crypto.randomUUID()
+  const measuredTotals = components.reduce((total, component) => ({
+    requestCount: total.requestCount + component.request_count,
+    inputTokens: total.inputTokens + component.input_tokens,
+    outputTokens: total.outputTokens + component.output_tokens,
+  }), { requestCount: 0, inputTokens: 0, outputTokens: 0 })
 
-  await Promise.all([
-    recordUsageEvent(admin, {
+  await recordUsageEvent(admin, {
+    tenantId: input.tenantId,
+    moduleKey: 'chatbot',
+    channel: 'chatbot',
+    eventType: 'message',
+    unit: 'message',
+    ...(input.assistantMessageId
+      ? { idempotencyKey: `chatbot:${input.tenantId}:${input.assistantMessageId}:assistant_message` }
+      : {}),
+    metadata: {
+      session_id: input.sessionId,
+      role: 'assistant',
+      ...(input.metadata ?? {}),
+    },
+  })
+
+  if (preciseMeasurement) {
+    if (!components.length) return
+
+    const aiCall = await recordUsageEvent(admin, {
       tenantId: input.tenantId,
       moduleKey: 'chatbot',
       channel: 'chatbot',
-      eventType: 'message',
-      unit: 'message',
-      outputTokens,
+      eventType: 'ai_call',
+      quantity: measuredTotals.requestCount,
+      unit: 'call',
+      inputTokens: measuredTotals.inputTokens,
+      outputTokens: measuredTotals.outputTokens,
+      idempotencyKey: `chatbot:${input.tenantId}:${usageCorrelationId}:ai_call`,
       metadata: {
         session_id: input.sessionId,
-        role: 'assistant',
+        accuracy: 'measured',
+        component_count: components.length,
         ...(input.metadata ?? {}),
       },
-    }),
-    ...(input.inputText
-      ? [
-        recordUsageEvent(admin, {
-          tenantId: input.tenantId,
-          moduleKey: 'chatbot',
-          channel: 'chatbot',
-          eventType: 'ai_call',
-          unit: 'call',
-          inputTokens,
-          outputTokens,
-          costEstimateCents,
-          metadata: {
-            session_id: input.sessionId,
-            model: 'gpt-4o',
-            ...(input.metadata ?? {}),
-          },
-        }),
-      ]
-      : []),
-  ])
+    })
+
+    if (!aiCall.ok || !aiCall.eventId) return
+
+    const preciseUsage = await recordMeasuredAiUsage(admin, {
+      tenantId: input.tenantId,
+      sessionId: input.sessionId,
+      usageEventId: aiCall.eventId,
+      idempotencyPrefix: `chatbot:${input.tenantId}:${usageCorrelationId}:component`,
+      components,
+      metadata: {
+        assistant_message_id: input.assistantMessageId ?? null,
+      },
+    })
+
+    if (!preciseUsage.ok) {
+      console.error('[chat] failed to persist precise AI usage', {
+        tenantId: input.tenantId,
+        sessionId: input.sessionId,
+        error: preciseUsage.error,
+      })
+    }
+    return
+  }
+
+  if (!input.inputText) return
+  const inputTokens = estimateTokenCount(input.inputText)
+  const outputTokens = estimateTokenCount(input.message)
+  await recordUsageEvent(admin, {
+    tenantId: input.tenantId,
+    moduleKey: 'chatbot',
+    channel: 'chatbot',
+    eventType: 'ai_call',
+    unit: 'call',
+    inputTokens,
+    outputTokens,
+    costEstimateCents: estimateOpenAiTextCostCents(inputTokens, outputTokens, 'gpt-4o'),
+    metadata: {
+      session_id: input.sessionId,
+      model: 'gpt-4o',
+      accuracy: 'estimated_legacy',
+      ...(input.metadata ?? {}),
+    },
+  })
 }
 
 function summarizeAgentSources(sources: unknown[] | undefined): AgentSourceSummary[] {

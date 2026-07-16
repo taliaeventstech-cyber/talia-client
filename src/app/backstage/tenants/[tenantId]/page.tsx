@@ -2,25 +2,53 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getKnowledgeWebOperationalAlerts } from '@/lib/knowledge/web-source-alerts'
 import { getActiveSubscription, getTenantUsageForPeriod } from '@/lib/usage/service'
 import { getManagedWebQuotaUsage } from '@/lib/knowledge/web-source-quotas'
-import { FileText, LayoutDashboard, LifeBuoy, MailPlus } from 'lucide-react'
+import { canReprocessKnowledgeSourceFromBackstage } from '@/lib/knowledge/backstage-sources'
+import { requirePlatformAdmin } from '@/lib/platform/auth'
+import { hasPlatformPermission } from '@/lib/platform/permissions'
+import { ChevronLeft, ChevronRight, FileText, LayoutDashboard, LifeBuoy } from 'lucide-react'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { EditClientForm } from './edit-client-form'
 import { BackstageManagedWebSyncToggle, BackstageReindexTenantKnowledgeButton, BackstageReprocessSourceButton, BackstageRetryEmbeddingsButton } from './knowledge-source-actions'
 import { KnowledgeWebAlerts } from '../../knowledge-web-alerts'
 import { KnowledgeSyncRealtime } from '@/components/knowledge-sync-realtime'
+import { BackstagePageSizeSelect } from '../../backstage-page-size-select'
+import { SubscriptionCancellationPanel } from './subscription-cancellation-panel'
+import { VenueDetailsPanel } from './venue-details-panel'
+import { VenueTabs, type VenueTabKey } from './venue-tabs'
+import { KnowledgeSourceTypeFilter } from './knowledge-source-type-filter'
 
 interface Props {
   params: Promise<{ tenantId: string }>
+  searchParams?: Promise<{
+    tab?: string
+    page?: string
+    page_size?: string
+    source_page?: string
+    source_page_size?: string
+    source_type?: string
+  }>
 }
 
-export default async function BackstageClientPage({ params }: Props) {
+const TRACE_PAGE_SIZES = [10, 25, 50] as const
+const KNOWLEDGE_SOURCE_PAGE_SIZES = [10, 25, 50, 100] as const
+
+export default async function BackstageClientPage({ params, searchParams }: Props) {
   const { tenantId } = await params
+  const query = await searchParams
+  const activeTab = normalizeVenueTab(query?.tab)
+  const tracePageSize = normalizeTracePageSize(query?.page_size)
+  const tracePage = normalizePositiveInteger(query?.page, 1)
+  const traceFrom = (tracePage - 1) * tracePageSize
+  const sourcePageSize = normalizeKnowledgeSourcePageSize(query?.source_page_size)
+  const sourcePage = normalizePositiveInteger(query?.source_page, 1)
+  const sourceTypeFilter = normalizeKnowledgeSourceTypeFilter(query?.source_type)
+  const sourceFrom = (sourcePage - 1) * sourcePageSize
   const admin = createAdminClient()
-  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, usageResult, { data: traceMessages }, { data: knowledgeSources }, managedWebQuota, webAlerts, { data: knowledgeSupportRequests }] = await Promise.all([
+  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, usageResult, traceMessagesResult, knowledgeSourcesResult, { data: knowledgeSourceSummaries }, activeKnowledgeSyncResult, managedWebQuota, webAlerts, { data: knowledgeSupportRequests }] = await Promise.all([
     admin
       .from('theatres')
-      .select('id, name, slug, entity_type, primary_language, plan, website_url, fallback_email, fallback_phone, n8n_webhook_url, system_prompt, widget_config, voice_phone_number, voice_phone_provider, voice_phone_mode, voice_public_phone_number, voice_forwarding_notes, voice_operational_status')
+      .select('id, account_id, name, slug, entity_type, primary_language, plan, website_url, fallback_email, fallback_phone, n8n_webhook_url, system_prompt, widget_config, voice_phone_number, voice_phone_provider, voice_phone_mode, voice_public_phone_number, voice_forwarding_notes, voice_operational_status')
       .eq('id', tenantId)
       .single(),
     admin
@@ -43,16 +71,27 @@ export default async function BackstageClientPage({ params }: Props) {
     getTenantUsageForPeriod(admin, tenantId),
     admin
       .from('messages')
-      .select('id, conversation_id, content, created_at, metadata')
+      .select('id, conversation_id, content, created_at, metadata', { count: 'exact' })
       .eq('theatre_id', tenantId)
       .eq('role', 'assistant')
       .order('created_at', { ascending: false })
-      .limit(8),
+      .range(traceFrom, traceFrom + tracePageSize - 1),
+    getKnowledgeSourcesPage(admin, {
+      tenantId,
+      sourceType: sourceTypeFilter,
+      from: sourceFrom,
+      pageSize: sourcePageSize,
+    }),
     admin
       .from('knowledge_sources')
-      .select('id, name, type, status, sync_enabled, config, source_url, refresh_interval, next_sync_at, last_synced_at, last_error, created_at')
+      .select('id, name, type, status, config')
+      .eq('theatre_id', tenantId),
+    admin
+      .from('knowledge_sync_runs')
+      .select('id')
       .eq('theatre_id', tenantId)
-      .order('created_at', { ascending: false }),
+      .in('status', ['queued', 'running'])
+      .limit(1),
     getManagedWebQuotaUsage(admin, tenantId),
     getKnowledgeWebOperationalAlerts(admin, { tenantId }),
     admin
@@ -65,23 +104,42 @@ export default async function BackstageClientPage({ params }: Props) {
 
   if (!client) notFound()
 
+  const traceMessages = traceMessagesResult.data ?? []
+  const traceCount = traceMessagesResult.count ?? 0
+  const tracePageCount = Math.max(1, Math.ceil(traceCount / tracePageSize))
+  if (activeTab === 'traceability' && tracePage > tracePageCount) {
+    redirect(`/backstage/tenants/${tenantId}?tab=traceability&page=${tracePageCount}&page_size=${tracePageSize}`)
+  }
+  const knowledgeSources = knowledgeSourcesResult.data ?? []
+  const knowledgeSourceCount = knowledgeSourcesResult.count ?? 0
+  const sourcePageCount = Math.max(1, Math.ceil(knowledgeSourceCount / sourcePageSize))
+  if (activeTab === 'knowledge' && sourcePage > sourcePageCount) {
+    redirect(buildKnowledgeSourcesHref({
+      tenantId,
+      page: sourcePageCount,
+      pageSize: sourcePageSize,
+      sourceType: sourceTypeFilter,
+    }))
+  }
+
   const subscription = subscriptionResult.ok ? subscriptionResult.subscription : null
   const usage = usageResult.ok ? usageResult.usage : null
   const chatLimit = subscription?.included_chat_conversations ?? 0
   const chatUsed = usage?.conversations ?? 0
   const chatPercent = chatLimit > 0 ? Math.min(100, Math.round((chatUsed / chatLimit) * 100)) : 0
   const totalTokens = (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0)
-  const traceSourceIds = Array.from(new Set((traceMessages ?? [])
+  const traceSourceIds = Array.from(new Set(traceMessages
     .flatMap((message) => getAgentSources(message.metadata))
     .map((source) => source.source_id)
     .filter((sourceId): sourceId is string => Boolean(sourceId))))
-  const knowledgeSourceIds = (knowledgeSources ?? []).map((source) => source.id)
+  const knowledgeSourceIds = (knowledgeSourceSummaries ?? []).map((source) => source.id)
+  const visibleKnowledgeSourceIds = knowledgeSources.map((source) => source.id)
   const [{ data: traceConversations }, { data: traceSources }, { data: knowledgeChunks }, { data: knowledgeDocuments }, { data: knowledgeSyncRuns }] = await Promise.all([
-    (traceMessages ?? []).length
+    traceMessages.length
       ? admin
         .from('conversations')
         .select('id, session_id, metadata')
-        .in('id', (traceMessages ?? []).map((message) => message.conversation_id))
+        .in('id', traceMessages.map((message) => message.conversation_id))
         .eq('theatre_id', tenantId)
       : Promise.resolve({ data: [] }),
     traceSourceIds.length
@@ -98,36 +156,49 @@ export default async function BackstageClientPage({ params }: Props) {
         .eq('theatre_id', tenantId)
         .in('source_id', knowledgeSourceIds)
       : Promise.resolve({ data: [] }),
-    knowledgeSourceIds.length
+    visibleKnowledgeSourceIds.length
       ? admin
         .from('knowledge_documents')
         .select('source_id, status')
         .eq('theatre_id', tenantId)
-        .in('source_id', knowledgeSourceIds)
+        .in('source_id', visibleKnowledgeSourceIds)
       : Promise.resolve({ data: [] }),
-    knowledgeSourceIds.length
+    visibleKnowledgeSourceIds.length
       ? admin
         .from('knowledge_sync_runs')
         .select('source_id, status, trigger, discovered_count, checked_count, changed_count, failed_count, blocked_count, metadata, created_at, finished_at, error_code, error_details')
         .eq('theatre_id', tenantId)
-        .in('source_id', knowledgeSourceIds)
+        .in('source_id', visibleKnowledgeSourceIds)
         .order('created_at', { ascending: false })
       : Promise.resolve({ data: [] }),
+  ])
+  const [{ data: account }, platformAccess] = await Promise.all([
+    client.account_id
+      ? admin
+        .from('accounts')
+        .select('id, name, billing_email, status, metadata, created_at')
+        .eq('id', client.account_id)
+        .maybeSingle()
+      : Promise.resolve({ data: null }),
+    requirePlatformAdmin(),
   ])
   const conversationById = new Map((traceConversations ?? []).map((conversation) => [conversation.id, conversation]))
   const sourceById = new Map((traceSources ?? []).map((source) => [source.id, source]))
   const chunkStatsBySource = getChunkStatsBySource(knowledgeChunks ?? [])
   const documentCountsBySource = getDocumentCountsBySource(knowledgeDocuments ?? [])
   const latestSyncRunBySource = getLatestSyncRunBySource(knowledgeSyncRuns ?? [])
-  const hasActiveKnowledgeSync = (knowledgeSyncRuns ?? []).some((run) => run.status === 'queued' || run.status === 'running')
-  const knowledgeSourceNameById = new Map((knowledgeSources ?? []).map((source) => [source.id, getKnowledgeSourceName(source)]))
-  const ragHealth = getRagHealth(knowledgeSources ?? [], chunkStatsBySource)
-  const traceStats = getTraceStats(traceMessages ?? [])
-  const feedbackStats = getTraceFeedbackStats(traceMessages ?? [], traceConversations ?? [])
+  const hasActiveKnowledgeSync = (activeKnowledgeSyncResult.data ?? []).length > 0
+  const knowledgeSourceNameById = new Map((knowledgeSourceSummaries ?? []).map((source) => [source.id, getKnowledgeSourceName(source)]))
+  const knowledgeSourceTypeOptions = getKnowledgeSourceTypeOptions(knowledgeSourceSummaries ?? [])
+  const ragHealth = getRagHealth(knowledgeSourceSummaries ?? [], chunkStatsBySource)
+  const traceStats = getTraceStats(traceMessages)
+  const feedbackStats = getTraceFeedbackStats(traceMessages, traceConversations ?? [])
+  const accountBilling = getAccountBillingMetadata(account?.metadata)
+  const canManageCustomerBilling = hasPlatformPermission(platformAccess.permissions, 'manage_customer_billing')
 
   return (
     <div className="stack">
-      <Link className="back-link" href="/backstage">Volver a clientes</Link>
+      <Link className="back-link" href="/backstage/clients">Volver a clientes</Link>
 
       <header className="page-header backstage-venue-header">
         <div>
@@ -139,52 +210,91 @@ export default async function BackstageClientPage({ params }: Props) {
           <IconAction href={`/${client.id}/overview`} label="Ver dashboard" newTab>
             <LayoutDashboard aria-hidden="true" size={16} strokeWidth={2} />
           </IconAction>
-          <IconAction href={`/backstage/tenants/${client.id}/invites`} label="Gestionar invitaciones">
-            <MailPlus aria-hidden="true" size={16} strokeWidth={2} />
-          </IconAction>
+          <VenueDetailsPanel venueName={client.name}>
+            <section className="backstage-venue-context-summary">
+              <div>
+                <span>Cuenta</span>
+                <strong>{account?.name ?? client.name}</strong>
+              </div>
+              <div>
+                <span>Estado</span>
+                <strong>{account?.status ?? 'active'}</strong>
+              </div>
+              <div>
+                <span>Alta</span>
+                <strong>{account?.created_at ? new Date(account.created_at).toLocaleDateString('es-ES') : '—'}</strong>
+              </div>
+              <div>
+                <span>Facturación</span>
+                <strong>{account?.billing_email ?? 'Sin email'}</strong>
+              </div>
+            </section>
+
+            <section className="card stack backstage-venue-plan-panel">
+              <div className="section-title-row">
+                <div>
+                  <p className="eyebrow">Consumo</p>
+                  <h2>Uso del plan</h2>
+                </div>
+                <span className="status-pill status-pill-active">{subscription?.status ?? 'sin periodo'}</span>
+              </div>
+
+              <div className="usage-plan-compact-card">
+                <div className="usage-plan-main">
+                  <div className="usage-plan-main-row">
+                    <div>
+                      <p className="eyebrow">Chatbot</p>
+                      <strong className="usage-value usage-value-compact">
+                        {chatLimit > 0 ? `${chatUsed} / ${chatLimit}` : `${chatUsed}`}
+                      </strong>
+                    </div>
+                    <span className="plan-usage-percent">{chatPercent}%</span>
+                  </div>
+                  <div className="progress-track plan-usage-track">
+                    <div className="progress-fill" style={{ width: `${chatPercent}%` }} />
+                  </div>
+                  <p className="muted">Plan {subscription?.plan ?? client.plan} · periodo {subscription?.billing_period_start ?? '—'} → {subscription?.billing_period_end ?? '—'}</p>
+                </div>
+
+                <dl className="usage-plan-side">
+                  <div>
+                    <dt>Coste IA estimado</dt>
+                    <dd>{formatCurrency(usage?.estimatedCostCents ?? 0)}</dd>
+                  </div>
+                  <div>
+                    <dt>Tokens IA</dt>
+                    <dd>{formatTokens(totalTokens)}</dd>
+                    <small>{formatTokens(usage?.inputTokens ?? 0)} entrada · {formatTokens(usage?.outputTokens ?? 0)} salida</small>
+                  </div>
+                </dl>
+              </div>
+            </section>
+
+            <EditClientForm
+              client={client}
+              modules={modules ?? []}
+              emailConnection={emailConnections?.[0] ?? null}
+              emailTrace={emailTraceThreads?.[0] ?? null}
+              emailCanaryStats={getEmailCanaryStats(emailTraceThreads ?? [])}
+            />
+
+            {account ? (
+              <SubscriptionCancellationPanel
+                accountId={account.id}
+                billingEmail={account.billing_email}
+                canManageBilling={canManageCustomerBilling}
+                cancellationScheduled={accountBilling.cancellationScheduled}
+                currentPeriodEnd={accountBilling.currentPeriodEnd}
+                subscriptionId={accountBilling.subscriptionId}
+              />
+            ) : null}
+          </VenueDetailsPanel>
         </div>
       </header>
 
-      <section className="card stack">
-        <div className="section-title-row">
-          <div>
-            <p className="eyebrow">Consumo</p>
-            <h2>Uso del plan</h2>
-          </div>
-          <span className="status-pill status-pill-active">{subscription?.status ?? 'sin periodo'}</span>
-        </div>
+      <VenueTabs activeTab={activeTab} tenantId={tenantId} />
 
-        <div className="usage-plan-compact-card">
-          <div className="usage-plan-main">
-            <div className="usage-plan-main-row">
-              <div>
-                <p className="eyebrow">Chatbot</p>
-                <strong className="usage-value usage-value-compact">
-                  {chatLimit > 0 ? `${chatUsed} / ${chatLimit}` : `${chatUsed}`}
-                </strong>
-              </div>
-              <span className="plan-usage-percent">{chatPercent}%</span>
-            </div>
-            <div className="progress-track plan-usage-track">
-              <div className="progress-fill" style={{ width: `${chatPercent}%` }} />
-            </div>
-            <p className="muted">Plan {subscription?.plan ?? client.plan} · periodo {subscription?.billing_period_start ?? '—'} → {subscription?.billing_period_end ?? '—'}</p>
-          </div>
-
-          <dl className="usage-plan-side">
-            <div>
-              <dt>Coste IA estimado</dt>
-              <dd>{formatCurrency(usage?.estimatedCostCents ?? 0)}</dd>
-            </div>
-            <div>
-              <dt>Tokens IA</dt>
-              <dd>{formatTokens(totalTokens)}</dd>
-              <small>{formatTokens(usage?.inputTokens ?? 0)} entrada · {formatTokens(usage?.outputTokens ?? 0)} salida</small>
-            </div>
-          </dl>
-        </div>
-      </section>
-
+      {activeTab === 'knowledge' ? (
       <section className="card stack">
         <div className="section-title-row">
           <div>
@@ -222,15 +332,19 @@ export default async function BackstageClientPage({ params }: Props) {
 
         {ragHealth.notice ? <p className={`rag-health-notice ${ragHealth.noticeTone}`}>{ragHealth.notice}</p> : null}
       </section>
+      ) : null}
 
-      <section className="card stack">
+      {activeTab === 'traceability' ? (
+      <section className="card stack" id="traceability">
         <div className="section-title-row">
           <div>
             <p className="eyebrow">RAG</p>
             <h2>Trazabilidad de respuestas</h2>
           </div>
-          <span className="status-pill status-pill-muted">{traceMessages?.length ?? 0} recientes</span>
+          <span className="status-pill status-pill-muted">{traceCount} respuestas</span>
         </div>
+
+        <p className="muted traceability-summary-caption">Resumen de las respuestas visibles en esta página.</p>
 
         <div className="rag-trace-summary-grid" aria-label="Resumen de trazabilidad RAG">
           <div className="rag-trace-summary-card rag-trace-summary-card-ok">
@@ -270,9 +384,19 @@ export default async function BackstageClientPage({ params }: Props) {
           </div>
         </div>
 
-        {(traceMessages ?? []).length ? (
-          <div className="rag-trace-list">
-            {(traceMessages ?? []).map((message) => {
+        {traceMessages.length ? (
+          <div className="backstage-table-scroll traceability-table-scroll">
+            <table className="data-table traceability-table">
+              <thead>
+                <tr>
+                  <th>Estado</th>
+                  <th>Consulta</th>
+                  <th>Proveedor</th>
+                  <th>Feedback</th>
+                  <th>Fecha</th>
+                </tr>
+              </thead>
+              {traceMessages.map((message) => {
               const metadata = isRecord(message.metadata) ? message.metadata : {}
               const sources = getAgentSources(message.metadata)
               const conversation = conversationById.get(message.conversation_id)
@@ -301,69 +425,43 @@ export default async function BackstageClientPage({ params }: Props) {
               })
 
               return (
-                <article className={`rag-trace-item rag-trace-item-${traceSummary.tone}`} key={message.id}>
-                  <div className="rag-trace-header">
-                    <div>
-                      <div className="rag-trace-title-row">
-                        <span className={`rag-trace-state rag-trace-state-${traceSummary.tone}`}>{traceSummary.label}</span>
-                        <strong>{userMessage ? truncate(userMessage, 150) : truncate(message.content, 150)}</strong>
-                      </div>
-                      <p className="muted">{traceSummary.description}</p>
-                    </div>
-                    <div className="rag-trace-meta">
-                      <span>{getProviderLabel(provider)}</span>
-                      {requestedProvider && requestedProvider !== provider ? <span>pedido {requestedProvider}</span> : null}
-                      {language ? <span>{language}</span> : null}
-                      <time>{new Date(message.created_at).toLocaleString('es-ES')}</time>
-                    </div>
-                  </div>
-
-                  <div className="rag-trace-answer">
-                    <span>Respuesta</span>
-                    <p>{truncate(message.content, 260)}</p>
-                  </div>
-
-                  {responseFeedback || sessionFeedback ? (
-                    <div className="rag-trace-feedback">
+                <tbody className={`traceability-table-group traceability-table-group-${traceSummary.tone}`} key={message.id}>
+                  <tr>
+                    <td><span className={`rag-trace-state rag-trace-state-${traceSummary.tone}`}>{traceSummary.label}</span></td>
+                    <td>
+                      <strong className="traceability-question">
+                        {truncate(userMessage ?? message.content, 120)}
+                      </strong>
+                      <small>{traceSummary.description}</small>
+                    </td>
+                    <td>
+                      <strong>{getProviderLabel(provider)}</strong>
+                      <small>{model ?? language ?? '—'}</small>
+                    </td>
+                    <td>
                       {responseFeedback ? (
                         <span className={`rag-trace-feedback-pill rag-trace-feedback-${responseFeedback.rating}`}>
-                          Respuesta: {getResponseFeedbackLabel(responseFeedback.rating)}
+                          {getResponseFeedbackLabel(responseFeedback.rating)}
                         </span>
-                      ) : null}
+                      ) : <span className="muted">Sin valorar</span>}
                       {sessionFeedback ? (
-                        <span className={`rag-trace-feedback-pill rag-trace-feedback-${getSessionFeedbackTone(sessionFeedback)}`}>
+                        <small className={`rag-trace-feedback-${getSessionFeedbackTone(sessionFeedback)}`}>
                           Sesión: {getSessionFeedbackLabel(sessionFeedback)}
-                        </span>
+                        </small>
                       ) : null}
-                      {sessionFeedback?.comments ? <p>{truncate(sessionFeedback.comments, 180)}</p> : null}
-                    </div>
-                  ) : null}
+                    </td>
+                    <td><time>{new Date(message.created_at).toLocaleString('es-ES')}</time></td>
+                  </tr>
+                  <tr className="traceability-detail-row">
+                    <td colSpan={5}>
+                      <details className="rag-trace-details traceability-details">
+                        <summary>Ver respuesta y detalle RAG</summary>
+                        <div className="rag-trace-detail-body">
+                          <div className="rag-trace-answer traceability-answer">
+                            <span>Respuesta</span>
+                            <p>{message.content}</p>
+                          </div>
 
-                  <div className="rag-trace-foot">
-                    <p className="muted mono">
-                      {conversation ? `session ${conversation.session_id.slice(0, 16)}...` : `conversation ${message.conversation_id.slice(0, 8)}...`}
-                    </p>
-                    <div>
-                      {model ? <span>{model}</span> : null}
-                      {retrievalStatus ? <span>{getRetrievalStatusLabel(retrievalStatus)}</span> : null}
-                      {contextAssembly ? <span>{getContextAssemblyModeLabel(contextAssembly.mode)}</span> : null}
-                      {languageTrace ? <span>idioma {languageTrace.mode}</span> : null}
-                      {fallbackTrace ? <span>{fallbackTrace.strategy}</span> : null}
-                      {typeof traceSummary.topScore === 'number' ? <span>score {traceSummary.topScore.toFixed(2)}</span> : null}
-                    </div>
-                  </div>
-
-                  {lowConfidence || fallbackReason || retrievalStatus === 'delegated_no_sources' || retrievalStatus === 'no_sources' ? (
-                    <div className="rag-trace-alerts">
-                      {lowConfidence ? <span>Confianza baja</span> : null}
-                      {fallbackReason ? <span>{getFallbackReasonLabel(fallbackReason)}</span> : null}
-                      {isNoSourcesStatus(retrievalStatus) ? <span>Sin fuentes usadas</span> : null}
-                    </div>
-                  ) : null}
-
-                  <details className="rag-trace-details">
-                    <summary>Ver detalle RAG</summary>
-                    <div className="rag-trace-detail-body">
                       {userMessage ? (
                         <div className="rag-trace-question">
                           <span>Pregunta original</span>
@@ -388,17 +486,53 @@ export default async function BackstageClientPage({ params }: Props) {
                       {retrievalChunks.length ? (
                         <RetrievalChunkList chunks={retrievalChunks} sourceById={sourceById} />
                       ) : null}
-                    </div>
-                  </details>
-                </article>
+                          <div className="rag-trace-foot">
+                            <p className="muted mono">
+                              {conversation ? `session ${conversation.session_id.slice(0, 16)}...` : `conversation ${message.conversation_id.slice(0, 8)}...`}
+                            </p>
+                            <div>
+                              {requestedProvider && requestedProvider !== provider ? <span>pedido {requestedProvider}</span> : null}
+                              {language ? <span>{language}</span> : null}
+                              {retrievalStatus ? <span>{getRetrievalStatusLabel(retrievalStatus)}</span> : null}
+                              {contextAssembly ? <span>{getContextAssemblyModeLabel(contextAssembly.mode)}</span> : null}
+                              {languageTrace ? <span>idioma {languageTrace.mode}</span> : null}
+                              {fallbackTrace ? <span>{fallbackTrace.strategy}</span> : null}
+                              {typeof traceSummary.topScore === 'number' ? <span>score {traceSummary.topScore.toFixed(2)}</span> : null}
+                            </div>
+                          </div>
+
+                          {sessionFeedback?.comments ? <p>{sessionFeedback.comments}</p> : null}
+                          {lowConfidence || fallbackReason || isNoSourcesStatus(retrievalStatus) ? (
+                            <div className="rag-trace-alerts">
+                              {lowConfidence ? <span>Confianza baja</span> : null}
+                              {fallbackReason ? <span>{getFallbackReasonLabel(fallbackReason)}</span> : null}
+                              {isNoSourcesStatus(retrievalStatus) ? <span>Sin fuentes usadas</span> : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      </details>
+                    </td>
+                  </tr>
+                </tbody>
               )
             })}
+            </table>
           </div>
         ) : (
           <p className="muted">Todavía no hay respuestas del chatbot con trazabilidad registrada.</p>
         )}
+        <TracePagination
+          page={tracePage}
+          pageCount={tracePageCount}
+          pageSize={tracePageSize}
+          tenantId={tenantId}
+          total={traceCount}
+        />
       </section>
+      ) : null}
 
+      {activeTab === 'knowledge' ? (
+      <>
       <section className="card stack" id="knowledge-web-sources">
         <div className="section-title-row">
           <div>
@@ -406,30 +540,42 @@ export default async function BackstageClientPage({ params }: Props) {
             <h2>Fuentes procesadas</h2>
           </div>
           <div className="section-heading-actions">
-            <KnowledgeSyncRealtime tenantId={tenantId} hasActiveRun={hasActiveKnowledgeSync} />
-            <span className="status-pill status-pill-muted">{knowledgeSources?.length ?? 0} fuentes totales</span>
-            <span className="status-pill status-pill-muted">
-              Web {managedWebQuota.sources}/{managedWebQuota.limits.maxSources} fuentes
-            </span>
-            <span className="status-pill status-pill-muted">
-              {managedWebQuota.documents}/{managedWebQuota.limits.maxDocuments} páginas
-            </span>
-            <span className="status-pill status-pill-muted">
-              {managedWebQuota.manualSyncsToday}/{managedWebQuota.limits.maxManualSyncsPerDay} sync manual hoy
-            </span>
+            {hasActiveKnowledgeSync ? <KnowledgeSyncRealtime tenantId={tenantId} hasActiveRun /> : null}
+            <KnowledgeSourceTypeFilter options={knowledgeSourceTypeOptions} value={sourceTypeFilter ?? 'all'} />
           </div>
         </div>
 
-        <KnowledgeWebAlerts
-          alerts={webAlerts.alerts}
-          error={webAlerts.error}
-          showTenant={false}
-          title="Alertas de actualización web"
-        />
+        <dl className="backstage-knowledge-usage" aria-label="Resumen del conocimiento">
+          <div>
+            <dt>Fuentes registradas</dt>
+            <dd>{knowledgeSourceSummaries?.length ?? 0}</dd>
+          </div>
+          <div>
+            <dt>Fuentes web gestionadas</dt>
+            <dd>{managedWebQuota.sources}<span> / {managedWebQuota.limits.maxSources}</span></dd>
+          </div>
+          <div>
+            <dt>Páginas web activas</dt>
+            <dd>{managedWebQuota.documents}<span> / {managedWebQuota.limits.maxDocuments}</span></dd>
+          </div>
+          <div>
+            <dt>Actualizaciones manuales hoy</dt>
+            <dd>{managedWebQuota.manualSyncsToday}<span> / {managedWebQuota.limits.maxManualSyncsPerDay}</span></dd>
+          </div>
+        </dl>
 
-        {(knowledgeSources ?? []).length ? (
+        {webAlerts.error || webAlerts.alerts.length > 0 ? (
+          <KnowledgeWebAlerts
+            alerts={webAlerts.alerts}
+            error={webAlerts.error}
+            showTenant={false}
+            title="Alertas de actualización web"
+          />
+        ) : null}
+
+        {knowledgeSources.length ? (
           <div className="knowledge-files-list">
-            {(knowledgeSources ?? []).map((source) => {
+            {knowledgeSources.map((source) => {
               const stats = chunkStatsBySource.get(source.id) ?? createEmptyChunkStats()
               const documentCount = documentCountsBySource.get(source.id) ?? 0
               const latestSyncRun = latestSyncRunBySource.get(source.id)
@@ -510,7 +656,7 @@ export default async function BackstageClientPage({ params }: Props) {
                     {stats.pending + stats.error > 0 ? (
                       <BackstageRetryEmbeddingsButton tenantId={tenantId} sourceId={source.id} />
                     ) : null}
-                    {!isManagedWebSource(source.type) || source.sync_enabled ? (
+                    {canReprocessKnowledgeSourceFromBackstage(source.type) && (!isManagedWebSource(source.type) || source.sync_enabled) ? (
                       <BackstageReprocessSourceButton tenantId={tenantId} sourceId={source.id} sourceType={source.type} />
                     ) : null}
                   </div>
@@ -521,6 +667,14 @@ export default async function BackstageClientPage({ params }: Props) {
         ) : (
           <p className="muted">Este venue todavía no tiene fuentes cargadas como base de conocimiento.</p>
         )}
+        <KnowledgeSourcePagination
+          page={sourcePage}
+          pageCount={sourcePageCount}
+          pageSize={sourcePageSize}
+          sourceType={sourceTypeFilter}
+          tenantId={tenantId}
+          total={knowledgeSourceCount}
+        />
       </section>
 
       {(knowledgeSupportRequests ?? []).length ? (
@@ -563,16 +717,211 @@ export default async function BackstageClientPage({ params }: Props) {
           </div>
         </section>
       ) : null}
-
-      <EditClientForm
-        client={client}
-        modules={modules ?? []}
-        emailConnection={emailConnections?.[0] ?? null}
-        emailTrace={emailTraceThreads?.[0] ?? null}
-        emailCanaryStats={getEmailCanaryStats(emailTraceThreads ?? [])}
-      />
+      </>
+      ) : null}
     </div>
   )
+}
+
+function KnowledgeSourcePagination({
+  page,
+  pageCount,
+  pageSize,
+  sourceType,
+  tenantId,
+  total,
+}: {
+  page: number
+  pageCount: number
+  pageSize: number
+  sourceType: string | null
+  tenantId: string
+  total: number
+}) {
+  if (total === 0) return null
+
+  const firstResult = (page - 1) * pageSize + 1
+  const lastResult = Math.min(total, page * pageSize)
+  const hrefForPage = (targetPage: number) => buildKnowledgeSourcesHref({
+    tenantId,
+    page: targetPage,
+    pageSize,
+    sourceType,
+  })
+
+  return (
+    <nav className="table-pagination" aria-label="Paginación de fuentes procesadas">
+      <p>Mostrando {firstResult}-{lastResult} de {total} fuentes · Página {page} de {pageCount}</p>
+      <div className="table-pagination-actions">
+        <BackstagePageSizeSelect
+          value={pageSize}
+          pageParam="source_page"
+          pageSizeParam="source_page_size"
+          anchor="knowledge-web-sources"
+          ariaLabel="Fuentes por página"
+          options={KNOWLEDGE_SOURCE_PAGE_SIZES}
+        />
+        {page > 1 ? (
+          <Link className="pagination-icon-button" href={hrefForPage(page - 1)} aria-label="Página anterior de fuentes" scroll={false}>
+            <ChevronLeft aria-hidden="true" size={16} strokeWidth={2} />
+          </Link>
+        ) : (
+          <span className="pagination-icon-button button-disabled" aria-label="Página anterior de fuentes">
+            <ChevronLeft aria-hidden="true" size={16} strokeWidth={2} />
+          </span>
+        )}
+        {page < pageCount ? (
+          <Link className="pagination-icon-button" href={hrefForPage(page + 1)} aria-label="Página siguiente de fuentes" scroll={false}>
+            <ChevronRight aria-hidden="true" size={16} strokeWidth={2} />
+          </Link>
+        ) : (
+          <span className="pagination-icon-button button-disabled" aria-label="Página siguiente de fuentes">
+            <ChevronRight aria-hidden="true" size={16} strokeWidth={2} />
+          </span>
+        )}
+      </div>
+    </nav>
+  )
+}
+
+function TracePagination({
+  page,
+  pageCount,
+  pageSize,
+  tenantId,
+  total,
+}: {
+  page: number
+  pageCount: number
+  pageSize: number
+  tenantId: string
+  total: number
+}) {
+  if (total === 0) return null
+
+  const firstResult = (page - 1) * pageSize + 1
+  const lastResult = Math.min(total, page * pageSize)
+  const hrefForPage = (targetPage: number) =>
+    `/backstage/tenants/${tenantId}?tab=traceability&page=${targetPage}&page_size=${pageSize}#traceability`
+
+  return (
+    <nav className="table-pagination" aria-label="Paginación de respuestas">
+      <p>Mostrando {firstResult}-{lastResult} de {total} respuestas · Página {page} de {pageCount}</p>
+      <div className="table-pagination-actions">
+        <BackstagePageSizeSelect value={pageSize} anchor="traceability" ariaLabel="Respuestas por página" />
+        {page > 1 ? (
+          <Link className="pagination-icon-button" href={hrefForPage(page - 1)} aria-label="Página anterior" scroll={false}>
+            <ChevronLeft aria-hidden="true" size={16} strokeWidth={2} />
+          </Link>
+        ) : (
+          <span className="pagination-icon-button button-disabled" aria-label="Página anterior">
+            <ChevronLeft aria-hidden="true" size={16} strokeWidth={2} />
+          </span>
+        )}
+        {page < pageCount ? (
+          <Link className="pagination-icon-button" href={hrefForPage(page + 1)} aria-label="Página siguiente" scroll={false}>
+            <ChevronRight aria-hidden="true" size={16} strokeWidth={2} />
+          </Link>
+        ) : (
+          <span className="pagination-icon-button button-disabled" aria-label="Página siguiente">
+            <ChevronRight aria-hidden="true" size={16} strokeWidth={2} />
+          </span>
+        )}
+      </div>
+    </nav>
+  )
+}
+
+function normalizeVenueTab(value: string | undefined): VenueTabKey {
+  return value === 'traceability' ? 'traceability' : 'knowledge'
+}
+
+function normalizeTracePageSize(value: string | undefined) {
+  const parsed = Number(value)
+  return TRACE_PAGE_SIZES.includes(parsed as (typeof TRACE_PAGE_SIZES)[number]) ? parsed : 10
+}
+
+function normalizeKnowledgeSourcePageSize(value: string | undefined) {
+  const parsed = Number(value)
+  return KNOWLEDGE_SOURCE_PAGE_SIZES.includes(parsed as (typeof KNOWLEDGE_SOURCE_PAGE_SIZES)[number]) ? parsed : 10
+}
+
+function normalizeKnowledgeSourceTypeFilter(value: string | undefined) {
+  if (!value || !/^[a-z][a-z0-9_]{0,39}$/.test(value)) return null
+  return value
+}
+
+function buildKnowledgeSourcesHref({
+  tenantId,
+  page,
+  pageSize,
+  sourceType,
+}: {
+  tenantId: string
+  page: number
+  pageSize: number
+  sourceType: string | null
+}) {
+  const params = new URLSearchParams({
+    tab: 'knowledge',
+    source_page: String(page),
+    source_page_size: String(pageSize),
+  })
+  if (sourceType) params.set('source_type', sourceType)
+  return `/backstage/tenants/${tenantId}?${params.toString()}#knowledge-web-sources`
+}
+
+function getKnowledgeSourceTypeOptions(sources: Array<{ type: string }>) {
+  const counts = new Map<string, number>()
+  for (const source of sources) counts.set(source.type, (counts.get(source.type) ?? 0) + 1)
+
+  return Array.from(counts.entries())
+    .map(([value, count]) => ({ value, count, label: getSourceTypeLabel(value) }))
+    .sort((left, right) => left.label.localeCompare(right.label, 'es'))
+}
+
+function getKnowledgeSourcesPage(
+  admin: ReturnType<typeof createAdminClient>,
+  {
+    tenantId,
+    sourceType,
+    from,
+    pageSize,
+  }: {
+    tenantId: string
+    sourceType: string | null
+    from: number
+    pageSize: number
+  },
+) {
+  let request = admin
+    .from('knowledge_sources')
+    .select('id, name, type, status, sync_enabled, config, source_url, refresh_interval, next_sync_at, last_synced_at, last_error, created_at', { count: 'exact' })
+    .eq('theatre_id', tenantId)
+
+  if (sourceType) request = request.eq('type', sourceType)
+
+  return request
+    .order('created_at', { ascending: false })
+    .range(from, from + pageSize - 1)
+}
+
+function normalizePositiveInteger(value: string | undefined, fallback: number) {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
+}
+
+function getAccountBillingMetadata(value: unknown) {
+  const metadata = isRecord(value) ? value : {}
+  const periodEnd = typeof metadata.stripe_current_period_end === 'number'
+    ? new Date(metadata.stripe_current_period_end * 1000).toISOString()
+    : null
+
+  return {
+    subscriptionId: typeof metadata.stripe_subscription_id === 'string' ? metadata.stripe_subscription_id : null,
+    cancellationScheduled: metadata.stripe_cancel_at_period_end === true,
+    currentPeriodEnd: periodEnd,
+  }
 }
 
 type AgentSource = {
@@ -1263,6 +1612,7 @@ function getSourceTypeLabel(type: string) {
   if (type === 'url') return 'URL'
   if (type === 'sitemap') return 'Sitemap'
   if (type === 'website') return 'Web completa'
+  if (type === 'web_snapshot') return 'Página web capturada'
   return type
 }
 

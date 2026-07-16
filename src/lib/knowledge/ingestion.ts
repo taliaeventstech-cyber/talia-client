@@ -3,6 +3,7 @@ import { ingestKnowledgeTextWithTaliaAi } from './talia-ai-ingestion'
 import { normalizeKnowledgeSourceUrl } from './source-url'
 import { getWebPageRejection } from './web-page-validity'
 import type { createAdminClient } from '@/lib/supabase/admin'
+import { createHash } from 'node:crypto'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -357,6 +358,7 @@ export async function ingestWebSnapshotSource({
   heading,
   httpStatus,
   text,
+  captureMode = 'manual',
 }: {
   admin: AdminClient
   tenantId: string
@@ -366,6 +368,7 @@ export async function ingestWebSnapshotSource({
   heading?: string | null
   httpStatus?: number | null
   text: string
+  captureMode?: 'manual' | 'automatic'
 }): Promise<KnowledgeImportResult> {
   const normalizedUrl = normalizeKnowledgeSourceUrl(url)
   if (!normalizedUrl) return { ok: false, message: 'URL no válida.' }
@@ -382,14 +385,23 @@ export async function ingestWebSnapshotSource({
     return { ok: false, message: 'La página no contiene texto suficiente para indexar.' }
   }
 
+  const contentHash = createHash('sha256').update(cleanText).digest('hex')
   const { data: existingSource } = await admin
     .from('knowledge_sources')
-    .select('config')
+    .select('config, status')
     .eq('id', sourceId)
     .eq('theatre_id', tenantId)
     .eq('type', 'web_snapshot')
     .maybeSingle()
   const existingConfig = isRecord(existingSource?.config) ? existingSource.config : {}
+  if (existingSource?.status === 'ready' && existingConfig.content_hash === contentHash) {
+    return {
+      ok: true,
+      count: typeof existingConfig.chunk_count === 'number' ? existingConfig.chunk_count : 0,
+      replaced: false,
+      message: 'El contenido no ha cambiado; no se ha vuelto a procesar.',
+    }
+  }
   const captureStartedAt = new Date().toISOString()
 
   const sourceUpdate = await admin
@@ -404,6 +416,8 @@ export async function ingestWebSnapshotSource({
         capture_url: normalizedUrl,
         page_title: title?.trim() || null,
         source_type: 'web_snapshot',
+        capture_mode: captureMode,
+        content_hash: contentHash,
         capture_started_at: captureStartedAt,
       },
     })
@@ -425,6 +439,7 @@ export async function ingestWebSnapshotSource({
       source_url: normalizedUrl,
       page_title: title?.trim() || null,
       capture_method: 'installed_widget',
+      capture_mode: captureMode,
       language: 'es',
       indexed_at: new Date().toISOString(),
     },
@@ -458,6 +473,8 @@ export async function ingestWebSnapshotSource({
         capture_url: normalizedUrl,
         page_title: title?.trim() || null,
         source_type: 'web_snapshot',
+        capture_mode: captureMode,
+        content_hash: contentHash,
         capture_started_at: captureStartedAt,
         capture_completed_at: captureCompletedAt,
         chunk_count: ingest.chunks,

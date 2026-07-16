@@ -5,6 +5,10 @@ import type { Json } from '@/types/database.types'
 import { normalizeWidgetLauncherIcon, type WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { normalizeProactiveGreeting } from '@/lib/widget/proactive-greeting'
 import { isChatbotEnabled } from '@/lib/widget/availability'
+import {
+  getInstalledWebCaptureSettingsFromWidgetConfig,
+  type InstalledWebCaptureSettings,
+} from '@/lib/knowledge/installed-web-capture-settings'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -30,6 +34,7 @@ export type PublicWidgetConfig = {
   autoOpen: boolean
   autoOpenDelay: number
   proactiveMessage: string
+  installedWebCapture: InstalledWebCaptureSettings
   accessibility: PublicAccessibilityConfig
 }
 
@@ -128,21 +133,48 @@ export async function getTenantWebhookSecret(admin: AdminClient, tenantId: strin
 }
 
 export async function assertTenantAdmin(admin: AdminClient, userId: string, tenantId: string) {
-  const [{ data }, { data: platformAdmin }] = await Promise.all([
+  const [{ data: profile }, { data: platformAdmin }, { data: theatre }] = await Promise.all([
     admin
-      .from('users')
-      .select('role')
-      .eq('id', userId)
-      .eq('theatre_id', tenantId)
-      .single(),
+      .from('profiles')
+      .select('id')
+      .eq('auth_user_id', userId)
+      .maybeSingle(),
     admin
       .from('platform_admins')
       .select('role')
       .eq('user_id', userId)
       .maybeSingle(),
+    admin
+      .from('theatres')
+      .select('account_id')
+      .eq('id', tenantId)
+      .maybeSingle(),
   ])
 
-  return Boolean(platformAdmin) || data?.role === 'owner' || data?.role === 'admin'
+  if (platformAdmin) return true
+  if (!profile || !theatre) return false
+
+  const [{ data: venueMembership }, { data: accountMembership }] = await Promise.all([
+    admin
+      .from('venue_memberships')
+      .select('role')
+      .eq('profile_id', profile.id)
+      .eq('theatre_id', tenantId)
+      .is('revoked_at', null)
+      .maybeSingle(),
+    admin
+      .from('account_memberships')
+      .select('role')
+      .eq('profile_id', profile.id)
+      .eq('account_id', theatre.account_id)
+      .is('revoked_at', null)
+      .maybeSingle(),
+  ])
+
+  return venueMembership?.role === 'owner' ||
+    venueMembership?.role === 'admin' ||
+    accountMembership?.role === 'owner' ||
+    accountMembership?.role === 'admin'
 }
 
 export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string) {
@@ -186,6 +218,7 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
       autoOpen: widgetConfig.autoOpen,
       autoOpenDelay: widgetConfig.autoOpenDelay,
       proactiveMessage: normalizeProactiveGreeting(widgetConfig.proactiveMessage, data.primary_language, widgetConfig.assistantName),
+      installedWebCapture: widgetConfig.installedWebCapture,
       accessibility: widgetConfig.accessibility,
     } satisfies PublicWidgetConfig,
   }
@@ -374,6 +407,7 @@ function getWidgetConfig(value: unknown) {
       autoOpen: false,
       autoOpenDelay: 3,
       proactiveMessage: undefined,
+      installedWebCapture: getInstalledWebCaptureSettingsFromWidgetConfig(undefined),
       tone: 'close' as const,
       accessibility: getAccessibilityConfig(undefined, '#000000'),
       aiSettings: normalizeChatbotAiSettings(undefined),
@@ -413,6 +447,8 @@ function getWidgetConfig(value: unknown) {
     accessibility?: unknown
     chatbotAi?: unknown
     chatbot_ai?: unknown
+    installedWebCapture?: unknown
+    installed_web_capture?: unknown
   }
   const primaryColor = typeof config.primaryColor === 'string' ? config.primaryColor : '#000000'
 
@@ -434,6 +470,7 @@ function getWidgetConfig(value: unknown) {
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
     proactiveMessage: config.proactiveMessage ?? config.proactive_message,
+    installedWebCapture: getInstalledWebCaptureSettingsFromWidgetConfig(config),
     tone: getChatbotResponseTone(config.tone),
     accessibility: getAccessibilityConfig(config.accessibility, primaryColor),
     aiSettings: normalizeChatbotAiSettings(config.chatbotAi ?? config.chatbot_ai),

@@ -9,6 +9,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { UserRound } from 'lucide-react'
+import { isLegacyEmailAgentAccount } from '@/lib/email/legacy-access'
 
 interface Props {
   children: React.ReactNode
@@ -50,6 +51,7 @@ export default async function DashboardLayout({ children, params }: Props) {
           isTrialExpired={billingAccess.isTrialExpired}
           trialDaysRemaining={billingAccess.isTrialing ? billingAccess.trialDaysRemaining : null}
           chatbotSetupCompleted={access.chatbotSetupCompleted}
+          legacyEmailAgentEnabled={isLegacyEmailAgentAccount(user.email)}
           labels={{
             main: dictionary.nav.main,
             overview: dictionary.nav.overview,
@@ -58,18 +60,13 @@ export default async function DashboardLayout({ children, params }: Props) {
             accessibility: dictionary.nav.accessibility,
             emailAgent: dictionary.nav.emailAgent,
             inbox: dictionary.nav.inbox,
-            whatsapp: dictionary.nav.whatsapp,
             intelligence: dictionary.nav.intelligence,
             knowledge: dictionary.nav.knowledge,
-            marketing: dictionary.nav.marketing,
-            campaigns: dictionary.nav.campaigns,
             active: dictionary.common.active,
-            soon: dictionary.common.soon,
             conversations: dictionary.common.conversations,
             analysis: dictionary.common.analysis,
             settings: dictionary.common.settings,
             upgrade: dictionary.nav.upgrade,
-            trial: dictionary.nav.trial,
             trialEndsIn: dictionary.nav.trialEndsIn,
           }}
         />

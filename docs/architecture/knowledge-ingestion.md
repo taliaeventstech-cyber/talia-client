@@ -66,14 +66,27 @@ Once the RAG is consolidated, `knowledge_items` could become an editorial view o
 
 ## Installed Web
 
-The client's own pages are incorporated as RAG sources without server-side URL reading from `talia-client`:
+The client's own pages can be incorporated as RAG sources without server-side
+URL reading from `talia-client`. This flow is opt-in per venue and defaults to
+disabled:
 
 1. The client installs the widget script on their website.
-2. The widget registers the detected page as `knowledge_sources.type = web_snapshot`.
-3. Agora generates a signed snapshot URL for that page.
-4. The widget, running in the authorized user's browser, extracts visible text from the DOM.
-5. `talia-client` receives the snapshot, validates tenant/token, and calls `talia-ai /v1/knowledge/ingest` with `source_type = web_snapshot`.
-6. `talia-ai` normalizes it, splits it into chunks, updates `knowledge_chunks`, and leaves the source ready for embeddings/retrieval.
+2. An administrator enables installed-page detection in Agora and selects
+   manual or automatic processing.
+3. The widget registers detected canonical pages as
+   `knowledge_sources.type = web_snapshot` only while detection is enabled.
+4. In manual mode, Agora exposes capture actions and generates a signed snapshot
+   URL for the selected page.
+5. In automatic mode, the widget extracts visible text from the DOM and submits
+   it together with the page registration; manual capture actions remain hidden.
+6. `talia-client` validates the tenant, domain and capture policy, then calls
+   `talia-ai /v1/knowledge/ingest` with `source_type = web_snapshot`.
+7. `talia-ai` normalizes the content, splits it into chunks, updates
+   `knowledge_chunks`, and leaves the source ready for embeddings/retrieval.
+
+Automatic processing stores a SHA-256 hash of the normalized visible text. A
+ready source with the same hash is not sent through ingestion again, avoiding
+unchanged-page token and embedding costs.
 
 The tenant's official website remains administrative data. It is not used to automatically create URL sources.
 

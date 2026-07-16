@@ -95,8 +95,10 @@ The widget route keeps its specific cross-origin headers.
 - [ ] Configure production SMTP for auth emails.
 - [ ] Review Supabase Auth rate limits in production.
 - [ ] Verify `NEXT_PUBLIC_APP_URL` points to the production Agora URL.
-- [ ] Confirm `/auth/callback` is included in Supabase redirect allow-list.
+- [ ] Confirm production `/auth/callback` and `/auth/reset-callback` are included in the Supabase redirect allow-list.
+- [ ] Confirm `http://localhost:3000/**` is included in the hosted Supabase redirect allow-list used during local development.
 - [ ] Test signup with a fresh email.
+- [ ] Test password recovery in local and production, including expired-link handling.
 - [ ] Test login with wrong password until rate limited.
 - [ ] Test resend confirmation rate limit.
 

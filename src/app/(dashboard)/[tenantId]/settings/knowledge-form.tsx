@@ -8,7 +8,8 @@ import { KnowledgeSyncRealtime } from '@/components/knowledge-sync-realtime'
 import { ToastNotice } from '@/components/ui/toast-notice'
 import type { ManagedWebQuotaUsage } from '@/lib/knowledge/web-source-quotas'
 import { getManagedWebPresentation, type ManagedWebOutcome } from '@/lib/knowledge/managed-web-presentation'
-import { createKnowledgeItem, createManagedWebKnowledgeSource, uploadKnowledgeExcel, uploadKnowledgePdf, updateKnowledgeItem, deleteKnowledgeItem, deleteKnowledgeSource, requestKnowledgeSourceSupport, requestManagedWebSourceSync, retryKnowledgeSourceEmbeddings, updateManagedWebSourceSchedule, type SettingsFormState, type ExcelUploadState, type PdfUploadState, type ManagedWebSourceState } from './actions'
+import type { InstalledWebCaptureSettings } from '@/lib/knowledge/installed-web-capture-settings'
+import { createKnowledgeItem, createManagedWebKnowledgeSource, uploadKnowledgeExcel, uploadKnowledgePdf, updateKnowledgeItem, deleteKnowledgeItem, deleteKnowledgeSource, requestKnowledgeSourceSupport, requestManagedWebSourceSync, retryKnowledgeSourceEmbeddings, updateManagedWebSourceSchedule, updateInstalledWebCaptureSettings, type SettingsFormState, type ExcelUploadState, type PdfUploadState, type InstalledWebCaptureSettingsState, type ManagedWebSourceState } from './actions'
 
 type KnowledgeItem = {
   id: string
@@ -61,6 +62,7 @@ type KnowledgeFormProps = {
   sources: KnowledgeSource[]
   items: KnowledgeItem[]
   managedWebQuota: ManagedWebQuotaUsage | null
+  installedWebCapture: InstalledWebCaptureSettings
   pagination?: ReactNode
   labels: {
     officialAnswers: string
@@ -179,6 +181,18 @@ type KnowledgeFormProps = {
     lastCapture: string
     contentReady: string
     contentPending: string
+    captureSettingsTitle: string
+    captureSettingsHelp: string
+    captureDetectionEnabled: string
+    captureDetectionDisabled: string
+    captureDisabledKnowledgeAvailable: string
+    captureMode: string
+    captureModeManual: string
+    captureModeManualHelp: string
+    captureModeAutomatic: string
+    captureModeAutomaticHelp: string
+    captureSettingsSave: string
+    captureSettingsSaving: string
     table: {
       question: string
       topic: string
@@ -217,7 +231,12 @@ const managedWebInitialState: ManagedWebSourceState = {
   message: '',
 }
 
-export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQuota, pagination, labels }: KnowledgeFormProps) {
+const installedWebCaptureInitialState: InstalledWebCaptureSettingsState = {
+  ok: false,
+  message: '',
+}
+
+export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQuota, installedWebCapture, pagination, labels }: KnowledgeFormProps) {
   const router = useRouter()
   const [state, formAction, pending] = useActionState(createKnowledgeItem.bind(null, tenantId), initialState)
   const [excelState, excelFormAction, excelPending] = useActionState(uploadKnowledgeExcel.bind(null, tenantId), excelInitialState)
@@ -226,6 +245,11 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
     createManagedWebKnowledgeSource.bind(null, tenantId),
     managedWebInitialState
   )
+  const [captureSettingsState, captureSettingsAction, captureSettingsPending] = useActionState(
+    updateInstalledWebCaptureSettings.bind(null, tenantId),
+    installedWebCaptureInitialState,
+  )
+  const savedInstalledWebCapture = captureSettingsState.settings ?? installedWebCapture
   const [isRefreshingInstalled, startInstalledRefresh] = useTransition()
   const fileSources = sources.filter((source) => source.type === 'pdf')
   const spreadsheetSources = sources.filter((source) => source.type === 'xlsx' || source.type === 'csv')
@@ -239,7 +263,9 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
 
   return (
     <>
-      {activeTab === 'installed' ? <KnowledgeSyncRealtime tenantId={tenantId} hasActiveRun={hasActiveManagedRun} /> : null}
+      {activeTab === 'installed' && hasActiveManagedRun ? (
+        <KnowledgeSyncRealtime tenantId={tenantId} hasActiveRun />
+      ) : null}
       {activeTab === 'files' ? (
         <>
           <section className="card stack">
@@ -521,7 +547,7 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
                 <p className="muted">{labels.installedWebHelp}</p>
               </div>
               <div className="section-heading-actions">
-                {installedWebSources.length > 1 ? (
+                {savedInstalledWebCapture.mode === 'manual' && installedWebSources.length > 1 ? (
                   <a
                     className="button-primary button-fit"
                     href={getCaptureAllHref(tenantId, installedWebSources)}
@@ -531,41 +557,68 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
                     {labels.captureAllPages}
                   </a>
                 ) : null}
-                <button
-                  type="button"
-                  className={`button-outline button-fit knowledge-installed-refresh ${isRefreshingInstalled ? 'knowledge-installed-refresh-active' : ''}`}
-                  disabled={isRefreshingInstalled}
-                  onClick={() => startInstalledRefresh(() => router.refresh())}
-                >
-                  {isRefreshingInstalled ? (
-                    <>
-                      <span>{labels.refreshingInstalled}</span>
-                      <span className="processing-line" aria-hidden="true" />
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw size={15} strokeWidth={2} aria-hidden="true" />
-                      <span>{labels.refreshInstalled}</span>
-                    </>
-                  )}
-                </button>
+                {savedInstalledWebCapture.enabled ? (
+                  <button
+                    type="button"
+                    className={`button-outline button-fit knowledge-installed-refresh ${isRefreshingInstalled ? 'knowledge-installed-refresh-active' : ''}`}
+                    disabled={isRefreshingInstalled}
+                    onClick={() => startInstalledRefresh(() => router.refresh())}
+                  >
+                    {isRefreshingInstalled ? (
+                      <>
+                        <span>{labels.refreshingInstalled}</span>
+                        <span className="processing-line" aria-hidden="true" />
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw size={15} strokeWidth={2} aria-hidden="true" />
+                        <span>{labels.refreshInstalled}</span>
+                      </>
+                    )}
+                  </button>
+                ) : null}
               </div>
             </div>
+
+            {captureSettingsState.message ? (
+              <ToastNotice
+                key={`${captureSettingsState.message}-${savedInstalledWebCapture.enabled}-${savedInstalledWebCapture.mode}`}
+                message={captureSettingsState.message}
+                tone={captureSettingsState.ok ? 'success' : 'error'}
+              />
+            ) : null}
+            <InstalledWebCaptureSettingsForm
+              key={`${savedInstalledWebCapture.enabled}-${savedInstalledWebCapture.mode}`}
+              action={captureSettingsAction}
+              labels={labels}
+              pending={captureSettingsPending}
+              settings={savedInstalledWebCapture}
+            />
+
+            {!savedInstalledWebCapture.enabled && installedWebSources.some((source) => source.chunkCount > 0) ? (
+              <p className="notice notice-info">{labels.captureDisabledKnowledgeAvailable}</p>
+            ) : null}
 
             {installedWebSources.length ? (
               <div className="knowledge-files-list knowledge-installed-list">
                 {installedWebSources.map((source) => (
-                  <InstalledWebSourceRow key={source.id} tenantId={tenantId} source={source} labels={labels} />
+                  <InstalledWebSourceRow
+                    key={source.id}
+                    tenantId={tenantId}
+                    source={source}
+                    labels={labels}
+                    captureMode={savedInstalledWebCapture.mode}
+                  />
                 ))}
               </div>
-            ) : (
+            ) : savedInstalledWebCapture.enabled ? (
               <div className="knowledge-installed-empty">
                 <strong>{labels.noInstalledPagesTitle}</strong>
                 <p>{labels.noInstalledPages}</p>
               </div>
-            )}
+            ) : null}
           </section>
-          {pagination}
+          {installedWebSources.length ? pagination : null}
         </>
       ) : null}
 
@@ -580,6 +633,86 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
         </section>
       ) : null}
     </>
+  )
+}
+
+function InstalledWebCaptureSettingsForm({
+  action,
+  labels,
+  pending,
+  settings,
+}: {
+  action: (payload: FormData) => void
+  labels: KnowledgeFormProps['labels']
+  pending: boolean
+  settings: InstalledWebCaptureSettings
+}) {
+  const [enabled, setEnabled] = useState(settings.enabled)
+  const [mode, setMode] = useState(settings.mode)
+  const dirty = enabled !== settings.enabled || mode !== settings.mode
+
+  return (
+    <form action={action} className="knowledge-capture-settings">
+      <div className="knowledge-capture-settings-header">
+        <div className="knowledge-capture-settings-copy">
+          <strong>{labels.captureSettingsTitle}</strong>
+          <p className="muted">{labels.captureSettingsHelp}</p>
+        </div>
+        <div className="knowledge-capture-settings-actions">
+          <label className="chatbot-availability-control knowledge-capture-toggle">
+            <input
+              checked={enabled}
+              name="installed_web_capture_enabled"
+              onChange={(event) => setEnabled(event.target.checked)}
+              type="checkbox"
+            />
+            <span className="chatbot-availability-switch" aria-hidden="true"><span /></span>
+            <strong>{enabled ? labels.captureDetectionEnabled : labels.captureDetectionDisabled}</strong>
+          </label>
+          <button
+            className={`${dirty ? 'button-primary' : 'button-outline'} button-fit`}
+            disabled={pending || !dirty}
+            type="submit"
+          >
+            {pending ? labels.captureSettingsSaving : labels.captureSettingsSave}
+          </button>
+        </div>
+      </div>
+
+      {!enabled ? <input name="installed_web_capture_mode" type="hidden" value={mode} /> : null}
+      {enabled ? (
+        <div className="knowledge-capture-processing">
+          <div>
+            <strong>{labels.captureMode}</strong>
+            <p className="muted">
+              {mode === 'manual' ? labels.captureModeManualHelp : labels.captureModeAutomaticHelp}
+            </p>
+          </div>
+          <fieldset className="knowledge-capture-mode" aria-label={labels.captureMode}>
+            <label>
+              <input
+                checked={mode === 'manual'}
+                name="installed_web_capture_mode"
+                onChange={() => setMode('manual')}
+                type="radio"
+                value="manual"
+              />
+              <span>{labels.captureModeManual}</span>
+            </label>
+            <label>
+              <input
+                checked={mode === 'automatic'}
+                name="installed_web_capture_mode"
+                onChange={() => setMode('automatic')}
+                type="radio"
+                value="automatic"
+              />
+              <span>{labels.captureModeAutomatic}</span>
+            </label>
+          </fieldset>
+        </div>
+      ) : null}
+    </form>
   )
 }
 
@@ -839,10 +972,12 @@ function InstalledWebSourceRow({
   tenantId,
   source,
   labels,
+  captureMode,
 }: {
   tenantId: string
   source: KnowledgeSource
   labels: KnowledgeFormProps['labels']
+  captureMode: InstalledWebCaptureSettings['mode']
 }) {
   const meta = getInstalledWebMeta(source)
   const sourceUrlLabel = source.sourceUrl ? formatInstalledSourceUrl(source.sourceUrl) : null
@@ -853,44 +988,45 @@ function InstalledWebSourceRow({
         <LinkIcon size={20} strokeWidth={2} />
       </div>
       <div className="knowledge-file-main">
-        <div className="knowledge-file-title-row">
+        <div className="knowledge-file-title-row knowledge-installed-title-row">
           <h3>{source.name}</h3>
+          {meta.lastSeenAt ? (
+            <span className="knowledge-installed-last-visit">
+              {labels.lastVisitDetected}: {formatDate(meta.lastSeenAt)}
+            </span>
+          ) : null}
         </div>
-        <div className="knowledge-file-meta">
+        <div className="knowledge-file-meta knowledge-installed-meta">
           {sourceUrlLabel && source.sourceUrl ? (
             <span className="knowledge-installed-url" title={source.sourceUrl}>
               {sourceUrlLabel}
             </span>
           ) : null}
-        </div>
-        <div className="knowledge-installed-signals" aria-label="Estado de la web instalada">
-          {meta.lastSeenAt ? (
-            <span className="knowledge-installed-signal">
-              {labels.lastVisitDetected}: {formatDate(meta.lastSeenAt)}
-            </span>
-          ) : null}
           {source.lastSyncedAt ? (
-            <span className="knowledge-installed-signal">
+            <span>
               {labels.lastCapture}: {formatDate(source.lastSyncedAt)}
             </span>
           ) : null}
           {source.chunkCount > 0 ? (
-            <span className="knowledge-installed-signal knowledge-installed-signal-ok">
+            <span className="knowledge-installed-content-ready">
               {labels.contentReady}
             </span>
-          ) : source.sourceUrl ? (
-            <a
-              className="button-primary button-fit knowledge-installed-capture-action"
-              href={getCaptureHref(tenantId, source.id)}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {labels.capturePage}
-            </a>
+          ) : source.sourceUrl && captureMode === 'automatic' ? (
+            <span>{labels.contentPending}</span>
           ) : null}
         </div>
       </div>
-      <div className="knowledge-file-actions">
+      <div className="knowledge-file-actions knowledge-installed-actions">
+        {source.chunkCount === 0 && source.sourceUrl && captureMode === 'manual' ? (
+          <a
+            className="button-outline button-fit knowledge-installed-capture-action"
+            href={getCaptureHref(tenantId, source.id)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {labels.capturePage}
+          </a>
+        ) : null}
         <DeleteKnowledgeSourceButton
           tenantId={tenantId}
           sourceId={source.id}

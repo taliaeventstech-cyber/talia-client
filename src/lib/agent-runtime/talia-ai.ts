@@ -1,4 +1,4 @@
-import type { ChatAgentProvider, ChatAgentRuntimeInput, ChatAgentRuntimeResult } from './chat'
+import type { ChatAgentProvider, ChatAgentRuntimeInput, ChatAgentRuntimeResult, ChatAiUsageComponent } from './chat'
 import { chatbotAiSettingsToRuntime, normalizeChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 
 type TaliaAiChatResponse = {
@@ -7,6 +7,8 @@ type TaliaAiChatResponse = {
   provider?: unknown
   model?: unknown
   usage?: unknown
+  usage_components?: unknown
+  usage_summary?: unknown
   sources?: unknown
   actions?: unknown
   metadata?: unknown
@@ -132,6 +134,8 @@ export class TaliaAiChatAgentProvider implements ChatAgentProvider {
         raw: text,
         model: typeof body.model === 'string' ? body.model : undefined,
         usage: isRecord(body.usage) ? body.usage : undefined,
+        usageComponents: parseUsageComponents(body.usage_components),
+        usageSummary: parseUsageSummary(body.usage_summary),
         sources: Array.isArray(body.sources) ? body.sources : undefined,
         actions: Array.isArray(body.actions) ? body.actions : undefined,
         metadata: isRecord(body.metadata) ? body.metadata : undefined,
@@ -145,6 +149,52 @@ export class TaliaAiChatAgentProvider implements ChatAgentProvider {
       }
     }
   }
+}
+
+function parseUsageComponents(value: unknown): ChatAiUsageComponent[] {
+  if (!Array.isArray(value)) return []
+
+  return value.flatMap((item) => {
+    if (!isRecord(item)) return []
+    const component = item.component
+    const provider = item.provider
+    const model = item.model
+    if (
+      component !== 'answer_agent'
+      && component !== 'language_agent'
+      && component !== 'retrieval_embedding'
+    ) return []
+    if (typeof provider !== 'string' || !provider.trim() || typeof model !== 'string' || !model.trim()) return []
+
+    return [{
+      component,
+      provider: provider.trim(),
+      model: model.trim(),
+      request_count: toNonNegativeInteger(item.request_count),
+      input_tokens: toNonNegativeInteger(item.input_tokens),
+      cached_input_tokens: Math.min(
+        toNonNegativeInteger(item.input_tokens),
+        toNonNegativeInteger(item.cached_input_tokens),
+      ),
+      output_tokens: toNonNegativeInteger(item.output_tokens),
+    }]
+  })
+}
+
+function parseUsageSummary(value: unknown) {
+  if (!isRecord(value)) return undefined
+  return {
+    request_count: toNonNegativeInteger(value.request_count),
+    input_tokens: toNonNegativeInteger(value.input_tokens),
+    cached_input_tokens: toNonNegativeInteger(value.cached_input_tokens),
+    output_tokens: toNonNegativeInteger(value.output_tokens),
+  }
+}
+
+function toNonNegativeInteger(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.max(0, Math.trunc(value))
+    : 0
 }
 
 function parseTaliaAiResponse(text: string): TaliaAiChatResponse | null {

@@ -57,6 +57,9 @@ export async function POST(
 
   const tenant = await getPublicWidgetConfig(admin, tenantId)
   if (!tenant.ok) return corsJson({ error: tenant.error }, { status: 404 })
+  if (!tenant.config.installedWebCapture.enabled || tenant.config.installedWebCapture.mode !== 'manual') {
+    return corsJson({ error: 'manual_capture_disabled' }, { status: 403 })
+  }
 
   const result = await ingestWebSnapshotSource({
     admin,
@@ -67,6 +70,7 @@ export async function POST(
     heading: parsed.data.heading,
     httpStatus: parsed.data.http_status,
     text: parsed.data.text,
+    captureMode: 'manual',
   })
 
   if (!result.ok) {

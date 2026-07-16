@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: July 14, 2026
+Last updated: July 15, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -17,6 +17,9 @@ Current state:
 - Client dashboard: **Agora**, per venue.
 - Internal panel: **Backstage**.
 - Current commercial model: 14-day free trial, upgrade to paid plans and add-ons.
+- Mexico/Brazil launch scope: **Web AI Assistant**. Email remains available for
+  internal testing and the `talia.events.tech@gmail.com` legacy account, but is not
+  exposed to other client accounts or the public upgrade offer during this phase.
 
 ## Implemented Product
 
@@ -25,6 +28,35 @@ Current state:
 Implemented:
 
 - Public signup with email/password.
+- Two global identity types: Admin for internal TALIA operators registered in
+  `platform_admins`, and User for every customer identity.
+- Account ownership and venue permissions are membership capabilities, not
+  additional global roles. Public signup creates a User who owns the new account
+  without granting Backstage access.
+- Backstage support access to customer accounts and venues is recorded in
+  `audit_events`; legacy `public.users.role` is no longer an authorization source.
+- Backstage uses the venue as the canonical customer-detail surface. The venue
+  page contains two primary operational views, Knowledge Health and Response
+  Traceability; plan usage, venue configuration and restricted billing actions
+  are available from the settings control in its header. The former account
+  detail and venue-invite routes have been removed from Backstage.
+- Backstage separates the operational summary from customer management:
+  `/backstage` contains only platform metrics and alerts, while
+  `/backstage/clients` owns the paginated accounts and venues dashboard.
+- The processed knowledge-source list is server-side paginated with 10, 25, 50
+  or 100 entries per page while global RAG health remains calculated across all
+  venue sources.
+- Backstage can filter processed sources by their persisted source type. It only
+  exposes per-source reprocessing for types supported by the ingestion path;
+  legacy `web_snapshot` rows remain inspectable but do not show a broken action.
+- Customer billing intervention from Backstage requires the explicit
+  `manage_customer_billing` platform capability, reserved for approved founders.
+  Authorized founders can schedule period-end cancellation or perform an
+  immediate cancellation with stronger confirmation, mandatory reason,
+  customer notification and audit events.
+- The initial founder capability grant is email-matched against existing
+  Supabase Auth identities in an idempotent migration; credentials are never
+  stored or provisioned from the repository.
 - Email confirmation before entering the product.
 - Intermediate "account confirmed" screen before starting onboarding.
 - Login with language selector.
@@ -52,11 +84,15 @@ Implemented:
 Current rule:
 
 - Initial onboarding creates the account/venue context.
+- The self-service creator is the account owner and receives the dedicated
+  billing-management permission. New launch accounts start with the
+  `chatbot_web` commercial plan and without the Email module.
 - Invitations are for teams that already exist, not for the client's initial signup.
 
 Reference:
 
 - `docs/product/onboarding.md`.
+- `docs/security/authorization-model.md`.
 
 ### Chatbot Onboarding
 
@@ -79,6 +115,12 @@ Implemented:
 
 - Dashboard per venue.
 - Sidebar with modules visible based on permissions, plan and access.
+- Launch-facing navigation limited to the Web AI Assistant and Accessibility;
+  Overview and Knowledge remain as supporting operational areas.
+- The Email Agent navigation and customer-facing routes are restricted to the
+  authenticated legacy account allowlist (`LEGACY_EMAIL_AGENT_ACCOUNT_EMAILS`),
+  which defaults to `talia.events.tech@gmail.com` for migration and Google
+  verification work.
 - Languages: Spanish, Catalan and English.
 - Global day/night mode.
 - Trial visible in sidebar.
@@ -134,6 +176,13 @@ Implemented:
   `fallback_language`, requires `metadata.response_language` in successful
   responses and keeps local language detection only for the legacy n8n path.
 - Agent runtime responses save compact sources (`id`, `source_id`, `source_type`, `score`) in the assistant message metadata, legacy conversation metadata, and usage for auditing.
+- `talia-ai` reports measured usage separately for the Answer Agent, optional
+  Language Agent and retrieval embedding. `talia-client` persists each
+  component against a versioned OpenAI price in fractional USD microdollars.
+- Backstage includes an AI cost view with current-month measured cost,
+  projection, cost per response, token/cache totals and breakdowns by venue,
+  model and component. It updates when the view is loaded instead of polling in
+  the background. Legacy heuristic estimates remain visibly separate.
 - Backstage shows RAG health per venue, response traceability, original question, requested/used provider, model, language, retrieval status, low-confidence/fallback warnings, sources, scores, chunks retrieved from `talia-ai`, and internal actions to reprocess PDFs or retry embeddings.
 
 Pending:
@@ -181,6 +230,9 @@ Implemented:
 - FAQs/official answers.
 - PDF import with text extraction and knowledge fragments.
 - Manual FAQs and Excel/CSV are saved as `knowledge_items` for UI/fallback, but are reindexed as `knowledge_chunks` via `talia-ai`.
+- Agora currently exposes Web, Files and FAQs as knowledge-source tabs. Apps and
+  Spreadsheets remain implemented but hidden, including from direct tab URLs,
+  until their product reliability is audited.
 - `knowledge_chunks` table for documentary fragments prepared for retrieval and embeddings.
 - Internal ingestion seam in `src/lib/knowledge/ingestion.ts`, which uploads PDFs to Storage and delegates parsing/chunking to `talia-ai`; for structured sources it normalizes text and delegates chunking/embeddings to `talia-ai`.
 - Internal retrieval seam in `src/lib/knowledge/retrieval.ts`.
@@ -189,7 +241,14 @@ Implemented:
 - Reprocessable PDFs from Storage: Backstage can ask `talia-ai` to regenerate chunks and embeddings without re-uploading the file.
 - Backstage allows reindexing all of a venue's knowledge and reprocessing individual RAG sources.
 - Local text-only fallback in Next over chunks/items.
-- Installed-web sources connected to `knowledge_sources` of type `web_snapshot`: Agora generates a signed capture URL, the installed widget extracts visible DOM text from the landing page, and `talia-ai` normalizes, chunks and generates embeddings.
+- Installed-web detection is opt-in per venue and defaults to disabled. Agora
+  offers a manual mode, which exposes the explicit capture actions, and an
+  automatic mode, in which the installed widget submits the visible page text
+  as pages are visited. Capture actions are hidden outside manual mode.
+- Installed-web sources are connected to `knowledge_sources` as
+  `web_snapshot`: the installed widget extracts visible DOM text and `talia-ai`
+  normalizes, chunks and generates embeddings. Automatic captures persist a
+  content hash and skip reingestion when the page has not changed.
 - Installed-web URLs are canonicalized across the widget, API and database. Tracking parameters are discarded, functional query parameters are preserved, duplicate rows are merged before a unique tenant/type/URL index is enforced, and page-presence writes are throttled to once per hour per source.
 - Agora can configure managed single-page, sitemap and bounded-website sources
   with manual, daily, weekly or monthly refresh policies. The persistence model
@@ -302,8 +361,14 @@ Reference:
 Implemented:
 
 - 14-day free trial.
-- After the trial, access to Chatbot/Email is replaced by an upgrade prompt.
-- `/upgrade` screen with plans and add-ons.
+- After the trial, access to the Web AI Assistant is replaced by an upgrade prompt.
+- `/upgrade` screen with the public Web AI Assistant plan and compatible add-ons.
+- The current commercial plan is read-only in chatbot settings. Subscription
+  changes go through the billing flow and cannot be written by the widget settings
+  server action.
+- Paid account owners can open Stripe Customer Portal from `/upgrade` to manage
+  billing or confirm cancellation. Scheduled cancellations remain active until
+  the paid period ends, and webhook metadata makes that state visible in Agora.
 - Stripe Checkout.
 - Documented Stripe webhook.
 - Add-ons:

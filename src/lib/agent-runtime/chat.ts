@@ -32,6 +32,16 @@ export type ChatAgentPendingClarification = {
   optionKeys?: string[]
 }
 
+export type ChatAiUsageComponent = {
+  component: 'answer_agent' | 'language_agent' | 'retrieval_embedding'
+  provider: string
+  model: string
+  request_count: number
+  input_tokens: number
+  cached_input_tokens: number
+  output_tokens: number
+}
+
 export type ChatAgentRuntimeResult =
   | {
     ok: true
@@ -40,6 +50,8 @@ export type ChatAgentRuntimeResult =
     raw?: string
     model?: string
     usage?: Record<string, unknown>
+    usageComponents?: ChatAiUsageComponent[]
+    usageSummary?: Record<string, number>
     sources?: unknown[]
     actions?: unknown[]
     metadata?: Record<string, unknown>
