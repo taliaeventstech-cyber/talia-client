@@ -14,6 +14,133 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_model_pricing: {
+        Row: {
+          cached_input_usd_micros_per_million: number
+          created_at: string
+          currency: string
+          effective_from: string
+          effective_to: string | null
+          id: string
+          input_usd_micros_per_million: number
+          model: string
+          output_usd_micros_per_million: number
+          provider: string
+          source_url: string
+        }
+        Insert: {
+          cached_input_usd_micros_per_million?: number
+          created_at?: string
+          currency?: string
+          effective_from: string
+          effective_to?: string | null
+          id?: string
+          input_usd_micros_per_million?: number
+          model: string
+          output_usd_micros_per_million?: number
+          provider: string
+          source_url: string
+        }
+        Update: {
+          cached_input_usd_micros_per_million?: number
+          created_at?: string
+          currency?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          input_usd_micros_per_million?: number
+          model?: string
+          output_usd_micros_per_million?: number
+          provider?: string
+          source_url?: string
+        }
+        Relationships: []
+      }
+      ai_usage_events: {
+        Row: {
+          accuracy: string
+          cached_input_tokens: number
+          component: string
+          cost_usd_micros: number
+          created_at: string
+          id: string
+          idempotency_key: string
+          input_tokens: number
+          metadata: Json
+          model: string
+          occurred_at: string
+          output_tokens: number
+          pricing_id: string | null
+          provider: string
+          request_count: number
+          session_id: string | null
+          theatre_id: string
+          usage_event_id: string | null
+        }
+        Insert: {
+          accuracy: string
+          cached_input_tokens?: number
+          component: string
+          cost_usd_micros?: number
+          created_at?: string
+          id?: string
+          idempotency_key: string
+          input_tokens?: number
+          metadata?: Json
+          model: string
+          occurred_at?: string
+          output_tokens?: number
+          pricing_id?: string | null
+          provider: string
+          request_count?: number
+          session_id?: string | null
+          theatre_id: string
+          usage_event_id?: string | null
+        }
+        Update: {
+          accuracy?: string
+          cached_input_tokens?: number
+          component?: string
+          cost_usd_micros?: number
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          input_tokens?: number
+          metadata?: Json
+          model?: string
+          occurred_at?: string
+          output_tokens?: number
+          pricing_id?: string | null
+          provider?: string
+          request_count?: number
+          session_id?: string | null
+          theatre_id?: string
+          usage_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_events_pricing_id_fkey"
+            columns: ["pricing_id"]
+            isOneToOne: false
+            referencedRelation: "ai_model_pricing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_events_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_events_usage_event_id_fkey"
+            columns: ["usage_event_id"]
+            isOneToOne: false
+            referencedRelation: "usage_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       analytics_daily: {
         Row: {
           avg_messages_per_conversation: number
@@ -1660,7 +1787,52 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      ai_response_usage_daily: {
+        Row: {
+          accuracy: string | null
+          cached_input_tokens: number | null
+          cost_usd_micros: number | null
+          date: string | null
+          input_tokens: number | null
+          output_tokens: number | null
+          request_count: number | null
+          response_count: number | null
+          theatre_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_events_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_usage_daily: {
+        Row: {
+          accuracy: string | null
+          cached_input_tokens: number | null
+          component: string | null
+          cost_usd_micros: number | null
+          date: string | null
+          input_tokens: number | null
+          model: string | null
+          output_tokens: number | null
+          provider: string | null
+          request_count: number | null
+          theatre_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_events_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       current_theatre_id: {

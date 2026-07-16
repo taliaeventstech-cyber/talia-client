@@ -299,7 +299,19 @@ export async function recordUsageEvent(admin: AdminClient, input: RecordUsageEve
   }
 
   if (!insert.data) {
-    return { ok: true as const, duplicate: true }
+    if (!input.idempotencyKey) return { ok: true as const, duplicate: true }
+
+    const { data: existing, error: existingError } = await admin
+      .from('usage_events')
+      .select('id')
+      .eq('idempotency_key', input.idempotencyKey)
+      .maybeSingle()
+
+    if (existingError || !existing) {
+      return { ok: false as const, error: existingError?.message ?? 'Could not resolve duplicate usage event' }
+    }
+
+    return { ok: true as const, duplicate: true, eventId: existing.id }
   }
 
   const { error: aggregateError } = await admin.rpc('increment_tenant_usage_daily', {

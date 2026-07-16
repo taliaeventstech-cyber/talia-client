@@ -636,6 +636,121 @@ textarea {
   padding: 12px 18px;
 }
 
+.backstage-live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.backstage-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.backstage-cost-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.85fr);
+  gap: 18px;
+  min-width: 0;
+}
+
+.backstage-cost-panel {
+  min-width: 0;
+  border: 0.5px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.backstage-cost-panel > .section-title-row {
+  padding: 16px 18px;
+}
+
+.backstage-cost-chart {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12px, 1fr));
+  align-items: end;
+  gap: 5px;
+  height: 210px;
+  border-top: 0.5px solid var(--color-border);
+  padding: 20px 18px 12px;
+}
+
+.backstage-cost-bar-column {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 18px;
+  align-items: end;
+  gap: 7px;
+  height: 100%;
+  min-width: 0;
+}
+
+.backstage-cost-bar {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--color-brand);
+  opacity: 0.82;
+}
+
+.backstage-cost-bar-column small {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 9px;
+  text-align: center;
+}
+
+.backstage-cost-quality {
+  display: grid;
+  margin: 0;
+  border-top: 0.5px solid var(--color-border);
+}
+
+.backstage-cost-quality > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 0.5px solid var(--color-border);
+  padding: 12px 18px;
+}
+
+.backstage-cost-quality dt {
+  color: var(--color-text-secondary);
+}
+
+.backstage-cost-quality dd {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.backstage-cost-note {
+  margin: 0;
+  padding: 14px 18px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.backstage-cost-table {
+  min-width: 760px;
+}
+
+.backstage-cost-breakdown-table {
+  min-width: 520px;
+}
+
+.backstage-cost-table td,
+.backstage-cost-breakdown-table td {
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 1050px) {
   .backstage-shell {
     --backstage-sidebar-width: 200px;
@@ -652,6 +767,10 @@ textarea {
 
   .backstage-metric:nth-child(4) {
     border-top: 0.5px solid var(--color-border);
+  }
+
+  .backstage-cost-grid {
+    grid-template-columns: 1fr;
   }
 }
 

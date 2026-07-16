@@ -60,6 +60,24 @@ Examples:
 
 Daily aggregate for fast dashboards.
 
+### `ai_model_pricing`
+
+Versioned provider price catalogue. Each row identifies the exact provider and
+model, effective interval, source URL and input, cached-input and output prices
+in USD microdollars per million tokens.
+
+### `ai_usage_events`
+
+Authoritative AI cost ledger. One chat response can create several rows:
+
+- `answer_agent`;
+- `language_agent`, only when the LLM planner runs;
+- `retrieval_embedding`.
+
+Each row stores the raw measured tokens, request count, exact model,
+`pricing_id`, fractional USD microdollars and an accuracy label:
+`measured`, `estimated_legacy` or `reconciled`.
+
 ## Units
 
 Chatbot:
@@ -89,12 +107,17 @@ Voice:
 
 For OpenAI:
 
-- capture the model;
-- capture input/output tokens;
-- apply the internal pricing table;
-- store `cost_estimate_cents`.
+- `talia-ai` returns per-component usage with exact model and measured input,
+  cached-input and output tokens;
+- `talia-client` persists those components and applies the price row effective
+  when the request occurred;
+- raw tokens and `pricing_id` remain authoritative, so historical values can be
+  revalued or reconciled without rewriting conversational data;
+- cost uses fractional USD microdollars and is never rounded per request to a
+  whole cent.
 
-If the flow goes through n8n and doesn't return tokens, cost will be estimated via heuristic until migrating to an in-house backend.
+Legacy n8n flows that do not return tokens remain heuristic and must be labelled
+`estimated_legacy`; they are not mixed into measured Backstage metrics.
 
 ## Limits
 
@@ -124,7 +147,9 @@ Do not show estimated AI cost to the client unless there is an explicit business
 
 In Backstage, do show:
 
-- estimated cost;
+- measured USD cost and monthly projection;
+- explicit measurement quality and separate legacy estimates;
 - usage per venue;
+- breakdown by model and runtime component;
 - contracted modules;
 - potential overage.
