@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { normalizePlatformPermissions } from './permissions'
 
 export async function requirePlatformAdmin() {
   const supabase = await createClient()
@@ -11,7 +12,7 @@ export async function requirePlatformAdmin() {
   const admin = createAdminClient()
   const { data: platformAdmin } = await admin
     .from('platform_admins')
-    .select('role')
+    .select('role, permissions')
     .eq('user_id', user.id)
     .maybeSingle()
 
@@ -20,5 +21,6 @@ export async function requirePlatformAdmin() {
   return {
     user,
     role: platformAdmin.role,
+    permissions: normalizePlatformPermissions(platformAdmin.permissions),
   }
 }

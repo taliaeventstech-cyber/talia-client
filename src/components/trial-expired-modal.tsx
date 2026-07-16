@@ -12,8 +12,6 @@ export type TrialExpiredModalLabels = {
   description: string
   chatbotTitle: string
   chatbotMessage: string
-  emailTitle: string
-  emailMessage: string
   agoraTitle: string
   agoraMessage: string
   viewPlans: string
@@ -61,10 +59,6 @@ export function TrialExpiredModal({
             <div className="trial-preview-card trial-preview-card-chatbot">
               <span>{labels.chatbotTitle}</span>
               <p>{labels.chatbotMessage}</p>
-            </div>
-            <div className="trial-preview-card trial-preview-card-email">
-              <span>{labels.emailTitle}</span>
-              <p>{labels.emailMessage}</p>
             </div>
             <div className="trial-preview-card trial-preview-card-agora">
               <span>{labels.agoraTitle}</span>

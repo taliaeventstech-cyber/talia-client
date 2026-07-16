@@ -26,6 +26,10 @@ type AddonView = {
 
 export function BillingConfigurator({
   addons,
+  billingLabels,
+  cancellationDate,
+  cancellationScheduled,
+  canManageBilling,
   checkoutLabels,
   currentAddonKeys,
   currentPlanKey,
@@ -44,7 +48,22 @@ export function BillingConfigurator({
     pending: string
     disabled: string
     error: string
+    ownerOnly: string
   }
+  billingLabels: {
+    title: string
+    description: string
+    manage: string
+    cancel: string
+    opening: string
+    error: string
+    scheduled: string
+    scheduledWithoutDate: string
+    ownerOnly: string
+  }
+  cancellationDate: string | null
+  cancellationScheduled: boolean
+  canManageBilling: boolean
   currentAddonKeys: BillingAddonKey[]
   currentPlanKey: BillingPlanKey
   isPaid: boolean
@@ -59,6 +78,8 @@ export function BillingConfigurator({
   const [selectedPlanKey, setSelectedPlanKey] = useState<BillingPlanKey>(currentPlanKey)
   const [selectedAddonKeys, setSelectedAddonKeys] = useState<Set<BillingAddonKey>>(new Set(currentAddonKeys))
   const [pending, setPending] = useState(false)
+  const [portalPending, setPortalPending] = useState<'manage' | 'cancel' | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const selectedPlan = plans.find((plan) => plan.key === selectedPlanKey) ?? plans[0]
   const selectedAddons = addons.filter((addon) => selectedAddonKeys.has(addon.key))
   const recurringAddons = selectedAddons.filter((addon) => addon.billingMode === 'recurring')
@@ -77,8 +98,9 @@ export function BillingConfigurator({
   }
 
   async function submit() {
-    if (pending || hasDisabledSelection) return
+    if (pending || hasDisabledSelection || !canManageBilling) return
     setPending(true)
+    setErrorMessage(null)
     const endpoint = isPaid ? '/api/billing/update-subscription' : '/api/billing/checkout'
 
     try {
@@ -101,7 +123,28 @@ export function BillingConfigurator({
     } catch (error) {
       console.error('[billing-configurator]', error)
       setPending(false)
-      window.alert(error instanceof Error ? error.message : checkoutLabels.error)
+      setErrorMessage(error instanceof Error ? error.message : checkoutLabels.error)
+    }
+  }
+
+  async function openBillingPortal(flow: 'manage' | 'cancel') {
+    if (portalPending || !canManageBilling) return
+    setPortalPending(flow)
+    setErrorMessage(null)
+
+    try {
+      const response = await fetch('/api/billing/customer-portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId, flow }),
+      })
+      const payload = await response.json() as { url?: string; error?: string }
+      if (!response.ok || !payload.url) throw new Error(payload.error ?? billingLabels.error)
+      window.location.assign(payload.url)
+    } catch (error) {
+      console.error('[billing-customer-portal]', error)
+      setPortalPending(null)
+      setErrorMessage(error instanceof Error ? error.message : billingLabels.error)
     }
   }
 
@@ -201,9 +244,54 @@ export function BillingConfigurator({
           <strong>{monthlyTotal}€</strong>
           <span>{monthlyLabel}</span>
         </div>
-        <button className="button-primary pricing-action" type="button" disabled={pending || hasDisabledSelection} onClick={submit}>
-          {pending ? checkoutLabels.pending : hasDisabledSelection ? checkoutLabels.disabled : checkoutLabels.idle}
+        <button className="button-primary pricing-action" type="button" disabled={pending || hasDisabledSelection || !canManageBilling} onClick={submit}>
+          {!canManageBilling
+            ? checkoutLabels.ownerOnly
+            : pending
+              ? checkoutLabels.pending
+              : hasDisabledSelection
+                ? checkoutLabels.disabled
+                : checkoutLabels.idle}
         </button>
+
+        {isPaid ? (
+          <div className="billing-management">
+            <div className="billing-management-copy">
+              <strong>{billingLabels.title}</strong>
+              <p>{billingLabels.description}</p>
+              {cancellationScheduled ? (
+                <p className="billing-cancellation-status" role="status">
+                  {cancellationDate
+                    ? billingLabels.scheduled.replace('{date}', cancellationDate)
+                    : billingLabels.scheduledWithoutDate}
+                </p>
+              ) : null}
+              {!canManageBilling ? <p className="muted">{billingLabels.ownerOnly}</p> : null}
+            </div>
+            <div className="billing-management-actions">
+              <button
+                className="button-outline"
+                type="button"
+                disabled={Boolean(portalPending) || !canManageBilling}
+                onClick={() => openBillingPortal('manage')}
+              >
+                {portalPending === 'manage' ? billingLabels.opening : billingLabels.manage}
+              </button>
+              {!cancellationScheduled ? (
+                <button
+                  className="button-outline button-danger"
+                  type="button"
+                  disabled={Boolean(portalPending) || !canManageBilling}
+                  onClick={() => openBillingPortal('cancel')}
+                >
+                  {portalPending === 'cancel' ? billingLabels.opening : billingLabels.cancel}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        {errorMessage ? <p className="billing-error" role="alert">{errorMessage}</p> : null}
       </aside>
     </section>
   )

@@ -26,4 +26,13 @@ describe('getAuthCallbackUrl', () => {
 
     expect(getAuthCallbackUrl(request)).toBe('https://agora.talia.events/auth/callback')
   })
+
+  it('never sends a localhost recovery flow to the configured production origin', () => {
+    process.env.NEXT_PUBLIC_APP_URL = 'https://agora.talia.events'
+
+    const request = new NextRequest('http://localhost:3000/auth/forgot-password')
+
+    expect(getAuthCallbackUrl(request, '/auth/reset-callback'))
+      .toBe('http://localhost:3000/auth/reset-callback')
+  })
 })

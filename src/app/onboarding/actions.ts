@@ -3,6 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { createTenantForUser } from '@/lib/tenants/provisioning'
+import { getUserVenueAccess } from '@/lib/auth/user-venues'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { optionalInternationalPhoneSchema } from '@/lib/phone/schema'
@@ -41,13 +42,10 @@ export async function createTenant(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: existing } = await supabase
-    .from('users')
-    .select('theatre_id')
-    .eq('id', user.id)
-    .maybeSingle()
+  const admin = createAdminClient()
+  const [existing] = await getUserVenueAccess(admin, user.id)
 
-  if (existing) redirect(`/${existing.theatre_id}/overview`)
+  if (existing) redirect(`/${existing.id}/overview`)
 
   const parsed = onboardingSchema.safeParse({
     fullName: formData.get('full_name'),
@@ -67,7 +65,6 @@ export async function createTenant(
     return { ok: false, message: parsed.error.issues[0]?.message ?? 'Los datos no son válidos.' }
   }
 
-  const admin = createAdminClient()
   const created = await createTenantForUser(admin, {
     userId: user.id,
     userEmail: user.email ?? '',

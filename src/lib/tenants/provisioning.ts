@@ -84,7 +84,7 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
   } satisfies Json
   const trialMetadata = {
     ...createTrialMetadata(now),
-    commercial_plan: 'chatbot_email',
+    commercial_plan: 'chatbot_web',
   } satisfies Json
 
   const { data: account, error: accountError } = await admin
@@ -144,20 +144,7 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
     return { ok: false as const, error: modulesError.message }
   }
 
-  const { error: userError } = await admin
-    .from('users')
-    .upsert({
-      id: input.userId,
-      theatre_id: theatre.id,
-      email: input.userEmail,
-      role: 'admin',
-    }, { onConflict: 'id' })
-
-  if (userError) {
-    return { ok: false as const, error: userError.message }
-  }
-
-  const { data: profile } = await admin
+  const { data: profile, error: profileError } = await admin
     .from('profiles')
     .upsert({
       auth_user_id: input.userId,
@@ -169,23 +156,32 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
     .select('id')
     .single()
 
-  if (profile) {
-    await Promise.all([
-      admin
-        .from('account_memberships')
-        .upsert({
-          account_id: account.id,
-          profile_id: profile.id,
-          role: 'admin',
-        }, { onConflict: 'account_id,profile_id' }),
-      admin
-        .from('venue_memberships')
-        .upsert({
-          theatre_id: theatre.id,
-          profile_id: profile.id,
-          role: 'admin',
-        }, { onConflict: 'theatre_id,profile_id' }),
-    ])
+  if (profileError || !profile) {
+    return { ok: false as const, error: profileError?.message ?? 'Could not create profile' }
+  }
+
+  const [{ error: accountMembershipError }, { error: venueMembershipError }] = await Promise.all([
+    admin
+      .from('account_memberships')
+      .upsert({
+        account_id: account.id,
+        profile_id: profile.id,
+        role: 'owner',
+      }, { onConflict: 'account_id,profile_id' }),
+    admin
+      .from('venue_memberships')
+      .upsert({
+        theatre_id: theatre.id,
+        profile_id: profile.id,
+        role: 'owner',
+      }, { onConflict: 'theatre_id,profile_id' }),
+  ])
+
+  if (accountMembershipError || venueMembershipError) {
+    return {
+      ok: false as const,
+      error: accountMembershipError?.message ?? venueMembershipError?.message ?? 'Could not create membership',
+    }
   }
 
   return { ok: true as const, tenantId: theatre.id }
@@ -256,7 +252,7 @@ function getGoalLabel(goal: string) {
 }
 
 function getInitialModules() {
-  return ['chatbot', 'data', 'email']
+  return ['chatbot', 'data']
 }
 
 async function getAvailableSlug(admin: AdminClient, baseSlug: string) {

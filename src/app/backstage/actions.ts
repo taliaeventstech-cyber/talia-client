@@ -1,6 +1,9 @@
 'use server'
 
 import { requirePlatformAdmin } from '@/lib/platform/auth'
+import { hasPlatformPermission } from '@/lib/platform/permissions'
+import { sendBillingCancellationNotification } from '@/lib/billing/cancellation-notification'
+import { markSubscriptionCancelled, syncSubscriptionStatus } from '@/lib/billing/stripe-sync'
 import {
   chatbotAiSettingsToWidgetConfig,
   normalizeChatbotAiSettings,
@@ -16,6 +19,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { optionalInternationalPhoneSchema } from '@/lib/phone/schema'
+import { cancelStripeSubscription, retrieveStripeSubscription } from '@/lib/stripe/server'
 
 export type CreateTenantState = {
   ok: boolean
@@ -33,6 +37,11 @@ export type CreateAccountInviteState = {
   ok: boolean
   message: string
   inviteUrl?: string
+}
+
+export type AdminBillingCancellationState = {
+  ok: boolean
+  message: string
 }
 
 const moduleKeys = ['chatbot', 'data', 'voice', 'email', 'whatsapp', 'instagram', 'marketing'] as const
@@ -90,6 +99,13 @@ const deleteAccountSchema = z.object({
 const deleteInviteSchema = z.object({
   accountId: z.string().uuid(),
   inviteId: z.string().uuid(),
+})
+
+const adminBillingCancellationSchema = z.object({
+  accountId: z.string().uuid(),
+  mode: z.enum(['period_end', 'immediate']),
+  reason: z.string().trim().min(10, 'Explica el motivo con al menos 10 caracteres.').max(500),
+  confirmation: z.string().trim(),
 })
 
 const createAccountInviteSchema = z.object({
@@ -432,6 +448,122 @@ export async function deleteInviteAction(formData: FormData) {
 
   revalidatePath('/backstage')
   revalidatePath(`/backstage/accounts/${parsed.data.accountId}`)
+}
+
+export async function cancelCustomerSubscriptionAction(
+  _previousState: AdminBillingCancellationState,
+  formData: FormData,
+): Promise<AdminBillingCancellationState> {
+  const platformAccess = await requirePlatformAdmin()
+  if (!hasPlatformPermission(platformAccess.permissions, 'manage_customer_billing')) {
+    return { ok: false, message: 'Esta acción está restringida a founders autorizados.' }
+  }
+
+  const parsed = adminBillingCancellationSchema.safeParse({
+    accountId: formData.get('account_id'),
+    mode: formData.get('mode'),
+    reason: formData.get('reason'),
+    confirmation: formData.get('confirmation'),
+  })
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? 'Datos no válidos.' }
+  }
+
+  const expectedConfirmation = parsed.data.mode === 'immediate' ? 'CANCELAR AHORA' : 'CANCELAR'
+  if (parsed.data.confirmation !== expectedConfirmation) {
+    return { ok: false, message: `Escribe ${expectedConfirmation} para confirmar.` }
+  }
+
+  const admin = createAdminClient()
+  const { data: account } = await admin
+    .from('accounts')
+    .select('id, name, billing_email, metadata')
+    .eq('id', parsed.data.accountId)
+    .maybeSingle()
+  if (!account) return { ok: false, message: 'No se ha encontrado la cuenta.' }
+
+  const metadata = asJsonObject(account.metadata)
+  const subscriptionId = typeof metadata.stripe_subscription_id === 'string'
+    ? metadata.stripe_subscription_id
+    : null
+  if (!subscriptionId) return { ok: false, message: 'La cuenta no tiene una suscripción de Stripe vinculada.' }
+
+  try {
+    const currentSubscription = await retrieveStripeSubscription(subscriptionId)
+    if (currentSubscription.metadata?.account_id && currentSubscription.metadata.account_id !== account.id) {
+      throw new Error('Stripe subscription account mismatch')
+    }
+    if (currentSubscription.status === 'canceled') {
+      return { ok: false, message: 'La suscripción ya está cancelada.' }
+    }
+    if (parsed.data.mode === 'period_end' && currentSubscription.cancel_at_period_end) {
+      return { ok: true, message: 'La cancelación al final del periodo ya estaba programada.' }
+    }
+
+    const subscription = await cancelStripeSubscription({
+      subscriptionId,
+      mode: parsed.data.mode,
+    })
+
+    if (parsed.data.mode === 'immediate') {
+      await markSubscriptionCancelled(admin, subscription)
+    } else {
+      await syncSubscriptionStatus(admin, subscription)
+    }
+
+    const effectiveAt = parsed.data.mode === 'immediate'
+      ? new Date().toISOString()
+      : subscription.current_period_end
+        ? new Date(subscription.current_period_end * 1000).toISOString()
+        : null
+    const notification = await sendBillingCancellationNotification({
+      accountName: account.name,
+      billingEmail: account.billing_email,
+      mode: parsed.data.mode,
+      effectiveAt,
+    })
+
+    await admin.from('audit_events').insert({
+      account_id: account.id,
+      actor_user_id: platformAccess.user.id,
+      action: parsed.data.mode === 'immediate'
+        ? 'billing.subscription_cancelled_immediately'
+        : 'billing.subscription_cancellation_scheduled',
+      target_type: 'account',
+      target_id: account.id,
+      metadata: {
+        subscription_id: subscriptionId,
+        reason: parsed.data.reason,
+        mode: parsed.data.mode,
+        effective_at: effectiveAt,
+        notification_status: notification.status,
+      },
+    })
+
+    revalidatePath('/backstage')
+    revalidatePath(`/backstage/accounts/${account.id}`)
+    return {
+      ok: true,
+      message: parsed.data.mode === 'immediate'
+        ? 'Suscripción cancelada inmediatamente.'
+        : 'Cancelación programada al final del periodo.',
+    }
+  } catch (error) {
+    await admin.from('audit_events').insert({
+      account_id: account.id,
+      actor_user_id: platformAccess.user.id,
+      action: 'billing.subscription_cancellation_failed',
+      target_type: 'account',
+      target_id: account.id,
+      metadata: {
+        subscription_id: subscriptionId,
+        reason: parsed.data.reason,
+        mode: parsed.data.mode,
+        error: error instanceof Error ? error.message.slice(0, 300) : 'unknown_error',
+      },
+    })
+    return { ok: false, message: 'Stripe no ha podido cancelar la suscripción. Revisa el evento de auditoría.' }
+  }
 }
 
 export async function createAccountInviteAction(

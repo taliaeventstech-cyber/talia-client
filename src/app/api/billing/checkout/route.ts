@@ -1,9 +1,10 @@
-import { requireTenantPermission } from '@/lib/auth/tenant-access'
+import { requireTenantBillingAccess } from '@/lib/auth/tenant-access'
 import {
   getBillingAddon,
   getBillingPlan,
   getStripePriceIdForAddon,
   getStripePriceIdForPlan,
+  isPublicBillingPlan,
   type BillingAddon,
 } from '@/lib/billing/plans'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     const plan = getBillingPlan(planKey)
-    if (!plan) {
+    if (!plan || !isPublicBillingPlan(plan.key)) {
       return NextResponse.json({ error: 'invalid_plan' }, { status: 400 })
     }
 
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
       .map((addon) => getStripePriceIdForAddon(addon))
       .filter((addonPriceId): addonPriceId is string => Boolean(addonPriceId))
 
-    await requireTenantPermission(tenantId, 'view_overview')
+    await requireTenantBillingAccess(tenantId)
 
     const admin = createAdminClient()
     const { data: theatre, error } = await admin

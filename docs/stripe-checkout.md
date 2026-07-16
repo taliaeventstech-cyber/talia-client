@@ -16,6 +16,10 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 NEXT_PUBLIC_APP_URL=https://app.talia...
 ```
 
+The Stripe Customer Portal must be enabled in the same Stripe account. Its
+subscription cancellation setting must cancel **at the end of the billing
+period**, so customers retain access for the time they have already paid.
+
 Locally, `NEXT_PUBLIC_APP_URL` must point to the actual port where Next is running, for example:
 
 ```bash
@@ -63,6 +67,36 @@ Plan change or recurring add-ons on an existing subscription:
 POST /api/billing/update-subscription
 ```
 
+Create a short-lived Stripe Customer Portal session for billing management or
+the explicit subscription cancellation flow:
+
+```text
+POST /api/billing/customer-portal
+```
+
+The endpoint accepts `flow=manage|cancel`, reads the Stripe customer and
+subscription identifiers from server-side account metadata, and is restricted
+to the account owner according to `account_memberships.role`. The browser never supplies a Stripe customer or
+subscription ID.
+
+Backstage uses a separate administrative path. Being present in
+`platform_admins` is not enough: the operator must also have the explicit
+`manage_customer_billing` capability. Administrative cancellation reads the
+subscription ID from trusted account metadata, verifies it with Stripe, requires
+a reason and typed confirmation, synchronizes the returned subscription state,
+writes an `audit_events` entry and attempts to notify `accounts.billing_email`.
+Period-end cancellation is the recommended default; immediate cancellation is
+available only through the stronger `CANCELAR AHORA` confirmation.
+
+Customer notifications use `RESEND_API_KEY` and
+`TALIA_BILLING_FROM_EMAIL` (falling back to `TALIA_SUPPORT_FROM_EMAIL`). Email
+delivery failure is recorded but does not roll back a successful Stripe change.
+
+When cancellation is scheduled, Stripe emits `customer.subscription.updated`
+with `cancel_at_period_end=true`. TALIA stores the end date and keeps the product
+active. At period end, `customer.subscription.deleted` marks the account and
+tenant subscription as cancelled and removes recurring add-on effects.
+
 `update-subscription` only modifies recurring add-ons. One-time payments, such as `onboarding_premium`, are not added to an already-created subscription.
 
 ## Restricted key
@@ -70,8 +104,9 @@ POST /api/billing/update-subscription
 If a restricted API key is used instead of a full secret key, it needs permissions to:
 
 - Create Checkout Sessions.
-- Read Subscriptions.
+- Read and write Subscriptions (plan changes and administrative cancellation).
 - Read Customers, if the saved customer is to be reused.
+- Create Billing Portal Sessions.
 
 The webhook doesn't use scopes: it's configured by events in Stripe and signs calls with the webhook secret.
 

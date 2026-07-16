@@ -5,7 +5,7 @@ const STRIPE_API_BASE = 'https://api.stripe.com/v1'
 const STRIPE_API_VERSION = '2026-02-25.clover'
 
 type StripeRequestOptions = {
-  method?: 'GET' | 'POST'
+  method?: 'GET' | 'POST' | 'DELETE'
   params?: Record<string, unknown>
 }
 
@@ -22,6 +22,9 @@ export type StripeSubscription = {
   id: string
   status: string
   customer: string | null
+  cancel_at?: number | null
+  cancel_at_period_end?: boolean
+  canceled_at?: number | null
   current_period_start?: number
   current_period_end?: number
   metadata?: Record<string, string>
@@ -33,6 +36,11 @@ export type StripeSubscription = {
       }
     }>
   }
+}
+
+export type StripeCustomerPortalSession = {
+  id: string
+  url: string
 }
 
 export type StripeInvoice = {
@@ -106,6 +114,47 @@ export async function createStripeCheckoutSession(input: {
 
 export async function retrieveStripeSubscription(subscriptionId: string) {
   return stripeRequest<StripeSubscription>(`/subscriptions/${subscriptionId}`)
+}
+
+export async function cancelStripeSubscription(input: {
+  subscriptionId: string
+  mode: 'period_end' | 'immediate'
+}) {
+  if (input.mode === 'immediate') {
+    return stripeRequest<StripeSubscription>(`/subscriptions/${input.subscriptionId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  return stripeRequest<StripeSubscription>(`/subscriptions/${input.subscriptionId}`, {
+    method: 'POST',
+    params: { cancel_at_period_end: true },
+  })
+}
+
+export async function createStripeCustomerPortalSession(input: {
+  customerId: string
+  returnUrl: string
+  subscriptionId?: string
+  flow: 'manage' | 'cancel'
+}) {
+  const params: Record<string, unknown> = {
+    customer: input.customerId,
+    return_url: input.returnUrl,
+  }
+
+  if (input.flow === 'cancel') {
+    if (!input.subscriptionId) throw new Error('Missing Stripe subscription ID')
+    params['flow_data[type]'] = 'subscription_cancel'
+    params['flow_data[subscription_cancel][subscription]'] = input.subscriptionId
+    params['flow_data[after_completion][type]'] = 'redirect'
+    params['flow_data[after_completion][redirect][return_url]'] = input.returnUrl
+  }
+
+  return stripeRequest<StripeCustomerPortalSession>('/billing_portal/sessions', {
+    method: 'POST',
+    params,
+  })
 }
 
 export async function updateStripeSubscription(input: {

@@ -1,9 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import { getTenantAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
-import { ArrowLeft, Building2, Mail, ShieldCheck, UserRound } from 'lucide-react'
+import { ArrowLeft, Building2, CreditCard, Mail, ShieldCheck, UserRound } from 'lucide-react'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
 
 interface Props {
@@ -15,27 +14,21 @@ export default async function AccountPage({ params }: Props) {
   const locale = await getLocale()
   const dictionary = await getDictionary(locale)
   const copy = dictionary.account
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const access = await getTenantAccess(tenantId)
 
   const admin = createAdminClient()
-  const [{ data: membership }, { data: theatre }] = await Promise.all([
+  const [{ data: profile }, { data: theatre }] = await Promise.all([
     admin
-      .from('users')
-      .select('email, role, created_at')
-      .eq('id', user.id)
-      .eq('theatre_id', tenantId)
-      .single(),
+      .from('profiles')
+      .select('email, created_at')
+      .eq('auth_user_id', access.userId)
+      .maybeSingle(),
     admin
       .from('theatres')
-      .select('name, entity_type, plan, primary_language, created_at')
+      .select('name, entity_type, primary_language, created_at, accounts(metadata)')
       .eq('id', tenantId)
       .single(),
   ])
-
-  if (!membership) redirect('/login')
 
   return (
     <main className="page-shell">
@@ -62,12 +55,23 @@ export default async function AccountPage({ params }: Props) {
           </div>
 
           <div className="detail-list">
-            <DetailItem icon={<Mail size={16} />} label={copy.email} value={membership.email || user.email || '-'} />
-            <DetailItem icon={<ShieldCheck size={16} />} label={copy.role} value={formatRole(copy, membership.role)} />
+            <DetailItem icon={<Mail size={16} />} label={copy.email} value={profile?.email || access.userEmail || '-'} />
+            <DetailItem icon={<ShieldCheck size={16} />} label={copy.role} value={copy.roles[access.globalRole]} />
+            <DetailItem
+              icon={<ShieldCheck size={16} />}
+              label={copy.accountPosition}
+              value={access.source === 'platform'
+                ? copy.accountPositions.support
+                : access.accountRole === 'owner'
+                  ? copy.accountPositions.owner
+                  : copy.accountPositions.member}
+            />
             <DetailItem
               icon={<UserRound size={16} />}
               label={copy.createdAt}
-              value={new Date(membership.created_at).toLocaleDateString(locale === 'ca' ? 'ca-ES' : 'es-ES')}
+              value={profile?.created_at
+                ? new Date(profile.created_at).toLocaleDateString(locale === 'ca' ? 'ca-ES' : locale === 'en' ? 'en-GB' : 'es-ES')
+                : '-'}
             />
           </div>
         </section>
@@ -83,11 +87,27 @@ export default async function AccountPage({ params }: Props) {
 
           <div className="detail-list">
             <DetailItem icon={<Building2 size={16} />} label={copy.type} value={formatEntityType(copy, theatre?.entity_type)} />
-            <DetailItem icon={<ShieldCheck size={16} />} label={copy.plan} value={theatre?.plan ?? 'demo'} />
+            <DetailItem
+              icon={<ShieldCheck size={16} />}
+              label={copy.plan}
+              value={getCommercialPlanName(dictionary, theatre?.accounts)}
+            />
             <DetailItem icon={<Mail size={16} />} label={copy.baseLanguage} value={(theatre?.primary_language ?? 'es').toUpperCase()} />
           </div>
         </section>
       </div>
+
+      <section className="card guided-panel">
+        <div>
+          <p className="eyebrow">{copy.billing}</p>
+          <h2>{copy.billingTitle}</h2>
+          <p className="muted">{copy.billingDescription}</p>
+        </div>
+        <Link className="button-outline" href={`/${tenantId}/upgrade`}>
+          <CreditCard size={16} strokeWidth={2} aria-hidden="true" />
+          {copy.manageBilling}
+        </Link>
+      </section>
 
       <section className="card guided-panel">
         <div>
@@ -103,6 +123,24 @@ export default async function AccountPage({ params }: Props) {
   )
 }
 
+function getCommercialPlanName(
+  dictionary: Awaited<ReturnType<typeof getDictionary>>,
+  accountRelation: unknown,
+) {
+  const account = Array.isArray(accountRelation) ? accountRelation[0] : accountRelation
+  const metadata = account && typeof account === 'object' && !Array.isArray(account)
+    ? (account as { metadata?: unknown }).metadata
+    : null
+  const planKey = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+    ? (metadata as { commercial_plan?: unknown }).commercial_plan
+    : null
+
+  if (planKey === 'chatbot_web' || planKey === 'chatbot_email' || planKey === 'email_agent') {
+    return dictionary.upgrade.plans[planKey].title
+  }
+  return dictionary.upgrade.plans.chatbot_web.title
+}
+
 function DetailItem({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <div className="detail-item">
@@ -113,10 +151,6 @@ function DetailItem({ icon, label, value }: { icon: ReactNode; label: string; va
       </div>
     </div>
   )
-}
-
-function formatRole(copy: Awaited<ReturnType<typeof getDictionary>>['account'], role: string) {
-  return copy.roles[role as keyof typeof copy.roles] ?? copy.roles.viewer
 }
 
 function formatEntityType(copy: Awaited<ReturnType<typeof getDictionary>>['account'], type?: string | null) {

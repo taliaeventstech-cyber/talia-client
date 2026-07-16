@@ -43,6 +43,9 @@ export async function activateBilling(admin: AdminClient, input: BillingActivati
     subscriptionStatus,
     paymentStatus: input.paymentStatus,
     stripePriceId,
+    cancelAtPeriodEnd: input.subscription?.cancel_at_period_end === true,
+    cancelAt: input.subscription?.cancel_at ?? null,
+    currentPeriodEnd: input.subscription?.current_period_end ?? null,
     purchasedOneTimeAddonKeys: oneTimeAddons.map((addon) => addon.key),
   })
 
@@ -80,6 +83,9 @@ export async function activateBilling(admin: AdminClient, input: BillingActivati
         stripe_subscription_id: subscriptionId,
         stripe_checkout_session_id: input.checkoutSessionId ?? null,
         stripe_subscription_status: subscriptionStatus,
+        stripe_cancel_at_period_end: input.subscription?.cancel_at_period_end === true,
+        stripe_cancel_at: input.subscription?.cancel_at ?? null,
+        stripe_current_period_end: input.subscription?.current_period_end ?? null,
         stripe_price_id: stripePriceId,
         plan_key: plan.key,
         active_addons: addons.map((addon) => addon.key),
@@ -109,6 +115,9 @@ export async function syncSubscriptionStatus(admin: AdminClient, subscription: S
     subscriptionId: subscription.id,
     subscriptionStatus: subscription.status,
     stripePriceId: subscription.items?.data?.[0]?.price?.id ?? null,
+    cancelAtPeriodEnd: subscription.cancel_at_period_end === true,
+    cancelAt: subscription.cancel_at ?? null,
+    currentPeriodEnd: subscription.current_period_end ?? null,
   })
 
   await admin
@@ -126,6 +135,9 @@ export async function syncSubscriptionStatus(admin: AdminClient, subscription: S
         stripe_customer_id: subscription.customer,
         stripe_subscription_id: subscription.id,
         stripe_subscription_status: subscription.status,
+        stripe_cancel_at_period_end: subscription.cancel_at_period_end === true,
+        stripe_cancel_at: subscription.cancel_at ?? null,
+        stripe_current_period_end: subscription.current_period_end ?? null,
         stripe_price_id: subscription.items?.data?.[0]?.price?.id ?? null,
         plan_key: plan.key,
         active_addons: addons.map((addon) => addon.key),
@@ -148,6 +160,9 @@ export async function markSubscriptionCancelled(admin: AdminClient, subscription
     subscriptionId: subscription.id,
     subscriptionStatus: subscription.status,
     stripePriceId: subscription.items?.data?.[0]?.price?.id ?? null,
+    cancelAtPeriodEnd: false,
+    cancelAt: null,
+    currentPeriodEnd: subscription.current_period_end ?? null,
   })
 
   await admin
@@ -158,6 +173,9 @@ export async function markSubscriptionCancelled(admin: AdminClient, subscription
         stripe_customer_id: subscription.customer,
         stripe_subscription_id: subscription.id,
         stripe_subscription_status: subscription.status,
+        stripe_cancel_at_period_end: false,
+        stripe_cancel_at: null,
+        stripe_current_period_end: subscription.current_period_end ?? null,
         stripe_price_id: subscription.items?.data?.[0]?.price?.id ?? null,
         active_addons: [],
       },
@@ -201,6 +219,9 @@ async function updateAccountBilling(
     subscriptionStatus?: string | null
     paymentStatus?: string | null
     stripePriceId?: string | null
+    cancelAtPeriodEnd?: boolean
+    cancelAt?: number | null
+    currentPeriodEnd?: number | null
     purchasedOneTimeAddonKeys?: string[]
   },
 ) {
@@ -224,6 +245,11 @@ async function updateAccountBilling(
         stripe_subscription_status: input.subscriptionStatus ?? metadata.stripe_subscription_status ?? null,
         stripe_payment_status: input.paymentStatus ?? metadata.stripe_payment_status ?? null,
         stripe_price_id: input.stripePriceId ?? metadata.stripe_price_id ?? null,
+        stripe_cancel_at_period_end: input.cancelAtPeriodEnd ?? metadata.stripe_cancel_at_period_end ?? false,
+        stripe_cancel_at: input.cancelAt === undefined ? metadata.stripe_cancel_at ?? null : input.cancelAt,
+        stripe_current_period_end: input.currentPeriodEnd === undefined
+          ? metadata.stripe_current_period_end ?? null
+          : input.currentPeriodEnd,
         commercial_plan: input.commercialPlan ?? metadata.commercial_plan ?? null,
         purchased_one_time_addons: mergeStringLists(
           metadata.purchased_one_time_addons,

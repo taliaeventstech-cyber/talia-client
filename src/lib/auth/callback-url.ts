@@ -16,9 +16,13 @@ function shouldUseRequestOrigin(requestOrigin: string, appUrl?: string) {
   const configuredHost = getHost(appUrl)
   if (!requestHost || !configuredHost) return true
 
+  // Local auth flows must return to the exact local origin that initiated them.
+  // A production APP_URL may still be present in shells, containers or previews.
+  if (process.env.NODE_ENV !== 'production' && isLocalHost(requestHost)) return true
+
   if (isLocalHost(configuredHost) && !isLocalHost(requestHost)) return true
 
-  return isLocalHost(requestHost) && isLocalHost(configuredHost) && requestHost !== configuredHost
+  return false
 }
 
 function getHost(value: string) {
@@ -30,5 +34,10 @@ function getHost(value: string) {
 }
 
 function isLocalHost(host: string) {
-  return host.startsWith('localhost:') || host.startsWith('127.0.0.1:')
+  return host === 'localhost' ||
+    host.startsWith('localhost:') ||
+    host === '127.0.0.1' ||
+    host.startsWith('127.0.0.1:') ||
+    host === '[::1]' ||
+    host.startsWith('[::1]:')
 }

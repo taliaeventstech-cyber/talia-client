@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getUserVenueAccess } from '@/lib/auth/user-venues'
+import { recordPlatformSupportAccess } from '@/lib/platform/support-access'
 import { getCurrentBillingPeriod } from '@/lib/usage/service'
 import { ArrowLeft, Building2, LayoutDashboard, MessagesSquare } from 'lucide-react'
 import Link from 'next/link'
@@ -49,6 +50,15 @@ export default async function AccountDashboardPage({ params }: Props) {
     : accessibleVenues.filter((venue) => venue.accountId === accountId)
 
   if (!accountVenues.length) redirect('/agora')
+
+  if (platformAdmin && account) {
+    await recordPlatformSupportAccess(admin, {
+      userId: user.id,
+      accountId: account.id,
+      targetType: 'account',
+      targetId: account.id,
+    })
+  }
 
   const period = getCurrentBillingPeriod()
   const venueIds = accountVenues.map((venue) => venue.id)
