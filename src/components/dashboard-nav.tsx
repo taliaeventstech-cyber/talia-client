@@ -3,7 +3,7 @@
 import type { SVGProps } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bot, Database, Inbox, LayoutDashboard, Mail, MessageCircle, MessageSquare, Network, SlidersHorizontal, Megaphone, Zap } from 'lucide-react'
+import { Bot, Database, Inbox, LayoutDashboard, Mail, MessageSquare, Network, SlidersHorizontal, Zap } from 'lucide-react'
 import { FREE_TRIAL_DAYS } from '@/lib/billing/plans'
 import {
   hasTenantPermission,
@@ -45,18 +45,13 @@ type DashboardNavLabels = {
   accessibility: string
   emailAgent: string
   inbox: string
-  whatsapp: string
   intelligence: string
   knowledge: string
-  marketing: string
-  campaigns: string
   active: string
-  soon: string
   conversations: string
   analysis: string
   settings: string
   upgrade: string
-  trial: string
   trialEndsIn: string
 }
 
@@ -70,6 +65,7 @@ export function DashboardNav({
   isTrialExpired,
   trialDaysRemaining,
   chatbotSetupCompleted,
+  legacyEmailAgentEnabled,
 }: {
   tenantId: string
   labels: DashboardNavLabels
@@ -80,15 +76,13 @@ export function DashboardNav({
   isTrialExpired: boolean
   trialDaysRemaining: number | null
   chatbotSetupCompleted: boolean
+  legacyEmailAgentEnabled: boolean
 }) {
   const pathname = usePathname()
   const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
-  const activeExact = (href: string) => pathname === href
   const chatbotEnabled = isTenantModuleEnabled(modules.chatbot)
   const dataEnabled = isTenantModuleEnabled(modules.data)
   const emailEnabled = isTenantModuleEnabled(modules.email)
-  const whatsappEnabled = isTenantModuleEnabled(modules.whatsapp)
-  const marketingEnabled = isTenantModuleEnabled(modules.marketing)
   const canViewConversations = hasTenantPermission(role, 'view_conversations')
   const canViewAnalytics = hasTenantPermission(role, 'view_analytics')
   const canManageChatbot = hasTenantPermission(role, 'manage_chatbot')
@@ -97,9 +91,8 @@ export function DashboardNav({
   const showChatbot = hasProductAccess && chatbotEnabled && (canManageChatbot || canViewConversations || (dataEnabled && canViewAnalytics))
   const showAccessibility = hasProductAccess && chatbotEnabled && canManageChatbot
   const showKnowledge = hasProductAccess && dataEnabled && canManageKnowledge
-  const showEmail = hasProductAccess && emailEnabled && canManageEmail
-  const showAttention = showChatbot || showAccessibility || showEmail || (hasProductAccess && whatsappEnabled)
-  const showMarketing = hasProductAccess && marketingEnabled
+  const showEmail = legacyEmailAgentEnabled && hasProductAccess && emailEnabled && canManageEmail
+  const showAttention = showChatbot || showAccessibility || showEmail
   const trialProgress = trialDaysRemaining === null
     ? 0
     : Math.max(0, Math.min(100, Math.round((trialDaysRemaining / FREE_TRIAL_DAYS) * 100)))
@@ -206,13 +199,11 @@ export function DashboardNav({
                   <Mail size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
                   <span>{labels.emailAgent}</span>
                 </span>
-                <span className="nav-channel-status">
-                  {labels.active}
-                </span>
+                <span className="nav-channel-status">{labels.active}</span>
               </div>
               <div className="nav-subnav">
                 <Link
-                  className={`nav-link nav-link-nested ${activeExact(`/${tenantId}/email`) ? 'nav-link-active' : ''}`}
+                  className={`nav-link nav-link-nested ${pathname === `/${tenantId}/email` ? 'nav-link-active' : ''}`}
                   href={`/${tenantId}/email`}
                 >
                   <Inbox size={14} strokeWidth={2} aria-hidden="true" />
@@ -229,28 +220,6 @@ export function DashboardNav({
             </div>
           ) : null}
 
-          {whatsappEnabled ? (
-            <div className="nav-channel nav-channel-disabled" aria-disabled="true">
-              <div className="nav-channel-title">
-                <MessageCircle size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
-                <span>{labels.whatsapp}</span>
-                <span className="nav-channel-status">{labels.soon}</span>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {showMarketing ? (
-        <div className="nav-section">
-          <p className="nav-section-label">{labels.marketing}</p>
-          <div className="nav-channel nav-channel-disabled" aria-disabled="true">
-            <div className="nav-channel-title">
-              <Megaphone size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
-              <span>{labels.campaigns}</span>
-              <span className="nav-channel-status">{labels.soon}</span>
-            </div>
-          </div>
         </div>
       ) : null}
 

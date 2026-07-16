@@ -77,20 +77,6 @@ export async function POST(request: NextRequest) {
   if (accountMembershipError) return redirectToInvite(request, token, 'account')
 
   if (invite.theatre_id) {
-    const { error: legacyUserError } = await admin
-      .from('users')
-      .upsert(
-        {
-          id: user.id,
-          theatre_id: invite.theatre_id,
-          email: userEmail,
-          role: invite.role,
-        },
-        { onConflict: 'id' }
-      )
-
-    if (legacyUserError) return redirectToInvite(request, token, 'user')
-
     const { error: venueMembershipError } = await admin
       .from('venue_memberships')
       .upsert(

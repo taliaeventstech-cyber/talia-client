@@ -1,4 +1,4 @@
-import { requireTenantPermission } from '@/lib/auth/tenant-access'
+import { requireLegacyEmailAgentPermission } from '@/lib/email/legacy-access'
 import {
   encryptOAuthTokens,
   exchangeGoogleCodeForTokens,
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       return redirectToEmail(request, tenantId, 'email_error=missing_code')
     }
 
-    const access = await requireTenantPermission(tenantId, 'manage_email', 'email')
+    const access = await requireLegacyEmailAgentPermission(tenantId)
     if (access.userId !== payload.userId && access.source !== 'platform') {
       throw new Error('OAuth session does not match the initiating user')
     }

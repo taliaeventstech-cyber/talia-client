@@ -2759,12 +2759,7 @@ textarea {
 
 .trial-preview-card-chatbot {
   left: 7%;
-  bottom: 12%;
-}
-
-.trial-preview-card-email {
-  left: 33%;
-  top: 20%;
+  top: 12%;
 }
 
 .trial-preview-card-agora {
@@ -2850,6 +2845,45 @@ textarea {
   gap: 10px;
   flex: 0 0 auto;
   cursor: pointer;
+}
+
+.chatbot-plan-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-2);
+}
+
+.chatbot-plan-summary-copy {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.chatbot-plan-summary-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.chatbot-plan-summary-title strong {
+  color: var(--color-text-primary);
+  font-size: 17px;
+}
+
+.chatbot-plan-summary-title span,
+.chatbot-plan-summary-copy p {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.chatbot-plan-summary-copy p {
+  margin: 0;
 }
 
 .chatbot-availability-control input {
@@ -4899,6 +4933,75 @@ textarea {
   gap: 18px;
 }
 
+.backstage-billing-cancellation {
+  border-color: color-mix(in srgb, var(--color-danger) 38%, var(--color-border));
+}
+
+.backstage-billing-cancellation .status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.backstage-billing-cancellation-form {
+  max-width: 760px;
+}
+
+.backstage-billing-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.backstage-billing-mode legend {
+  grid-column: 1 / -1;
+  margin-bottom: 8px;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.backstage-billing-mode label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  min-height: 84px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-2);
+  cursor: pointer;
+}
+
+.backstage-billing-mode label:has(input:checked) {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-danger) 35%, transparent) inset;
+}
+
+.backstage-billing-mode input {
+  margin-top: 3px;
+}
+
+.backstage-billing-mode span {
+  display: grid;
+  gap: 4px;
+}
+
+.backstage-billing-mode small {
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+@media (max-width: 720px) {
+  .backstage-billing-mode {
+    grid-template-columns: 1fr;
+  }
+}
+
 .email-empty-sync-button {
   width: 100%;
   display: grid;
@@ -5308,6 +5411,54 @@ textarea {
 
 .billing-summary-total span {
   color: var(--color-text-secondary);
+}
+
+.billing-management {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  border-top: 0.5px solid var(--color-border);
+  padding-top: 18px;
+}
+
+.billing-management-copy {
+  display: grid;
+  gap: 6px;
+  max-width: 680px;
+}
+
+.billing-management-copy > strong {
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+
+.billing-management-copy p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.billing-management-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.billing-cancellation-status {
+  border-left: 3px solid var(--color-warning);
+  color: var(--color-warning) !important;
+  font-weight: 600;
+  padding: 8px 10px;
+}
+
+.billing-error {
+  margin: 0;
+  color: var(--color-error);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .module-pill-list {
@@ -7602,6 +7753,15 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .billing-management {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .billing-management-actions {
+    justify-content: flex-start;
+  }
+
   .pricing-addon + .pricing-addon {
     border-left: 0;
     border-top: 0.5px solid var(--color-border);
@@ -7710,15 +7870,9 @@ textarea {
     bottom: auto;
   }
 
-  .trial-preview-card-email {
+  .trial-preview-card-agora {
     left: auto;
     right: 6%;
-    top: 34%;
-  }
-
-  .trial-preview-card-agora {
-    left: 6%;
-    right: auto;
     bottom: 8%;
   }
 }
@@ -8205,6 +8359,17 @@ textarea {
 @media (max-width: 1080px) {
   .chatbot-settings-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .chatbot-plan-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .chatbot-plan-summary .button-fit {
+    width: 100%;
   }
 }
 

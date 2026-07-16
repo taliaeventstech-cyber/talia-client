@@ -128,21 +128,48 @@ export async function getTenantWebhookSecret(admin: AdminClient, tenantId: strin
 }
 
 export async function assertTenantAdmin(admin: AdminClient, userId: string, tenantId: string) {
-  const [{ data }, { data: platformAdmin }] = await Promise.all([
+  const [{ data: profile }, { data: platformAdmin }, { data: theatre }] = await Promise.all([
     admin
-      .from('users')
-      .select('role')
-      .eq('id', userId)
-      .eq('theatre_id', tenantId)
-      .single(),
+      .from('profiles')
+      .select('id')
+      .eq('auth_user_id', userId)
+      .maybeSingle(),
     admin
       .from('platform_admins')
       .select('role')
       .eq('user_id', userId)
       .maybeSingle(),
+    admin
+      .from('theatres')
+      .select('account_id')
+      .eq('id', tenantId)
+      .maybeSingle(),
   ])
 
-  return Boolean(platformAdmin) || data?.role === 'owner' || data?.role === 'admin'
+  if (platformAdmin) return true
+  if (!profile || !theatre) return false
+
+  const [{ data: venueMembership }, { data: accountMembership }] = await Promise.all([
+    admin
+      .from('venue_memberships')
+      .select('role')
+      .eq('profile_id', profile.id)
+      .eq('theatre_id', tenantId)
+      .is('revoked_at', null)
+      .maybeSingle(),
+    admin
+      .from('account_memberships')
+      .select('role')
+      .eq('profile_id', profile.id)
+      .eq('account_id', theatre.account_id)
+      .is('revoked_at', null)
+      .maybeSingle(),
+  ])
+
+  return venueMembership?.role === 'owner' ||
+    venueMembership?.role === 'admin' ||
+    accountMembership?.role === 'owner' ||
+    accountMembership?.role === 'admin'
 }
 
 export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string) {

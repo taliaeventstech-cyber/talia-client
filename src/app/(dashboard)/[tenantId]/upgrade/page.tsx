@@ -1,7 +1,8 @@
 import { requireTenantPermission } from '@/lib/auth/tenant-access'
-import { BILLING_ADDONS, BILLING_PLANS, isStripeConfiguredForAddon, isStripeConfiguredForPlan } from '@/lib/billing/plans'
+import { canManageAccountBilling } from '@/lib/billing/permissions'
+import { BILLING_ADDONS, BILLING_PLANS, isPublicBillingPlan, isStripeConfiguredForAddon, isStripeConfiguredForPlan } from '@/lib/billing/plans'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
-import type { BillingAddonKey, BillingPlanKey } from '@/lib/billing/plans'
+import type { BillingAddonKey } from '@/lib/billing/plans'
 import { BillingConfigurator } from './billing-configurator'
 
 interface Props {
@@ -11,11 +12,12 @@ interface Props {
 export default async function UpgradePage({ params }: Props) {
   const { tenantId } = await params
   const access = await requireTenantPermission(tenantId, 'view_overview')
-  const dictionary = await getDictionary(await getLocale())
+  const locale = await getLocale()
+  const dictionary = await getDictionary(locale)
   const copy = dictionary.upgrade
   const metadata = isPlainObject(access.accountMetadata) ? access.accountMetadata : {}
-  const currentPlanKey = getCurrentPlanKey(metadata.commercial_plan)
   const currentAddonKeys = getCurrentAddonKeys(metadata.active_addons)
+  const cancellationDate = getCancellationDate(metadata, locale)
 
   return (
     <main className="page-shell upgrade-shell">
@@ -40,20 +42,24 @@ export default async function UpgradePage({ params }: Props) {
           disabled: !isStripeConfiguredForAddon(addon) || (access.billingAccess.isPaid && addon.billingMode === 'one_time'),
         }))}
         checkoutLabels={copy.checkout}
+        billingLabels={copy.billing}
+        cancellationDate={cancellationDate}
+        cancellationScheduled={metadata.stripe_cancel_at_period_end === true}
+        canManageBilling={canManageAccountBilling(access)}
         currentAddonKeys={currentAddonKeys}
-        currentPlanKey={currentPlanKey}
+        currentPlanKey="chatbot_web"
         isPaid={access.billingAccess.isPaid}
         monthlyLabel={copy.monthly}
         oneTimeLabel={copy.oneTime}
         paidAddonsLabel={copy.paidAddons}
         planDetailsLabel={copy.planDetails}
-        plans={BILLING_PLANS.map((plan) => ({
+        plans={BILLING_PLANS.filter((plan) => isPublicBillingPlan(plan.key)).map((plan) => ({
           key: plan.key,
           title: copy.plans[plan.key].title,
           priceMonthly: plan.priceMonthly,
           includedLabel: copy.plans[plan.key].includedLabel,
           features: copy.plans[plan.key].features,
-          highlighted: plan.highlighted,
+          highlighted: true,
           disabled: !isStripeConfiguredForPlan(plan),
         }))}
         popularLabel={copy.popular}
@@ -63,9 +69,16 @@ export default async function UpgradePage({ params }: Props) {
   )
 }
 
-function getCurrentPlanKey(value: unknown): BillingPlanKey {
-  if (value === 'chatbot_web' || value === 'chatbot_email' || value === 'email_agent') return value
-  return 'chatbot_email'
+function getCancellationDate(metadata: Record<string, unknown>, locale: 'es' | 'ca' | 'en') {
+  const value = typeof metadata.stripe_cancel_at === 'number'
+    ? metadata.stripe_cancel_at
+    : metadata.stripe_current_period_end
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null
+
+  return new Intl.DateTimeFormat(
+    locale === 'ca' ? 'ca-ES' : locale === 'en' ? 'en-GB' : 'es-ES',
+    { dateStyle: 'long' },
+  ).format(new Date(value * 1000))
 }
 
 function getCurrentAddonKeys(value: unknown): BillingAddonKey[] {

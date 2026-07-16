@@ -1,4 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requirePlatformAdmin } from '@/lib/platform/auth'
+import { hasPlatformPermission } from '@/lib/platform/permissions'
 import { getCurrentBillingPeriod } from '@/lib/usage/service'
 import { Edit3, LayoutDashboard, MailPlus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
@@ -8,6 +10,7 @@ import { AccountHeaderActions } from './account-header-actions'
 import { AccountTabs } from './account-tabs'
 import { CreateAccountInviteForm } from './create-account-invite-form'
 import { CreateVenueForm } from './create-venue-form'
+import { SubscriptionCancellationPanel } from './subscription-cancellation-panel'
 
 interface Props {
   params: Promise<{ accountId: string }>
@@ -18,6 +21,7 @@ export default async function BackstageAccountPage({ params, searchParams }: Pro
   const { accountId } = await params
   const query = await searchParams
   const initialTab = isAccountTab(query?.tab) ? query.tab : 'venues'
+  const platformAccess = await requirePlatformAdmin()
   const admin = createAdminClient()
   const period = getCurrentBillingPeriod()
   const [
@@ -31,7 +35,7 @@ export default async function BackstageAccountPage({ params, searchParams }: Pro
   ] = await Promise.all([
     admin
       .from('accounts')
-      .select('id, name, slug, billing_email, plan, status, created_at')
+      .select('id, name, slug, billing_email, plan, status, metadata, created_at')
       .eq('id', accountId)
       .single(),
     admin
@@ -69,6 +73,11 @@ export default async function BackstageAccountPage({ params, searchParams }: Pro
   ])
 
   if (!account) notFound()
+  const accountBilling = getAccountBillingMetadata(account.metadata)
+  const canManageCustomerBilling = hasPlatformPermission(
+    platformAccess.permissions,
+    'manage_customer_billing',
+  )
 
   const venueIds = (venues ?? []).map((venue) => venue.id)
   const { data: modules } = venueIds.length
@@ -310,72 +319,83 @@ export default async function BackstageAccountPage({ params, searchParams }: Pro
           </div>
         )}
         plan={(
-          <section className="card stack">
-            <div className="section-title-row">
-              <div>
-                <p className="eyebrow">Plan y módulos</p>
-                <h2>Configuración por venue</h2>
-                <p className="muted">
-                  Cada venue mantiene su propio plan, módulos y límites. No se agregan planes a nivel account.
-                </p>
+          <div className="stack">
+            <section className="card stack">
+              <div className="section-title-row">
+                <div>
+                  <p className="eyebrow">Plan y módulos</p>
+                  <h2>Configuración por venue</h2>
+                  <p className="muted">
+                    Cada venue mantiene su propio plan, módulos y límites. No se agregan planes a nivel account.
+                  </p>
+                </div>
               </div>
-            </div>
-            {(venues ?? []).length ? (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Venue</th>
-                    <th>Plan</th>
-                    <th>Módulos activos</th>
-                    <th>Límite chatbot</th>
-                    <th>Uso actual</th>
-                    <th className="table-actions-heading">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(venues ?? []).map((venue) => {
-                    const subscription = subscriptionByTenant.get(venue.id)
-                    const usage = usageByTenant.get(venue.id) ?? { conversations: 0, inputTokens: 0, outputTokens: 0, estimatedCostCents: 0 }
-                    const activeModules = modulesByTenant.get(venue.id) ?? []
-                    const included = subscription?.included_chat_conversations ?? 0
+              {(venues ?? []).length ? (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Venue</th>
+                      <th>Plan</th>
+                      <th>Módulos activos</th>
+                      <th>Límite chatbot</th>
+                      <th>Uso actual</th>
+                      <th className="table-actions-heading">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(venues ?? []).map((venue) => {
+                      const subscription = subscriptionByTenant.get(venue.id)
+                      const usage = usageByTenant.get(venue.id) ?? { conversations: 0, inputTokens: 0, outputTokens: 0, estimatedCostCents: 0 }
+                      const activeModules = modulesByTenant.get(venue.id) ?? []
+                      const included = subscription?.included_chat_conversations ?? 0
 
-                    return (
-                      <tr key={venue.id}>
-                        <td>
-                          <strong>{venue.name}</strong>
-                          <p className="muted mono">{venue.id}</p>
-                        </td>
-                        <td>{formatPlan(subscription?.plan ?? venue.plan)}</td>
-                        <td>
-                          <div className="module-pill-list">
-                            {activeModules.length ? activeModules.map((moduleKey) => (
-                              <span className="module-pill" key={`${venue.id}-${moduleKey}`}>
-                                {formatModule(moduleKey)}
-                              </span>
-                            )) : <span className="muted">Sin módulos activos</span>}
-                          </div>
-                        </td>
-                        <td>{included > 0 ? `${included} conversaciones/mes` : 'Sin límite configurado'}</td>
-                        <td>
-                          {included > 0 ? `${usage.conversations} / ${included}` : usage.conversations}
-                          <p className="muted">{formatTokens(usage.inputTokens + usage.outputTokens)} tokens</p>
-                        </td>
-                        <td>
-                          <div className="table-actions">
-                            <IconAction href={`/backstage/tenants/${venue.id}`} label="Editar plan y módulos">
-                              <Edit3 aria-hidden="true" size={16} strokeWidth={2} />
-                            </IconAction>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            ) : (
-              <p className="muted">Añade una venue para configurar su plan y módulos.</p>
-            )}
-          </section>
+                      return (
+                        <tr key={venue.id}>
+                          <td>
+                            <strong>{venue.name}</strong>
+                            <p className="muted mono">{venue.id}</p>
+                          </td>
+                          <td>{formatPlan(subscription?.plan ?? venue.plan)}</td>
+                          <td>
+                            <div className="module-pill-list">
+                              {activeModules.length ? activeModules.map((moduleKey) => (
+                                <span className="module-pill" key={`${venue.id}-${moduleKey}`}>
+                                  {formatModule(moduleKey)}
+                                </span>
+                              )) : <span className="muted">Sin módulos activos</span>}
+                            </div>
+                          </td>
+                          <td>{included > 0 ? `${included} conversaciones/mes` : 'Sin límite configurado'}</td>
+                          <td>
+                            {included > 0 ? `${usage.conversations} / ${included}` : usage.conversations}
+                            <p className="muted">{formatTokens(usage.inputTokens + usage.outputTokens)} tokens</p>
+                          </td>
+                          <td>
+                            <div className="table-actions">
+                              <IconAction href={`/backstage/tenants/${venue.id}`} label="Editar plan y módulos">
+                                <Edit3 aria-hidden="true" size={16} strokeWidth={2} />
+                              </IconAction>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="muted">Añade una venue para configurar su plan y módulos.</p>
+              )}
+            </section>
+
+            <SubscriptionCancellationPanel
+              accountId={account.id}
+              billingEmail={account.billing_email}
+              canManageBilling={canManageCustomerBilling}
+              cancellationScheduled={accountBilling.cancellationScheduled}
+              currentPeriodEnd={accountBilling.currentPeriodEnd}
+              subscriptionId={accountBilling.subscriptionId}
+            />
+          </div>
         )}
         activity={(
           <section className="card stack">
@@ -462,6 +482,23 @@ function formatCurrency(cents: number) {
 
 function formatTokens(tokens: number) {
   return new Intl.NumberFormat('es-ES', { notation: 'compact', maximumFractionDigits: 1 }).format(tokens)
+}
+
+function getAccountBillingMetadata(value: unknown) {
+  const metadata = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
+  const periodEnd = typeof metadata.stripe_current_period_end === 'number'
+    ? new Date(metadata.stripe_current_period_end * 1000).toISOString()
+    : null
+
+  return {
+    subscriptionId: typeof metadata.stripe_subscription_id === 'string'
+      ? metadata.stripe_subscription_id
+      : null,
+    cancellationScheduled: metadata.stripe_cancel_at_period_end === true,
+    currentPeriodEnd: periodEnd,
+  }
 }
 
 function IconAction({ href, label, children, newTab = false }: { href: string; label: string; children: React.ReactNode; newTab?: boolean }) {

@@ -4,12 +4,13 @@ import { ActionToast } from '@/components/ui/action-toast'
 import { ConfirmationToast } from '@/components/ui/confirmation-toast'
 import { useActionState, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { CopyScriptButton } from './copy-script-button'
 import { updateTenantSettings, type SettingsFormState } from './actions'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry } from '@/lib/phone/international'
 import Image from 'next/image'
-import { Bot, ChevronLeft, MessageCircle, MessageCircleMore, RefreshCcw, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { ArrowUpRight, Bot, ChevronLeft, MessageCircle, MessageCircleMore, RefreshCcw, ThumbsDown, ThumbsUp } from 'lucide-react'
 import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 
 type SettingsFormLabels = {
@@ -18,7 +19,9 @@ type SettingsFormLabels = {
   widgetAvailabilityHint: string
   widgetEnabled: string
   widgetDisabled: string
-  plan: string
+  currentPlan: string
+  planDescription: string
+  managePlan: string
   initialMessage: string
   primaryColor: string
   fallbackEmail: string
@@ -72,11 +75,16 @@ type SettingsFormLabels = {
 type SettingsFormProps = {
   tenantId: string
   theatre: {
-    plan: string
     system_prompt: string | null
     fallback_email: string | null
     fallback_phone: string | null
     primary_language: string
+  }
+  commercialPlan: {
+    title: string
+    priceMonthly: number
+    includedLabel: string
+    monthlyLabel: string
   }
   widgetConfig: {
     enabled: boolean
@@ -116,7 +124,7 @@ const initialState: SettingsFormState = {
   message: '',
 }
 
-export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewLabel, integration }: SettingsFormProps) {
+export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, labels, previewLabel, integration }: SettingsFormProps) {
   const router = useRouter()
   const [state, formAction, pending] = useActionState(updateTenantSettings.bind(null, tenantId), initialState)
   const [widgetEnabled, setWidgetEnabled] = useState(widgetConfig.enabled)
@@ -263,16 +271,21 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, labels, previewL
 
           <section className="card stack">
             <h2>{labels.chatbot}</h2>
+            <div className="chatbot-plan-summary">
+              <div className="chatbot-plan-summary-copy">
+                <span className="eyebrow">{labels.currentPlan}</span>
+                <div className="chatbot-plan-summary-title">
+                  <strong>{commercialPlan.title}</strong>
+                  <span>{commercialPlan.priceMonthly}€ {commercialPlan.monthlyLabel}</span>
+                </div>
+                <p>{commercialPlan.includedLabel}. {labels.planDescription}</p>
+              </div>
+              <Link className="button-outline button-fit" href={`/${tenantId}/upgrade`}>
+                {labels.managePlan}
+                <ArrowUpRight size={16} strokeWidth={2} aria-hidden="true" />
+              </Link>
+            </div>
             <div className="form-grid">
-              <label className="field">
-                {labels.plan}
-                <select name="plan" defaultValue={theatre.plan}>
-                  <option value="esencial">Esencial</option>
-                  <option value="profesional">Profesional</option>
-                  <option value="pro">Pro</option>
-                </select>
-              </label>
-
               <label className="field">
                 {labels.initialMessage}
                 <textarea

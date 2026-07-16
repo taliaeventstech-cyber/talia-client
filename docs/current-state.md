@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: July 14, 2026
+Last updated: July 15, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -17,6 +17,9 @@ Current state:
 - Client dashboard: **Agora**, per venue.
 - Internal panel: **Backstage**.
 - Current commercial model: 14-day free trial, upgrade to paid plans and add-ons.
+- Mexico/Brazil launch scope: **Web AI Assistant**. Email remains available for
+  internal testing and the `talia.events.tech@gmail.com` legacy account, but is not
+  exposed to other client accounts or the public upgrade offer during this phase.
 
 ## Implemented Product
 
@@ -25,6 +28,21 @@ Current state:
 Implemented:
 
 - Public signup with email/password.
+- Two global identity types: Admin for internal TALIA operators registered in
+  `platform_admins`, and User for every customer identity.
+- Account ownership and venue permissions are membership capabilities, not
+  additional global roles. Public signup creates a User who owns the new account
+  without granting Backstage access.
+- Backstage support access to customer accounts and venues is recorded in
+  `audit_events`; legacy `public.users.role` is no longer an authorization source.
+- Customer billing intervention from Backstage requires the explicit
+  `manage_customer_billing` platform capability, reserved for approved founders.
+  Authorized founders can schedule period-end cancellation or perform an
+  immediate cancellation with stronger confirmation, mandatory reason,
+  customer notification and audit events.
+- The initial founder capability grant is email-matched against existing
+  Supabase Auth identities in an idempotent migration; credentials are never
+  stored or provisioned from the repository.
 - Email confirmation before entering the product.
 - Intermediate "account confirmed" screen before starting onboarding.
 - Login with language selector.
@@ -52,11 +70,15 @@ Implemented:
 Current rule:
 
 - Initial onboarding creates the account/venue context.
+- The self-service creator is the account owner and receives the dedicated
+  billing-management permission. New launch accounts start with the
+  `chatbot_web` commercial plan and without the Email module.
 - Invitations are for teams that already exist, not for the client's initial signup.
 
 Reference:
 
 - `docs/product/onboarding.md`.
+- `docs/security/authorization-model.md`.
 
 ### Chatbot Onboarding
 
@@ -79,6 +101,12 @@ Implemented:
 
 - Dashboard per venue.
 - Sidebar with modules visible based on permissions, plan and access.
+- Launch-facing navigation limited to the Web AI Assistant and Accessibility;
+  Overview and Knowledge remain as supporting operational areas.
+- The Email Agent navigation and customer-facing routes are restricted to the
+  authenticated legacy account allowlist (`LEGACY_EMAIL_AGENT_ACCOUNT_EMAILS`),
+  which defaults to `talia.events.tech@gmail.com` for migration and Google
+  verification work.
 - Languages: Spanish, Catalan and English.
 - Global day/night mode.
 - Trial visible in sidebar.
@@ -302,8 +330,14 @@ Reference:
 Implemented:
 
 - 14-day free trial.
-- After the trial, access to Chatbot/Email is replaced by an upgrade prompt.
-- `/upgrade` screen with plans and add-ons.
+- After the trial, access to the Web AI Assistant is replaced by an upgrade prompt.
+- `/upgrade` screen with the public Web AI Assistant plan and compatible add-ons.
+- The current commercial plan is read-only in chatbot settings. Subscription
+  changes go through the billing flow and cannot be written by the widget settings
+  server action.
+- Paid account owners can open Stripe Customer Portal from `/upgrade` to manage
+  billing or confirm cancellation. Scheduled cancellations remain active until
+  the paid period ends, and webhook metadata makes that state visible in Agora.
 - Stripe Checkout.
 - Documented Stripe webhook.
 - Add-ons:

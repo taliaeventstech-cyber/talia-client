@@ -29,6 +29,7 @@ export type BillingAddon = {
 }
 
 export const FREE_TRIAL_DAYS = 14
+export const PUBLIC_BILLING_PLAN_KEYS: readonly BillingPlanKey[] = ['chatbot_web']
 
 export const BILLING_PLANS: BillingPlan[] = [
   {
@@ -116,6 +117,10 @@ export const BILLING_ADDONS: BillingAddon[] = [
 
 export function getBillingPlan(planKey: string | null | undefined) {
   return BILLING_PLANS.find((plan) => plan.key === planKey)
+}
+
+export function isPublicBillingPlan(planKey: BillingPlanKey) {
+  return PUBLIC_BILLING_PLAN_KEYS.includes(planKey)
 }
 
 export function getBillingAddon(addonKey: string | null | undefined) {

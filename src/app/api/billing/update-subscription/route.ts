@@ -1,9 +1,10 @@
-import { requireTenantPermission } from '@/lib/auth/tenant-access'
+import { requireTenantBillingAccess } from '@/lib/auth/tenant-access'
 import {
   getBillingAddon,
   getBillingPlan,
   getStripePriceIdForAddon,
   getStripePriceIdForPlan,
+  isPublicBillingPlan,
   type BillingAddon,
 } from '@/lib/billing/plans'
 import { syncSubscriptionStatus } from '@/lib/billing/stripe-sync'
@@ -22,13 +23,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'tenant_id_required' }, { status: 400 })
     }
 
-    const access = await requireTenantPermission(tenantId, 'view_overview')
+    const access = await requireTenantBillingAccess(tenantId)
     if (!access.billingAccess.isPaid) {
       return NextResponse.json({ error: 'paid_plan_required' }, { status: 403 })
     }
 
     const plan = getBillingPlan(planKey)
-    if (!plan) {
+    if (!plan || !isPublicBillingPlan(plan.key)) {
       return NextResponse.json({ error: 'invalid_plan' }, { status: 400 })
     }
 

@@ -33,9 +33,20 @@ It does not live in the repo; this document is the versioned source to copy/past
 Also, under **Authentication → URL Configuration → Redirect URLs**, add:
 
 ```
-https://<your-domain>/auth/callback
-https://<your-domain>/auth/reset-callback
+https://agora.talia.events/auth/callback
+https://agora.talia.events/auth/reset-callback
+http://localhost:3000/**
+http://127.0.0.1:3000/**
 ```
+
+The two localhost entries must also exist in the hosted Supabase project used by
+local development. `supabase/config.toml` only configures a locally running
+Supabase instance; it does not update the hosted project's allowlist. When a
+requested `redirectTo` is absent from that allowlist, Supabase falls back to the
+project Site URL, which is normally the production Agora domain.
+
+Use exact paths for production and reserve the `/**` wildcard for local
+development, following Supabase's redirect URL guidance.
 
 ## Confirm signup
 
