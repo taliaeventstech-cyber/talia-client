@@ -1,4 +1,4 @@
-import { requireLegacyEmailAgentPermission } from '@/lib/email/legacy-access'
+import { requireEmailAgentPreviewPermission } from '@/lib/email/legacy-access'
 import {
   encryptOAuthTokens,
   exchangeMicrosoftCodeForTokens,
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       return redirectToEmail(request, tenantId, 'email_error=missing_code')
     }
 
-    const access = await requireLegacyEmailAgentPermission(tenantId)
+    const access = await requireEmailAgentPreviewPermission(tenantId)
     if (access.userId !== payload.userId && access.source !== 'platform') {
       throw new Error('OAuth session does not match the initiating user')
     }

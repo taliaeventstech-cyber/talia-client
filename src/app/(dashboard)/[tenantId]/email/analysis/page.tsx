@@ -1,4 +1,4 @@
-import { requireLegacyEmailAgentProductAccess } from '@/lib/email/legacy-access'
+import { requireEmailAgentPreviewProductAccess } from '@/lib/email/legacy-access'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AlertTriangle, Brain, Inbox, MailCheck } from 'lucide-react'
 
@@ -8,7 +8,7 @@ interface Props {
 
 export default async function EmailAnalysisPage({ params }: Props) {
   const { tenantId } = await params
-  await requireLegacyEmailAgentProductAccess(tenantId)
+  await requireEmailAgentPreviewProductAccess(tenantId)
 
   const admin = createAdminClient()
   const { data: threads } = await admin

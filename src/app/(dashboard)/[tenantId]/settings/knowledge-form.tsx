@@ -3,7 +3,7 @@
 import { ChevronDown, FileText, Globe2, LifeBuoy, Link as LinkIcon, RefreshCw, Table2, Trash2, Workflow } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useActionState, useState, useTransition, useEffect, useRef } from 'react'
-import type { ReactNode } from 'react'
+import type { ReactNode, RefObject } from 'react'
 import { KnowledgeSyncRealtime } from '@/components/knowledge-sync-realtime'
 import { ToastNotice } from '@/components/ui/toast-notice'
 import type { ManagedWebQuotaUsage } from '@/lib/knowledge/web-source-quotas'
@@ -144,6 +144,14 @@ type KnowledgeFormProps = {
     sourceOutcomePaused: string
     sourceRetry: string
     sourceUseWidget: string
+    sourceResolutionTitle: string
+    sourceResolutionPartialDiscovery: string
+    sourceResolutionBlocked: string
+    sourceResolutionDefault: string
+    sourceResolutionHint: string
+    sourceAddUrlOrSitemap: string
+    sourceReviewWidgetCapture: string
+    sourceTechnicalReference: string
     sourceContactSupport: string
     sourceSupportPrompt: string
     sourceSupportPlaceholder: string
@@ -211,6 +219,8 @@ type KnowledgeFormProps = {
   }
 }
 
+type KnowledgeResolutionTarget = 'managed-web' | 'installed-widget'
+
 const initialState: SettingsFormState = {
   ok: false,
   message: '',
@@ -251,6 +261,12 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
   )
   const savedInstalledWebCapture = captureSettingsState.settings ?? installedWebCapture
   const [isRefreshingInstalled, startInstalledRefresh] = useTransition()
+  const [highlightedTarget, setHighlightedTarget] = useState<KnowledgeResolutionTarget | null>(null)
+  const managedWebNameInputRef = useRef<HTMLInputElement>(null)
+  const installedWidgetControlRef = useRef<HTMLLabelElement>(null)
+  const installedWidgetToggleRef = useRef<HTMLInputElement>(null)
+  const highlightStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const highlightEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileSources = sources.filter((source) => source.type === 'pdf')
   const spreadsheetSources = sources.filter((source) => source.type === 'xlsx' || source.type === 'csv')
   const managedWebQuotaReached = managedWebQuota
@@ -260,6 +276,30 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
   const installedWebSources = sources.filter((source) => source.type === 'web_snapshot')
   const managedWebSources = sources.filter((source) => source.type === 'url' || source.type === 'sitemap' || source.type === 'website')
   const hasActiveManagedRun = managedWebSources.some((source) => ['queued', 'running'].includes(source.latestSyncRun?.status ?? ''))
+
+  useEffect(() => () => {
+    if (highlightStartTimerRef.current) clearTimeout(highlightStartTimerRef.current)
+    if (highlightEndTimerRef.current) clearTimeout(highlightEndTimerRef.current)
+  }, [])
+
+  function navigateToResolutionTarget(target: KnowledgeResolutionTarget) {
+    if (highlightStartTimerRef.current) clearTimeout(highlightStartTimerRef.current)
+    if (highlightEndTimerRef.current) clearTimeout(highlightEndTimerRef.current)
+    setHighlightedTarget(null)
+    const scrollTarget = target === 'managed-web'
+      ? managedWebNameInputRef.current
+      : installedWidgetControlRef.current
+    const focusTarget = target === 'managed-web'
+      ? managedWebNameInputRef.current
+      : installedWidgetToggleRef.current
+
+    scrollTarget?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    focusTarget?.focus({ preventScroll: true })
+    highlightStartTimerRef.current = setTimeout(() => {
+      setHighlightedTarget(target)
+      highlightEndTimerRef.current = setTimeout(() => setHighlightedTarget(null), 2400)
+    }, 420)
+  }
 
   return (
     <>
@@ -488,7 +528,11 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
               ) : null}
             </div>
 
-            <form action={managedWebFormAction} className="knowledge-managed-create">
+            <form
+              action={managedWebFormAction}
+              className={`knowledge-managed-create ${highlightedTarget === 'managed-web' ? 'knowledge-resolution-fields-target-active' : ''}`}
+              id="managed-web-source-form"
+            >
               {managedWebState.message ? (
                 <p role="status" className={`notice ${managedWebState.ok ? 'notice-success' : 'notice-error'} knowledge-managed-notice`}>
                   {managedWebState.message}
@@ -496,7 +540,7 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
               ) : null}
               <label className="field">
                 {labels.sourceName}
-                <input name="name" placeholder={labels.sourceNamePlaceholder} maxLength={120} required />
+                <input ref={managedWebNameInputRef} name="name" placeholder={labels.sourceNamePlaceholder} maxLength={120} required />
               </label>
               <label className="field">
                 {labels.sourceType}
@@ -532,7 +576,13 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
             {managedWebSources.length ? (
               <div className="knowledge-files-list">
                 {managedWebSources.map((source) => (
-                  <ManagedWebSourceRow key={source.id} tenantId={tenantId} source={source} labels={labels} />
+                  <ManagedWebSourceRow
+                    key={source.id}
+                    tenantId={tenantId}
+                    source={source}
+                    labels={labels}
+                    onNavigateToResolutionTarget={navigateToResolutionTarget}
+                  />
                 ))}
               </div>
             ) : (
@@ -593,6 +643,9 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
               labels={labels}
               pending={captureSettingsPending}
               settings={savedInstalledWebCapture}
+              toggleControlRef={installedWidgetControlRef}
+              toggleHighlighted={highlightedTarget === 'installed-widget'}
+              toggleRef={installedWidgetToggleRef}
             />
 
             {!savedInstalledWebCapture.enabled && installedWebSources.some((source) => source.chunkCount > 0) ? (
@@ -641,11 +694,17 @@ function InstalledWebCaptureSettingsForm({
   labels,
   pending,
   settings,
+  toggleControlRef,
+  toggleHighlighted,
+  toggleRef,
 }: {
   action: (payload: FormData) => void
   labels: KnowledgeFormProps['labels']
   pending: boolean
   settings: InstalledWebCaptureSettings
+  toggleControlRef: RefObject<HTMLLabelElement | null>
+  toggleHighlighted: boolean
+  toggleRef: RefObject<HTMLInputElement | null>
 }) {
   const [enabled, setEnabled] = useState(settings.enabled)
   const [mode, setMode] = useState(settings.mode)
@@ -659,8 +718,12 @@ function InstalledWebCaptureSettingsForm({
           <p className="muted">{labels.captureSettingsHelp}</p>
         </div>
         <div className="knowledge-capture-settings-actions">
-          <label className="chatbot-availability-control knowledge-capture-toggle">
+          <label
+            ref={toggleControlRef}
+            className={`chatbot-availability-control knowledge-capture-toggle ${toggleHighlighted ? 'knowledge-resolution-toggle-target-active' : ''}`}
+          >
             <input
+              ref={toggleRef}
               checked={enabled}
               name="installed_web_capture_enabled"
               onChange={(event) => setEnabled(event.target.checked)}
@@ -720,10 +783,12 @@ function ManagedWebSourceRow({
   tenantId,
   source,
   labels,
+  onNavigateToResolutionTarget,
 }: {
   tenantId: string
   source: KnowledgeSource
   labels: KnowledgeFormProps['labels']
+  onNavigateToResolutionTarget: (target: KnowledgeResolutionTarget) => void
 }) {
   const router = useRouter()
   const [isSyncing, startSync] = useTransition()
@@ -732,6 +797,7 @@ function ManagedWebSourceRow({
   const [refreshInterval, setRefreshInterval] = useState(source.refreshInterval || 'manual')
   const [toast, setToast] = useState<{ id: number; message: string; tone: 'success' | 'error' } | null>(null)
   const [supportOpen, setSupportOpen] = useState(false)
+  const [resolutionOpen, setResolutionOpen] = useState(false)
   const [supportMessage, setSupportMessage] = useState('')
   const [supportIdempotencyKey, setSupportIdempotencyKey] = useState<string | null>(null)
   const sourceUrlLabel = source.sourceUrl ? formatInstalledSourceUrl(source.sourceUrl) : null
@@ -785,6 +851,11 @@ function ManagedWebSourceRow({
   function toggleSupport() {
     if (!supportOpen) setSupportIdempotencyKey(crypto.randomUUID())
     setSupportOpen(!supportOpen)
+  }
+
+  function handleResolutionNavigation(target: KnowledgeResolutionTarget) {
+    setResolutionOpen(false)
+    requestAnimationFrame(() => onNavigateToResolutionTarget(target))
   }
 
   return (
@@ -850,11 +921,6 @@ function ManagedWebSourceRow({
         <div className={`knowledge-managed-outcome knowledge-managed-outcome-${presentation.tone}`}>
           <strong>{getManagedSourceStatusLabel(visibleStatus, labels)}</strong>
           <p>{getManagedOutcomeDescription(presentation.outcome, labels)}</p>
-          {presentation.actions.includes('widget') ? (
-            <a className="knowledge-managed-outcome-action" href="#installed-widget-pages">
-              {labels.sourceUseWidget}
-            </a>
-          ) : null}
           {presentation.actions.includes('support') ? (
             <button
               type="button"
@@ -866,6 +932,53 @@ function ManagedWebSourceRow({
             </button>
           ) : null}
         </div>
+        {presentation.actions.includes('widget') ? (
+          <div className="knowledge-managed-resolution">
+            <button
+              type="button"
+              className="knowledge-managed-resolution-toggle"
+              aria-expanded={resolutionOpen}
+              onClick={() => setResolutionOpen((current) => !current)}
+            >
+              <ChevronDown size={15} strokeWidth={2} aria-hidden="true" />
+              {labels.sourceUseWidget}
+            </button>
+            {resolutionOpen ? <div className="knowledge-managed-resolution-body">
+              <strong>{labels.sourceResolutionTitle}</strong>
+              <p>{getManagedResolutionDescription(presentation.outcome, labels)}</p>
+              <div className="knowledge-installed-signals">
+                <span className="knowledge-installed-signal">
+                  {source.latestSyncRun?.checked_count ?? 0} {labels.sourceChecked}
+                </span>
+                <span className="knowledge-installed-signal">
+                  {source.chunkCount} {labels.sourceFragments}
+                </span>
+                {source.latestSyncRun?.error_code ? (
+                  <span className="knowledge-installed-signal mono">
+                    {labels.sourceTechnicalReference}: {source.latestSyncRun.error_code}
+                  </span>
+                ) : null}
+              </div>
+              <p>{labels.sourceResolutionHint}</p>
+              <div className="knowledge-managed-resolution-actions">
+                <button
+                  className="button-outline button-fit"
+                  type="button"
+                  onClick={() => handleResolutionNavigation('managed-web')}
+                >
+                  {labels.sourceAddUrlOrSitemap}
+                </button>
+                <button
+                  className="button-outline button-fit"
+                  type="button"
+                  onClick={() => handleResolutionNavigation('installed-widget')}
+                >
+                  {labels.sourceReviewWidgetCapture}
+                </button>
+              </div>
+            </div> : null}
+          </div>
+        ) : null}
         {supportOpen ? (
           <div className="knowledge-managed-support">
             <p>{labels.sourceSupportPrompt}</p>
@@ -954,6 +1067,12 @@ function getManagedOutcomeDescription(outcome: ManagedWebOutcome, labels: Knowle
   if (outcome === 'failed') return labels.sourceOutcomeFailed
   if (outcome === 'paused') return labels.sourceOutcomePaused
   return labels.sourceOutcomePending
+}
+
+function getManagedResolutionDescription(outcome: ManagedWebOutcome, labels: KnowledgeFormProps['labels']) {
+  if (outcome === 'partial_discovery') return labels.sourceResolutionPartialDiscovery
+  if (outcome === 'blocked') return labels.sourceResolutionBlocked
+  return labels.sourceResolutionDefault
 }
 
 function getManagedSourceStatusLabel(status: string, labels: KnowledgeFormProps['labels']) {
