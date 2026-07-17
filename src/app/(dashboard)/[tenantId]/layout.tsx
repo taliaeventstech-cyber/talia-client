@@ -9,7 +9,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { UserRound } from 'lucide-react'
-import { isLegacyEmailAgentAccount } from '@/lib/email/legacy-access'
+import { hasEmailAgentPreviewAccess } from '@/lib/email/legacy-access'
 
 interface Props {
   children: React.ReactNode
@@ -27,6 +27,7 @@ export default async function DashboardLayout({ children, params }: Props) {
 
   const access = await getTenantAccess(tenantId)
   const billingAccess = access.billingAccess
+  const emailAgentPreviewEnabled = await hasEmailAgentPreviewAccess(tenantId, user.email)
 
   return (
     <div className="dashboard-shell">
@@ -51,7 +52,7 @@ export default async function DashboardLayout({ children, params }: Props) {
           isTrialExpired={billingAccess.isTrialExpired}
           trialDaysRemaining={billingAccess.isTrialing ? billingAccess.trialDaysRemaining : null}
           chatbotSetupCompleted={access.chatbotSetupCompleted}
-          legacyEmailAgentEnabled={isLegacyEmailAgentAccount(user.email)}
+          emailAgentPreviewEnabled={emailAgentPreviewEnabled}
           labels={{
             main: dictionary.nav.main,
             overview: dictionary.nav.overview,

@@ -2,7 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getKnowledgeWebOperationalAlerts } from '@/lib/knowledge/web-source-alerts'
 import { getActiveSubscription, getTenantUsageForPeriod } from '@/lib/usage/service'
 import { getManagedWebQuotaUsage } from '@/lib/knowledge/web-source-quotas'
-import { canReprocessKnowledgeSourceFromBackstage } from '@/lib/knowledge/backstage-sources'
+import { canReprocessKnowledgeSourceFromBackstage, getBackstageSyncRunPresentation } from '@/lib/knowledge/backstage-sources'
 import { requirePlatformAdmin } from '@/lib/platform/auth'
 import { hasPlatformPermission } from '@/lib/platform/permissions'
 import { ChevronLeft, ChevronRight, FileText, LayoutDashboard, LifeBuoy } from 'lucide-react'
@@ -579,6 +579,10 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
               const stats = chunkStatsBySource.get(source.id) ?? createEmptyChunkStats()
               const documentCount = documentCountsBySource.get(source.id) ?? 0
               const latestSyncRun = latestSyncRunBySource.get(source.id)
+              const syncPresentation = getBackstageSyncRunPresentation({
+                run: latestSyncRun,
+                sourceLastError: source.last_error,
+              })
               const fileName = getKnowledgeSourceName(source)
 
               return (
@@ -616,23 +620,27 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                     </div>
                     {latestSyncRun ? (
                       <div className="knowledge-installed-signals" aria-label="Última sincronización web">
-                        <span className="knowledge-installed-signal">Run {latestSyncRun.status}</span>
+                        <span className="knowledge-installed-signal">{syncPresentation.statusLabel}</span>
                         {latestSyncRun.status === 'running' ? (
                           <span className="knowledge-installed-signal knowledge-installed-signal-ok">
                             {getBackstageSyncPhase(latestSyncRun.metadata)}
                             {latestSyncRun.discovered_count > 0 ? ` · ${latestSyncRun.checked_count}/${latestSyncRun.discovered_count}` : ''}
                           </span>
                         ) : null}
-                        <span className="knowledge-installed-signal">{latestSyncRun.checked_count} revisadas</span>
-                        <span className="knowledge-installed-signal knowledge-installed-signal-ok">{latestSyncRun.changed_count} cambiadas</span>
-                        {latestSyncRun.failed_count + latestSyncRun.blocked_count > 0 ? (
-                          <span className="knowledge-installed-signal">{latestSyncRun.failed_count + latestSyncRun.blocked_count} incidencias</span>
+                        {syncPresentation.showCounters ? (
+                          <>
+                            <span className="knowledge-installed-signal">{latestSyncRun.checked_count} revisadas</span>
+                            <span className="knowledge-installed-signal knowledge-installed-signal-ok">{latestSyncRun.changed_count} cambiadas</span>
+                            {latestSyncRun.failed_count + latestSyncRun.blocked_count > 0 ? (
+                              <span className="knowledge-installed-signal">{latestSyncRun.failed_count + latestSyncRun.blocked_count} incidencias</span>
+                            ) : null}
+                          </>
                         ) : null}
                       </div>
                     ) : null}
-                    {latestSyncRun?.error_code ? (
-                      <p className="knowledge-file-error">
-                        {latestSyncRun.error_code}: {latestSyncRun.error_details ?? 'Sin detalle adicional'}
+                    {syncPresentation.issue ? (
+                      <p className={`knowledge-file-issue knowledge-file-issue-${syncPresentation.issueTone}`}>
+                        {syncPresentation.issue}
                       </p>
                     ) : null}
                     {stats.total > 0 ? (
@@ -643,7 +651,6 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                         {stats.error > 0 ? <span className="knowledge-embedding-stat knowledge-embedding-stat-error">{stats.error} error</span> : null}
                       </div>
                     ) : null}
-                    {source.last_error ? <p className="knowledge-file-error">{source.last_error}</p> : null}
                   </div>
                   <div className="knowledge-file-actions">
                     {isManagedWebSource(source.type) ? (

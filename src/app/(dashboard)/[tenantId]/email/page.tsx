@@ -1,4 +1,4 @@
-import { requireLegacyEmailAgentProductAccess } from '@/lib/email/legacy-access'
+import { requireEmailAgentPreviewProductAccess } from '@/lib/email/legacy-access'
 import { getDictionary, getLocale, type Dictionary } from '@/lib/i18n/dictionaries'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { QueryToastNotice } from '@/components/ui/query-toast-notice'
@@ -53,7 +53,7 @@ type EmailCopy = Dictionary['email']
 export default async function EmailAgentPage({ params, searchParams }: Props) {
   const { tenantId } = await params
   const query = searchParams ? await searchParams : {}
-  await requireLegacyEmailAgentProductAccess(tenantId)
+  await requireEmailAgentPreviewProductAccess(tenantId)
   const locale = await getLocale()
   const dictionary = await getDictionary(locale)
   const copy = dictionary.email

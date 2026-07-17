@@ -119,8 +119,10 @@ Implemented:
   Overview and Knowledge remain as supporting operational areas.
 - The Email Agent navigation and customer-facing routes are restricted to the
   authenticated legacy account allowlist (`LEGACY_EMAIL_AGENT_ACCOUNT_EMAILS`),
-  which defaults to `talia.events.tech@gmail.com` for migration and Google
-  verification work.
+  which defaults to `talia.events.tech@gmail.com`, or to tenants with an explicit
+  `talia-ai` mailbox-level canary override. Module access and `manage_email`
+  permissions remain mandatory. This keeps migration and Google verification
+  work visible without exposing Email to launch customers by default.
 - Languages: Spanish, Catalan and English.
 - Global day/night mode.
 - Trial visible in sidebar.

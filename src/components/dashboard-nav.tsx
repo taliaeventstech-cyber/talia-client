@@ -65,7 +65,7 @@ export function DashboardNav({
   isTrialExpired,
   trialDaysRemaining,
   chatbotSetupCompleted,
-  legacyEmailAgentEnabled,
+  emailAgentPreviewEnabled,
 }: {
   tenantId: string
   labels: DashboardNavLabels
@@ -76,7 +76,7 @@ export function DashboardNav({
   isTrialExpired: boolean
   trialDaysRemaining: number | null
   chatbotSetupCompleted: boolean
-  legacyEmailAgentEnabled: boolean
+  emailAgentPreviewEnabled: boolean
 }) {
   const pathname = usePathname()
   const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
@@ -91,7 +91,7 @@ export function DashboardNav({
   const showChatbot = hasProductAccess && chatbotEnabled && (canManageChatbot || canViewConversations || (dataEnabled && canViewAnalytics))
   const showAccessibility = hasProductAccess && chatbotEnabled && canManageChatbot
   const showKnowledge = hasProductAccess && dataEnabled && canManageKnowledge
-  const showEmail = legacyEmailAgentEnabled && hasProductAccess && emailEnabled && canManageEmail
+  const showEmail = emailAgentPreviewEnabled && hasProductAccess && emailEnabled && canManageEmail
   const showAttention = showChatbot || showAccessibility || showEmail
   const trialProgress = trialDaysRemaining === null
     ? 0

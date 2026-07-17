@@ -2,6 +2,8 @@ import {
   requireTenantPermission,
   requireTenantProductAccess,
 } from '@/lib/auth/tenant-access'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { getEmailAgentProviderOverride } from './provider-selection'
 import { redirect } from 'next/navigation'
 
 const DEFAULT_LEGACY_EMAIL_AGENT_ACCOUNT = 'talia.events.tech@gmail.com'
@@ -17,18 +19,34 @@ export function isLegacyEmailAgentAccount(email: string | null | undefined) {
   return allowedEmails.includes(email.trim().toLowerCase())
 }
 
-export async function requireLegacyEmailAgentProductAccess(tenantId: string) {
+export function hasExplicitTaliaAiCanaryConnection(connections: Array<{ metadata: unknown }>) {
+  return connections.some((connection) => getEmailAgentProviderOverride(connection.metadata) === 'talia-ai')
+}
+
+export async function hasEmailAgentPreviewAccess(tenantId: string, email: string | null | undefined) {
+  if (isLegacyEmailAgentAccount(email)) return true
+
+  const { data, error } = await createAdminClient()
+    .from('email_connections')
+    .select('metadata')
+    .eq('theatre_id', tenantId)
+
+  if (error) return false
+  return hasExplicitTaliaAiCanaryConnection(data ?? [])
+}
+
+export async function requireEmailAgentPreviewProductAccess(tenantId: string) {
   const access = await requireTenantProductAccess(tenantId, 'manage_email', 'email')
-  assertLegacyEmailAgentAccount(access.userEmail, tenantId)
+  await assertEmailAgentPreviewAccess(access.userEmail, tenantId)
   return access
 }
 
-export async function requireLegacyEmailAgentPermission(tenantId: string) {
+export async function requireEmailAgentPreviewPermission(tenantId: string) {
   const access = await requireTenantPermission(tenantId, 'manage_email', 'email')
-  assertLegacyEmailAgentAccount(access.userEmail, tenantId)
+  await assertEmailAgentPreviewAccess(access.userEmail, tenantId)
   return access
 }
 
-function assertLegacyEmailAgentAccount(email: string | null, tenantId: string): asserts email is string {
-  if (!isLegacyEmailAgentAccount(email)) redirect(`/${tenantId}/overview`)
+async function assertEmailAgentPreviewAccess(email: string | null, tenantId: string) {
+  if (!await hasEmailAgentPreviewAccess(tenantId, email)) redirect(`/${tenantId}/overview`)
 }

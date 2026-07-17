@@ -1,4 +1,4 @@
-import { requireLegacyEmailAgentProductAccess } from '@/lib/email/legacy-access'
+import { requireEmailAgentPreviewProductAccess } from '@/lib/email/legacy-access'
 import { getMicrosoftAuthorizationUrl } from '@/lib/email/microsoft-oauth'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const access = await requireLegacyEmailAgentProductAccess(tenantId)
+    const access = await requireEmailAgentPreviewProductAccess(tenantId)
     const authorizationUrl = getMicrosoftAuthorizationUrl({ tenantId, userId: access.userId })
 
     return NextResponse.redirect(authorizationUrl)
