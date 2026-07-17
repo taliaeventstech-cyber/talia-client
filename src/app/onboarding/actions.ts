@@ -24,7 +24,7 @@ const onboardingSchema = z.object({
   primaryLanguage: z.enum(['ca', 'es', 'en']),
   fallbackEmail: z.string().trim().email('El email de contacto no es válido').optional().or(z.literal('')),
   fallbackPhone: optionalInternationalPhoneSchema,
-  onboardingGoals: z.array(z.enum(['faqs', 'agenda', 'tickets', 'hours', 'location', 'accessibility', 'prices', 'email'])).min(1).max(3),
+  onboardingGoals: z.array(z.enum(['faqs', 'agenda', 'tickets', 'hours', 'location', 'accessibility', 'prices'])).min(1).max(3),
 })
 
 function normalizeUrl(value: string) {

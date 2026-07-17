@@ -1,8 +1,7 @@
 'use client'
 
 import { useActionState, useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, Bot, Building2, Check, Globe2, Landmark, Mail, MessageSquare, Route, Sparkles, Ticket, UserRound } from 'lucide-react'
-import Image from 'next/image'
+import { ArrowLeft, ArrowRight, Check, Globe2, Landmark, Mail, MessageSquare, Sparkles, Ticket } from 'lucide-react'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { createTenant, type OnboardingFormState } from './actions'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
@@ -51,8 +50,6 @@ const USE_CASES = [
   { value: 'email', icon: Mail },
 ] as const
 
-type UseCaseValue = typeof USE_CASES[number]['value']
-
 const MAX_USE_CASES = 3
 
 export function OnboardingForm({ copy, email }: { copy: OnboardingFormCopy; email: string }) {
@@ -81,6 +78,8 @@ export function OnboardingForm({ copy, email }: { copy: OnboardingFormCopy; emai
   }
 
   function toggleGoal(goal: string) {
+    if (goal === 'email') return
+
     setValues((current) => ({
       ...current,
       goals: current.goals.includes(goal)
@@ -123,8 +122,6 @@ export function OnboardingForm({ copy, email }: { copy: OnboardingFormCopy; emai
         </p>
       ) : null}
 
-      <StepHeader copy={copy} activeStep={workspaceStep} />
-
       <div className="onboarding-panel">
         <section className="onboarding-panel-main">
           {workspaceStep === 0 ? (
@@ -147,7 +144,7 @@ export function OnboardingForm({ copy, email }: { copy: OnboardingFormCopy; emai
 
         </section>
 
-        <OnboardingVisual copy={copy} activeStep={workspaceStep} values={values} />
+        <OnboardingVisual copy={copy} activeStep={workspaceStep} complete={pending} />
       </div>
 
       <div className="onboarding-actions">
@@ -180,25 +177,6 @@ export function OnboardingForm({ copy, email }: { copy: OnboardingFormCopy; emai
         )}
       </div>
     </form>
-  )
-}
-
-function StepHeader({ copy, activeStep }: { copy: OnboardingFormCopy; activeStep: number }) {
-  return (
-    <div className="onboarding-stepper" aria-label={copy.progressLabel}>
-      {copy.steps.map((label, index) => {
-        const isDone = index < activeStep
-        const isActive = index === activeStep
-        return (
-          <div key={label} className="onboarding-stepper-item">
-          <span className={isDone ? 'onboarding-stepper-index onboarding-stepper-index-done' : isActive ? 'onboarding-stepper-index onboarding-stepper-index-active' : 'onboarding-stepper-index'}>
-              {isDone ? <Check size={14} strokeWidth={2.6} aria-hidden="true" /> : index + 1}
-            </span>
-            <strong>{label}</strong>
-          </div>
-        )
-      })}
-    </div>
   )
 }
 
@@ -342,12 +320,19 @@ function WorkspaceUseCases({ copy, goals, toggleGoal }: { copy: OnboardingFormCo
         {USE_CASES.map((goal) => {
           const Icon = goal.icon
           const selected = goals.includes(goal.value)
-          const disabled = !selected && goals.length >= MAX_USE_CASES
+          const unavailable = goal.value === 'email'
+          const disabled = unavailable || (!selected && goals.length >= MAX_USE_CASES)
           return (
             <button
               key={goal.value}
               type="button"
-              className={selected ? 'onboarding-choice onboarding-choice-active' : 'onboarding-choice'}
+              className={
+                unavailable
+                  ? 'onboarding-choice onboarding-choice-unavailable'
+                  : selected
+                    ? 'onboarding-choice onboarding-choice-active'
+                    : 'onboarding-choice'
+              }
               disabled={disabled}
               onClick={() => toggleGoal(goal.value)}
             >
@@ -365,83 +350,81 @@ function WorkspaceUseCases({ copy, goals, toggleGoal }: { copy: OnboardingFormCo
   )
 }
 
+const CONSTELLATION_SEGMENTS = [
+  'M87 401 C122 382 151 348 182 326',
+  'M198 314 C241 288 274 241 312 216',
+  'M328 205 C360 183 379 168 399 157',
+] as const
+
 function OnboardingVisual({
   copy,
   activeStep,
-  values,
+  complete,
 }: {
   copy: OnboardingFormCopy
   activeStep: WorkspaceStep
-  values: FormValues
+  complete: boolean
 }) {
-  const selectedGoals = values.goals
-    .slice(0, MAX_USE_CASES)
-    .map((goal) => (isUseCaseValue(goal) ? copy.useCases.options[goal] : ''))
-    .filter(Boolean)
-
-  const nodes = [
-    {
-      label: copy.steps[0],
-      Icon: UserRound,
-      detail: values.fullName || values.role,
-    },
-    {
-      label: copy.steps[1],
-      Icon: Building2,
-      detail: values.theatreName || values.websiteUrl,
-    },
-    {
-      label: copy.steps[2],
-      Icon: Route,
-      detail: selectedGoals.join(' · '),
-    },
-  ] as const
+  const iconLevel = complete ? 4 : activeStep + 1
 
   return (
-    <aside className="onboarding-visual" aria-hidden="true">
-      <div className="onboarding-visual-card">
-        <div className="onboarding-visual-map">
-          {nodes.map(({ label, Icon, detail }, index) => {
-            const isActive = index === activeStep
-            const isDone = index < activeStep
+    <aside
+      className={`onboarding-visual onboarding-visual-level-${iconLevel}`}
+      aria-label={copy.progressLabel}
+    >
+      <div className="onboarding-constellation">
+        <svg
+          className="onboarding-constellation-lines"
+          viewBox="0 0 560 520"
+          preserveAspectRatio="xMidYMid meet"
+          aria-hidden="true"
+        >
+          {CONSTELLATION_SEGMENTS.map((path, index) => {
+            const isLit = complete || index < activeStep
             return (
-              <div
-                key={label}
-                className={
-                  isActive
-                    ? 'onboarding-visual-node onboarding-visual-node-active'
-                    : isDone
-                      ? 'onboarding-visual-node onboarding-visual-node-done'
-                      : 'onboarding-visual-node'
-                }
-              >
-                <span className="onboarding-visual-node-icon">
-                  <Icon size={19} strokeWidth={2.2} />
-                </span>
-                <span>
-                  <strong>{label}</strong>
-                  {detail ? <small>{detail}</small> : null}
-                </span>
-              </div>
+              <g key={path}>
+                <path className="onboarding-constellation-line-ghost" d={path} />
+                <path
+                  className={isLit ? 'onboarding-constellation-line is-lit' : 'onboarding-constellation-line'}
+                  d={path}
+                  pathLength="1"
+                />
+              </g>
             )
           })}
-        </div>
+        </svg>
 
-        <div className="onboarding-visual-core">
-          <span className="onboarding-visual-core-mark">
-            <Image src="/talia-logo-marble.png" alt="" width={132} height={36} />
-          </span>
-          <span className="onboarding-visual-core-bot">
-            <Bot size={28} strokeWidth={2.1} />
-          </span>
-        </div>
+        <ol className="onboarding-constellation-steps">
+          {copy.steps.map((label, index) => {
+            const isDone = complete || index < activeStep
+            const isActive = !complete && index === activeStep
+            const stateClass = isDone ? 'is-done' : isActive ? 'is-active' : 'is-pending'
+
+            return (
+              <li
+                key={label}
+                className={`onboarding-constellation-step ${stateClass}`}
+                aria-current={isActive ? 'step' : undefined}
+              >
+                <span className="onboarding-constellation-dot" aria-hidden="true" />
+                <strong>{label}</strong>
+              </li>
+            )
+          })}
+
+          <li
+            className={complete ? 'onboarding-constellation-destination is-active' : 'onboarding-constellation-destination is-pending'}
+            aria-current={complete ? 'step' : undefined}
+            aria-label="TALIA"
+          >
+            <span className="onboarding-visual-mark-wrap" aria-hidden="true">
+              <span className="onboarding-visual-mark" />
+            </span>
+          </li>
+        </ol>
       </div>
     </aside>
   )
-}
-
-function isUseCaseValue(value: string): value is UseCaseValue {
-  return USE_CASES.some((useCase) => useCase.value === value)
 }
 
 function isWorkspaceStepValid(step: WorkspaceStep, values: FormValues, websiteUrlError: string) {
