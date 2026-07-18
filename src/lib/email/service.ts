@@ -7,13 +7,12 @@ import {
 } from '@/lib/usage/service'
 import type { Json } from '@/types/database.types'
 import type { EmailAgentClassification, EmailAgentClassifierProvider, EmailAgentDrafterProvider } from './agent-provider'
+import { getEmailAgentPhaseTrace, getEmailAgentProviderTrace } from './agent-trace'
 import { applyEmailClassificationSafeguards } from './classification-safeguards'
 import { classifyEmailMessage } from './classifier'
 import { createGmailDraft } from './gmail'
 import { getFreshGoogleAccessToken } from './google-tokens'
 import { getFreshMicrosoftAccessToken } from './microsoft-tokens'
-import { N8nEmailClassifierProvider, N8nEmailDrafterProvider } from './n8n'
-import { getEmailAgentPhaseTrace, getEmailAgentProviderTrace, resolveEmailAgentProvider, type EmailAgentProviderSelection } from './provider-selection'
 import { createOutlookDraft } from './outlook'
 import { getEmailAgentSettings } from './settings'
 import { TaliaAiEmailClassifierProvider, TaliaAiEmailDrafterProvider } from './talia-ai'
@@ -40,8 +39,6 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
   if (!connection) {
     return { ok: false as const, error: 'No connected email mailbox for this tenant' }
   }
-  const providerSelection = resolveEmailAgentProvider(connection.metadata)
-
   const messageQuery = admin
     .from('email_messages')
     .select(`
@@ -150,7 +147,7 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
     })),
   }
 
-  const classifierProvider = getEmailClassifierProvider(connection.metadata, providerSelection)
+  const classifierProvider = getEmailClassifierProvider()
   if (!classifierProvider.ok) {
     await markEmailThreadProcessingError(admin, {
       threadId: message.thread_id,
@@ -171,7 +168,6 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
     phase: 'classifier_requested',
     provider: classifierProvider.providerName,
     endpointUrl: classifierProvider.endpointUrl,
-    providerOverride: providerSelection.override,
     classification: rulesClassification,
   })
 
@@ -184,7 +180,6 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
       phase: 'classifier_failed',
       provider: classifierProvider.providerName,
       endpointUrl: classifierProvider.endpointUrl,
-      providerOverride: providerSelection.override,
       errorKey: 'email_classifier_error',
       error: classificationResult.error,
       details: classificationResult.details,
@@ -205,7 +200,6 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
     agentClassification,
     rulesClassification,
     knowledgeMatches.length,
-    providerSelection,
   )
   await admin
     .from('email_threads')
@@ -227,7 +221,7 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
     }
   }
 
-  const drafterProvider = getEmailDrafterProvider(connection.metadata, providerSelection)
+  const drafterProvider = getEmailDrafterProvider()
   if (!drafterProvider.ok) {
     await markEmailThreadProcessingError(admin, {
       threadId: message.thread_id,
@@ -248,7 +242,6 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
     phase: 'drafter_requested',
     provider: drafterProvider.providerName,
     endpointUrl: drafterProvider.endpointUrl,
-    providerOverride: providerSelection.override,
     classification: buildThreadClassificationRecord(combinedClassification),
   })
 
@@ -265,7 +258,6 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
       phase: 'drafter_failed',
       provider: drafterProvider.providerName,
       endpointUrl: drafterProvider.endpointUrl,
-      providerOverride: providerSelection.override,
       errorKey: 'email_agent_error',
       error: result.error,
       details: result.details,
@@ -285,7 +277,7 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
         status: 'ignored',
         topic: finalTopic,
         priority: finalPriority,
-        metadata: buildDraftMetadata(draft, combinedClassification, knowledgeMatches.length, providerSelection),
+        metadata: buildDraftMetadata(draft, combinedClassification, knowledgeMatches.length),
       })
       .eq('id', message.thread_id)
 
@@ -296,7 +288,7 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
     }
   }
 
-  const draftMetadata = buildDraftMetadata(draft, combinedClassification, knowledgeMatches.length, providerSelection)
+  const draftMetadata = buildDraftMetadata(draft, combinedClassification, knowledgeMatches.length)
   const { data: createdDraft, error: draftError } = await admin
     .from('email_drafts')
     .insert({
@@ -335,7 +327,7 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
       threadId: message.thread_id,
       inputText: bodyText,
       outputText: draft.bodyText ?? draft.bodyHtml ?? '',
-      provider: getEmailAgentProviderTrace(draft.raw, providerSelection).provider,
+      provider: getEmailAgentProviderTrace().provider,
     }),
   ])
 
@@ -510,45 +502,15 @@ async function createProviderDraft(
   }
 }
 
-function getEmailClassifierProvider(metadata: Json, selection: EmailAgentProviderSelection) {
-  if (selection.requestedProvider === 'talia-ai') {
-    const taliaAiConfig = getTaliaAiEmailConfig('/v1/email/classify')
-    if (!taliaAiConfig.ok) return taliaAiConfig
-
-    return {
-      ok: true as const,
-      provider: new TaliaAiEmailClassifierProvider() satisfies EmailAgentClassifierProvider,
-      providerName: 'talia-ai',
-      endpointUrl: taliaAiConfig.endpointUrl,
-    }
-  }
-
-  const metadataRecord = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
-    ? metadata as Record<string, Json | undefined>
-    : {}
-  const webhookFromMetadata = typeof metadataRecord.n8n_email_classifier_webhook_url === 'string'
-    ? metadataRecord.n8n_email_classifier_webhook_url
-    : null
-  const legacyWebhook = typeof metadataRecord.n8n_email_agent_webhook_url === 'string'
-    ? metadataRecord.n8n_email_agent_webhook_url
-    : null
-  const webhookUrl = webhookFromMetadata
-    ?? process.env.DEFAULT_N8N_EMAIL_CLASSIFIER_WEBHOOK_URL
-    ?? legacyWebhook
-    ?? process.env.DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL
-
-  if (!webhookUrl) {
-    return {
-      ok: false as const,
-      error: 'Email classifier webhook is not configured',
-    }
-  }
+function getEmailClassifierProvider() {
+  const taliaAiConfig = getTaliaAiEmailConfig('/v1/email/classify')
+  if (!taliaAiConfig.ok) return taliaAiConfig
 
   return {
     ok: true as const,
-    provider: new N8nEmailClassifierProvider(webhookUrl) satisfies EmailAgentClassifierProvider,
-    providerName: 'n8n',
-    endpointUrl: webhookUrl,
+    provider: new TaliaAiEmailClassifierProvider() satisfies EmailAgentClassifierProvider,
+    providerName: 'talia-ai',
+    endpointUrl: taliaAiConfig.endpointUrl,
   }
 }
 
@@ -557,45 +519,15 @@ function getProviderDraftThreadId(draft: Awaited<ReturnType<typeof createGmailDr
   return record.message?.threadId ?? record.conversationId ?? null
 }
 
-function getEmailDrafterProvider(metadata: Json, selection: EmailAgentProviderSelection) {
-  if (selection.requestedProvider === 'talia-ai') {
-    const taliaAiConfig = getTaliaAiEmailConfig('/v1/email/draft')
-    if (!taliaAiConfig.ok) return taliaAiConfig
-
-    return {
-      ok: true as const,
-      provider: new TaliaAiEmailDrafterProvider() satisfies EmailAgentDrafterProvider,
-      providerName: 'talia-ai',
-      endpointUrl: taliaAiConfig.endpointUrl,
-    }
-  }
-
-  const metadataRecord = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
-    ? metadata as Record<string, Json | undefined>
-    : {}
-  const webhookFromMetadata = typeof metadataRecord.n8n_email_drafter_webhook_url === 'string'
-    ? metadataRecord.n8n_email_drafter_webhook_url
-    : null
-  const legacyWebhook = typeof metadataRecord.n8n_email_agent_webhook_url === 'string'
-    ? metadataRecord.n8n_email_agent_webhook_url
-    : null
-  const webhookUrl = webhookFromMetadata
-    ?? process.env.DEFAULT_N8N_EMAIL_DRAFTER_WEBHOOK_URL
-    ?? legacyWebhook
-    ?? process.env.DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL
-
-  if (!webhookUrl) {
-    return {
-      ok: false as const,
-      error: 'Email drafter webhook is not configured',
-    }
-  }
+function getEmailDrafterProvider() {
+  const taliaAiConfig = getTaliaAiEmailConfig('/v1/email/draft')
+  if (!taliaAiConfig.ok) return taliaAiConfig
 
   return {
     ok: true as const,
-    provider: new N8nEmailDrafterProvider(webhookUrl) satisfies EmailAgentDrafterProvider,
-    providerName: 'n8n',
-    endpointUrl: webhookUrl,
+    provider: new TaliaAiEmailDrafterProvider() satisfies EmailAgentDrafterProvider,
+    providerName: 'talia-ai',
+    endpointUrl: taliaAiConfig.endpointUrl,
   }
 }
 
@@ -623,7 +555,6 @@ async function markEmailThreadProcessingStage(
     phase: string
     provider?: string
     endpointUrl?: string
-    providerOverride?: string
     classification?: Json
   },
 ) {
@@ -633,7 +564,6 @@ async function markEmailThreadProcessingStage(
       metadata: buildProcessingMetadata(input.metadata, {
         phase: input.phase,
         provider: input.provider,
-        provider_override: input.providerOverride,
         endpoint_url: sanitizeEndpointUrl(input.endpointUrl),
         last_error: null,
       }, input.classification),
@@ -653,7 +583,6 @@ async function markEmailThreadProcessingError(
     details?: string
     provider?: string
     endpointUrl?: string
-    providerOverride?: string
     classification?: Json
   },
 ) {
@@ -664,7 +593,6 @@ async function markEmailThreadProcessingError(
       metadata: buildProcessingMetadata(input.metadata, {
         phase: input.phase,
         provider: input.provider,
-        provider_override: input.providerOverride,
         endpoint_url: sanitizeEndpointUrl(input.endpointUrl),
         last_error: input.error,
         last_error_details: truncateDetails(input.details),
@@ -722,10 +650,10 @@ function buildDraftMetadata(draft: {
   escalationReason: string | null
   classificationReason: string | null
   raw?: unknown
-}, classification: CombinedEmailClassification | undefined, knowledgeMatchCount: number, selection: EmailAgentProviderSelection) {
-  const providerTrace = getEmailAgentProviderTrace(draft.raw, selection)
+}, classification: CombinedEmailClassification | undefined, knowledgeMatchCount: number) {
+  const providerTrace = getEmailAgentProviderTrace()
   const classifierTrace = classification?.rawAgentResponse
-    ? getEmailAgentPhaseTrace(classification.rawAgentResponse, selection)
+    ? getEmailAgentPhaseTrace(classification.rawAgentResponse)
     : null
   return {
     source: 'email_agent',
@@ -736,7 +664,7 @@ function buildDraftMetadata(draft: {
     classification: classification ? buildThreadClassificationRecord(classification, draft.classificationReason) : null,
     agent_trace: {
       classifier: classifierTrace,
-      drafter: getEmailAgentPhaseTrace(draft.raw, selection),
+      drafter: getEmailAgentPhaseTrace(draft.raw),
     },
   } satisfies Json
 }
@@ -781,9 +709,8 @@ function buildClassificationMetadata(
   agentClassification: EmailAgentClassification,
   rulesClassification: ReturnType<typeof classifyEmailMessage>,
   knowledgeMatchCount: number,
-  selection: EmailAgentProviderSelection,
 ) {
-  const providerTrace = getEmailAgentProviderTrace(agentClassification.raw, selection)
+  const providerTrace = getEmailAgentProviderTrace()
   return {
     source: 'email_classifier',
     ...providerTrace,
@@ -792,7 +719,7 @@ function buildClassificationMetadata(
     knowledge_match_count: knowledgeMatchCount,
     classification: buildThreadClassificationRecord(mergeClassifications(rulesClassification, agentClassification)),
     agent_trace: {
-      classifier: getEmailAgentPhaseTrace(agentClassification.raw, selection),
+      classifier: getEmailAgentPhaseTrace(agentClassification.raw),
       drafter: null,
     },
   } satisfies Json
@@ -831,7 +758,7 @@ async function recordEmailAgentUsage(
     threadId: string
     inputText: string
     outputText: string
-    provider: 'n8n' | 'talia-ai'
+    provider: 'talia-ai'
   },
 ) {
   const inputTokens = estimateTokenCount(input.inputText)

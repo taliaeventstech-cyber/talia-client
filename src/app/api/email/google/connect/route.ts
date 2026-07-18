@@ -1,5 +1,5 @@
 import { getGoogleAuthorizationUrl } from '@/lib/email/google-oauth'
-import { requireLegacyEmailAgentProductAccess } from '@/lib/email/legacy-access'
+import { requireEmailAgentPreviewProductAccess } from '@/lib/email/legacy-access'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const access = await requireLegacyEmailAgentProductAccess(tenantId)
+    const access = await requireEmailAgentPreviewProductAccess(tenantId)
     const authorizationUrl = getGoogleAuthorizationUrl({ tenantId, userId: access.userId })
 
     return NextResponse.redirect(authorizationUrl)

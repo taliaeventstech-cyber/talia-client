@@ -17,18 +17,22 @@ export function isLegacyEmailAgentAccount(email: string | null | undefined) {
   return allowedEmails.includes(email.trim().toLowerCase())
 }
 
-export async function requireLegacyEmailAgentProductAccess(tenantId: string) {
+export async function hasEmailAgentPreviewAccess(_tenantId: string, email: string | null | undefined) {
+  return isLegacyEmailAgentAccount(email)
+}
+
+export async function requireEmailAgentPreviewProductAccess(tenantId: string) {
   const access = await requireTenantProductAccess(tenantId, 'manage_email', 'email')
-  assertLegacyEmailAgentAccount(access.userEmail, tenantId)
+  await assertEmailAgentPreviewAccess(access.userEmail, tenantId)
   return access
 }
 
-export async function requireLegacyEmailAgentPermission(tenantId: string) {
+export async function requireEmailAgentPreviewPermission(tenantId: string) {
   const access = await requireTenantPermission(tenantId, 'manage_email', 'email')
-  assertLegacyEmailAgentAccount(access.userEmail, tenantId)
+  await assertEmailAgentPreviewAccess(access.userEmail, tenantId)
   return access
 }
 
-function assertLegacyEmailAgentAccount(email: string | null, tenantId: string): asserts email is string {
-  if (!isLegacyEmailAgentAccount(email)) redirect(`/${tenantId}/overview`)
+async function assertEmailAgentPreviewAccess(email: string | null, tenantId: string) {
+  if (!await hasEmailAgentPreviewAccess(tenantId, email)) redirect(`/${tenantId}/overview`)
 }

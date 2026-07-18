@@ -391,6 +391,69 @@ export type Database = {
         }
         Relationships: []
       }
+      email_sync_runs: {
+        Row: {
+          checked_count: number
+          completed_at: string | null
+          created_at: string
+          error_code: string | null
+          error_message: string | null
+          failed_count: number
+          id: string
+          imported_count: number
+          inspected_count: number
+          lease_expires_at: string
+          metadata: Json
+          processed_count: number
+          skipped_count: number
+          started_at: string
+          status: string
+          synced_count: number
+          trigger_source: string
+          worker_id: string
+        }
+        Insert: {
+          checked_count?: number
+          completed_at?: string | null
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          failed_count?: number
+          id?: string
+          imported_count?: number
+          inspected_count?: number
+          lease_expires_at: string
+          metadata?: Json
+          processed_count?: number
+          skipped_count?: number
+          started_at?: string
+          status?: string
+          synced_count?: number
+          trigger_source?: string
+          worker_id: string
+        }
+        Update: {
+          checked_count?: number
+          completed_at?: string | null
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          failed_count?: number
+          id?: string
+          imported_count?: number
+          inspected_count?: number
+          lease_expires_at?: string
+          metadata?: Json
+          processed_count?: number
+          skipped_count?: number
+          started_at?: string
+          status?: string
+          synced_count?: number
+          trigger_source?: string
+          worker_id?: string
+        }
+        Relationships: []
+      }
       email_threads: {
         Row: {
           assigned_profile_id: string | null
@@ -1835,6 +1898,13 @@ export type Database = {
       }
     }
     Functions: {
+      claim_email_sync_run: {
+        Args: {
+          p_lease_seconds?: number
+          p_worker_id: string
+        }
+        Returns: string | null
+      }
       current_theatre_id: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -1861,6 +1931,23 @@ export type Database = {
           theatre_id: string
           theatre_name: string
         }[]
+      }
+      finish_email_sync_run: {
+        Args: {
+          p_checked_count?: number
+          p_error_code?: string
+          p_error_message?: string
+          p_failed_count?: number
+          p_imported_count?: number
+          p_inspected_count?: number
+          p_processed_count?: number
+          p_run_id: string
+          p_skipped_count?: number
+          p_status: string
+          p_synced_count?: number
+          p_worker_id: string
+        }
+        Returns: boolean
       }
       set_knowledge_web_sync_enabled: {
         Args: {

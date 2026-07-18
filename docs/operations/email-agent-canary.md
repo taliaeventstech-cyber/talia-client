@@ -1,68 +1,100 @@
-# Email Agent Canary
+# Email Agent Operations
 
-This runbook validates the `talia-ai` email classifier and drafter on one
-mailbox without changing the provider for every tenant.
+This runbook validates and operates the Gmail email agent after classification,
+drafting and scheduling have moved away from n8n.
 
 ## Preconditions
 
-- The mailbox is connected and synchronization works.
-- `TALIA_AI_BASE_URL` and `TALIA_AI_INTERNAL_API_KEY` are configured.
-- The mailbox has `draft_mode = agora_review` for the first sample.
-- The global `EMAIL_AGENT_PROVIDER` can remain `n8n` for mailboxes that have not
-  been migrated yet.
+- `TALIA_AI_BASE_URL` and `TALIA_AI_INTERNAL_API_KEY` are configured in Vercel.
+- `CRON_SECRET` is configured in Vercel and is at least 16 random characters.
+- Migration `20260718090000_email_sync_scheduler.sql` has been applied.
+- The production Vercel plan permits cron jobs every 15 minutes.
+- The mailbox is connected and uses supervised drafts. TALIA never sends email
+  automatically.
 
-## Start the canary
+## Managed schedule
 
-1. Open the venue in Backstage and go to the Email agent section.
-2. Set `Motor del agente` to `TALIA AI`. This writes the override only to that
-   connection.
-3. Keep automatic sending disabled. TALIA only creates supervised drafts.
-4. Synchronize and process a small, representative email sample.
-5. Review the classifier and drafter traces separately in Backstage.
+`vercel.json` registers `GET /api/cron/email/sync` every 15 minutes. Vercel adds
+`Authorization: Bearer <CRON_SECRET>` automatically. The route rejects requests
+without a valid server credential.
 
-Backstage summarizes the latest 25 executions without sending their raw email
-content to the browser. A successful TALIA AI execution means every executed
-phase used `talia-ai`, with no fallback and no processing error.
+Each invocation:
 
-There is no automatic n8n fallback. A TALIA AI failure is recorded as an error
-so the canary cannot appear healthy because the legacy provider answered.
+1. claims a global Postgres lease;
+2. identifies due polling connections;
+3. synchronizes new provider message IDs idempotently;
+4. classifies eligible messages and optionally creates supervised drafts;
+5. completes a durable `email_sync_runs` record;
+6. emits structured logs without bodies, senders, OAuth tokens or secrets.
 
-## Promotion criteria
+Vercel can deliver the same cron event more than once and does not retry failed
+invocations. The database lease prevents overlap. Message and thread unique
+constraints make repeated provider reads idempotent. A failed mailbox remains
+eligible for two more runs; after three consecutive failures it stays in
+`email_connections.status = error` for manual intervention.
 
-- no provider or contract errors;
-- no unexpected fallback to n8n;
-- classifier decisions match the configured topics and review rules;
-- generated drafts use only verified knowledge and contacts;
-- draft language matches the inbound email;
-- sensitive cases remain marked for human review;
-- no email is sent automatically.
+## Verification
 
-After the initial sample passes, `draft_mode` can move to `provider_drafts` for
-the same mailbox so drafts appear in Gmail or Outlook for human review.
+After deployment:
 
-## Rollback
+1. Open the Vercel project, then `Settings > Cron Jobs`.
+2. Confirm `/api/cron/email/sync` is enabled with schedule `*/15 * * * *`.
+3. Open runtime logs filtered by `requestPath:/api/cron/email/sync`.
+4. Confirm `email_sync_started` and `email_sync_completed` share a `run_id`.
+5. Query recent durable runs:
 
-During the migration window, set `Motor del agente` to `n8n legacy` for an
-explicit mailbox-level rollback. This is temporary: after all canary mailboxes
-pass, the n8n selector, adapters, variables and workflows are removed. Use
-`inherit` only when the global provider is known and intentional.
+```sql
+select
+  id,
+  status,
+  started_at,
+  completed_at,
+  checked_count,
+  synced_count,
+  failed_count,
+  imported_count,
+  processed_count,
+  error_code
+from public.email_sync_runs
+order by created_at desc
+limit 25;
+```
 
-Do not enable a shadow comparison that sends the same email body to both
-providers. Sequential samples and supervised review provide the required
-evidence with less processing of mailbox data.
+6. Verify an actionable inbound email produces classifier and drafter traces
+   with provider `talia-ai` and creates only a draft.
+7. Verify no email request reaches an n8n webhook.
 
-## Final n8n decommission
+## Pause and resume
 
-After every migrated mailbox passes:
+- Pause all scheduled invocations from `Settings > Cron Jobs > Disable Cron
+  Jobs` in Vercel.
+- Pause one mailbox by disabling automatic sync in Backstage, which writes
+  `cron_enabled = false` to its connection metadata.
+- Resume by reversing the relevant setting. Do not invoke the route repeatedly
+  while a run is active; the lease will reject the overlap with `202`.
 
-1. set the global email provider to `talia-ai` and remove per-mailbox legacy
-   overrides;
-2. replace the n8n sync wake-up job with a managed scheduler calling
-   `/api/cron/email/sync`;
-3. remove n8n classifier/drafter adapters and webhook configuration from
-   `talia-client`;
-4. delete the email workflows and their credentials from n8n;
-5. remove `EMAIL_AGENT_PROVIDER` once provider selection is no longer needed.
+## Recovery
 
-The migration is complete only when email classification, drafting and sync do
-not require an active n8n instance.
+- `401`: verify `CRON_SECRET` exists in the Production environment and redeploy.
+- `email_sync_claim_failed`: apply the migration and verify PostgREST has
+  reloaded the schema.
+- `run_already_active`: inspect the latest `running` row. It expires after ten
+  minutes and the next claim marks it failed with `lease_expired`.
+- Connection in `error`: inspect its sanitized `error_message`, repair OAuth or
+  provider access, and reconnect or set it back to a connected state.
+- TALIA AI error: inspect the classifier/drafter trace and the `talia-ai` Fly
+  logs. There is no n8n fallback.
+
+## Final n8n shutdown
+
+Code adapters, provider selectors, webhook metadata and repository blueprints
+are removed by TAL-34. After observing at least one complete operating window:
+
+1. disable the external n8n email workflows without deleting them;
+2. verify scheduled sync, classification and drafting continue normally;
+3. export the workflow names, disable time and verification evidence for audit;
+4. revoke email workflow credentials and webhook secrets in n8n;
+5. delete the external email workflows;
+6. record the evidence in TAL-34 before closing it.
+
+Microsoft/Outlook validation remains outside this cut.

@@ -5,7 +5,6 @@ import { useActionState, useState } from 'react'
 import { ActionToast } from '@/components/ui/action-toast'
 import { normalizeChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import { defaultEmailClassificationTopics, getEmailAgentSettings } from '@/lib/email/settings'
-import { getEmailAgentProviderOverride } from '@/lib/email/provider-selection'
 import { updateTenantAction, type UpdateTenantState } from '../../actions'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry } from '@/lib/phone/international'
@@ -700,7 +699,7 @@ function EmailOperationsFields({
     {
       key: 'agent',
       label: 'Agente',
-      summary: `${formatEmailAgentProvider(metadata.agentProvider)} · ${formatAgentTone(agentSettings.tone)}`,
+      summary: `TALIA AI · ${formatAgentTone(agentSettings.tone)}`,
       icon: Bot,
     },
     {
@@ -864,7 +863,7 @@ function EmailOperationsFields({
             />
             <span>
               <strong>Activar cron automático</strong>
-              <small>Permite que n8n despierte la sincronización sin acción manual.</small>
+              <small>Permite que el scheduler gestionado de TALIA sincronice el buzón sin acción manual.</small>
             </span>
           </label>
 
@@ -900,7 +899,7 @@ function EmailOperationsFields({
         id="agent"
         title="Comportamiento del agente"
         description="Separa el estilo del canal email de la base de conocimiento común."
-        summary={`${formatEmailAgentProvider(metadata.agentProvider)} · ${formatAgentTone(agentSettings.tone)} · borrador ${agentSettings.draftStyle}`}
+        summary={`TALIA AI · ${formatAgentTone(agentSettings.tone)} · borrador ${agentSettings.draftStyle}`}
         active={activeEmailTab === 'agent'}
         important
       >
@@ -916,10 +915,6 @@ function EmailOperationsFields({
             {agentTrace?.drafter ? <small>{formatEmailAgentPhaseDetail(agentTrace.drafter)}</small> : null}
           </div>
           <div>
-            <span>Fallback</span>
-            <strong>{agentTrace?.fallbackUsed ? 'Sí' : 'No'}</strong>
-          </div>
-          <div>
             <span>Última actividad</span>
             <strong>{agentTrace ? formatEmailTraceDate(agentTrace.updatedAt) : '—'}</strong>
           </div>
@@ -928,22 +923,8 @@ function EmailOperationsFields({
         <div className="email-canary-summary" aria-label="Resumen de las últimas ejecuciones del buzón">
           <span>Últimas {canaryStats.sampleSize} ejecuciones</span>
           <strong>{canaryStats.taliaAiCompleted}/{canaryStats.taliaAiRequested} completadas por TALIA AI</strong>
-          <span>{canaryStats.fallbackRuns} fallback · {canaryStats.errorRuns} error</span>
+          <span>{canaryStats.errorRuns} con error</span>
         </div>
-
-        <label className="field field-important">
-          <span className="field-label-row">
-            Motor del agente
-          </span>
-          <select name="email_agent_provider" defaultValue={metadata.agentProvider}>
-            <option value="inherit">Heredar configuración global</option>
-            <option value="talia-ai">TALIA AI</option>
-            <option value="n8n">n8n legacy</option>
-          </select>
-          <span className="field-hint">
-            Se aplica solo a este buzón. Usa TALIA AI para el rollout canary y n8n como rollback controlado.
-          </span>
-        </label>
 
         <div className="form-row">
           <label className="field field-important">
@@ -1114,7 +1095,6 @@ function HiddenEmailOperationsFields({ connection }: { connection: EmailConnecti
       <input type="hidden" name="email_blocked_senders" value="" />
       <input type="hidden" name="email_blocked_domains" value="" />
       <input type="hidden" name="email_agent_tone" value="professional_cercano" />
-      <input type="hidden" name="email_agent_provider" value={getEmailAgentProviderOverride(connection?.metadata)} />
       <input type="hidden" name="email_agent_draft_style" value="breve" />
       <input type="hidden" name="email_agent_signature" value="" />
       <input type="hidden" name="email_channel_prompt" value="" />
@@ -1140,7 +1120,6 @@ function getEmailMetadata(value: unknown) {
     : 15
 
   return {
-    agentProvider: getEmailAgentProviderOverride(record),
     syncWindowDays: [1, 7, 14, 30].includes(syncWindowDays) ? syncWindowDays : 14,
     syncLimit: [10, 25, 50, 100, 250, 500].includes(syncLimit) ? syncLimit : 100,
     syncFrequencyMinutes: [15, 30, 60, 240].includes(syncFrequencyMinutes) ? syncFrequencyMinutes : 15,
@@ -1315,9 +1294,8 @@ function formatAgentTone(value: string) {
 }
 
 function formatEmailAgentProvider(value: string) {
-  if (value === 'talia-ai') return 'TALIA AI'
-  if (value === 'n8n') return 'n8n'
-  return 'Proveedor global'
+  if (value === 'n8n') return 'n8n (histórico)'
+  return 'TALIA AI'
 }
 
 function getModuleTabDescription(key: EditableModuleKey) {

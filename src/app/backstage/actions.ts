@@ -133,7 +133,6 @@ const updateTenantSchema = createTenantSchema.extend({
   emailBlockedSenders: z.string().trim().max(2000).optional(),
   emailBlockedDomains: z.string().trim().max(2000).optional(),
   emailGmailSyncQuery: z.string().trim().max(240, 'La query avanzada de Gmail es demasiado larga.').optional(),
-  emailAgentProvider: z.enum(['inherit', 'talia-ai', 'n8n']),
   emailAgentTone: z.enum(['professional_cercano', 'formal', 'directo']),
   emailAgentDraftStyle: z.enum(['breve', 'detallado']),
   emailAgentSignature: z.string().trim().max(500, 'La firma del agente de email es demasiado larga.').optional(),
@@ -329,7 +328,6 @@ export async function updateTenantAction(
     emailBlockedSenders: formData.get('email_blocked_senders') || '',
     emailBlockedDomains: formData.get('email_blocked_domains') || '',
     emailGmailSyncQuery: formData.get('email_gmail_sync_query') || '',
-    emailAgentProvider: formData.get('email_agent_provider') || 'inherit',
     emailAgentTone: formData.get('email_agent_tone') || 'professional_cercano',
     emailAgentDraftStyle: formData.get('email_agent_draft_style') || 'breve',
     emailAgentSignature: formData.get('email_agent_signature') || '',
@@ -458,7 +456,6 @@ export async function updateTenantAction(
       blockedSenders: parseEmailRuleList(data.emailBlockedSenders),
       blockedDomains: parseEmailRuleList(data.emailBlockedDomains),
       gmailSyncQuery: data.emailGmailSyncQuery,
-      agentProvider: data.emailAgentProvider,
       agentSettings: normalizeEmailAgentSettings({
         tone: data.emailAgentTone,
         draftStyle: data.emailAgentDraftStyle,
@@ -530,7 +527,6 @@ async function syncEmailConnection(
     blockedSenders?: string[]
     blockedDomains?: string[]
     gmailSyncQuery?: string
-    agentProvider?: 'inherit' | 'talia-ai' | 'n8n'
     agentSettings?: ReturnType<typeof normalizeEmailAgentSettings>
   },
 ) {
@@ -600,7 +596,6 @@ function buildEmailConnectionMetadata(
     blockedSenders?: string[]
     blockedDomains?: string[]
     gmailSyncQuery?: string
-    agentProvider?: 'inherit' | 'talia-ai' | 'n8n'
     agentSettings?: ReturnType<typeof normalizeEmailAgentSettings>
   },
 ) {
@@ -631,7 +626,6 @@ function buildEmailConnectionMetadata(
     blocked_senders: input.blockedSenders ?? [],
     blocked_domains: input.blockedDomains ?? [],
     gmail_sync_query: advancedQuery || null,
-    email_agent_provider: input.agentProvider ?? 'inherit',
     email_agent_settings: emailAgentSettingsToMetadata(input.agentSettings ?? normalizeEmailAgentSettings({})),
   } satisfies Json
 }
