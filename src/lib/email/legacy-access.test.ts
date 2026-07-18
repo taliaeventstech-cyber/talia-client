@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { hasExplicitTaliaAiCanaryConnection, isLegacyEmailAgentAccount } from './legacy-access'
+import { isLegacyEmailAgentAccount } from './legacy-access'
 
 describe('legacy email agent access', () => {
   afterEach(() => {
@@ -21,21 +21,5 @@ describe('legacy email agent access', () => {
     expect(isLegacyEmailAgentAccount('legacy@example.com')).toBe(true)
     expect(isLegacyEmailAgentAccount('SECOND@example.com')).toBe(true)
     expect(isLegacyEmailAgentAccount('customer@example.com')).toBe(false)
-  })
-})
-
-describe('explicit TALIA AI canary access', () => {
-  it('allows a tenant with an explicit TALIA AI connection override', () => {
-    expect(hasExplicitTaliaAiCanaryConnection([
-      { metadata: { email_agent_provider: 'inherit' } },
-      { metadata: { email_agent_provider: 'talia-ai' } },
-    ])).toBe(true)
-  })
-
-  it('does not expose email for inherited or legacy n8n connections', () => {
-    expect(hasExplicitTaliaAiCanaryConnection([
-      { metadata: { email_agent_provider: 'inherit' } },
-      { metadata: { email_agent_provider: 'n8n' } },
-    ])).toBe(false)
   })
 })

@@ -2,8 +2,6 @@ import {
   requireTenantPermission,
   requireTenantProductAccess,
 } from '@/lib/auth/tenant-access'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { getEmailAgentProviderOverride } from './provider-selection'
 import { redirect } from 'next/navigation'
 
 const DEFAULT_LEGACY_EMAIL_AGENT_ACCOUNT = 'talia.events.tech@gmail.com'
@@ -19,20 +17,8 @@ export function isLegacyEmailAgentAccount(email: string | null | undefined) {
   return allowedEmails.includes(email.trim().toLowerCase())
 }
 
-export function hasExplicitTaliaAiCanaryConnection(connections: Array<{ metadata: unknown }>) {
-  return connections.some((connection) => getEmailAgentProviderOverride(connection.metadata) === 'talia-ai')
-}
-
-export async function hasEmailAgentPreviewAccess(tenantId: string, email: string | null | undefined) {
-  if (isLegacyEmailAgentAccount(email)) return true
-
-  const { data, error } = await createAdminClient()
-    .from('email_connections')
-    .select('metadata')
-    .eq('theatre_id', tenantId)
-
-  if (error) return false
-  return hasExplicitTaliaAiCanaryConnection(data ?? [])
+export async function hasEmailAgentPreviewAccess(_tenantId: string, email: string | null | undefined) {
+  return isLegacyEmailAgentAccount(email)
 }
 
 export async function requireEmailAgentPreviewProductAccess(tenantId: string) {

@@ -42,7 +42,10 @@ POST /api/internal/email/process
 └────────────────────────────────────────────────────┘
 ```
 
-Orchestration lives in TALIA, not inside n8n. This allows classifying without drafting, retrying drafts without reclassifying and measuring costs separately. `TaliaAiEmailClassifierProvider` and `TaliaAiEmailDrafterProvider` are now selectable. n8n remains only as an explicitly selected legacy provider for mailboxes not yet migrated and is not an automatic fallback.
+Orchestration lives in TALIA. `TaliaAiEmailClassifierProvider` and
+`TaliaAiEmailDrafterProvider` are the only email intelligence providers. This
+allows classifying without drafting, retrying drafts without reclassifying and
+measuring costs separately without an active n8n instance.
 
 ## MVP Flow
 
@@ -77,9 +80,9 @@ Never auto-send for: complaints, payments, sensitive personal data, press, contr
 
 Rules:
 
-- The browser and the client never call n8n directly.
-- n8n does not write directly to Supabase.
-- n8n does not create drafts directly in Gmail.
+- The browser never calls an AI provider directly.
+- `talia-ai` does not receive OAuth tokens or write directly to Supabase.
+- `talia-ai` does not create drafts directly in Gmail.
 - TALIA persists threads, messages, drafts and usage.
 - TALIA creates the real draft in Gmail/Outlook when `draft_mode = provider_drafts`.
 - The classifier must return a simple contract: `should_process`, `should_generate_draft`, `needs_human_review`, `classification_reason`, `topic`, `priority`, `confidence`.
@@ -87,7 +90,7 @@ Rules:
 - `should_generate_draft` means TALIA must call the drafter to prepare a supervised draft. It does not imply sending the email.
 - The drafter must return `should_generate_draft`, `subject`, `body_text/body_html`, `topic`, `priority`, `confidence`.
 
-Payload TALIA -> n8n:
+Payload TALIA -> `talia-ai`:
 
 ```json
 {
@@ -107,7 +110,7 @@ Payload TALIA -> n8n:
 }
 ```
 
-Response n8n -> TALIA:
+Response `talia-ai` -> TALIA:
 
 ```json
 {
@@ -137,39 +140,23 @@ Expected result:
 - If created in the client's mailbox: draft `created_in_provider` with `provider_draft_id`.
 - If Gmail/Outlook fails: draft `error` and detail in `error_message`.
 
-Temporary env:
+Runtime environment:
 
-- `EMAIL_AGENT_PROVIDER=talia-ai|n8n`: selects the primary classifier/drafter provider.
-- `email_connections.metadata.email_agent_provider`: optional per-connection
-  override (`inherit`, `talia-ai` or `n8n`) used for canary rollout and rollback.
 - `TALIA_AI_BASE_URL`: server-to-server URL for `talia-ai`.
 - `TALIA_AI_INTERNAL_API_KEY`: bearer credential shared only by TALIA services.
-- `DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL`: legacy n8n webhook for mailboxes still explicitly assigned to n8n.
 - `INTERNAL_API_KEY`: protects internal endpoints in production.
-- `CRON_SECRET`: protects `/api/cron/email/sync` while it is invoked by an external scheduler.
+- `CRON_SECRET`: protects `/api/cron/email/sync`; Vercel supplies it as a Bearer
+  token on managed cron invocations.
 
-Provider resolution order:
+Backstage records the effective provider for classifier and drafter separately
+and summarizes the latest 25 executions. Historical n8n traces remain readable,
+but no new email execution can select or fall back to n8n. Raw provider
+responses are not persisted because they can duplicate email or draft content.
 
-1. Per-connection `email_agent_provider` when set to `talia-ai` or `n8n`.
-2. Global `EMAIL_AGENT_PROVIDER` when the connection is set to `inherit`.
-3. Safe legacy default `n8n` when neither is configured.
+Operational procedure: `docs/operations/email-agent-canary.md`.
 
-Backstage records the requested provider and actual provider for the classifier
-and drafter independently. Historical fallback traces remain readable, but a
-new `talia-ai` execution never invokes n8n automatically. Backstage
-also summarizes the latest 25 executions for the mailbox. A validation error
-does not trigger fallback. New execution metadata does not persist the raw
-provider response because it can duplicate email or draft content.
+Email runtime:
 
-Canary procedure: `docs/operations/email-agent-canary.md`.
-
-Legacy n8n workflow, pending removal:
-
-- Importable blueprint: `n8n-workflows/TALIA-Generic-Email-Agent-Draft-Workflow.json`.
-- Recommended decoupled blueprints:
-  - `n8n-workflows/TALIA-Email-Classifier-Workflow.json`;
-  - `n8n-workflows/TALIA-Email-Drafter-Workflow.json`.
-- Importable cron blueprint: `n8n-workflows/TALIA-Email-Sync-Cron-Workflow.json`.
 - TALIA orchestrates two separate agents:
   - `Email classifier agent`: classifies intent, topic, priority, confidence and whether a response should be generated.
   - `Email drafter agent`: only runs if TALIA decides it applies based on classification, configuration, permissions and draft mode.
@@ -182,36 +169,27 @@ Legacy n8n workflow, pending removal:
   - `signature`: preferred sign-off;
   - `human_review_topics`: sensitive topics that require review;
   - `classification_rules`: additional rules for the classifier.
-- Environment variables in n8n:
-  - `TALIA_BASE_URL`, for example `https://talia-client.vercel.app`;
-  - `TALIA_INTERNAL_API_KEY`, same value as `INTERNAL_API_KEY` in TALIA.
-- For the cron workflow, create an HTTP Header Auth credential with:
-  - Name: `Authorization`;
-  - Value: `Bearer <CRON_SECRET>`.
-- When importing, replace the OpenAI credential `REPLACE_WITH_OPENAI_CREDENTIAL_ID`.
-- Webhooks supported by TALIA:
-  - `DEFAULT_N8N_EMAIL_CLASSIFIER_WEBHOOK_URL`;
-  - `DEFAULT_N8N_EMAIL_DRAFTER_WEBHOOK_URL`;
-  - `DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL` remains for the legacy provider path.
-- Per-venue overrides:
-  - `email_connections.metadata.n8n_email_classifier_webhook_url`;
-  - `email_connections.metadata.n8n_email_drafter_webhook_url`;
-  - `email_connections.metadata.n8n_email_agent_webhook_url` remains for the legacy provider path.
-
 ## Automation — sync cron
 
-The current deployment uses n8n only to wake the sync endpoint because frequent
-Vercel Hobby schedules are not viable. This dependency must be replaced by a
-managed scheduler before n8n is decommissioned. The scheduler only invokes the
-authenticated endpoint; mailbox sync remains in `talia-client`.
+Vercel Cron invokes the authenticated sync endpoint every 15 minutes. The
+project therefore requires a Vercel plan that permits sub-daily cron schedules.
+Mailbox sync remains in `talia-client`.
 
 ```txt
-Schedule Trigger every 15 min
+Vercel Cron every 15 min
   -> GET https://<TALIA_BASE_URL>/api/cron/email/sync
      Authorization: Bearer <CRON_SECRET>
 ```
 
-The endpoint checks active Gmail connections with `sync_mode = polling` and `cron_enabled != false`. Each venue decides whether it's time to sync based on `sync_frequency_minutes`, with a maximum of `gmail_sync_limit` messages per pass (100 by default): it first checks which ids already exist in `email_messages` and only downloads the full detail of new messages.
+The endpoint claims a global Postgres lease before doing work and records every
+run in `email_sync_runs`. Duplicate cron deliveries return `202` while another
+run owns the lease. The endpoint checks active Gmail connections with
+`sync_mode = polling` and `cron_enabled != false`. Each venue decides whether
+it is time to sync based on `sync_frequency_minutes`, with a maximum of
+`gmail_sync_limit` messages per pass (100 by default). It first checks which IDs
+already exist in `email_messages` and only downloads the full detail of new
+messages. A connection is retried up to three consecutive scheduler runs and is
+then left in `error` for manual intervention.
 
 ## Providers
 

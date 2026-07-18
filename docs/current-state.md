@@ -312,32 +312,32 @@ Implemented:
 - Polling-based sync with configurable limits.
 - Persistence of connections, threads, messages and drafts.
 - Decoupled classifier and drafter.
-- Per-connection email provider selector in Backstage using
-  `email_connections.metadata.email_agent_provider` (`inherit`, `talia-ai` or
-  `n8n`). `EMAIL_AGENT_PROVIDER` is only the default for connections that
-  inherit the global setting.
+- `talia-ai` is the only classifier and drafter runtime for email.
 - Backstage shows classifier and drafter traces independently, including the
-  requested/actual provider, fallback, model, action and token usage. It also
+  provider, model, action and token usage. It also
   summarizes the latest 25 mailbox executions without sending their raw email
   metadata to the browser.
 - `talia-ai` owns typed classification, drafting and review policy without
   receiving OAuth tokens or calling Gmail.
-- n8n remains available only as an explicitly selected legacy provider for
-  mailboxes not yet migrated. A `talia-ai` execution never falls back to n8n;
-  failures remain visible for canary evaluation.
+- A `talia-ai` execution never falls back to n8n; failures remain visible for
+  operational review.
 - Current field: `should_generate_draft`.
 - `should_reply` is removed as a new contract.
 - Drafts visible in Agora and/or created in Gmail depending on mode.
-- n8n acts as a temporary adapter, not as the source of truth.
+- TAL-34 prepares Vercel Cron to wake `/api/cron/email/sync` every 15 minutes.
+  Once its migration and deployment are applied, Postgres provides a global
+  lease and durable `email_sync_runs` records, while message and thread
+  uniqueness keep repeated deliveries idempotent.
+- Failed mailbox syncs retry up to three consecutive runs before the connection
+  remains in an actionable error state.
 
 Pending:
 
 - Complete Google OAuth verification.
 - Complete Microsoft Graph.
-- Run a controlled `talia-ai` canary from Backstage, validate it in production
-  and then retire the n8n classifier/drafter webhooks and adapters.
-- Replace the n8n job that wakes `/api/cron/email/sync` with a managed scheduler;
-  n8n is not considered decommissioned until this operational dependency is gone.
+- Apply the TAL-34 migration, deploy and observe the managed scheduler for a
+  complete operating window, then disable and delete the external n8n email
+  workflows and credentials.
 - Improve draft review UI.
 
 Reference:
@@ -454,14 +454,13 @@ Do not take as a new model:
 - `theatres` as a product name. In the product we talk about venues.
 - `public.users` as the permissions model.
 - `should_reply` in email workflows.
-- `DEFAULT_N8N_EMAIL_AGENT_WEBHOOK_URL` except as a temporary fallback.
 - Voice agent in the client UI until it is reactivated.
 
 Active debt:
 
 - Separate editable prompts from technical prompts.
 - Create a separate `talia-ai` repo following `docs/architecture/talia-ai-service.md`.
-- Reduce dependency on n8n in chat and email.
+- Reduce the remaining n8n dependency in chat; email no longer uses it at runtime.
 - Consolidate roadmap docs so there are no parallel sources.
 - Complete advanced roles and permissions.
 - Complete observability and reporting.
