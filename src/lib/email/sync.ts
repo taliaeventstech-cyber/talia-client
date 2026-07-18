@@ -19,6 +19,7 @@ type AdminClient = ReturnType<typeof createAdminClient>
 const GMAIL_LIST_PAGE_SIZE = 50
 const GMAIL_MAX_INSPECTED_PER_SYNC = 500
 const DEFAULT_GMAIL_SYNC_LIMIT = 100
+const MAX_AUTOMATIC_SYNC_FAILURES = 3
 
 export type SyncGmailInput = {
   tenantId: string
@@ -104,6 +105,11 @@ export async function syncGmailMessages(admin: AdminClient, input: SyncGmailInpu
         sync_cursor: newestMessageId,
         last_synced_at: new Date().toISOString(),
         error_message: null,
+        metadata: {
+          ...getJsonRecord(connection.metadata),
+          email_sync_consecutive_failures: 0,
+          email_sync_last_failure_at: null,
+        },
       })
       .eq('id', connection.id)
 
@@ -119,15 +125,42 @@ export async function syncGmailMessages(admin: AdminClient, input: SyncGmailInpu
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+    const failureState = getEmailSyncFailureState(connection.metadata)
     await admin
       .from('email_connections')
       .update({
-        status: 'error',
+        status: failureState.status,
         error_message: message.slice(0, 500),
+        metadata: {
+          ...getJsonRecord(connection.metadata),
+          email_sync_consecutive_failures: failureState.consecutiveFailures,
+          email_sync_last_failure_at: new Date().toISOString(),
+        },
       })
       .eq('id', connection.id)
 
-    return { ok: false as const, error: 'Failed to sync email messages', details: message }
+    return {
+      ok: false as const,
+      error: 'Failed to sync email messages',
+      details: message,
+      retryable: failureState.retryable,
+      consecutiveFailures: failureState.consecutiveFailures,
+    }
+  }
+}
+
+export function getEmailSyncFailureState(metadata: Json) {
+  const record = getJsonRecord(metadata)
+  const previousFailures = typeof record.email_sync_consecutive_failures === 'number'
+    ? Math.max(0, Math.floor(record.email_sync_consecutive_failures))
+    : 0
+  const consecutiveFailures = previousFailures + 1
+  const retryable = consecutiveFailures < MAX_AUTOMATIC_SYNC_FAILURES
+
+  return {
+    consecutiveFailures,
+    retryable,
+    status: retryable ? 'connected' as const : 'error' as const,
   }
 }
 

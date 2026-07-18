@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it } from 'vitest'
-import { getEmailSyncConfig } from './sync'
+import { getEmailSyncConfig, getEmailSyncFailureState } from './sync'
 
 describe('getEmailSyncConfig', () => {
   it('uses safer defaults for automated Gmail syncs', () => {
@@ -34,5 +34,25 @@ describe('getEmailSyncConfig', () => {
   it('accepts larger backfill limits from Backstage metadata', () => {
     expect(getEmailSyncConfig({ gmail_sync_limit: 500 }).limit).toBe(500)
     expect(getEmailSyncConfig({ gmail_sync_limit: 999 }).limit).toBe(100)
+  })
+})
+
+describe('getEmailSyncFailureState', () => {
+  it('retries twice and leaves the connection in error after the third failure', () => {
+    expect(getEmailSyncFailureState({})).toEqual({
+      consecutiveFailures: 1,
+      retryable: true,
+      status: 'connected',
+    })
+    expect(getEmailSyncFailureState({ email_sync_consecutive_failures: 1 })).toEqual({
+      consecutiveFailures: 2,
+      retryable: true,
+      status: 'connected',
+    })
+    expect(getEmailSyncFailureState({ email_sync_consecutive_failures: 2 })).toEqual({
+      consecutiveFailures: 3,
+      retryable: false,
+      status: 'error',
+    })
   })
 })
