@@ -1,5 +1,5 @@
 import crypto from 'node:crypto'
-import { decryptOAuthTokens, encryptOAuthTokens } from './google-oauth'
+import { decryptOAuthTokens, encryptOAuthTokens, getRequiredEmailSecret } from './google-oauth'
 
 export const MICROSOFT_GRAPH_SCOPES = [
   'openid',
@@ -161,10 +161,10 @@ export async function fetchMicrosoftProfile(accessToken: string) {
 export { decryptOAuthTokens, encryptOAuthTokens }
 
 function signState(encodedPayload: string) {
-  const secret = process.env.EMAIL_OAUTH_STATE_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!secret) {
-    throw new Error('Missing OAuth state secret')
-  }
+  const secret = getRequiredEmailSecret(
+    'EMAIL_OAUTH_STATE_SECRET',
+    'Missing dedicated email OAuth state secret',
+  )
 
   return crypto.createHmac('sha256', secret).update(encodedPayload).digest('base64url')
 }

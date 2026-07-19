@@ -73,6 +73,24 @@ EMAIL_OAUTH_STATE_SECRET=...
 EMAIL_TOKEN_ENCRYPTION_KEY=...
 ```
 
+The two email secrets are independent controls and must not reuse the Google
+client secret, the Supabase service-role key, or each other. Generate at least
+32 random bytes for each production value, for example:
+
+```bash
+openssl rand -base64 48
+```
+
+The application fails closed when either dedicated secret is missing or shorter
+than 32 characters. After deploying a new environment, verify both the connect
+callback and token refresh before enabling mailbox synchronization.
+
+Rotation requires a controlled maintenance window because existing encrypted
+tokens cannot be decrypted with a new key. Disconnect affected mailboxes,
+rotate both secrets in the deployment platform, redeploy, and reconnect the
+mailboxes. Record who performed the rotation and when without recording secret
+values.
+
 `NEXT_PUBLIC_APP_URL` is critical: the code generates the redirect URI as:
 
 ```text
@@ -98,8 +116,11 @@ Prepare before submitting the request:
   - authorized emails are read to classify and prepare replies;
   - supervised drafts are created;
   - TALIA does not send emails automatically with the current scope;
-  - OAuth tokens are stored encrypted;
-  - the user can disconnect the account.
+- OAuth tokens are stored encrypted;
+- the user can disconnect the account.
+
+Use [`../security/casa-readiness.md`](../security/casa-readiness.md) as the
+evidence index for restricted-scope verification and the CASA assessment.
 
 ## App deployment
 

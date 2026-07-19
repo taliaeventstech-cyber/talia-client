@@ -1,6 +1,5 @@
 'use server'
 
-import * as XLSX from 'xlsx'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { importPdfKnowledgeSource, reindexStructuredKnowledgeSource } from '@/lib/knowledge/ingestion'
 import { embedKnowledgeSourceWithTaliaAi } from '@/lib/knowledge/talia-ai-embeddings'
@@ -32,6 +31,7 @@ import {
   normalizeInstalledWebCaptureSettings,
   type InstalledWebCaptureSettings,
 } from '@/lib/knowledge/installed-web-capture-settings'
+import { parseKnowledgeSpreadsheet } from '@/lib/knowledge/spreadsheet'
 
 export type SettingsFormState = {
   ok: boolean
@@ -647,6 +647,8 @@ export type ExcelUploadState = {
 
 export type PdfUploadState = ExcelUploadState
 
+const MAX_SPREADSHEET_SIZE_BYTES = 5 * 1024 * 1024
+
 export async function uploadKnowledgeExcel(
   tenantId: string,
   _previousState: ExcelUploadState,
@@ -666,13 +668,16 @@ export async function uploadKnowledgeExcel(
     return { ok: false, message: 'Selecciona un archivo Excel o CSV válido.' }
   }
 
-  // Parse spreadsheet
-  const buffer = await file.arrayBuffer()
-  const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' })
-  const sheetName = workbook.SheetNames[0]
-  if (!sheetName) return { ok: false, message: 'El archivo no contiene hojas.' }
+  if (file.size > MAX_SPREADSHEET_SIZE_BYTES) {
+    return { ok: false, message: 'El archivo no puede superar los 5 MB.' }
+  }
 
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[sheetName])
+  let rows: Array<Record<string, unknown>>
+  try {
+    rows = await parseKnowledgeSpreadsheet(file.name, await file.arrayBuffer())
+  } catch {
+    return { ok: false, message: 'No se pudo leer el archivo. Comprueba que sea un Excel o CSV válido.' }
+  }
   if (rows.length === 0) return { ok: false, message: 'El archivo está vacío.' }
 
   // Normalize and validate rows
