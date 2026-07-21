@@ -1898,6 +1898,19 @@ export type Database = {
       }
     }
     Functions: {
+      consume_security_rate_limit: {
+        Args: {
+          p_key_hash: string
+          p_limit: number
+          p_scope: string
+          p_window_seconds: number
+        }
+        Returns: {
+          allowed: boolean
+          remaining: number
+          retry_after_seconds: number
+        }[]
+      }
       claim_email_sync_run: {
         Args: {
           p_lease_seconds?: number

@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ ok: true })
 
   const email = normalizeEmail(parsed.data.email)
-  const limited = checkRateLimit(request, [
+  const limited = await checkRateLimit(request, [
     { key: `auth-forgot:ip:${getClientIp(request)}`, limit: 8 },
     { key: `auth-forgot:email:${email}`, limit: 3 },
   ])

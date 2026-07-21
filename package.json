@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "security:audit": "npm audit --audit-level=high",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "db:migrate": "supabase db push",
@@ -18,16 +19,18 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@splinetool/viewer": "^1.12.98",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.104.1",
+    "csv-parse": "^7.0.1",
+    "exceljs": "^4.4.0",
     "libphonenumber-js": "^1.13.8",
     "lucide-react": "^1.11.0",
-    "next": "16.2.4",
+    "next": "16.2.10",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hook-form": "^7.73.1",
     "recharts": "^3.8.1",
-    "xlsx": "^0.18.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -38,11 +41,15 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^9",
-    "eslint-config-next": "16.2.4",
+    "eslint-config-next": "16.2.10",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "supabase": "^2.95.3",
     "typescript": "^5",
     "vitest": "^4.1.5"
+  },
+  "overrides": {
+    "postcss": "^8.5.10",
+    "uuid": "^11.1.1"
   }
 }

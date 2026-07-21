@@ -6,7 +6,10 @@ drafting and scheduling have moved away from n8n.
 ## Preconditions
 
 - `TALIA_AI_BASE_URL` and `TALIA_AI_INTERNAL_API_KEY` are configured in Vercel.
-- `CRON_SECRET` is configured in Vercel and is at least 16 random characters.
+- `CRON_SECRET` is configured in Vercel and is at least 32 random characters.
+- `INTERNAL_API_KEY` is configured anywhere internal email endpoints are used and
+  is at least 32 random characters. Internal and cron routes fail closed in
+  every environment, including local development and previews.
 - Migration `20260718090000_email_sync_scheduler.sql` has been applied.
 - The production Vercel plan permits cron jobs every 15 minutes.
 - The mailbox is connected and uses supervised drafts. TALIA never sends email

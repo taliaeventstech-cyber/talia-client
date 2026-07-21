@@ -9,6 +9,7 @@ import {
   getEmailSyncRunStatus,
   summarizeEmailSyncResults,
 } from '@/lib/email/scheduler'
+import { getBearerToken, matchesServerSecret } from '@/lib/auth/server-secret'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -130,11 +131,10 @@ export async function GET(request: NextRequest) {
 }
 
 export function isAuthorizedCronRequest(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET
-  const authorization = request.headers.get('authorization')
-
-  if (cronSecret && authorization === `Bearer ${cronSecret}`) return true
-  return process.env.NODE_ENV !== 'production' && !cronSecret
+  return matchesServerSecret(
+    getBearerToken(request.headers.get('authorization')),
+    process.env.CRON_SECRET,
+  )
 }
 
 function getLimit(request: NextRequest) {

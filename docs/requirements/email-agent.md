@@ -144,14 +144,22 @@ Runtime environment:
 
 - `TALIA_AI_BASE_URL`: server-to-server URL for `talia-ai`.
 - `TALIA_AI_INTERNAL_API_KEY`: bearer credential shared only by TALIA services.
-- `INTERNAL_API_KEY`: protects internal endpoints in production.
-- `CRON_SECRET`: protects `/api/cron/email/sync`; Vercel supplies it as a Bearer
-  token on managed cron invocations.
+- `INTERNAL_API_KEY`: protects internal endpoints in every environment and must
+  contain at least 32 random characters. Requests fail closed when it is absent
+  or too short.
+- `CRON_SECRET`: protects `/api/cron/email/sync`; it must contain at least 32
+  random characters and Vercel supplies it as a Bearer token on managed cron
+  invocations.
 
 Backstage records the effective provider for classifier and drafter separately
 and summarizes the latest 25 executions. Historical n8n traces remain readable,
 but no new email execution can select or fall back to n8n. Raw provider
 responses are not persisted because they can duplicate email or draft content.
+Only allowlisted diagnostics (`status`, `error_code`, `request_id`) from failed
+`talia-ai` calls may be persisted.
+Gmail, Microsoft Graph and OAuth failures are represented by stable
+`operation:status` codes. Callback and disconnect paths do not log or persist
+provider response bodies or unexpected exception messages.
 
 Operational procedure: `docs/operations/email-agent-canary.md`.
 
@@ -221,6 +229,11 @@ MVP Scopes:
 - `https://www.googleapis.com/auth/gmail.compose`.
 
 `gmail.readonly` allows reading authorized emails. `gmail.compose` allows creating drafts without granting automatic send permissions. Refresh/access tokens are stored encrypted inside `email_connections.oauth_metadata.encrypted_tokens`.
+
+Email tables are backend-only: `anon` and `authenticated` have no direct table
+privileges. Server actions must authorize `manage_email` before using the
+service role, and composite database constraints prevent cross-tenant
+connection/thread/message/draft relationships.
 
 Draft creation:
 

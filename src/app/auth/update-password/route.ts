@@ -10,7 +10,7 @@ const updatePasswordSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
-  const limited = checkRateLimit(request, [
+  const limited = await checkRateLimit(request, [
     { key: `auth-update-password:ip:${getClientIp(request)}`, limit: 10 },
   ])
   if (limited) return limited

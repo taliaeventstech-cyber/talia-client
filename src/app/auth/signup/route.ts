@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   const { password } = parsed.data
   const email = normalizeEmail(parsed.data.email)
   const redirectTo = getInternalRedirect(parsed.data.redirectTo)
-  const limited = checkRateLimit(request, [
+  const limited = await checkRateLimit(request, [
     { key: `auth-signup:ip:${getClientIp(request)}`, limit: 8 },
     { key: `auth-signup:email:${email}`, limit: 3 },
   ])

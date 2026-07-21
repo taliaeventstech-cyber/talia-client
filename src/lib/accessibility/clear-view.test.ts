@@ -1,10 +1,8 @@
 // @vitest-environment node
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { sanitizeClearViewResponse, type ClearViewRequest, type ClearViewResponse } from './clear-view'
 import {
-  checkClearViewRateLimit,
-  clearClearViewRateLimitBucketsForTest,
   getClearViewInputLength,
   isClearViewInputTooLarge,
 } from './clear-view-security'
@@ -49,24 +47,6 @@ describe('clear view response sanitizing', () => {
 })
 
 describe('clear view request guards', () => {
-  beforeEach(() => {
-    clearClearViewRateLimitBucketsForTest()
-  })
-
-  it('limits requests per tenant and client ip within a window', () => {
-    const input = {
-      tenantId,
-      clientIp: '203.0.113.10',
-      now: 1_000,
-      limit: 2,
-      windowMs: 60_000,
-    }
-
-    expect(checkClearViewRateLimit(input)).toBeNull()
-    expect(checkClearViewRateLimit(input)).toBeNull()
-    expect(checkClearViewRateLimit(input)).toEqual({ retryAfterSeconds: 60 })
-  })
-
   it('detects oversized extracted page input before provider calls', () => {
     const request: ClearViewRequest = {
       tenantId,

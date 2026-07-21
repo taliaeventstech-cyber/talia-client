@@ -64,6 +64,10 @@ The endpoint also accepts `INTERNAL_API_KEY` through:
 - `Authorization: Bearer $INTERNAL_API_KEY`
 - `x-talia-internal-key: $INTERNAL_API_KEY`
 
+`CRON_SECRET` and `INTERNAL_API_KEY` must each contain at least 32 random
+characters. The endpoint fails closed in local, preview and production
+environments when no valid secret is configured.
+
 ## Recommended schedule
 
 Run daily, outside peak hours.

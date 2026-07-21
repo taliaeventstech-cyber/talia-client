@@ -1,3 +1,5 @@
+import { createEmailProviderError } from './safe-error'
+
 const GRAPH_MESSAGES_ENDPOINT = 'https://graph.microsoft.com/v1.0/me/messages'
 const GRAPH_INBOX_MESSAGES_ENDPOINT = 'https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages'
 
@@ -87,7 +89,7 @@ export async function createOutlookDraft(accessToken: string, input: CreateOutlo
   })
 
   if (!response.ok) {
-    throw new Error(`Outlook draft creation failed: ${await response.text()}`)
+    throw createEmailProviderError('outlook_draft_creation_failed', response.status)
   }
 
   return response.json() as Promise<OutlookDraftResponse>
@@ -102,7 +104,7 @@ export async function deleteOutlookDraft(accessToken: string, draftId: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`Outlook draft deletion failed: ${await response.text()}`)
+    throw createEmailProviderError('outlook_draft_deletion_failed', response.status)
   }
 }
 
@@ -129,7 +131,7 @@ export async function listOutlookInboxMessages(
   })
 
   if (!response.ok) {
-    throw new Error(`Outlook message list failed: ${await response.text()}`)
+    throw createEmailProviderError('outlook_message_list_failed', response.status)
   }
 
   return response.json() as Promise<OutlookMessageListResponse>
@@ -150,7 +152,7 @@ export async function getOutlookMessage(accessToken: string, messageId: string) 
   })
 
   if (!response.ok) {
-    throw new Error(`Outlook message get failed: ${await response.text()}`)
+    throw createEmailProviderError('outlook_message_get_failed', response.status)
   }
 
   return response.json() as Promise<OutlookMessageResponse>

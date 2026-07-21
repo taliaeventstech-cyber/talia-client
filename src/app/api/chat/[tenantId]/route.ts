@@ -11,6 +11,7 @@ import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/li
 import type { Json } from '@/types/database.types'
 import type { ChatAiUsageComponent } from '@/lib/agent-runtime/chat'
 import { recordMeasuredAiUsage } from '@/lib/usage/ai-cost'
+import { consumeRateLimit, getClientIp } from '@/lib/auth/security'
 import {
   checkTenantLimit,
   estimateOpenAiTextCostCents,
@@ -63,6 +64,30 @@ export async function POST(
 
   if (!sessionId || !message) {
     return corsJson({ error: 'session_id and message are required' }, { status: 400 })
+  }
+
+  const limited = await consumeRateLimit([
+    {
+      key: `chat-minute:${tenantId}:${getClientIp(request)}`,
+      limit: 30,
+      windowMs: 60_000,
+    },
+    {
+      key: `chat-ten-minutes:${tenantId}:${getClientIp(request)}`,
+      limit: 120,
+      windowMs: 10 * 60_000,
+    },
+  ])
+  if (limited) {
+    return corsJson(
+      { error: limited.unavailable ? 'rate_limit_unavailable' : 'too_many_attempts' },
+      {
+        status: limited.unavailable ? 503 : 429,
+        headers: limited.unavailable ? undefined : {
+          'Retry-After': String(limited.retryAfterSeconds),
+        },
+      },
+    )
   }
 
   const admin = createAdminClient()
