@@ -25,7 +25,7 @@ export class TaliaAiEmailClassifierProvider implements EmailAgentClassifierProvi
     if (!result.ok) return result
 
     const classification = getRecord(result.body.classification)
-    if (!classification) return invalidResponse('classification', result.text)
+    if (!classification) return invalidResponse('classification')
 
     return {
       ok: true as const,
@@ -49,7 +49,7 @@ export class TaliaAiEmailDrafterProvider implements EmailAgentDrafterProvider {
     if (!result.ok) return result
 
     const draft = getRecord(result.body.draft)
-    if (!draft) return invalidResponse('draft', result.text)
+    if (!draft) return invalidResponse('draft')
 
     return {
       ok: true as const,
@@ -130,19 +130,26 @@ async function postTaliaAi(
       return {
         ok: false as const,
         status: response.status,
-        error: pickString(body, 'error') ?? `talia-ai responded with ${response.status}`,
-        details: pickString(body, 'details') ?? text,
+        error: `talia-ai email request failed with status ${response.status}`,
+        details: buildSafeFailureDetails(response.status, body),
       }
     }
-    if (!body) return { ok: false as const, status: 502, error: 'talia-ai returned invalid JSON', details: text }
+    if (!body) {
+      return {
+        ok: false as const,
+        status: 502,
+        error: 'talia-ai returned invalid JSON',
+        details: buildSafeFailureDetails(502, null, 'invalid_json'),
+      }
+    }
 
     return { ok: true as const, body, text }
-  } catch (error) {
+  } catch {
     return {
       ok: false as const,
       status: 502,
       error: 'TALIA AI email request failed',
-      details: error instanceof Error ? error.message : String(error),
+      details: buildSafeFailureDetails(502, null, 'network_error'),
     }
   }
 }
@@ -177,13 +184,27 @@ function parseDraft(record: Record<string, unknown>, response: Record<string, un
   }
 }
 
-function invalidResponse(expected: string, details: string) {
+function invalidResponse(expected: string) {
   return {
     ok: false as const,
     status: 502,
     error: `talia-ai response did not include ${expected}`,
-    details,
+    details: buildSafeFailureDetails(502, null, `missing_${expected}`),
   }
+}
+
+function buildSafeFailureDetails(
+  status: number,
+  body: Record<string, unknown> | null,
+  fallbackCode = 'upstream_error',
+) {
+  const details = {
+    status,
+    error_code: pickString(body, 'error_code') ?? pickString(body, 'code') ?? fallbackCode,
+    request_id: pickString(body, 'request_id'),
+  }
+
+  return JSON.stringify(details)
 }
 
 function parseObject(value: string) {

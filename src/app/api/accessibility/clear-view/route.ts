@@ -1,5 +1,6 @@
 import { buildLocalClearViewFallback, clearViewRequestSchema, generateClearView } from '@/lib/accessibility/clear-view'
-import { checkClearViewRateLimit, getClearViewClientIp, isClearViewInputTooLarge } from '@/lib/accessibility/clear-view-security'
+import { isClearViewInputTooLarge } from '@/lib/accessibility/clear-view-security'
+import { consumeRateLimit, getClientIp } from '@/lib/auth/security'
 import { createClearViewProviderFromEnv } from '@/lib/accessibility/openai-clear-view-provider'
 import { corsJson, corsNoContent } from '@/lib/http/cors'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -28,17 +29,20 @@ export async function POST(request: Request) {
     return corsJson({ error: 'Clear-view request is too large' }, { status: 413 })
   }
 
-  const limited = checkClearViewRateLimit({
-    tenantId: input.tenantId,
-    clientIp: getClearViewClientIp(request),
-  })
+  const limited = await consumeRateLimit([{
+    key: `clear-view:${input.tenantId}:${getClientIp(request)}`,
+    limit: 20,
+    windowMs: 10 * 60_000,
+  }])
 
   if (limited) {
     return corsJson(
-      { error: 'too_many_attempts' },
+      { error: limited.unavailable ? 'rate_limit_unavailable' : 'too_many_attempts' },
       {
-        status: 429,
-        headers: { 'Retry-After': String(limited.retryAfterSeconds) },
+        status: limited.unavailable ? 503 : 429,
+        headers: limited.unavailable ? undefined : {
+          'Retry-After': String(limited.retryAfterSeconds),
+        },
       },
     )
   }

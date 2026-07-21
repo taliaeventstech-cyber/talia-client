@@ -175,6 +175,7 @@ type KnowledgeFormProps = {
     refreshInstalled: string
     refreshingInstalled: string
     capturePage: string
+    recapturePage: string
     openingCapture: string
     captureAllPages: string
     capturingAllPages: string
@@ -597,7 +598,7 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
                 <p className="muted">{labels.installedWebHelp}</p>
               </div>
               <div className="section-heading-actions">
-                {savedInstalledWebCapture.mode === 'manual' && installedWebSources.length > 1 ? (
+                {installedWebSources.length > 1 ? (
                   <a
                     className="button-primary button-fit"
                     href={getCaptureAllHref(tenantId, installedWebSources)}
@@ -660,7 +661,6 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
                     tenantId={tenantId}
                     source={source}
                     labels={labels}
-                    captureMode={savedInstalledWebCapture.mode}
                   />
                 ))}
               </div>
@@ -1091,12 +1091,10 @@ function InstalledWebSourceRow({
   tenantId,
   source,
   labels,
-  captureMode,
 }: {
   tenantId: string
   source: KnowledgeSource
   labels: KnowledgeFormProps['labels']
-  captureMode: InstalledWebCaptureSettings['mode']
 }) {
   const meta = getInstalledWebMeta(source)
   const sourceUrlLabel = source.sourceUrl ? formatInstalledSourceUrl(source.sourceUrl) : null
@@ -1130,20 +1128,20 @@ function InstalledWebSourceRow({
             <span className="knowledge-installed-content-ready">
               {labels.contentReady}
             </span>
-          ) : source.sourceUrl && captureMode === 'automatic' ? (
+          ) : source.sourceUrl ? (
             <span>{labels.contentPending}</span>
           ) : null}
         </div>
       </div>
       <div className="knowledge-file-actions knowledge-installed-actions">
-        {source.chunkCount === 0 && source.sourceUrl && captureMode === 'manual' ? (
+        {source.sourceUrl ? (
           <a
             className="button-outline button-fit knowledge-installed-capture-action"
             href={getCaptureHref(tenantId, source.id)}
             target="_blank"
             rel="noreferrer"
           >
-            {labels.capturePage}
+            {source.chunkCount > 0 ? labels.recapturePage : labels.capturePage}
           </a>
         ) : null}
         <DeleteKnowledgeSourceButton

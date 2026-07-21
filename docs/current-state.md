@@ -63,12 +63,24 @@ Implemented:
 - Strengthened password policy.
 - Toggle to show/hide password.
 - Security baseline documented in `docs/security/auth-phase-1.md`.
+- Gmail/Outlook operational tables are backend-only. Browser database roles
+  cannot query message bodies, drafts, connection metadata or encrypted OAuth
+  tokens; composite constraints enforce tenant consistency through the complete
+  connection/thread/message/draft graph.
 
 Pending:
 
 - Enterprise MFA/SSO.
 - Advanced team policies.
-- More robust rate limiting outside the Next.js layer.
+- Edge/WAF rate limiting as an additional layer before broad public launch.
+
+Security baseline:
+
+- Authentication, chat and Clear View use atomic distributed rate-limit
+  counters in Supabase rather than relying on one Next.js process.
+- Counter keys are HMAC digests; raw visitor IPs and user emails are not stored.
+- Agora responses enforce CSP and production HSTS alongside frame, MIME,
+  referrer and browser-permission headers.
 
 ### Client Onboarding
 
@@ -439,6 +451,9 @@ Current documents:
 - Terms of Service: `docs/legal/terms-of-service-google-en.md`.
 - Google OAuth production checklist: `docs/operations/google-cloud-production-oauth.md`.
 - Data retention: `docs/operations/data-retention.md`.
+- Backup and restore exercises: `docs/operations/disaster-recovery.md`.
+- Security incident response: `docs/security/incident-response.md`.
+- Vulnerability management: `docs/security/vulnerability-management.md`.
 - Client launch checklist: `docs/operations/client-launch-checklist.md`.
 
 Status:
@@ -446,6 +461,9 @@ Status:
 - Google requires verification for restricted Gmail scopes.
 - The homepage and policies must be public and verified in Search Console.
 - The privacy policy must remain aligned with actual Gmail usage.
+- CASA operational controls are documented, but production backup capabilities,
+  the restricted contact sheet and the first incident/restore exercises still
+  require verification and retained evidence.
 
 ## Legacy and Known Debt
 

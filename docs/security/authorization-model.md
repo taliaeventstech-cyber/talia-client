@@ -71,3 +71,29 @@ Stripe operation if email delivery is unavailable.
 Account and venue membership roles remain internal authorization details. They
 support ownership and scoped permissions, but they are not global product roles
 and must not be presented as Admin identities.
+
+## Email data boundary
+
+Gmail and Outlook data is intentionally backend-only. The `anon` and
+`authenticated` database roles have no table privileges on:
+
+- `email_connections`;
+- `email_threads`;
+- `email_messages`;
+- `email_drafts`.
+
+This prevents browser Supabase clients from querying message bodies, drafts or
+encrypted OAuth material directly. Agora first verifies `manage_email` and the
+Email module in the Next.js server layer, then performs the minimum required
+operation through the service role.
+
+Composite foreign keys bind every thread to a connection in the same venue and
+every message/draft to a thread and connection in that same venue. This protects
+tenant integrity even when a backend bug or internal endpoint writes with RLS
+bypass privileges.
+
+Evidence:
+
+- migration `20260721090000_email_tenant_isolation.sql`;
+- pgTAP test `supabase/tests/email_tenant_isolation.sql`;
+- internal API authorization tests in `src/lib/auth/internal-api.test.ts`.

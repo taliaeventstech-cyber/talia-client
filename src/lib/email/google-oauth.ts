@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { createEmailProviderError } from './safe-error'
 
 export const GOOGLE_GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly',
@@ -119,7 +120,7 @@ export async function exchangeGoogleCodeForTokens(code: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`Google token exchange failed: ${await response.text()}`)
+    throw createEmailProviderError('google_token_exchange_failed', response.status)
   }
 
   return response.json() as Promise<GoogleTokenResponse>
@@ -139,7 +140,7 @@ export async function refreshGoogleAccessToken(refreshToken: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`Google token refresh failed: ${await response.text()}`)
+    throw createEmailProviderError('google_token_refresh_failed', response.status)
   }
 
   return response.json() as Promise<GoogleTokenResponse>
@@ -151,7 +152,7 @@ export async function fetchGmailProfile(accessToken: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`Gmail profile request failed: ${await response.text()}`)
+    throw createEmailProviderError('gmail_profile_request_failed', response.status)
   }
 
   return response.json() as Promise<GmailProfile>
@@ -214,7 +215,7 @@ export async function revokeGoogleOAuthToken(token: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`Google token revocation failed: ${await response.text()}`)
+    throw createEmailProviderError('google_token_revocation_failed', response.status)
   }
 }
 

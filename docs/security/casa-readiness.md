@@ -2,7 +2,7 @@
 
 Owner: TALIA engineering and security  
 Tracking issue: TAL-35  
-Last reviewed: 19 July 2026
+Last reviewed: 21 July 2026
 
 Google Cloud project: `talia-496121` (`299067760624`)  
 Assigned assessment: **CASA Tier 2 Authorized Lab Scan**  
@@ -67,16 +67,16 @@ Status values: **verified**, **partial**, **gap**, **external**.
 | Token refresh | partial | Refresh and encrypted persistence in `src/lib/email/google-tokens.ts` | Add an integration test using a controlled Google test mailbox. |
 | Disconnect and revocation | partial | Product action and Google revoke helper exist | Capture end-to-end evidence and confirm local data disposition. |
 | Retention and deletion | partial | `docs/operations/data-retention.md` and database job | Run production dry run and deletion, retain timestamp and row counts. |
-| Tenant authorization and RLS | partial | `docs/security/authorization-model.md`, membership checks and RLS | Perform and document a full cross-tenant access test. |
+| Tenant authorization and RLS | partial | Backend-only email table privileges, composite tenant foreign keys, internal API fail-closed authorization and pgTAP isolation test | Apply migration `20260721090000_email_tenant_isolation.sql`, run `supabase test db` and retain the passing output. |
 | Authentication | partial | Email verification, password policy and Supabase Auth | Verify production settings; add MFA for privileged operators or document assessor-approved compensating controls. |
-| Abuse and rate limiting | gap | Process-local auth limiter only | Move public and sensitive endpoint limits to shared infrastructure/WAF. |
-| Browser security headers | partial | Frame, MIME, referrer and permissions headers | Add and test CSP and production HSTS without breaking the embeddable widget. |
-| Dependency security | verified | CI `security:audit`; production audit reports zero known vulnerabilities on this baseline | Enable automated update alerts and archive CI output for the assessment. |
-| Logging and redaction | partial | Structured operational logs; tokens are not intentionally logged | Audit every Gmail/OAuth error path and prove message bodies/tokens are redacted. |
+| Abuse and rate limiting | partial | Atomic Postgres counters protect authentication, chat and Clear View across application instances; raw IP/email identifiers are HMAC-digested and the control fails closed in production | Apply migration `20260721120000_distributed_security_rate_limits.sql`, retain pgTAP/application test output and add edge/WAF limits before broad public launch. |
+| Browser security headers | verified | Enforced CSP, production HSTS, frame, MIME, referrer and permissions headers; Spline's executable viewer is bundled instead of loaded from a runtime CDN; policy regression tests | Capture production response headers and complete login/dashboard/widget smoke tests after deployment. |
+| Dependency security | verified | Both `talia-client` and `talia-ai` run locked installs, full high-severity dependency audits, typecheck, lint and tests in CI with weekly Dependabot updates; both audits report zero known vulnerabilities on this baseline | Archive both repositories' CI output for the assessment. |
+| Logging and redaction | verified | `talia-ai`, Gmail, Microsoft Graph and OAuth failures expose only stable operation/status codes; callback and disconnect logs are sanitized; unit tests reject raw bodies, addresses and bearer material | Retain CI redaction test output and verify production log samples contain no message content. |
 | Internal support access | partial | Platform authorization and audit events | Define approval, time bounds and review for any human access to Gmail-derived data. |
-| Incident response | gap | No assessor-ready runbook in this repository | Document severity, containment, notification, recovery and postmortem ownership. |
-| Vulnerability management | partial | CI audit and normal issue workflow | Define intake, severity SLA, remediation evidence and disclosure contact. |
-| Backup and recovery | gap | Provider-managed capabilities not evidenced here | Document Supabase/Vercel/Fly backup, restore and recovery tests. |
+| Incident response | partial | `docs/security/incident-response.md` defines severity, Gmail/Google containment, notification and exercises | Verify the restricted contact sheet and retain the first tabletop result. |
+| Vulnerability management | verified | Both repositories expose private reporting policies and automated dependency controls; the `brace-expansion` high-severity finding discovered by a clean `talia-ai` install was updated and the complete pipeline retested | Retain the remediation output and future TAC findings in the restricted evidence workspace. |
+| Backup and recovery | partial | `docs/operations/disaster-recovery.md` separates database, Storage and stateless deployment recovery | Verify the contracted Supabase backup/PITR capability and complete an isolated restore exercise. |
 | Privacy and Limited Use | partial | Public English privacy policy and retention policy | Verify deployed URLs/text and legal approval against the production data flow. |
 | Production/staging separation | external | Recommended in Google OAuth operations guide | Verify separate Google Cloud projects and remove non-production clients from the production project. |
 | CASA Tier 2 validation | external | Google assignment email for project `talia-496121` | Onboard with TAC or another authorized lab, complete its Tier 2 scan, remediate findings and obtain the assessment letter before 19 September 2026. |
@@ -104,6 +104,65 @@ repository. Use stable names so each annual reassessment can be compared.
    vulnerability remediation and approved human-access procedure.
 10. Assessor communications, findings, remediation records, retest result and
     final Letter of Validation.
+
+### Email tenant-isolation evidence
+
+Migration `20260721090000_email_tenant_isolation.sql` adds three independent
+controls:
+
+1. No `anon` or `authenticated` table privileges for Gmail-derived data or
+   encrypted OAuth material.
+2. RLS has no browser-readable email policy; legitimate operations remain in
+   the authorized server boundary.
+3. Composite foreign keys reject cross-tenant connection, thread, message and
+   draft relationships even for service-role writes.
+
+Privileged internal and cron endpoints also fail closed in every environment,
+require secrets of at least 32 characters and compare credentials in constant
+time. Failed `talia-ai`, Gmail, Microsoft Graph and OAuth responses never persist
+raw upstream bodies. Provider failures retain only stable operation/status codes,
+and `talia-ai` retains only allowlisted operational identifiers.
+
+Before applying the migration in production, run the migration's built-in
+historical consistency checks. It fails without modifying inconsistent customer
+data if a cross-tenant relation exists. After applying it, run:
+
+```bash
+npx supabase test db supabase/tests/email_tenant_isolation.sql
+```
+
+Archive the migration output, the eleven passing pgTAP assertions, the deployed
+commit SHA and a screenshot/query showing the production constraint names. Do
+not archive row contents, OAuth metadata or message bodies as evidence.
+
+### Browser and abuse-prevention evidence
+
+The application enforces a Content Security Policy that denies plugins and
+framing, constrains forms and base URLs, and permits browser connections only to
+the application, configured Supabase project and configured Spline scene host.
+Production responses include one-year HSTS with subdomains. `preload` is
+deliberately excluded until every TALIA subdomain has been inventoried and
+verified as HTTPS-only. The embeddable widget remains a first-party JavaScript
+file injected into the venue page; it is not framed by Agora.
+
+Migration `20260721120000_distributed_security_rate_limits.sql` creates atomic,
+short-lived counters shared by all application instances. Only `service_role`
+may execute the counter function. The database stores HMAC-SHA256 digests, never
+raw email or IP values, and expired rows are removed incrementally. Production
+uses `RATE_LIMIT_HASH_SECRET`, or the existing server-only `INTERNAL_API_KEY` as
+a compatibility fallback; the selected secret must contain at least 32
+characters. A database or configuration failure returns `503` on protected
+operations rather than silently disabling the control.
+
+Apply the migration before deploying the application version, then run:
+
+```bash
+npx supabase test db supabase/tests/security_rate_limits.sql
+```
+
+Archive the six passing database assertions, application tests, production
+headers and sanitized `429`/`Retry-After` examples. Never archive the hashing
+secret or a customer's raw identifier.
 
 ## Google verification video script
 

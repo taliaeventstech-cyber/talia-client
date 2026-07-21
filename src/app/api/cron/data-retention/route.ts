@@ -1,3 +1,4 @@
+import { getBearerToken, matchesServerSecret } from '@/lib/auth/server-secret'
 import { NextRequest, NextResponse } from 'next/server'
 
 type RetentionResult = {
@@ -7,7 +8,7 @@ type RetentionResult = {
 }
 
 export async function GET(request: NextRequest) {
-  if (!isAuthorizedCronRequest(request)) {
+  if (!isAuthorizedRetentionRequest(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -22,10 +23,10 @@ export async function GET(request: NextRequest) {
       affectedRows: results.reduce((total, result) => total + Number(result.affected_rows ?? 0), 0),
       results,
     })
-  } catch (error) {
-    console.error('[data-retention-cron]', error)
+  } catch {
+    console.error(JSON.stringify({ event: 'data_retention_failed', error_code: 'retention_rpc_failed' }))
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'data_retention_failed' },
+      { error: 'data_retention_failed' },
       { status: 500 },
     )
   }
@@ -52,17 +53,15 @@ async function applyDataRetention(dryRun: boolean) {
   return response.json() as Promise<RetentionResult[]>
 }
 
-function isAuthorizedCronRequest(request: NextRequest) {
+export function isAuthorizedRetentionRequest(request: NextRequest) {
   const internalKey = process.env.INTERNAL_API_KEY
   const cronSecret = process.env.CRON_SECRET
-  const authorization = request.headers.get('authorization')
+  const bearerToken = getBearerToken(request.headers.get('authorization'))
   const internalHeader = request.headers.get('x-talia-internal-key')
 
-  if (cronSecret && authorization === `Bearer ${cronSecret}`) return true
-  if (internalKey && authorization === `Bearer ${internalKey}`) return true
-  if (internalKey && internalHeader === internalKey) return true
-
-  return process.env.NODE_ENV !== 'production' && !internalKey && !cronSecret
+  return matchesServerSecret(bearerToken, cronSecret)
+    || matchesServerSecret(bearerToken, internalKey)
+    || matchesServerSecret(internalHeader, internalKey)
 }
 
 function requiredEnv(key: string) {

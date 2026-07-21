@@ -41,11 +41,15 @@ This directory holds the curated documentation for product, architecture, requir
 - [`operations/client-launch-checklist.md`](operations/client-launch-checklist.md): internal checklist for launching a client.
 - [`operations/google-cloud-production-oauth.md`](operations/google-cloud-production-oauth.md): Google OAuth verification for Gmail.
 - [`operations/data-retention.md`](operations/data-retention.md): operational data retention and cleanup policy.
+- [`operations/disaster-recovery.md`](operations/disaster-recovery.md): backup inventory, recovery targets and restore exercises.
 - [`operations/knowledge-embeddings.md`](operations/knowledge-embeddings.md): operational cron/backfill for embeddings.
 
 ## Security and Legal
 
 - [`security/auth-phase-1.md`](security/auth-phase-1.md): first phase of signup/signin hardening.
+- [`security/casa-readiness.md`](security/casa-readiness.md): CASA Tier 2 control and evidence register.
+- [`security/incident-response.md`](security/incident-response.md): security and privacy incident runbook.
+- [`security/vulnerability-management.md`](security/vulnerability-management.md): intake, severity and remediation SLAs.
 - [`legal/privacy-policy-google-en.md`](legal/privacy-policy-google-en.md): current privacy policy for Google OAuth.
 - [`legal/terms-of-service-google-en.md`](legal/terms-of-service-google-en.md): current terms of service.
 

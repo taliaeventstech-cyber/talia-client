@@ -3,7 +3,6 @@ import { corsJson, corsNoContent } from '@/lib/http/cors'
 import { ingestWebSnapshotSource } from '@/lib/knowledge/ingestion'
 import { verifyWebCaptureToken } from '@/lib/knowledge/web-capture-token'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getPublicWidgetConfig } from '@/lib/tenants/service'
 import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/lib/widget/domain-allowlist'
 import { normalizeKnowledgeSourceUrl } from '@/lib/knowledge/source-url'
 
@@ -53,12 +52,6 @@ export async function POST(
   })
   if (!domain.ok) {
     return corsJson({ error: domain.error }, { status: 403 })
-  }
-
-  const tenant = await getPublicWidgetConfig(admin, tenantId)
-  if (!tenant.ok) return corsJson({ error: tenant.error }, { status: 404 })
-  if (!tenant.config.installedWebCapture.enabled || tenant.config.installedWebCapture.mode !== 'manual') {
-    return corsJson({ error: 'manual_capture_disabled' }, { status: 403 })
   }
 
   const result = await ingestWebSnapshotSource({

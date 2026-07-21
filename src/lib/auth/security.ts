@@ -1,3 +1,5 @@
+import crypto from 'node:crypto'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -13,6 +15,11 @@ type RateLimitRule = {
   key: string
   limit: number
   windowMs?: number
+}
+
+export type RateLimitResult = {
+  retryAfterSeconds: number
+  unavailable?: boolean
 }
 
 const buckets = new Map<string, RateLimitBucket>()
@@ -34,12 +41,69 @@ export function getInternalRedirect(value: unknown) {
   return value
 }
 
-export function getClientIp(request: NextRequest) {
+export function getClientIp(request: NextRequest | Request) {
   const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
   return forwardedFor || request.headers.get('x-real-ip') || 'unknown'
 }
 
-export function checkRateLimit(request: NextRequest, rules: RateLimitRule[]) {
+export async function checkRateLimit(_request: NextRequest | Request, rules: RateLimitRule[]) {
+  const result = await consumeRateLimit(rules)
+  if (!result) return null
+
+  return NextResponse.json(
+    { error: result.unavailable ? 'rate_limit_unavailable' : 'too_many_attempts' },
+    {
+      status: result.unavailable ? 503 : 429,
+      headers: result.unavailable ? undefined : {
+        'Retry-After': String(result.retryAfterSeconds),
+      },
+    },
+  )
+}
+
+export async function consumeRateLimit(rules: RateLimitRule[]): Promise<RateLimitResult | null> {
+  if (process.env.NODE_ENV !== 'production') return consumeLocalRateLimit(rules)
+
+  const hashSecret = process.env.RATE_LIMIT_HASH_SECRET ?? process.env.INTERNAL_API_KEY
+  if (!hashSecret || hashSecret.length < 32) {
+    console.error('[security-rate-limit] Missing a server-side hash secret')
+    return { retryAfterSeconds: 1, unavailable: true }
+  }
+
+  const admin = createAdminClient()
+
+  for (const rule of rules) {
+    const windowSeconds = Math.max(1, Math.ceil((rule.windowMs ?? WINDOW_MS) / 1000))
+    const separatorIndex = rule.key.indexOf(':')
+    const scope = separatorIndex === -1 ? rule.key : rule.key.slice(0, separatorIndex)
+    const keyHash = crypto
+      .createHmac('sha256', hashSecret)
+      .update(rule.key)
+      .digest('hex')
+    const { data, error } = await admin.rpc('consume_security_rate_limit', {
+      p_scope: scope,
+      p_key_hash: keyHash,
+      p_limit: rule.limit,
+      p_window_seconds: windowSeconds,
+    })
+
+    if (error || !data?.[0]) {
+      console.error('[security-rate-limit] Distributed counter unavailable', {
+        scope,
+        code: error?.code,
+      })
+      return { retryAfterSeconds: 1, unavailable: true }
+    }
+
+    if (!data[0].allowed) {
+      return { retryAfterSeconds: Math.max(1, data[0].retry_after_seconds) }
+    }
+  }
+
+  return null
+}
+
+function consumeLocalRateLimit(rules: RateLimitRule[]): RateLimitResult | null {
   const now = Date.now()
 
   if (buckets.size > MAX_BUCKETS) pruneExpiredBuckets(now)
@@ -57,19 +121,17 @@ export function checkRateLimit(request: NextRequest, rules: RateLimitRule[]) {
     current.count += 1
 
     if (current.count > rule.limit) {
-      return NextResponse.json(
-        { error: 'too_many_attempts' },
-        {
-          status: 429,
-          headers: {
-            'Retry-After': String(Math.ceil((current.resetAt - now) / 1000)),
-          },
-        }
-      )
+      return {
+        retryAfterSeconds: Math.max(1, Math.ceil((current.resetAt - now) / 1000)),
+      }
     }
   }
 
   return null
+}
+
+export function clearRateLimitBucketsForTest() {
+  buckets.clear()
 }
 
 function pruneExpiredBuckets(now: number) {
