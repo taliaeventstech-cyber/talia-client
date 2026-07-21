@@ -8,6 +8,7 @@ import { getFreshGoogleAccessToken } from '@/lib/email/google-tokens'
 import { decryptOAuthTokens, revokeGoogleOAuthToken } from '@/lib/email/google-oauth'
 import { getFreshMicrosoftAccessToken } from '@/lib/email/microsoft-tokens'
 import { deleteOutlookDraft } from '@/lib/email/outlook'
+import { logSafeEmailError } from '@/lib/email/safe-error'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/types/database.types'
 import { revalidatePath } from 'next/cache'
@@ -311,13 +312,13 @@ async function revokeConnectionToken(provider: string, oauthMetadata: unknown) {
     const tokens = decryptOAuthTokens(metadata.encrypted_tokens)
     const tokenToRevoke = tokens.refresh_token ?? tokens.access_token
 
-    if (!tokenToRevoke) return 'No revocable token found'
+    if (!tokenToRevoke) return 'revocable_token_not_found'
 
     await revokeGoogleOAuthToken(tokenToRevoke)
     return null
   } catch (error) {
-    console.error('[email-disconnect]', error)
-    return error instanceof Error ? error.message : 'Unknown token revocation error'
+    logSafeEmailError('email_disconnect_revocation_failed', error, 'token_revocation_failed')
+    return 'token_revocation_failed'
   }
 }
 

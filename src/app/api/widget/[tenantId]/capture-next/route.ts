@@ -4,7 +4,6 @@ import { getSignedCaptureUrl } from '@/lib/knowledge/web-capture-url'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/lib/widget/domain-allowlist'
 import { z } from 'zod'
-import { getPublicWidgetConfig } from '@/lib/tenants/service'
 
 const nextCaptureSchema = z.object({
   batchToken: z.string().min(20).max(20_000),
@@ -39,7 +38,7 @@ export async function POST(
   }
 
   const admin = createAdminClient()
-  const [domainSettings, sourceResult, tenant] = await Promise.all([
+  const [domainSettings, sourceResult] = await Promise.all([
     getTenantWidgetDomainSettings(admin, tenantId),
     admin
       .from('knowledge_sources')
@@ -48,17 +47,11 @@ export async function POST(
       .eq('theatre_id', tenantId)
       .eq('type', 'web_snapshot')
       .maybeSingle(),
-    getPublicWidgetConfig(admin, tenantId),
   ])
 
   if (!domainSettings.ok) {
     return corsJson({ error: domainSettings.error }, { status: 404 })
   }
-  if (!tenant.ok) return corsJson({ error: tenant.error }, { status: 404 })
-  if (!tenant.config.installedWebCapture.enabled || tenant.config.installedWebCapture.mode !== 'manual') {
-    return corsJson({ error: 'manual_capture_disabled' }, { status: 403 })
-  }
-
   if (sourceResult.error) {
     return corsJson({ error: sourceResult.error.message }, { status: 500 })
   }

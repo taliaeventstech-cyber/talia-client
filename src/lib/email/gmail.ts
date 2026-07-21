@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { createEmailProviderError } from './safe-error'
 
 const GMAIL_DRAFTS_ENDPOINT = 'https://gmail.googleapis.com/gmail/v1/users/me/drafts'
 const GMAIL_MESSAGES_ENDPOINT = 'https://gmail.googleapis.com/gmail/v1/users/me/messages'
@@ -84,7 +85,7 @@ export async function createGmailDraft(accessToken: string, input: CreateGmailDr
   })
 
   if (!response.ok) {
-    throw new Error(`Gmail draft creation failed: ${await response.text()}`)
+    throw createEmailProviderError('gmail_draft_creation_failed', response.status)
   }
 
   return response.json() as Promise<GmailDraftResponse>
@@ -99,7 +100,7 @@ export async function deleteGmailDraft(accessToken: string, draftId: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`Gmail draft deletion failed: ${await response.text()}`)
+    throw createEmailProviderError('gmail_draft_deletion_failed', response.status)
   }
 }
 
@@ -117,7 +118,7 @@ export async function listGmailInboxMessages(
   })
 
   if (!response.ok) {
-    throw new Error(`Gmail message list failed: ${await response.text()}`)
+    throw createEmailProviderError('gmail_message_list_failed', response.status)
   }
 
   return response.json() as Promise<GmailMessageListResponse>
@@ -132,7 +133,7 @@ export async function getGmailMessage(accessToken: string, messageId: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`Gmail message get failed: ${await response.text()}`)
+    throw createEmailProviderError('gmail_message_get_failed', response.status)
   }
 
   return response.json() as Promise<GmailMessageResponse>

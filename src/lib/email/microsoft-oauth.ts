@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
-import { decryptOAuthTokens, encryptOAuthTokens } from './google-oauth'
+import { decryptOAuthTokens, encryptOAuthTokens, getRequiredEmailSecret } from './google-oauth'
+import { createEmailProviderError } from './safe-error'
 
 export const MICROSOFT_GRAPH_SCOPES = [
   'openid',
@@ -118,7 +119,7 @@ export async function exchangeMicrosoftCodeForTokens(code: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`Microsoft token exchange failed: ${await response.text()}`)
+    throw createEmailProviderError('microsoft_token_exchange_failed', response.status)
   }
 
   return response.json() as Promise<MicrosoftTokenResponse>
@@ -138,7 +139,7 @@ export async function refreshMicrosoftAccessToken(refreshToken: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`Microsoft token refresh failed: ${await response.text()}`)
+    throw createEmailProviderError('microsoft_token_refresh_failed', response.status)
   }
 
   return response.json() as Promise<MicrosoftTokenResponse>
@@ -152,7 +153,7 @@ export async function fetchMicrosoftProfile(accessToken: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`Microsoft profile request failed: ${await response.text()}`)
+    throw createEmailProviderError('microsoft_profile_request_failed', response.status)
   }
 
   return response.json() as Promise<MicrosoftProfile>
@@ -161,10 +162,10 @@ export async function fetchMicrosoftProfile(accessToken: string) {
 export { decryptOAuthTokens, encryptOAuthTokens }
 
 function signState(encodedPayload: string) {
-  const secret = process.env.EMAIL_OAUTH_STATE_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!secret) {
-    throw new Error('Missing OAuth state secret')
-  }
+  const secret = getRequiredEmailSecret(
+    'EMAIL_OAUTH_STATE_SECRET',
+    'Missing dedicated email OAuth state secret',
+  )
 
   return crypto.createHmac('sha256', secret).update(encodedPayload).digest('base64url')
 }

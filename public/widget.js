@@ -649,6 +649,7 @@
 
   function registerInstalledPage() {
     if (!installedWebCapture.enabled) return;
+    if (getCaptureParams().get('talia_capture') === '1') return;
     var pageUrl = getCurrentPageUrl();
     var key = 'talia-installed-page-' + tenantId + '-' + pageUrl;
     var lastSeen = Number(localStorage.getItem(key) || '0');
@@ -714,7 +715,6 @@
   }
 
   function maybeCaptureInstalledPage() {
-    if (!installedWebCapture.enabled || installedWebCapture.mode !== 'manual') return;
     var params = getCaptureParams();
     if (params.get('talia_capture') !== '1') return;
 

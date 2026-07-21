@@ -2,37 +2,8 @@
 
 import { useEffect, useRef } from 'react'
 
-const SPLINE_VIEWER_SCRIPT_ID = 'talia-spline-viewer-script'
-const SPLINE_VIEWER_SRC = 'https://unpkg.com/@splinetool/viewer/build/spline-viewer.js'
-
 function loadSplineViewer() {
-  const existingScript = document.getElementById(SPLINE_VIEWER_SCRIPT_ID) as HTMLScriptElement | null
-
-  if (existingScript) {
-    return new Promise<void>((resolve, reject) => {
-      if (existingScript.dataset.loaded === 'true') {
-        resolve()
-        return
-      }
-
-      existingScript.addEventListener('load', () => resolve(), { once: true })
-      existingScript.addEventListener('error', () => reject(new Error('Spline viewer failed to load')), { once: true })
-    })
-  }
-
-  return new Promise<void>((resolve, reject) => {
-    const script = document.createElement('script')
-    script.id = SPLINE_VIEWER_SCRIPT_ID
-    script.type = 'module'
-    script.src = SPLINE_VIEWER_SRC
-    script.async = true
-    script.addEventListener('load', () => {
-      script.dataset.loaded = 'true'
-      resolve()
-    }, { once: true })
-    script.addEventListener('error', () => reject(new Error('Spline viewer failed to load')), { once: true })
-    document.head.appendChild(script)
-  })
+  return import('@splinetool/viewer').then(() => undefined)
 }
 
 export function AuthSplineBackground({ sceneUrl }: { sceneUrl?: string }) {

@@ -6,6 +6,7 @@ import {
   GOOGLE_GMAIL_SCOPES,
   verifyGoogleOAuthState,
 } from '@/lib/email/google-oauth'
+import { logSafeEmailError } from '@/lib/email/safe-error'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
     tenantId = payload.tenantId
 
     if (oauthError) {
-      return redirectToEmail(request, tenantId, `email_error=${encodeURIComponent(oauthError)}`)
+      return redirectToEmail(request, tenantId, `email_error=${sanitizeOAuthError(oauthError)}`)
     }
 
     if (!code) {
@@ -88,9 +89,9 @@ export async function GET(request: NextRequest) {
 
     return redirectToEmail(request, tenantId, 'email_connected=1')
   } catch (error) {
-    console.error('[email-google-callback]', error)
+    logSafeEmailError('email_google_callback_failed', error, 'google_oauth_callback_failed')
     if (tenantId) {
-      await markConnectionError(tenantId, error)
+      await markConnectionError(tenantId)
       return redirectToEmail(request, tenantId, 'email_error=oauth_callback')
     }
 
@@ -102,8 +103,7 @@ function redirectToEmail(request: NextRequest, tenantId: string, query: string) 
   return NextResponse.redirect(new URL(`/${tenantId}/email?${query}`, request.url))
 }
 
-async function markConnectionError(tenantId: string, error: unknown) {
-  const message = error instanceof Error ? error.message : 'Unknown Google OAuth error'
+async function markConnectionError(tenantId: string) {
   const admin = createAdminClient()
   const { data: latestConnection } = await admin
     .from('email_connections')
@@ -119,7 +119,13 @@ async function markConnectionError(tenantId: string, error: unknown) {
     .from('email_connections')
     .update({
       status: 'error',
-      error_message: message.slice(0, 500),
+      error_message: 'google_oauth_callback_failed',
     })
     .eq('id', latestConnection.id)
+}
+
+function sanitizeOAuthError(error: string) {
+  return ['access_denied', 'temporarily_unavailable', 'server_error'].includes(error)
+    ? error
+    : 'oauth_provider_error'
 }

@@ -153,7 +153,13 @@ describe('TALIA AI email providers', () => {
     const fetcher = vi.fn().mockResolvedValue({
       ok: false,
       status: 503,
-      text: async () => JSON.stringify({ ok: false, error: 'talia-ai unavailable' }),
+      text: async () => JSON.stringify({
+        ok: false,
+        error: 'Failure processing person@example.com',
+        details: 'email body and bearer secret must not persist',
+        error_code: 'provider_unavailable',
+        request_id: 'req-safe-123',
+      }),
     })
     const provider = new TaliaAiEmailClassifierProvider({
       baseUrl: 'https://talia-ai.example.test',
@@ -164,9 +170,34 @@ describe('TALIA AI email providers', () => {
     await expect(provider.classify(input)).resolves.toEqual({
       ok: false,
       status: 503,
-      error: 'talia-ai unavailable',
-      details: '{"ok":false,"error":"talia-ai unavailable"}',
+      error: 'talia-ai email request failed with status 503',
+      details: '{"status":503,"error_code":"provider_unavailable","request_id":"req-safe-123"}',
     })
     expect(fetcher).toHaveBeenCalledOnce()
+  })
+
+  it('does not retain a raw response when talia-ai returns invalid JSON', async () => {
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => 'person@example.com bearer-secret raw email body',
+    })
+    const provider = new TaliaAiEmailClassifierProvider({
+      baseUrl: 'https://talia-ai.example.test',
+      apiKey: 'secret',
+      fetcher,
+    })
+
+    const result = await provider.classify(input)
+
+    expect(result).toEqual({
+      ok: false,
+      status: 502,
+      error: 'talia-ai returned invalid JSON',
+      details: '{"status":502,"error_code":"invalid_json","request_id":null}',
+    })
+    expect(JSON.stringify(result)).not.toContain('person@example.com')
+    expect(JSON.stringify(result)).not.toContain('bearer-secret')
+    expect(JSON.stringify(result)).not.toContain('raw email body')
   })
 })

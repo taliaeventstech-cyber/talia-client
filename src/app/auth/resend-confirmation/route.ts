@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   }
 
   const email = normalizeEmail(parsed.data.email)
-  const limited = checkRateLimit(request, [
+  const limited = await checkRateLimit(request, [
     { key: `auth-resend:ip:${getClientIp(request)}`, limit: 5 },
     { key: `auth-resend:email:${email}`, limit: 2 },
   ])

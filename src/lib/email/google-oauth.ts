@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { createEmailProviderError } from './safe-error'
 
 export const GOOGLE_GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly',
@@ -119,7 +120,7 @@ export async function exchangeGoogleCodeForTokens(code: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`Google token exchange failed: ${await response.text()}`)
+    throw createEmailProviderError('google_token_exchange_failed', response.status)
   }
 
   return response.json() as Promise<GoogleTokenResponse>
@@ -139,7 +140,7 @@ export async function refreshGoogleAccessToken(refreshToken: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`Google token refresh failed: ${await response.text()}`)
+    throw createEmailProviderError('google_token_refresh_failed', response.status)
   }
 
   return response.json() as Promise<GoogleTokenResponse>
@@ -151,17 +152,17 @@ export async function fetchGmailProfile(accessToken: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`Gmail profile request failed: ${await response.text()}`)
+    throw createEmailProviderError('gmail_profile_request_failed', response.status)
   }
 
   return response.json() as Promise<GmailProfile>
 }
 
 export function encryptOAuthTokens(tokens: GoogleTokenResponse) {
-  const secret = process.env.EMAIL_TOKEN_ENCRYPTION_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!secret) {
-    throw new Error('Missing email token encryption key')
-  }
+  const secret = getRequiredEmailSecret(
+    'EMAIL_TOKEN_ENCRYPTION_KEY',
+    'Missing dedicated email token encryption key',
+  )
 
   const key = crypto.createHash('sha256').update(secret).digest()
   const iv = crypto.randomBytes(12)
@@ -185,10 +186,10 @@ export function decryptOAuthTokens(encryptedTokens: unknown) {
     throw new Error('Invalid encrypted OAuth tokens')
   }
 
-  const secret = process.env.EMAIL_TOKEN_ENCRYPTION_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!secret) {
-    throw new Error('Missing email token encryption key')
-  }
+  const secret = getRequiredEmailSecret(
+    'EMAIL_TOKEN_ENCRYPTION_KEY',
+    'Missing dedicated email token encryption key',
+  )
 
   const key = crypto.createHash('sha256').update(secret).digest()
   const decipher = crypto.createDecipheriv(
@@ -214,17 +215,29 @@ export async function revokeGoogleOAuthToken(token: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`Google token revocation failed: ${await response.text()}`)
+    throw createEmailProviderError('google_token_revocation_failed', response.status)
   }
 }
 
 function signState(encodedPayload: string) {
-  const secret = process.env.EMAIL_OAUTH_STATE_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!secret) {
-    throw new Error('Missing email OAuth state secret')
-  }
+  const secret = getRequiredEmailSecret(
+    'EMAIL_OAUTH_STATE_SECRET',
+    'Missing dedicated email OAuth state secret',
+  )
 
   return crypto.createHmac('sha256', secret).update(encodedPayload).digest('base64url')
+}
+
+export function getRequiredEmailSecret(
+  name: 'EMAIL_TOKEN_ENCRYPTION_KEY' | 'EMAIL_OAUTH_STATE_SECRET',
+  errorMessage: string,
+) {
+  const secret = process.env[name]
+  if (!secret || secret.length < 32) {
+    throw new Error(`${errorMessage}; configure at least 32 random characters`)
+  }
+
+  return secret
 }
 
 function timingSafeEqual(left: string, right: string) {

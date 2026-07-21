@@ -1,33 +1,33 @@
 import { syncAndMaybeProcessEmail } from '@/lib/email/automation'
+import { authorizeInternalApiRequest } from '@/lib/auth/internal-api'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 
-type SyncEmailPayload = {
-  tenant_id?: string
-  tenantId?: string
-  max_results?: number
-  maxResults?: number
-  query?: string
-}
+const syncEmailPayloadSchema = z.object({
+  tenant_id: z.string().uuid().optional(),
+  tenantId: z.string().uuid().optional(),
+  max_results: z.number().int().min(1).max(100).optional(),
+  maxResults: z.number().int().min(1).max(100).optional(),
+  query: z.string().trim().min(1).max(500).optional(),
+}).refine((value) => value.tenant_id || value.tenantId, { message: 'Missing tenant_id' })
+
+type SyncEmailPayload = z.infer<typeof syncEmailPayloadSchema>
 
 export async function POST(request: NextRequest) {
-  const internalKey = process.env.INTERNAL_API_KEY
-  const providedKey = request.headers.get('x-talia-internal-key')
-
-  if (!internalKey && process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Internal API key not configured' }, { status: 503 })
+  const authorization = authorizeInternalApiRequest(request.headers.get('x-talia-internal-key'))
+  if (!authorization.ok) {
+    return NextResponse.json({ error: authorization.error }, { status: authorization.status })
   }
 
-  if (internalKey && providedKey !== internalKey) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const parsedPayload = syncEmailPayloadSchema.safeParse(await request.json().catch(() => null))
+  if (!parsedPayload.success) {
+    return NextResponse.json({ error: 'Invalid request payload' }, { status: 400 })
   }
 
-  const payload = await request.json() as SyncEmailPayload
+  const payload = parsedPayload.data
   const tenantId = payload.tenant_id ?? payload.tenantId
-
-  if (!tenantId) {
-    return NextResponse.json({ error: 'Missing tenant_id' }, { status: 400 })
-  }
+  if (!tenantId) return NextResponse.json({ error: 'Invalid request payload' }, { status: 400 })
 
   const result = payload.query || payload.max_results || payload.maxResults
     ? await syncSingleTenantWithOverrides(tenantId, payload)

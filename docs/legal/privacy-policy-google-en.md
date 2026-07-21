@@ -4,7 +4,7 @@ Last updated: 2 June 2026
 
 ## 1. Who we are
 
-This Privacy Policy explains how Andrea Pascual Giménez ("TALIA", "GoTalia", "we", "us", or "our") collects, uses, stores, shares, and protects personal data when you use TALIA.
+This Privacy Policy explains TALIA ("Talía", "GoTalia", "we", "us", or "our") collects, uses, stores, shares, and protects personal data when you use TALIA.
 
 Data controller:
 
@@ -24,7 +24,6 @@ Customers can configure a web chatbot and, where enabled, connect a Gmail or Mic
 This Privacy Policy applies to TALIA's public websites and product interfaces, including:
 
 - `https://www.talia.events`;
-- `https://go.talia.events`;
 - `https://agora.talia.events`;
 - any related TALIA dashboard, chatbot, email-agent, or customer workspace made available by us.
 
@@ -247,7 +246,6 @@ TALIA does not use customer email content or Google user data to train generaliz
 Current or expected providers:
 
 - OpenAI, for AI classification, response generation, and draft generation.
-- n8n, where automated workflows route or orchestrate AI/email processing.
 
 Customers should review the applicable Data Processing Agreement and subprocessor list for more details.
 
@@ -271,7 +269,8 @@ Subprocessor table:
 | Google | Gmail API | Global / European Union / United States | Gmail integration |
 | Microsoft | Microsoft Graph API | Global / European Union / United States | Outlook integration |
 | OpenAI | AI processing | European Union / United States, depending on account and processing configuration | Classification, chatbot responses, and draft generation |
-| n8n | Automation | European Union, where self-hosted at `n8n.culturactiva.cat` | Internal workflows and email-agent orchestration |
+| Vercel | Web application hosting | European Union / United States, depending on deployment configuration | TALIA web application and server-side API execution |
+| Fly.io | Application hosting | European Union, depending on configured region | TALIA AI runtime for classification and supervised draft generation |
 
 We do not sell personal data.
 
