@@ -1,7 +1,20 @@
 # Email Agent Operations
 
-This runbook validates and operates the Gmail email agent after classification,
-drafting and scheduling have moved away from n8n.
+This runbook validates and operates the Gmail email agent after classification
+and drafting have moved away from n8n. The managed scheduler implementation is
+available but its automatic production trigger is currently paused while the
+email agent remains outside the commercial launch.
+
+## Current deployment state
+
+- `vercel.json` does not register an email cron job.
+- The secured `/api/cron/email/sync` endpoint, database lease and durable run
+  records remain available for explicit controlled tests.
+- Do not enable a 15-minute Vercel schedule on the Hobby plan: Hobby accepts
+  cron expressions that run at most once per day and rejects the deployment
+  otherwise.
+- Before launching email, use a production plan or worker that supports the
+  required frequency and complete the activation checks in this runbook.
 
 ## Preconditions
 
@@ -11,15 +24,17 @@ drafting and scheduling have moved away from n8n.
   is at least 32 random characters. Internal and cron routes fail closed in
   every environment, including local development and previews.
 - Migration `20260718090000_email_sync_scheduler.sql` has been applied.
-- The production Vercel plan permits cron jobs every 15 minutes.
+- The production runtime permits the selected scheduler frequency.
 - The mailbox is connected and uses supervised drafts. TALIA never sends email
   automatically.
 
 ## Managed schedule
 
-`vercel.json` registers `GET /api/cron/email/sync` every 15 minutes. Vercel adds
-`Authorization: Bearer <CRON_SECRET>` automatically. The route rejects requests
-without a valid server credential.
+When the email agent is activated, the scheduler must call
+`GET /api/cron/email/sync` every 15 minutes with
+`Authorization: Bearer <CRON_SECRET>`. The route rejects requests without a
+valid server credential. Vercel Cron may be used after moving the production
+project to a compatible plan; a durable external worker is also valid.
 
 Each invocation:
 
@@ -38,7 +53,7 @@ eligible for two more runs; after three consecutive failures it stays in
 
 ## Verification
 
-After deployment:
+After scheduler activation:
 
 1. Open the Vercel project, then `Settings > Cron Jobs`.
 2. Confirm `/api/cron/email/sync` is enabled with schedule `*/15 * * * *`.
@@ -69,11 +84,14 @@ limit 25;
 
 ## Pause and resume
 
-- Pause all scheduled invocations from `Settings > Cron Jobs > Disable Cron
-  Jobs` in Vercel.
+- Automatic invocation is currently paused because no cron is registered in
+  `vercel.json`.
+- If Vercel Cron is enabled later, pause all scheduled invocations from
+  `Settings > Cron Jobs > Disable Cron Jobs` in Vercel.
 - Pause one mailbox by disabling automatic sync in Backstage, which writes
   `cron_enabled = false` to its connection metadata.
-- Resume by reversing the relevant setting. Do not invoke the route repeatedly
+- Resume globally by registering the approved scheduler only after the
+  production runtime supports its frequency. Do not invoke the route repeatedly
   while a run is active; the lease will reject the overlap with `202`.
 
 ## Recovery
