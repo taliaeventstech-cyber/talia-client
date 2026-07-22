@@ -336,10 +336,11 @@ Implemented:
 - Current field: `should_generate_draft`.
 - `should_reply` is removed as a new contract.
 - Drafts visible in Agora and/or created in Gmail depending on mode.
-- TAL-34 prepares Vercel Cron to wake `/api/cron/email/sync` every 15 minutes.
-  Once its migration and deployment are applied, Postgres provides a global
-  lease and durable `email_sync_runs` records, while message and thread
-  uniqueness keep repeated deliveries idempotent.
+- TAL-34 provides the secured `/api/cron/email/sync` scheduler endpoint,
+  Postgres global lease and durable `email_sync_runs` records. Automatic Vercel
+  scheduling is paused while the email agent remains out of the commercial
+  launch; the previous 15-minute schedule is incompatible with the Hobby plan.
+  Message and thread uniqueness keep explicit test runs idempotent.
 - Failed mailbox syncs retry up to three consecutive runs before the connection
   remains in an actionable error state.
 
@@ -347,9 +348,9 @@ Pending:
 
 - Complete Google OAuth verification.
 - Complete Microsoft Graph.
-- Apply the TAL-34 migration, deploy and observe the managed scheduler for a
-  complete operating window, then disable and delete the external n8n email
-  workflows and credentials.
+- Before launching email, run production on a plan or worker that supports the
+  required frequency, register the scheduler again and observe it for a
+  complete operating window.
 - Improve draft review UI.
 
 Reference:
