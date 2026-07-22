@@ -337,10 +337,10 @@ Implemented:
 - `should_reply` is removed as a new contract.
 - Drafts visible in Agora and/or created in Gmail depending on mode.
 - TAL-34 provides the secured `/api/cron/email/sync` scheduler endpoint,
-  Postgres global lease and durable `email_sync_runs` records. Automatic Vercel
-  scheduling is paused while the email agent remains out of the commercial
-  launch; the previous 15-minute schedule is incompatible with the Hobby plan.
-  Message and thread uniqueness keep explicit test runs idempotent.
+  Postgres global lease and durable `email_sync_runs` records. Vercel Cron wakes
+  the scheduler every 15 minutes for controlled canary operation on the Pro
+  plan. The email agent remains outside the commercial launch. Message and
+  thread uniqueness keep repeated deliveries idempotent.
 - Failed mailbox syncs retry up to three consecutive runs before the connection
   remains in an actionable error state.
 
@@ -348,9 +348,8 @@ Pending:
 
 - Complete Google OAuth verification.
 - Complete Microsoft Graph.
-- Before launching email, run production on a plan or worker that supports the
-  required frequency, register the scheduler again and observe it for a
-  complete operating window.
+- Observe the managed scheduler for a complete operating window before
+  considering any commercial email launch.
 - Improve draft review UI.
 
 Reference:
