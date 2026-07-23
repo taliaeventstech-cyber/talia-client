@@ -16,6 +16,11 @@ security/TAL-XX-short-description
 
 Reference the Linear issue ID in the branch name and in the PR description.
 
+After GitHub merges, follow
+[`docs/operations/git-sync-workflow.md`](docs/operations/git-sync-workflow.md)
+to update local `main` and `develop`, prune deleted remote branches, and refresh
+VS Code Git Graph.
+
 ## Pull requests
 
 - Open PRs **against `develop`**, never against `main`.
