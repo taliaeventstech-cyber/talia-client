@@ -34,7 +34,7 @@ export async function getFreshMicrosoftAccessToken(
       ? oauthMetadata.expires_at
       : null
 
-  await admin
+  const { error } = await admin
     .from('email_connections')
     .update({
       oauth_metadata: {
@@ -48,6 +48,10 @@ export async function getFreshMicrosoftAccessToken(
       error_message: null,
     })
     .eq('id', connection.id)
+
+  if (error) {
+    throw new Error('microsoft_token_persistence_failed')
+  }
 
   return mergedTokens.access_token
 }
