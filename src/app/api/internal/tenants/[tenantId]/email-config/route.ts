@@ -1,3 +1,4 @@
+import { authorizeInternalApiRequest } from '@/lib/auth/internal-api'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getEmailAgentSettings } from '@/lib/email/settings'
 import { getTenantRuntimeChatConfig } from '@/lib/tenants/service'
@@ -7,15 +8,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ tenantId: string }> }
 ) {
-  const internalKey = process.env.INTERNAL_API_KEY
-  const providedKey = request.headers.get('x-talia-internal-key')
-
-  if (!internalKey && process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Internal API key not configured' }, { status: 503 })
-  }
-
-  if (internalKey && providedKey !== internalKey) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authorization = authorizeInternalApiRequest(request.headers.get('x-talia-internal-key'))
+  if (!authorization.ok) {
+    return NextResponse.json({ error: authorization.error }, { status: authorization.status })
   }
 
   const { tenantId } = await params
