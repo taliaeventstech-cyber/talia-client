@@ -1,6 +1,27 @@
--- Seed de desarrollo: un teatro de ejemplo
+-- Seed de desarrollo: una cuenta y un teatro de ejemplo
+insert into public.accounts (
+  id,
+  name,
+  slug,
+  billing_email,
+  plan,
+  status
+)
+values (
+  '00000000-0000-0000-0000-000000000002',
+  'Cuenta Demo',
+  'cuenta-demo',
+  'info@example.com',
+  'essential',
+  'active'
+)
+on conflict (id) do update set
+  plan = excluded.plan,
+  status = excluded.status;
+
 insert into public.theatres (
   id,
+  account_id,
   name,
   slug,
   plan,
@@ -11,6 +32,7 @@ insert into public.theatres (
 )
 values (
   '00000000-0000-0000-0000-000000000001',
+  '00000000-0000-0000-0000-000000000002',
   'Teatro Demo',
   'teatro-demo',
   'esencial',
