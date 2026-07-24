@@ -22,6 +22,7 @@ commercial launch.
   is at least 32 random characters. Internal and cron routes fail closed in
   every environment, including local development and previews.
 - Migration `20260718090000_email_sync_scheduler.sql` has been applied.
+- Migration `20260724112250_fix_email_sync_claim_timestamp.sql` has been applied.
 - The production runtime permits the selected scheduler frequency.
 - The mailbox is connected and uses supervised drafts. TALIA never sends email
   automatically.

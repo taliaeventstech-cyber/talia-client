@@ -39,7 +39,9 @@ This directory holds the curated documentation for product, architecture, requir
 ## Operations
 
 - [`operations/client-launch-checklist.md`](operations/client-launch-checklist.md): internal checklist for launching a client.
+- [`operations/git-sync-workflow.md`](operations/git-sync-workflow.md): post-merge synchronization for `talia-client` and `talia-ai`, including VS Code Git Graph.
 - [`operations/google-cloud-production-oauth.md`](operations/google-cloud-production-oauth.md): Google OAuth verification for Gmail.
+- [`operations/production-email-scheduler-and-casa-evidence.md`](operations/production-email-scheduler-and-casa-evidence.md): production scheduler, sensitive-access boundaries and CASA-038 evidence runbook.
 - [`operations/data-retention.md`](operations/data-retention.md): operational data retention and cleanup policy.
 - [`operations/disaster-recovery.md`](operations/disaster-recovery.md): backup inventory, recovery targets and restore exercises.
 - [`operations/knowledge-embeddings.md`](operations/knowledge-embeddings.md): operational cron/backfill for embeddings.
