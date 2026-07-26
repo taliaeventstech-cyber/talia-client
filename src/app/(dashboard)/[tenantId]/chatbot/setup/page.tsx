@@ -1,5 +1,6 @@
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
+import { normalizeKnowledgeSourceUrl } from '@/lib/knowledge/source-url'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { LanguageToggle } from '@/components/language-toggle'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -23,7 +24,7 @@ export default async function ChatbotSetupPage({ params }: Props) {
   const admin = createAdminClient()
   const { data: theatre } = await admin
     .from('theatres')
-    .select('name, system_prompt, widget_config')
+    .select('name, website_url, system_prompt, widget_config')
     .eq('id', tenantId)
     .single()
 
@@ -33,6 +34,19 @@ export default async function ChatbotSetupPage({ params }: Props) {
   const formCopy = getFormCopy(copy)
   const widgetConfig = getWidgetConfig(theatre?.widget_config, copy.defaultInitialMessage)
   const isOnboardingFlow = !access.chatbotSetupCompleted
+  const normalizedWebsiteUrl = theatre?.website_url
+    ? normalizeKnowledgeSourceUrl(theatre.website_url)
+    : null
+  const existingWebsiteSource = normalizedWebsiteUrl
+    ? await admin
+      .from('knowledge_sources')
+      .select('id')
+      .eq('theatre_id', tenantId)
+      .in('type', ['url', 'sitemap', 'website'])
+      .eq('source_url', normalizedWebsiteUrl)
+      .limit(1)
+      .maybeSingle()
+    : null
 
   return (
     <main className={isOnboardingFlow ? 'page-shell chatbot-setup-shell chatbot-onboarding-shell' : 'page-shell chatbot-setup-shell'}>
@@ -64,11 +78,14 @@ export default async function ChatbotSetupPage({ params }: Props) {
         copy={formCopy}
         tenantId={tenantId}
         skipHref={isOnboardingFlow ? `/${tenantId}/overview` : null}
+        showWebsiteSource={isOnboardingFlow}
+        initialSourceConfigured={Boolean(existingWebsiteSource?.data)}
         initialValues={{
           initialMessage: widgetConfig.initialMessage,
           primaryColor: widgetConfig.primaryColor,
           tone: widgetConfig.tone,
           fallbackBehavior: widgetConfig.fallbackBehavior,
+          sourceUrl: theatre?.website_url ?? '',
           systemPrompt: theatre?.system_prompt ?? '',
         }}
       />
