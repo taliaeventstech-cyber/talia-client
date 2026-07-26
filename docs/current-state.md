@@ -113,7 +113,9 @@ Implemented:
 - Chatbot-specific wizard after client onboarding.
 - Agora sidebar hidden while the initial wizard is pending.
 - Language selector and day/night mode also available in this wizard.
-- Configuration of initial message, tone, first knowledge source, color and fallback.
+- Configuration of initial message, tone, first managed web source from the
+  venue URL, color and fallback. The source reuses the Knowledge managed-web
+  flow and remains subject to its rollout controls, quotas and permissions.
 - Upon completion, the user returns to Agora.
 
 Pending:
