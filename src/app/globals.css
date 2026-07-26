@@ -9310,6 +9310,68 @@ textarea {
   color: var(--color-error);
 }
 
+.suggested-question-targets {
+  display: grid;
+  gap: 10px;
+  border: 1px dashed var(--color-border);
+  border-radius: 9px;
+  padding: 11px;
+  background: var(--color-surface);
+}
+
+.suggested-question-targets strong {
+  font-size: 13px;
+}
+
+.suggested-question-targets p {
+  margin: 3px 0 0;
+  font-size: 12px;
+}
+
+.suggested-question-target-list {
+  display: grid;
+  gap: 8px;
+}
+
+.suggested-question-target-row {
+  display: grid;
+  grid-template-columns: minmax(132px, 0.42fr) minmax(180px, 1fr) 34px;
+  gap: 8px;
+}
+
+.suggested-question-target-row select,
+.suggested-question-target-row input {
+  min-width: 0;
+}
+
+.suggested-question-target-row .icon-button {
+  width: 34px;
+  height: 34px;
+}
+
+.suggested-question-target-row .icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.suggested-questions-preview-url {
+  margin-bottom: 2px;
+}
+
+.suggested-questions-preview-url > span {
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .suggested-question-target-row {
+    grid-template-columns: minmax(0, 1fr) 34px;
+  }
+
+  .suggested-question-target-row select {
+    grid-column: 1 / -1;
+  }
+}
+
 .widget-theme-field {
   display: grid;
   gap: 8px;
