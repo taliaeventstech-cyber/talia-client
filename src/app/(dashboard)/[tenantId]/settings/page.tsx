@@ -52,6 +52,7 @@ export default async function SettingsPage({ params }: Props) {
             fallback_email: theatre.fallback_email,
             fallback_phone: theatre.fallback_phone,
             primary_language: theatre.primary_language ?? 'es',
+            website_url: theatre.website_url,
           }}
           commercialPlan={{
             title: dictionary.upgrade.plans[commercialPlanKey].title,

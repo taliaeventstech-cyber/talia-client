@@ -170,10 +170,16 @@ Implemented:
 - Initial message and brand color.
 - Configurable proactive greeting that appears beside the launcher after a delay
   without opening the chat panel; selecting it starts the conversation.
-- Up to six tenant-scoped suggested questions can be created, activated,
-  deactivated and reordered in Agora. They use the chatbot's configured primary
-  language, appear under a contextual prompt only before the visitor's first
-  message, and follow the normal agent/RAG flow with selection traceability.
+- Up to 24 tenant-scoped suggested questions can be created, activated,
+  deactivated and reordered in Agora, with at most six visible at once. They use
+  the chatbot's configured primary language and can remain general or target up
+  to five page rules by exact hostname, path prefix or exact public URL.
+  Contextual matches are shown first and remaining slots are filled with
+  general questions without duplicate text. The configuration preview can
+  simulate a public page URL, while the installed widget recalculates the
+  suggestions on SPA navigation. Selections follow the normal agent/RAG flow
+  and persist whether they were contextual or general plus the server-validated
+  matching rule.
 - Interactive, production-sized Agora preview for the launcher, proactive
   greeting, suggested questions and chat panel; message submission stays
   disabled in preview mode.

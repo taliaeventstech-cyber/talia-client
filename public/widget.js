@@ -49,7 +49,7 @@
     var glassBlur = getGlassBlur(config.glassBlur != null ? config.glassBlur : script.getAttribute('data-glass-blur'));
     var glassTranslucency = getGlassTranslucency(config.glassTranslucency != null ? config.glassTranslucency : script.getAttribute('data-glass-translucency'));
     var fallbackLanguage = getWidgetLanguage(config.fallbackLanguage, 'es');
-    var suggestedQuestions = getVisibleSuggestedQuestions(config.suggestedQuestions);
+    var suggestedQuestions = getVisibleSuggestedQuestions(config.suggestedQuestions, getCurrentPageUrl());
     var host = document.createElement('div');
     host.id = 'talia-widget-root';
     document.body.appendChild(host);
@@ -76,6 +76,7 @@
     var sessionFeedbackPrompt = null;
     var conversationHasActivity = false;
 
+    window.addEventListener('talia:page-context-changed', refreshSuggestedQuestions);
     showSuggestedQuestions();
     toggle.setAttribute('aria-expanded', 'false');
 
@@ -158,6 +159,7 @@
       localStorage.setItem(sessionKey, sessionId);
       conversationHasActivity = false;
       sessionFeedbackPrompt = null;
+      suggestedQuestions = getVisibleSuggestedQuestions(config.suggestedQuestions, getCurrentPageUrl());
       resetMessages(messages, initialMessage);
       showSuggestedQuestions();
       input.value = '';
@@ -307,6 +309,7 @@
     }
 
     function showSuggestedQuestions() {
+      removeSuggestedQuestions(messages);
       if (!suggestedQuestions.length) return;
       var group = createSuggestedQuestions(
         suggestedQuestions,
@@ -326,6 +329,11 @@
         }
       );
       messages.appendChild(group);
+    }
+
+    function refreshSuggestedQuestions() {
+      suggestedQuestions = getVisibleSuggestedQuestions(config.suggestedQuestions, getCurrentPageUrl());
+      if (!conversationHasActivity && !sessionFeedbackPrompt) showSuggestedQuestions();
     }
   }
 
@@ -417,22 +425,79 @@
     if (group) group.remove();
   }
 
-  function getVisibleSuggestedQuestions(value) {
+  function getVisibleSuggestedQuestions(value, pageUrl) {
     if (!Array.isArray(value)) return [];
-    var visible = [];
+    var contextual = [];
+    var general = [];
+    var normalizedPageUrl = normalizeSuggestedQuestionPageUrl(pageUrl);
 
     value.forEach(function (question) {
       if (!question || question.enabled !== true || typeof question.id !== 'string') return;
       var text = typeof question.text === 'string' ? question.text.trim() : '';
       if (!text) return;
-      visible.push({
+      var targets = Array.isArray(question.targets) ? question.targets : [];
+      var target = normalizedPageUrl
+        ? targets.find(function (item) {
+            return matchesSuggestedQuestionTarget(item, normalizedPageUrl);
+          })
+        : null;
+
+      if (targets.length && !target) return;
+      var destination = target ? contextual : general;
+      destination.push({
         id: question.id,
         text: text,
-        position: visible.length,
+        source: target ? 'contextual' : 'general',
+        matchedTarget: target || null,
       });
     });
 
-    return visible.slice(0, 6);
+    var seenText = {};
+    return contextual.concat(general)
+      .filter(function (question) {
+        var key = question.text.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+        if (seenText[key]) return false;
+        seenText[key] = true;
+        return true;
+      })
+      .slice(0, 6)
+      .map(function (question, position) {
+        question.position = position;
+        return question;
+      });
+  }
+
+  function matchesSuggestedQuestionTarget(target, pageUrl) {
+    if (!target || typeof target.type !== 'string' || typeof target.value !== 'string') return false;
+    if (target.type === 'hostname') return pageUrl.hostname === target.value.toLowerCase();
+    if (target.type === 'path_prefix') {
+      return target.value === '/'
+        || pageUrl.pathname === target.value
+        || pageUrl.pathname.indexOf(target.value + '/') === 0;
+    }
+    if (target.type === 'exact_url') return pageUrl.href === target.value;
+    return false;
+  }
+
+  function normalizeSuggestedQuestionPageUrl(value) {
+    if (!value) return null;
+    try {
+      var url = new URL(value);
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+      url.hash = '';
+      removeTrackingParameters(url);
+      url.searchParams.sort();
+      url.pathname = url.pathname === '/' ? '/' : url.pathname.replace(/\/+$/, '') || '/';
+      return {
+        href: url.pathname === '/' && !url.search
+          ? url.origin
+          : url.toString().replace(/\/$/, ''),
+        hostname: url.hostname.toLowerCase(),
+        pathname: url.pathname,
+      };
+    } catch {
+      return null;
+    }
   }
 
   function getWidgetLanguage(value, fallbackLanguage) {
@@ -742,6 +807,7 @@
     window.setTimeout(function () {
       registerInstalledPage();
       maybeCaptureInstalledPage();
+      window.dispatchEvent(new CustomEvent('talia:page-context-changed'));
     }, delay);
   }
 

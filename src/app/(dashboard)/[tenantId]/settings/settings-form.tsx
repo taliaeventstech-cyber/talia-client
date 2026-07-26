@@ -14,8 +14,11 @@ import { ArrowDown, ArrowUp, ArrowUpRight, Bot, ChevronLeft, MessageCircle, Mess
 import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import {
   getVisibleSuggestedQuestions,
+  MAX_SUGGESTED_QUESTION_TARGETS,
   MAX_SUGGESTED_QUESTIONS,
   type SuggestedQuestion,
+  type SuggestedQuestionTarget,
+  type SuggestedQuestionTargetType,
 } from '@/lib/widget/suggested-questions'
 
 type SettingsFormLabels = {
@@ -39,6 +42,19 @@ type SettingsFormLabels = {
   suggestedQuestionMoveDown: string
   suggestedQuestionRemove: string
   suggestedQuestionText: string
+  suggestedQuestionScope: string
+  suggestedQuestionScopeGeneral: string
+  suggestedQuestionScopeContextual: string
+  suggestedQuestionTargets: string
+  suggestedQuestionTargetsHint: string
+  suggestedQuestionTargetAdd: string
+  suggestedQuestionTargetRemove: string
+  suggestedQuestionTargetTypeHostname: string
+  suggestedQuestionTargetTypePathPrefix: string
+  suggestedQuestionTargetTypeExactUrl: string
+  suggestedQuestionTargetValue: string
+  suggestedQuestionsPreviewUrl: string
+  suggestedQuestionsPreviewUrlHint: string
   suggestedQuestionLanguageEs: string
   suggestedQuestionLanguageCa: string
   suggestedQuestionLanguageEn: string
@@ -98,6 +114,7 @@ type SettingsFormProps = {
     fallback_email: string | null
     fallback_phone: string | null
     primary_language: string
+    website_url: string | null
   }
   commercialPlan: {
     title: string
@@ -171,6 +188,7 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
     proactiveMessage: widgetConfig.proactiveMessage,
     suggestedQuestions: widgetConfig.suggestedQuestions,
     fallbackLanguage: theatre.primary_language,
+    pageUrl: theatre.website_url ?? '',
   })
   const [suggestedQuestions, setSuggestedQuestions] = useState(widgetConfig.suggestedQuestions)
 
@@ -579,6 +597,19 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
                 onSelect={(glassBackground) => setPreviewConfig((current) => ({ ...current, glassBackground }))}
               />
             </div>
+            <label className="field suggested-questions-preview-url">
+              {labels.suggestedQuestionsPreviewUrl}
+              <input
+                type="url"
+                value={previewConfig.pageUrl}
+                placeholder="https://example.org/agenda"
+                onChange={(event) => {
+                  event.stopPropagation()
+                  setPreviewConfig((current) => ({ ...current, pageUrl: event.target.value }))
+                }}
+              />
+              <span className="muted">{labels.suggestedQuestionsPreviewUrlHint}</span>
+            </label>
             <WidgetPreview
               key={previewConfig.autoOpen ? 'proactive' : 'manual'}
               widgetConfig={previewConfig}
@@ -662,6 +693,7 @@ function SuggestedQuestionsEditor({
         id: crypto.randomUUID(),
         enabled: true,
         text: '',
+        targets: [],
       },
     ])
   }
@@ -684,6 +716,46 @@ function SuggestedQuestionsEditor({
       next.splice(target, 0, question)
       return next
     })
+  }
+
+  const setQuestionScope = (id: string, contextual: boolean) => {
+    updateQuestion(id, (question) => ({
+      ...question,
+      targets: contextual
+        ? question.targets.length > 0
+          ? question.targets
+          : [createSuggestedQuestionTarget()]
+        : [],
+    }))
+  }
+
+  const addQuestionTarget = (id: string) => {
+    updateQuestion(id, (question) => ({
+      ...question,
+      targets: question.targets.length >= MAX_SUGGESTED_QUESTION_TARGETS
+        ? question.targets
+        : [...question.targets, createSuggestedQuestionTarget()],
+    }))
+  }
+
+  const updateQuestionTarget = (
+    questionId: string,
+    targetId: string,
+    updater: (target: SuggestedQuestionTarget) => SuggestedQuestionTarget,
+  ) => {
+    updateQuestion(questionId, (question) => ({
+      ...question,
+      targets: question.targets.map((target) => (
+        target.id === targetId ? updater(target) : target
+      )),
+    }))
+  }
+
+  const removeQuestionTarget = (questionId: string, targetId: string) => {
+    updateQuestion(questionId, (question) => ({
+      ...question,
+      targets: question.targets.filter((target) => target.id !== targetId),
+    }))
   }
 
   return (
@@ -759,6 +831,82 @@ function SuggestedQuestionsEditor({
                 }))}
               />
             </label>
+
+            <label className="field">
+              {labels.suggestedQuestionScope}
+              <select
+                value={question.targets.length > 0 ? 'contextual' : 'general'}
+                onChange={(event) => setQuestionScope(
+                  question.id,
+                  event.target.value === 'contextual',
+                )}
+              >
+                <option value="general">{labels.suggestedQuestionScopeGeneral}</option>
+                <option value="contextual">{labels.suggestedQuestionScopeContextual}</option>
+              </select>
+            </label>
+
+            {question.targets.length > 0 ? (
+              <div className="suggested-question-targets">
+                <div>
+                  <strong>{labels.suggestedQuestionTargets}</strong>
+                  <p className="muted">{labels.suggestedQuestionTargetsHint}</p>
+                </div>
+                <div className="suggested-question-target-list">
+                  {question.targets.map((target, targetIndex) => (
+                    <div className="suggested-question-target-row" key={target.id}>
+                      <select
+                        aria-label={`${labels.suggestedQuestionScope} ${targetIndex + 1}`}
+                        value={target.type}
+                        onChange={(event) => updateQuestionTarget(
+                          question.id,
+                          target.id,
+                          (current) => ({
+                            ...current,
+                            type: event.target.value as SuggestedQuestionTargetType,
+                            value: '',
+                          }),
+                        )}
+                      >
+                        <option value="hostname">{labels.suggestedQuestionTargetTypeHostname}</option>
+                        <option value="path_prefix">{labels.suggestedQuestionTargetTypePathPrefix}</option>
+                        <option value="exact_url">{labels.suggestedQuestionTargetTypeExactUrl}</option>
+                      </select>
+                      <input
+                        aria-label={`${labels.suggestedQuestionTargetValue} ${targetIndex + 1}`}
+                        type="text"
+                        maxLength={2048}
+                        placeholder={getSuggestedQuestionTargetPlaceholder(target.type)}
+                        value={target.value}
+                        onChange={(event) => updateQuestionTarget(
+                          question.id,
+                          target.id,
+                          (current) => ({ ...current, value: event.target.value }),
+                        )}
+                      />
+                      <button
+                        type="button"
+                        className="icon-button suggested-question-remove"
+                        aria-label={labels.suggestedQuestionTargetRemove}
+                        title={labels.suggestedQuestionTargetRemove}
+                        onClick={() => removeQuestionTarget(question.id, target.id)}
+                      >
+                        <Trash2 aria-hidden="true" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="button-outline button-fit"
+                  disabled={question.targets.length >= MAX_SUGGESTED_QUESTION_TARGETS}
+                  onClick={() => addQuestionTarget(question.id)}
+                >
+                  <Plus size={15} aria-hidden="true" />
+                  {labels.suggestedQuestionTargetAdd}
+                </button>
+              </div>
+            ) : null}
           </article>
         ))}
       </div>
@@ -783,6 +931,20 @@ function getSuggestedQuestionLanguageLabel(
   if (language === 'ca') return labels.suggestedQuestionLanguageCa
   if (language === 'en') return labels.suggestedQuestionLanguageEn
   return labels.suggestedQuestionLanguageEs
+}
+
+function createSuggestedQuestionTarget(): SuggestedQuestionTarget {
+  return {
+    id: crypto.randomUUID(),
+    type: 'path_prefix',
+    value: '',
+  }
+}
+
+function getSuggestedQuestionTargetPlaceholder(type: SuggestedQuestionTargetType) {
+  if (type === 'hostname') return 'example.org'
+  if (type === 'exact_url') return 'https://example.org/agenda/hamlet'
+  return '/agenda'
 }
 
 function ThemeToggle({
@@ -1007,6 +1169,7 @@ function WidgetPreview({
     proactiveMessage: string
     suggestedQuestions: SuggestedQuestion[]
     fallbackLanguage: string
+    pageUrl: string
   }
   suggestedQuestionsLabel: string
   suggestedQuestionsPrompt: string
@@ -1030,6 +1193,7 @@ function WidgetPreview({
   const visibleSuggestedQuestions = getVisibleSuggestedQuestions(
     widgetConfig.suggestedQuestions,
     widgetConfig.fallbackLanguage,
+    widgetConfig.pageUrl,
   )
 
   const filter = `blur(${widgetConfig.glassBlur}px) saturate(200%) brightness(${skin.bright})`

@@ -103,14 +103,6 @@ export async function POST(
     return corsJson({ error: tenant.error }, { status: 404 })
   }
 
-  const suggestedQuestion = validateSuggestedQuestionSelection(
-    tenant.config.suggestedQuestions,
-    payload.suggested_question,
-    message,
-    tenant.config.language,
-  )
-  const suggestedQuestionTrace = getSuggestedQuestionTrace(suggestedQuestion)
-
   const domainSettings = await getTenantWidgetDomainSettings(admin, tenantId)
   if (!domainSettings.ok) {
     return corsJson({ error: domainSettings.error }, { status: 404 })
@@ -124,6 +116,15 @@ export async function POST(
   if (!domain.ok) {
     return corsJson({ error: domain.error }, { status: 403 })
   }
+
+  const suggestedQuestion = validateSuggestedQuestionSelection(
+    tenant.config.suggestedQuestions,
+    payload.suggested_question,
+    message,
+    tenant.config.language,
+    pageUrl,
+  )
+  const suggestedQuestionTrace = getSuggestedQuestionTrace(suggestedQuestion)
 
   // Botsonic model: the reply we are about to generate is the billable unit, so
   // the limit is checked on every incoming message (not only on new conversations).
@@ -461,6 +462,11 @@ function getSuggestedQuestionTrace(
       id: selection.id,
       position: selection.position,
       language: selection.language,
+      source: selection.source,
+      matched_target: selection.matchedTarget ? {
+        type: selection.matchedTarget.type,
+        value: selection.matchedTarget.value,
+      } : null,
     },
   }
 }
