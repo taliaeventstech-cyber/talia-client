@@ -162,12 +162,12 @@ export function BackstageManagedWebSyncToggle({
         className="knowledge-retry-button"
         onClick={handleToggle}
         disabled={isPending}
-        aria-label={enabled ? 'Pausar sincronización web' : 'Reactivar sincronización web'}
+        aria-label={enabled ? 'Pausar fuente web' : 'Habilitar fuente web'}
       >
         {enabled
           ? <CirclePause size={13} strokeWidth={2.2} aria-hidden="true" />
           : <CirclePlay size={13} strokeWidth={2.2} aria-hidden="true" />}
-        {isPending ? 'Guardando...' : enabled ? 'Pausar sync' : 'Reactivar sync'}
+        {isPending ? 'Guardando...' : enabled ? 'Pausar fuente' : 'Habilitar fuente'}
       </button>
     </>
   )

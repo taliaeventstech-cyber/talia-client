@@ -32,6 +32,10 @@ import {
   type InstalledWebCaptureSettings,
 } from '@/lib/knowledge/installed-web-capture-settings'
 import { parseKnowledgeSpreadsheet } from '@/lib/knowledge/spreadsheet'
+import {
+  mergeSuggestedQuestionsIntoWidgetConfig,
+  parseSuggestedQuestionsFormValue,
+} from '@/lib/widget/suggested-questions'
 
 export type SettingsFormState = {
   ok: boolean
@@ -147,6 +151,11 @@ export async function updateTenantSettings(
     return { ok: false, message: 'No tienes permisos para editar esta configuración.' }
   }
 
+  const suggestedQuestions = parseSuggestedQuestionsFormValue(formData.get('suggested_questions'))
+  if (!suggestedQuestions.ok) {
+    return { ok: false, message: suggestedQuestions.error }
+  }
+
   const parsed = settingsSchema.safeParse({
     widgetEnabled: formData.get('widget_enabled') === 'on',
     initialMessage: formData.get('initial_message'),
@@ -183,7 +192,7 @@ export async function updateTenantSettings(
     systemPrompt: data.systemPrompt,
     fallbackEmail: data.fallbackEmail,
     fallbackPhone: data.fallbackPhone,
-    widgetConfig: {
+    widgetConfig: mergeSuggestedQuestionsIntoWidgetConfig({
       ...existingWidget,
       enabled: data.widgetEnabled,
       assistantName: 'TALIA',
@@ -208,7 +217,7 @@ export async function updateTenantSettings(
         fallbackMessage: data.fallbackMessage || null,
         fallbackWhatsApp: data.fallbackWhatsApp,
       }),
-    },
+    }, suggestedQuestions.questions),
   })
 
   if (!updated.ok) {

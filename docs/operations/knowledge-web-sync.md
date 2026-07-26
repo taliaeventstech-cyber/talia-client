@@ -166,6 +166,25 @@ The worker checkpoints `discovering`, `fetching`, `chunking` and `finishing`.
 Document counters are checkpointed after ten documents or two seconds,
 whichever happens first; there is no write per chunk.
 
+The customer-facing state sequence is:
+
+1. pending activation, when `sync_enabled` is false;
+2. queued, when an eligible run has not yet been claimed;
+3. discovering, fetching, chunking or finishing, based on the worker checkpoint;
+4. preparing knowledge, while active chunks still have pending or processing
+   embeddings;
+5. ready, only when the source has no active run and its active chunks are ready.
+
+Connection health is secondary UI metadata. A subscribed Realtime channel must
+never be labelled as “synchronization in progress” by itself. Run changes
+invalidate the server-rendered view. Embedding preparation keeps a bounded
+eight-second polling fallback because `knowledge_chunks` is deliberately not
+part of the Realtime publication.
+
+Installed-widget detection is an independent ingestion path. Its enabled state
+must not be used to infer, activate or pause a managed URL, sitemap or website
+source.
+
 Backstage derives active alerts from source state, terminal sync runs and quota
 usage through `get_knowledge_web_operational_alerts`. The aggregation runs in
 Postgres so the UI does not load unbounded sync history or calculate tenant

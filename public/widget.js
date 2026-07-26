@@ -48,6 +48,8 @@
     var glassBackground = getGlassBackground(config.glassBackground || script.getAttribute('data-glass-background'));
     var glassBlur = getGlassBlur(config.glassBlur != null ? config.glassBlur : script.getAttribute('data-glass-blur'));
     var glassTranslucency = getGlassTranslucency(config.glassTranslucency != null ? config.glassTranslucency : script.getAttribute('data-glass-translucency'));
+    var fallbackLanguage = getWidgetLanguage(config.fallbackLanguage, 'es');
+    var suggestedQuestions = getVisibleSuggestedQuestions(config.suggestedQuestions);
     var host = document.createElement('div');
     host.id = 'talia-widget-root';
     document.body.appendChild(host);
@@ -74,6 +76,7 @@
     var sessionFeedbackPrompt = null;
     var conversationHasActivity = false;
 
+    showSuggestedQuestions();
     toggle.setAttribute('aria-expanded', 'false');
 
     // Liquid-glass pointer highlight on the floating toggle only (never the open panel).
@@ -156,6 +159,7 @@
       conversationHasActivity = false;
       sessionFeedbackPrompt = null;
       resetMessages(messages, initialMessage);
+      showSuggestedQuestions();
       input.value = '';
       resizeComposer();
       input.focus();
@@ -281,6 +285,7 @@
       input.value = '';
       resizeComposer();
       removeSessionFeedbackPrompt();
+      removeSuggestedQuestions(messages);
       appendMessage(messages, text, 'user');
       conversationHasActivity = true;
       sendMessage(text, messages);
@@ -300,9 +305,31 @@
       input.style.height = Math.max(nextHeight, 44) + 'px';
       input.style.overflowY = input.scrollHeight > 120 ? 'auto' : 'hidden';
     }
+
+    function showSuggestedQuestions() {
+      if (!suggestedQuestions.length) return;
+      var group = createSuggestedQuestions(
+        suggestedQuestions,
+        getSuggestedQuestionsLabel(fallbackLanguage),
+        getSuggestedQuestionsPrompt(fallbackLanguage),
+        function (question) {
+          removeSessionFeedbackPrompt();
+          removeSuggestedQuestions(messages);
+          appendMessage(messages, question.text, 'user');
+          conversationHasActivity = true;
+          sendMessage(question.text, messages, {
+            id: question.id,
+            position: question.position,
+            language: fallbackLanguage,
+          });
+          input.focus();
+        }
+      );
+      messages.appendChild(group);
+    }
   }
 
-  function sendMessage(text, messages) {
+  function sendMessage(text, messages, suggestedQuestion) {
     var requestSessionId = sessionId;
     appendMessage(messages, '...', 'assistant', true);
     fetch(baseUrl + '/api/chat/' + tenantId, {
@@ -312,6 +339,7 @@
         session_id: requestSessionId,
         message: text,
         page_url: getCurrentPageUrl(),
+        suggested_question: suggestedQuestion || undefined,
       }),
     })
       .then(function (response) { return response.json(); })
@@ -355,6 +383,76 @@
   function resetMessages(container, initialMessage) {
     while (container.firstChild) container.removeChild(container.firstChild);
     appendMessage(container, initialMessage, 'assistant');
+  }
+
+  function createSuggestedQuestions(questions, label, prompt, onSelect) {
+    var group = document.createElement('div');
+    group.className = 'suggested-questions';
+    group.setAttribute('data-suggested-questions', 'true');
+    group.setAttribute('role', 'group');
+    group.setAttribute('aria-label', label);
+
+    var title = document.createElement('p');
+    title.className = 'suggested-questions-title';
+    title.textContent = prompt;
+    group.appendChild(title);
+
+    var actions = document.createElement('div');
+    actions.className = 'suggested-questions-actions';
+    questions.forEach(function (question) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'suggested-question';
+      button.textContent = question.text;
+      button.addEventListener('click', function () { onSelect(question); });
+      actions.appendChild(button);
+    });
+    group.appendChild(actions);
+
+    return group;
+  }
+
+  function removeSuggestedQuestions(container) {
+    var group = container.querySelector('[data-suggested-questions]');
+    if (group) group.remove();
+  }
+
+  function getVisibleSuggestedQuestions(value) {
+    if (!Array.isArray(value)) return [];
+    var visible = [];
+
+    value.forEach(function (question) {
+      if (!question || question.enabled !== true || typeof question.id !== 'string') return;
+      var text = typeof question.text === 'string' ? question.text.trim() : '';
+      if (!text) return;
+      visible.push({
+        id: question.id,
+        text: text,
+        position: visible.length,
+      });
+    });
+
+    return visible.slice(0, 6);
+  }
+
+  function getWidgetLanguage(value, fallbackLanguage) {
+    if (typeof value !== 'string') return fallbackLanguage;
+    var language = value.trim().toLowerCase().split(/[-_]/)[0];
+    return language === 'es' || language === 'ca' || language === 'en'
+      ? language
+      : fallbackLanguage;
+  }
+
+  function getSuggestedQuestionsLabel(language) {
+    if (language === 'ca') return 'Preguntes suggerides';
+    if (language === 'en') return 'Suggested questions';
+    return 'Preguntas sugeridas';
+  }
+
+  function getSuggestedQuestionsPrompt(language) {
+    if (language === 'ca') return 'Pregunta’m sobre...';
+    if (language === 'en') return 'Ask me about...';
+    return 'Pregúntame sobre...';
   }
 
   function createFeedbackControls(messageId, feedbackSessionId) {
@@ -1137,7 +1235,7 @@
         .header-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }\
         .header-button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 999px; padding: 0; background: transparent; color: white; cursor: pointer; line-height: 1; }\
         .header-button:hover { background: rgba(255,255,255,.14); }\
-        .header-button:focus-visible, .feedback-button:focus-visible, .session-feedback-choice:focus-visible, .session-feedback-button:focus-visible, .session-feedback textarea:focus-visible, .powered a:focus-visible { outline: 2px solid ' + primaryColor + '; outline-offset: 2px; }\
+        .header-button:focus-visible, .feedback-button:focus-visible, .suggested-question:focus-visible, .session-feedback-choice:focus-visible, .session-feedback-button:focus-visible, .session-feedback textarea:focus-visible, .powered a:focus-visible { outline: 2px solid ' + primaryColor + '; outline-offset: 2px; }\
         .header-button svg { display: block; width: 21px; height: 21px; fill: none; stroke: currentColor; }\
         .close { font-size: 22px; }\
         .messages { position: relative; padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 11px; background: ' + messagesBackground + '; }\
@@ -1163,6 +1261,11 @@
         .feedback-button svg { display: block; width: 18px; height: 18px; fill: none; stroke: currentColor; }\
         .feedback-button--active[data-rating="positive"] { border-color: rgba(40,167,69,.42); color: #1f9d3a; background: rgba(40,167,69,.08); }\
         .feedback-button--active[data-rating="negative"] { border-color: rgba(220,53,69,.42); color: #dc3545; background: rgba(220,53,69,.08); }\
+        .suggested-questions { align-self: stretch; display: grid; gap: 8px; }\
+        .suggested-questions-title { margin: 2px 2px 0; color: ' + botBubbleColor + '; font: 650 12px/1.3 "Space Grotesk", system-ui; opacity: .68; }\
+        .suggested-questions-actions { display: flex; flex-wrap: wrap; gap: 8px; }\
+        .suggested-question { min-height: 38px; border: 1px solid color-mix(in srgb, ' + primaryColor + ' 45%, rgba(26,26,46,.16)); border-radius: 999px; padding: 8px 12px; background: rgba(255,255,255,.82); color: color-mix(in srgb, ' + primaryColor + ' 82%, #1A1A2E); font: 650 13px/1.25 "Space Grotesk", system-ui; text-align: left; cursor: pointer; }\
+        .suggested-question:hover { background: color-mix(in srgb, ' + primaryColor + ' 9%, #fff); }\
         .session-feedback { display: grid; gap: 12px; width: min(340px, 84%); max-width: 84%; box-sizing: border-box; }\
         .session-feedback-title { color: inherit; font: inherit; font-weight: 700; letter-spacing: 0; white-space: normal; }\
         .session-feedback-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }\

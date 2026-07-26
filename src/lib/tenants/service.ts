@@ -9,6 +9,12 @@ import {
   getInstalledWebCaptureSettingsFromWidgetConfig,
   type InstalledWebCaptureSettings,
 } from '@/lib/knowledge/installed-web-capture-settings'
+import {
+  normalizeSuggestedQuestions,
+  normalizeWidgetLanguage,
+  type SuggestedQuestion,
+  type WidgetLanguage,
+} from '@/lib/widget/suggested-questions'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -34,6 +40,8 @@ export type PublicWidgetConfig = {
   autoOpen: boolean
   autoOpenDelay: number
   proactiveMessage: string
+  fallbackLanguage: WidgetLanguage
+  suggestedQuestions: SuggestedQuestion[]
   installedWebCapture: InstalledWebCaptureSettings
   accessibility: PublicAccessibilityConfig
 }
@@ -93,6 +101,7 @@ export type TenantChatConfig = {
   fallbackEmail: string | null
   fallbackPhone: string | null
   aiSettings: ChatbotAiSettings
+  suggestedQuestions: SuggestedQuestion[]
 }
 
 export type KnowledgeFaqItem = {
@@ -192,7 +201,7 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
     return { ok: false as const, error: 'Trial expired or subscription inactive' }
   }
 
-  const widgetConfig = getWidgetConfig(data.widget_config)
+  const widgetConfig = getWidgetConfig(data.widget_config, data.primary_language)
 
   return {
     ok: true as const,
@@ -218,6 +227,8 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
       autoOpen: widgetConfig.autoOpen,
       autoOpenDelay: widgetConfig.autoOpenDelay,
       proactiveMessage: normalizeProactiveGreeting(widgetConfig.proactiveMessage, data.primary_language, widgetConfig.assistantName),
+      fallbackLanguage: normalizeWidgetLanguage(data.primary_language),
+      suggestedQuestions: widgetConfig.suggestedQuestions,
       installedWebCapture: widgetConfig.installedWebCapture,
       accessibility: widgetConfig.accessibility,
     } satisfies PublicWidgetConfig,
@@ -239,7 +250,7 @@ export async function getTenantChatConfig(admin: AdminClient, tenantId: string) 
     return { ok: false as const, error: 'Trial expired or subscription inactive' }
   }
 
-  const widgetConfig = getWidgetConfig(data.widget_config)
+  const widgetConfig = getWidgetConfig(data.widget_config, data.primary_language)
 
   if (!widgetConfig.enabled) {
     return { ok: false as const, error: 'Chatbot is disabled' }
@@ -257,6 +268,7 @@ export async function getTenantChatConfig(admin: AdminClient, tenantId: string) 
       fallbackEmail: data.fallback_email,
       fallbackPhone: data.fallback_phone,
       aiSettings: widgetConfig.aiSettings,
+      suggestedQuestions: widgetConfig.suggestedQuestions,
     } satisfies TenantChatConfig,
   }
 }
@@ -345,7 +357,7 @@ export async function getTenantRuntimeChatConfig(admin: AdminClient, tenantId: s
   const [theatreResult, knowledgeResult] = await Promise.all([
     admin
       .from('theatres')
-      .select('id, name, system_prompt, fallback_email, fallback_phone, widget_config')
+      .select('id, name, primary_language, system_prompt, fallback_email, fallback_phone, widget_config')
       .eq('id', tenantId)
       .single(),
     admin
@@ -362,7 +374,7 @@ export async function getTenantRuntimeChatConfig(admin: AdminClient, tenantId: s
   }
 
   const data = theatreResult.data
-  const widgetConfig = getWidgetConfig(data.widget_config)
+  const widgetConfig = getWidgetConfig(data.widget_config, data.primary_language)
   const knowledgeItems: KnowledgeFaqItem[] = (knowledgeResult.data ?? []).map((item) => ({
     question: item.question,
     answer: item.answer,
@@ -387,7 +399,7 @@ export async function getTenantRuntimeChatConfig(admin: AdminClient, tenantId: s
   }
 }
 
-function getWidgetConfig(value: unknown) {
+function getWidgetConfig(value: unknown, language: unknown = 'es') {
   if (!value || typeof value !== 'object') {
     return {
       enabled: true,
@@ -407,6 +419,7 @@ function getWidgetConfig(value: unknown) {
       autoOpen: false,
       autoOpenDelay: 3,
       proactiveMessage: undefined,
+      suggestedQuestions: [],
       installedWebCapture: getInstalledWebCaptureSettingsFromWidgetConfig(undefined),
       tone: 'close' as const,
       accessibility: getAccessibilityConfig(undefined, '#000000'),
@@ -443,6 +456,8 @@ function getWidgetConfig(value: unknown) {
     autoOpenDelay?: unknown
     proactiveMessage?: unknown
     proactive_message?: unknown
+    suggestedQuestions?: unknown
+    suggested_questions?: unknown
     tone?: unknown
     accessibility?: unknown
     chatbotAi?: unknown
@@ -470,6 +485,10 @@ function getWidgetConfig(value: unknown) {
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
     proactiveMessage: config.proactiveMessage ?? config.proactive_message,
+    suggestedQuestions: normalizeSuggestedQuestions(
+      config.suggestedQuestions ?? config.suggested_questions,
+      language,
+    ),
     installedWebCapture: getInstalledWebCaptureSettingsFromWidgetConfig(config),
     tone: getChatbotResponseTone(config.tone),
     accessibility: getAccessibilityConfig(config.accessibility, primaryColor),
