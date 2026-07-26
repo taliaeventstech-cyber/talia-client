@@ -4,11 +4,12 @@ import { ChevronDown, FileText, Globe2, LifeBuoy, Link as LinkIcon, RefreshCw, T
 import { useRouter } from 'next/navigation'
 import { useActionState, useState, useTransition, useEffect, useRef } from 'react'
 import type { ReactNode, RefObject } from 'react'
-import { KnowledgeSyncRealtime } from '@/components/knowledge-sync-realtime'
+import { KnowledgeSyncRealtime, type KnowledgeSyncRealtimeLabels } from '@/components/knowledge-sync-realtime'
 import { ToastNotice } from '@/components/ui/toast-notice'
 import type { ManagedWebQuotaUsage } from '@/lib/knowledge/web-source-quotas'
 import { getManagedWebPresentation, type ManagedWebOutcome } from '@/lib/knowledge/managed-web-presentation'
 import type { InstalledWebCaptureSettings } from '@/lib/knowledge/installed-web-capture-settings'
+import { getKnowledgeSyncActivity } from '@/lib/knowledge/sync-activity'
 import { createKnowledgeItem, createManagedWebKnowledgeSource, uploadKnowledgeExcel, uploadKnowledgePdf, updateKnowledgeItem, deleteKnowledgeItem, deleteKnowledgeSource, requestKnowledgeSourceSupport, requestManagedWebSourceSync, retryKnowledgeSourceEmbeddings, updateManagedWebSourceSchedule, updateInstalledWebCaptureSettings, type SettingsFormState, type ExcelUploadState, type PdfUploadState, type InstalledWebCaptureSettingsState, type ManagedWebSourceState } from './actions'
 
 type KnowledgeItem = {
@@ -128,11 +129,19 @@ type KnowledgeFormProps = {
     syncPhaseFetching: string
     syncPhaseChunking: string
     syncPhaseFinishing: string
+    syncPhaseEmbeddings: string
+    syncTrackingLive: string
+    syncTrackingConnecting: string
+    syncTrackingReconnecting: string
+    syncPagesReviewed: string
+    syncFragmentsReady: string
     sourceChanged: string
     sourceIssues: string
     sourceFragments: string
     sourceOutcomeQueued: string
     sourceOutcomeRunning: string
+    sourceOutcomePreparing: string
+    sourceOutcomeEmbeddingError: string
     sourceOutcomeUpdated: string
     sourceOutcomeUnchanged: string
     sourceOutcomePartialDiscovery: string
@@ -143,6 +152,8 @@ type KnowledgeFormProps = {
     sourceOutcomePending: string
     sourceOutcomePaused: string
     sourceRetry: string
+    sourceRetryEmbeddings: string
+    sourceRetryingEmbeddings: string
     sourceUseWidget: string
     sourceResolutionTitle: string
     sourceResolutionPartialDiscovery: string
@@ -161,6 +172,7 @@ type KnowledgeFormProps = {
     sourceQuotaExceeded: string
     sourceStatusQueued: string
     sourceStatusRunning: string
+    sourceStatusPreparing: string
     sourceStatusReady: string
     sourceStatusError: string
     sourceStatusPartial: string
@@ -192,6 +204,7 @@ type KnowledgeFormProps = {
     contentPending: string
     captureSettingsTitle: string
     captureSettingsHelp: string
+    captureIndependentNotice: string
     captureDetectionEnabled: string
     captureDetectionDisabled: string
     captureDisabledKnowledgeAvailable: string
@@ -276,7 +289,22 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
     : false
   const installedWebSources = sources.filter((source) => source.type === 'web_snapshot')
   const managedWebSources = sources.filter((source) => source.type === 'url' || source.type === 'sitemap' || source.type === 'website')
-  const hasActiveManagedRun = managedWebSources.some((source) => ['queued', 'running'].includes(source.latestSyncRun?.status ?? ''))
+  const syncActivity = getKnowledgeSyncActivity(managedWebSources)
+  const realtimeLabels: KnowledgeSyncRealtimeLabels = {
+    stages: {
+      queued: labels.sourceStatusQueued,
+      discovering: labels.syncPhaseDiscovering,
+      fetching: labels.syncPhaseFetching,
+      chunking: labels.syncPhaseChunking,
+      finishing: labels.syncPhaseFinishing,
+      embeddings: labels.syncPhaseEmbeddings,
+    },
+    pagesReviewed: labels.syncPagesReviewed,
+    fragmentsReady: labels.syncFragmentsReady,
+    connected: labels.syncTrackingLive,
+    connecting: labels.syncTrackingConnecting,
+    reconnecting: labels.syncTrackingReconnecting,
+  }
 
   useEffect(() => () => {
     if (highlightStartTimerRef.current) clearTimeout(highlightStartTimerRef.current)
@@ -304,8 +332,8 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
 
   return (
     <>
-      {activeTab === 'installed' && hasActiveManagedRun ? (
-        <KnowledgeSyncRealtime tenantId={tenantId} hasActiveRun />
+      {activeTab === 'installed' && syncActivity ? (
+        <KnowledgeSyncRealtime tenantId={tenantId} activity={syncActivity} labels={realtimeLabels} />
       ) : null}
       {activeTab === 'files' ? (
         <>
@@ -631,6 +659,10 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
               </div>
             </div>
 
+            <p className="notice notice-info knowledge-capture-independent">
+              {labels.captureIndependentNotice}
+            </p>
+
             {captureSettingsState.message ? (
               <ToastNotice
                 key={`${captureSettingsState.message}-${savedInstalledWebCapture.enabled}-${savedInstalledWebCapture.mode}`}
@@ -792,6 +824,7 @@ function ManagedWebSourceRow({
 }) {
   const router = useRouter()
   const [isSyncing, startSync] = useTransition()
+  const [isRetryingEmbeddings, startEmbeddingRetry] = useTransition()
   const [isSavingSchedule, startScheduleSave] = useTransition()
   const [isSendingSupport, startSupport] = useTransition()
   const [refreshInterval, setRefreshInterval] = useState(source.refreshInterval || 'manual')
@@ -808,6 +841,7 @@ function ManagedWebSourceRow({
     syncEnabled: source.syncEnabled,
     sourceStatus: source.status,
     run: source.latestSyncRun,
+    embeddingCounts: source.embeddingCounts,
   })
   const visibleStatus = getManagedOutcomeStatus(presentation.outcome)
 
@@ -826,6 +860,18 @@ function ManagedWebSourceRow({
       const result = await updateManagedWebSourceSchedule(tenantId, source.id, value)
       if (!result.ok) setRefreshInterval(previous)
       setToast({ id: Date.now(), message: result.message, tone: result.ok ? 'success' : 'error' })
+      router.refresh()
+    })
+  }
+
+  function handleEmbeddingRetry() {
+    startEmbeddingRetry(async () => {
+      const result = await retryKnowledgeSourceEmbeddings(tenantId, source.id)
+      setToast({
+        id: Date.now(),
+        message: result.message ?? result.error ?? labels.sourceOutcomeEmbeddingError,
+        tone: result.ok ? 'success' : 'error',
+      })
       router.refresh()
     })
   }
@@ -915,6 +961,15 @@ function ManagedWebSourceRow({
           {source.chunkCount > 0 ? (
             <span className="knowledge-installed-signal">
               {source.chunkCount} {labels.sourceFragments}
+            </span>
+          ) : null}
+          {getEmbeddingTotal(source.embeddingCounts) > 0 ? (
+            <span className={`knowledge-installed-signal ${
+              source.embeddingCounts.ready === getEmbeddingTotal(source.embeddingCounts)
+                ? 'knowledge-installed-signal-ok'
+                : ''
+            }`}>
+              {source.embeddingCounts.ready}/{getEmbeddingTotal(source.embeddingCounts)} {labels.syncFragmentsReady}
             </span>
           ) : null}
         </div>
@@ -1032,6 +1087,17 @@ function ManagedWebSourceRow({
               ? labels.sourceRetry
               : labels.syncNow}
         </button>
+        {presentation.actions.includes('retry_embeddings') ? (
+          <button
+            type="button"
+            className="button-outline button-fit"
+            disabled={isRetryingEmbeddings}
+            onClick={handleEmbeddingRetry}
+          >
+            <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
+            {isRetryingEmbeddings ? labels.sourceRetryingEmbeddings : labels.sourceRetryEmbeddings}
+          </button>
+        ) : null}
         <DeleteKnowledgeSourceButton tenantId={tenantId} sourceId={source.id} sourceName={source.name} />
       </div>
     </article>
@@ -1050,6 +1116,7 @@ function getSyncPhaseLabel(metadata: unknown, labels: KnowledgeFormProps['labels
 
 function getManagedOutcomeStatus(outcome: ManagedWebOutcome) {
   if (outcome === 'queued' || outcome === 'running' || outcome === 'paused' || outcome === 'pending') return outcome
+  if (outcome === 'preparing') return 'processing'
   if (outcome === 'updated' || outcome === 'unchanged') return 'ready'
   if (outcome === 'partial_discovery' || outcome === 'partial_capture') return 'partial'
   return 'error'
@@ -1058,6 +1125,8 @@ function getManagedOutcomeStatus(outcome: ManagedWebOutcome) {
 function getManagedOutcomeDescription(outcome: ManagedWebOutcome, labels: KnowledgeFormProps['labels']) {
   if (outcome === 'queued') return labels.sourceOutcomeQueued
   if (outcome === 'running') return labels.sourceOutcomeRunning
+  if (outcome === 'preparing') return labels.sourceOutcomePreparing
+  if (outcome === 'embedding_error') return labels.sourceOutcomeEmbeddingError
   if (outcome === 'updated') return labels.sourceOutcomeUpdated
   if (outcome === 'unchanged') return labels.sourceOutcomeUnchanged
   if (outcome === 'partial_discovery') return labels.sourceOutcomePartialDiscovery
@@ -1078,11 +1147,16 @@ function getManagedResolutionDescription(outcome: ManagedWebOutcome, labels: Kno
 function getManagedSourceStatusLabel(status: string, labels: KnowledgeFormProps['labels']) {
   if (status === 'paused') return labels.sourceStatusPaused
   if (status === 'queued') return labels.sourceStatusQueued
-  if (status === 'running' || status === 'processing') return labels.sourceStatusRunning
+  if (status === 'running') return labels.sourceStatusRunning
+  if (status === 'processing') return labels.sourceStatusPreparing
   if (status === 'ready') return labels.sourceStatusReady
   if (status === 'error' || status === 'failed') return labels.sourceStatusError
   if (status === 'partial') return labels.sourceStatusPartial
   return labels.sourceStatusPending
+}
+
+function getEmbeddingTotal(counts: KnowledgeSource['embeddingCounts']) {
+  return counts.ready + counts.pending + counts.processing + counts.error
 }
 
 const SPRING = '600ms cubic-bezier(0.16, 1, 0.3, 1)'

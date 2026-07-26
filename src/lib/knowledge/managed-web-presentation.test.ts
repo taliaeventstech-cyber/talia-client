@@ -51,4 +51,32 @@ describe('managed web source presentation', () => {
       run: successfulRun,
     })).toEqual({ outcome: 'paused', tone: 'neutral', actions: [] })
   })
+
+  it('does not call a source updated while its embeddings are still pending', () => {
+    expect(getManagedWebPresentation({
+      syncEnabled: true,
+      sourceStatus: 'ready',
+      run: successfulRun,
+      embeddingCounts: {
+        ready: 4,
+        pending: 3,
+        processing: 1,
+        error: 0,
+      },
+    })).toEqual({ outcome: 'preparing', tone: 'neutral', actions: [] })
+  })
+
+  it('makes embedding failures actionable after a successful crawl', () => {
+    expect(getManagedWebPresentation({
+      syncEnabled: true,
+      sourceStatus: 'ready',
+      run: successfulRun,
+      embeddingCounts: {
+        ready: 4,
+        pending: 0,
+        processing: 0,
+        error: 2,
+      },
+    })).toEqual({ outcome: 'embedding_error', tone: 'danger', actions: ['retry_embeddings'] })
+  })
 })

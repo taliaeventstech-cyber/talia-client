@@ -128,6 +128,10 @@ Pending:
 Implemented:
 
 - Dashboard per venue.
+- Overview includes a compact chatbot-installation card for authorized
+  operators. It reuses the canonical widget snippet generator, supports
+  one-click copy and links to the complete chatbot configuration without
+  claiming that installation was detected when no reliable signal exists.
 - Sidebar with modules visible based on permissions, plan and access.
 - Launch-facing navigation limited to the Web AI Assistant and Accessibility;
   Overview and Knowledge remain as supporting operational areas.
@@ -166,8 +170,13 @@ Implemented:
 - Initial message and brand color.
 - Configurable proactive greeting that appears beside the launcher after a delay
   without opening the chat panel; selecting it starts the conversation.
+- Up to six tenant-scoped suggested questions can be created, activated,
+  deactivated and reordered in Agora. They use the chatbot's configured primary
+  language, appear under a contextual prompt only before the visitor's first
+  message, and follow the normal agent/RAG flow with selection traceability.
 - Interactive, production-sized Agora preview for the launcher, proactive
-  greeting and chat panel; message submission stays disabled in preview mode.
+  greeting, suggested questions and chat panel; message submission stays
+  disabled in preview mode.
 - Auto-growing chat composer in production and preview, with `Enter` to send,
   `Shift + Enter` for line breaks and a bounded internal scroll for long drafts.
 - Channel prompt.
@@ -291,11 +300,21 @@ Implemented:
   latest sync run over the generic source status. Complete, unchanged, partial,
   blocked, quota and failed results have bounded explanations and relevant
   actions without exposing raw worker errors.
+- Agora and Backstage present one shared operational sequence for managed web
+  knowledge: queued, worker phase, embedding preparation and ready. Supabase
+  Realtime invalidates active sync runs, while embedding preparation uses a
+  bounded polling fallback because chunk updates are not exposed through the
+  realtime publication.
+- Installed-widget capture is labelled as an optional, independent ingestion
+  path. Enabling or disabling it does not activate, pause or block managed web
+  sources.
 - Customers can register an idempotent support request from an affected source.
   The request stores tenant/source/run context without page or chunk bodies and
   sends a traceable support email when the application mail provider is
   configured; otherwise it remains pending for operational follow-up.
-- Ingestion via external URLs is outside the main Agora flow for clients; the recommended path is to install the script on the client's own website and capture detected pages.
+- Managed public URLs are the primary Agora web-source flow. Installed-widget
+  capture remains an optional fallback for pages the managed worker cannot read
+  reliably.
 - Structured import per the configuration screen, already connected to RAG for manual FAQs and Excel/CSV.
 
 Product direction:

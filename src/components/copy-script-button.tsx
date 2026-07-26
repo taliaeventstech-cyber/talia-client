@@ -7,10 +7,12 @@ export function CopyScriptButton({
   value,
   label,
   copiedLabel,
+  showLabel = false,
 }: {
   value: string
   label: string
   copiedLabel: string
+  showLabel?: boolean
 }) {
   const [copied, setCopied] = useState(false)
 
@@ -34,15 +36,22 @@ export function CopyScriptButton({
     }
   }
 
+  const visibleLabel = copied ? copiedLabel : label
+
   return (
     <button
       type="button"
-      className={copied ? 'script-copy-button script-copy-button-copied' : 'script-copy-button'}
+      className={[
+        'script-copy-button',
+        copied ? 'script-copy-button-copied' : '',
+        showLabel ? 'script-copy-button-labelled' : '',
+      ].filter(Boolean).join(' ')}
       onClick={handleCopy}
-      aria-label={copied ? copiedLabel : label}
-      title={copied ? copiedLabel : label}
+      aria-label={visibleLabel}
+      title={visibleLabel}
     >
       {copied ? <Check size={16} strokeWidth={2.2} aria-hidden="true" /> : <Copy size={16} strokeWidth={2.2} aria-hidden="true" />}
+      {showLabel ? <span>{visibleLabel}</span> : null}
     </button>
   )
 }

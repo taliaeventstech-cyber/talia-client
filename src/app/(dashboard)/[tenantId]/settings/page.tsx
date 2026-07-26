@@ -7,6 +7,8 @@ import { normalizeWidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { normalizeProactiveGreeting } from '@/lib/widget/proactive-greeting'
 import { isChatbotEnabled } from '@/lib/widget/availability'
 import { getBillingPlan, type BillingPlanKey } from '@/lib/billing/plans'
+import { normalizeSuggestedQuestions } from '@/lib/widget/suggested-questions'
+import { getWidgetEmbedCode } from '@/lib/widget/embed-code'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -74,6 +76,7 @@ export default async function SettingsPage({ params }: Props) {
             autoOpen: widgetConfig.autoOpen,
             autoOpenDelay: widgetConfig.autoOpenDelay,
             proactiveMessage: widgetConfig.proactiveMessage,
+            suggestedQuestions: widgetConfig.suggestedQuestions,
             allowedDomains: widgetConfig.allowedDomains,
             fallbackMessage: aiSettings.fallbackMessage,
             fallbackWhatsApp: aiSettings.fallbackWhatsApp,
@@ -85,7 +88,7 @@ export default async function SettingsPage({ params }: Props) {
             help: dictionary.settings.integrationHelp,
             copyScript: dictionary.settings.copyScript,
             copiedScript: dictionary.settings.copiedScript,
-            embedCode: getEmbedCode(tenantId, theatre.website_url),
+            embedCode: getWidgetEmbedCode({ tenantId, websiteUrl: theatre.website_url }),
             hasScriptAccess,
           }}
         />
@@ -131,6 +134,7 @@ function getWidgetConfig(value: unknown, language: unknown) {
       autoOpen: false,
       autoOpenDelay: 3,
       proactiveMessage: normalizeProactiveGreeting(undefined, language),
+      suggestedQuestions: [],
       allowedDomains: [],
     }
   }
@@ -164,6 +168,8 @@ function getWidgetConfig(value: unknown, language: unknown) {
     autoOpenDelay?: unknown
     proactiveMessage?: unknown
     proactive_message?: unknown
+    suggestedQuestions?: unknown
+    suggested_questions?: unknown
     allowedDomains?: unknown
     allowed_domains?: unknown
   }
@@ -188,6 +194,10 @@ function getWidgetConfig(value: unknown, language: unknown) {
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
     proactiveMessage: normalizeProactiveGreeting(config.proactiveMessage ?? config.proactive_message, language, assistantName),
+    suggestedQuestions: normalizeSuggestedQuestions(
+      config.suggestedQuestions ?? config.suggested_questions,
+      language,
+    ),
     allowedDomains: getAllowedDomains(config.allowedDomains ?? config.allowed_domains),
   }
 }
@@ -226,32 +236,4 @@ function getWidgetPosition(value: unknown) {
   }
 
   return 'bottom-right'
-}
-
-function getEmbedCode(tenantId: string, websiteUrl: string | null) {
-  const appUrl = getAppUrl()
-  const siteOrigin = getSiteOrigin(websiteUrl)
-  const siteOriginAttribute = siteOrigin ? `\n  data-site-origin="${siteOrigin}"` : ''
-
-  return `<script
-  src="${appUrl}/widget.js"
-  crossorigin="anonymous"
-  data-tenant="${tenantId}"
-  data-api-base="${appUrl}"${siteOriginAttribute}
-></script>`
-}
-
-function getSiteOrigin(value: string | null) {
-  if (!value) return null
-  try {
-    return new URL(value).origin
-  } catch {
-    return null
-  }
-}
-
-function getAppUrl() {
-  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
-  return 'http://localhost:3000'
 }

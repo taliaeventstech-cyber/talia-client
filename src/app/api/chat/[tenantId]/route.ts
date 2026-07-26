@@ -18,6 +18,11 @@ import {
   estimateTokenCount,
   recordUsageEvent,
 } from '@/lib/usage/service'
+import {
+  validateSuggestedQuestionSelection,
+  type SuggestedQuestionSelectionInput,
+  type VisibleSuggestedQuestion,
+} from '@/lib/widget/suggested-questions'
 
 type ChatPayload = {
   session_id?: string
@@ -25,6 +30,7 @@ type ChatPayload = {
   message?: string
   page_url?: string
   pageUrl?: string
+  suggested_question?: SuggestedQuestionSelectionInput
 }
 
 type AgentSourceSummary = {
@@ -97,6 +103,14 @@ export async function POST(
     return corsJson({ error: tenant.error }, { status: 404 })
   }
 
+  const suggestedQuestion = validateSuggestedQuestionSelection(
+    tenant.config.suggestedQuestions,
+    payload.suggested_question,
+    message,
+    tenant.config.language,
+  )
+  const suggestedQuestionTrace = getSuggestedQuestionTrace(suggestedQuestion)
+
   const domainSettings = await getTenantWidgetDomainSettings(admin, tenantId)
   if (!domainSettings.ok) {
     return corsJson({ error: domainSettings.error }, { status: 404 })
@@ -150,6 +164,7 @@ export async function POST(
       tenant_fallback_language: tenant.config.language,
       retrieval_status: 'not_run',
       fallback_reason: 'usage_limit_reached',
+      ...suggestedQuestionTrace,
       limit: limit.limit,
       current: limit.current,
     } satisfies Record<string, Json>
@@ -159,7 +174,7 @@ export async function POST(
         tenantId,
         sessionId,
         messages: [
-          { role: 'user', content: message },
+          { role: 'user', content: message, metadata: suggestedQuestionTrace },
           { role: 'assistant', content: fallbackReply, metadata: fallbackMetadata },
         ],
         metadata: fallbackMetadata,
@@ -194,6 +209,7 @@ export async function POST(
     sessionId,
     message,
     phase: 'user_message',
+    metadata: suggestedQuestionTrace,
   })
 
   const shouldDelegateKnowledgeToTaliaAi = isTaliaAiPrimaryProvider()
@@ -239,6 +255,7 @@ export async function POST(
           score: match.score,
         },
       ],
+      ...suggestedQuestionTrace,
     } satisfies Record<string, Json>
 
     const [saveResult] = await Promise.all([
@@ -246,7 +263,7 @@ export async function POST(
         tenantId,
         sessionId,
         messages: [
-          { role: 'user', content: message },
+          { role: 'user', content: message, metadata: suggestedQuestionTrace },
           { role: 'assistant', content: match.answer, metadata: directKnowledgeMetadata },
         ],
         metadata: directKnowledgeMetadata,
@@ -362,13 +379,14 @@ export async function POST(
     retrieval: retrievalTrace,
     pending_clarification: pendingClarification ? serializePendingClarification(pendingClarification) : null,
     agent_metadata: agentMetadata,
+    ...suggestedQuestionTrace,
   } satisfies Record<string, Json>
 
   const saveResult = await saveConversation(admin, {
     tenantId,
     sessionId,
     messages: [
-      { role: 'user', content: message },
+      { role: 'user', content: message, metadata: suggestedQuestionTrace },
       { role: 'assistant', content: safeReply, metadata: assistantTraceMetadata },
     ],
     metadata: assistantTraceMetadata,
@@ -431,6 +449,20 @@ export async function POST(
       metadata: agentMetadata,
     },
   })
+}
+
+function getSuggestedQuestionTrace(
+  selection: VisibleSuggestedQuestion | null,
+): Record<string, Json> {
+  if (!selection) return {}
+
+  return {
+    suggested_question: {
+      id: selection.id,
+      position: selection.position,
+      language: selection.language,
+    },
+  }
 }
 
 function normalizePageUrl(value: unknown) {
@@ -575,6 +607,7 @@ async function recordChatbotUsage(
         metadata: {
           session_id: input.sessionId,
           role: 'user',
+          ...(input.metadata ?? {}),
         },
       }),
     ])

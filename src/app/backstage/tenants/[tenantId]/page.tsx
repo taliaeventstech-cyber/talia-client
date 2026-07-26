@@ -12,6 +12,7 @@ import { EditClientForm } from './edit-client-form'
 import { BackstageManagedWebSyncToggle, BackstageReindexTenantKnowledgeButton, BackstageReprocessSourceButton, BackstageRetryEmbeddingsButton } from './knowledge-source-actions'
 import { KnowledgeWebAlerts } from '../../knowledge-web-alerts'
 import { KnowledgeSyncRealtime } from '@/components/knowledge-sync-realtime'
+import { getKnowledgeSyncActivity } from '@/lib/knowledge/sync-activity'
 import { BackstagePageSizeSelect } from '../../backstage-page-size-select'
 import { SubscriptionCancellationPanel } from './subscription-cancellation-panel'
 import { VenueDetailsPanel } from './venue-details-panel'
@@ -84,14 +85,13 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
     }),
     admin
       .from('knowledge_sources')
-      .select('id, name, type, status, config')
+      .select('id, name, type, status, config, sync_enabled')
       .eq('theatre_id', tenantId),
     admin
       .from('knowledge_sync_runs')
-      .select('id')
+      .select('source_id, status, discovered_count, checked_count, metadata')
       .eq('theatre_id', tenantId)
-      .in('status', ['queued', 'running'])
-      .limit(1),
+      .in('status', ['queued', 'running']),
     getManagedWebQuotaUsage(admin, tenantId),
     getKnowledgeWebOperationalAlerts(admin, { tenantId }),
     admin
@@ -187,7 +187,36 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
   const chunkStatsBySource = getChunkStatsBySource(knowledgeChunks ?? [])
   const documentCountsBySource = getDocumentCountsBySource(knowledgeDocuments ?? [])
   const latestSyncRunBySource = getLatestSyncRunBySource(knowledgeSyncRuns ?? [])
-  const hasActiveKnowledgeSync = (activeKnowledgeSyncResult.data ?? []).length > 0
+  const activeSyncRunBySource = new Map(
+    (activeKnowledgeSyncResult.data ?? []).map((run) => [run.source_id, run]),
+  )
+  const knowledgeSyncActivity = getKnowledgeSyncActivity(
+    (knowledgeSourceSummaries ?? [])
+      .filter((source) => isManagedWebSource(source.type))
+      .map((source) => {
+        const stats = chunkStatsBySource.get(source.id) ?? createEmptyChunkStats()
+        const activeRun = activeSyncRunBySource.get(source.id)
+        const hasPendingEmbeddings = source.status === 'ready' && stats.pending + stats.processing > 0
+        return {
+          name: getKnowledgeSourceName(source),
+          syncEnabled: source.sync_enabled,
+          latestSyncRun: activeRun ?? (hasPendingEmbeddings
+            ? {
+              status: 'succeeded',
+              discovered_count: 0,
+              checked_count: 0,
+              metadata: {},
+            }
+            : null),
+          embeddingCounts: {
+            ready: stats.ready,
+            pending: stats.pending,
+            processing: stats.processing,
+            error: stats.error,
+          },
+        }
+      }),
+  )
   const knowledgeSourceNameById = new Map((knowledgeSourceSummaries ?? []).map((source) => [source.id, getKnowledgeSourceName(source)]))
   const knowledgeSourceTypeOptions = getKnowledgeSourceTypeOptions(knowledgeSourceSummaries ?? [])
   const ragHealth = getRagHealth(knowledgeSourceSummaries ?? [], chunkStatsBySource)
@@ -540,7 +569,9 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
             <h2>Fuentes procesadas</h2>
           </div>
           <div className="section-heading-actions">
-            {hasActiveKnowledgeSync ? <KnowledgeSyncRealtime tenantId={tenantId} hasActiveRun /> : null}
+            {knowledgeSyncActivity ? (
+              <KnowledgeSyncRealtime tenantId={tenantId} activity={knowledgeSyncActivity} />
+            ) : null}
             <KnowledgeSourceTypeFilter options={knowledgeSourceTypeOptions} value={sourceTypeFilter ?? 'all'} />
           </div>
         </div>
@@ -596,7 +627,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                       <div className="knowledge-file-title-statuses">
                         {isManagedWebSource(source.type) ? (
                           <span className={`knowledge-file-status ${source.sync_enabled ? 'knowledge-file-status-ready' : 'knowledge-file-status-paused'}`}>
-                            {source.sync_enabled ? 'Sync activa' : 'Sync pausada'}
+                            {source.sync_enabled ? 'Fuente habilitada' : 'Fuente pausada'}
                           </span>
                         ) : null}
                         <span className={`knowledge-file-status knowledge-file-status-${source.status}`}>
@@ -620,7 +651,11 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                     </div>
                     {latestSyncRun ? (
                       <div className="knowledge-installed-signals" aria-label="Última sincronización web">
-                        <span className="knowledge-installed-signal">{syncPresentation.statusLabel}</span>
+                        <span className="knowledge-installed-signal">
+                          {latestSyncRun.status === 'succeeded' && stats.pending + stats.processing > 0
+                            ? 'Preparando conocimiento'
+                            : syncPresentation.statusLabel}
+                        </span>
                         {latestSyncRun.status === 'running' ? (
                           <span className="knowledge-installed-signal knowledge-installed-signal-ok">
                             {getBackstageSyncPhase(latestSyncRun.metadata)}
