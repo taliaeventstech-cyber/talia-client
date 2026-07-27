@@ -187,6 +187,10 @@ Implemented:
   disabled in preview mode.
 - Auto-growing chat composer in production and preview, with `Enter` to send,
   `Shift + Enter` for line breaks and a bounded internal scroll for long drafts.
+- Per-response feedback uses a localized TALIA micro-survey with compact
+  Yes/No chips instead of generic thumbs-up/down icon buttons.
+- The widget host, chrome, composer and dynamic messages opt out of automatic
+  browser translation so translated host pages cannot rewrite TALIA content.
 - Public widget service errors are rendered as localized retry messages instead
   of exposing internal error codes to visitors.
 - Channel prompt.

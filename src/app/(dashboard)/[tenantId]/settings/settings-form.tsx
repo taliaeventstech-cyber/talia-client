@@ -10,7 +10,7 @@ import { updateTenantSettings, type SettingsFormState } from './actions'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry } from '@/lib/phone/international'
 import Image from 'next/image'
-import { ArrowDown, ArrowUp, ArrowUpRight, Bot, ChevronLeft, MessageCircle, MessageCircleMore, Plus, RefreshCcw, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpRight, Bot, ChevronLeft, MessageCircle, MessageCircleMore, Plus, RefreshCcw, Trash2 } from 'lucide-react'
 import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import {
   getVisibleSuggestedQuestions,
@@ -1195,6 +1195,7 @@ function WidgetPreview({
     widgetConfig.fallbackLanguage,
     widgetConfig.pageUrl,
   )
+  const responseFeedbackCopy = getPreviewResponseFeedbackCopy(widgetConfig.fallbackLanguage)
 
   const filter = `blur(${widgetConfig.glassBlur}px) saturate(200%) brightness(${skin.bright})`
 
@@ -1280,13 +1281,19 @@ function WidgetPreview({
           <p className="widget-preview-message" style={botBubbleStyle}>
             {widgetConfig.initialMessage}
           </p>
-          <div className="widget-preview-feedback" aria-label="Valorar respuesta">
-            <button type="button" className="widget-preview-feedback-button" aria-label="Respuesta útil" title="Respuesta útil" aria-disabled="true">
-              <ThumbsUp aria-hidden="true" strokeWidth={2} />
-            </button>
-            <button type="button" className="widget-preview-feedback-button" aria-label="Respuesta no útil" title="Respuesta no útil" aria-disabled="true">
-              <ThumbsDown aria-hidden="true" strokeWidth={2} />
-            </button>
+          <div
+            className="widget-preview-feedback"
+            aria-label={responseFeedbackCopy.groupLabel}
+          >
+            <span>{responseFeedbackCopy.prompt}</span>
+            <div>
+              <button type="button" className="widget-preview-feedback-button" aria-label={responseFeedbackCopy.positiveLabel} title={responseFeedbackCopy.positiveLabel} aria-disabled="true">
+                {responseFeedbackCopy.positive}
+              </button>
+              <button type="button" className="widget-preview-feedback-button" aria-label={responseFeedbackCopy.negativeLabel} title={responseFeedbackCopy.negativeLabel} aria-disabled="true">
+                {responseFeedbackCopy.negative}
+              </button>
+            </div>
           </div>
           {!selectedSuggestedQuestion && !sessionFeedbackOpen && visibleSuggestedQuestions.length > 0 ? (
             <div
@@ -1330,7 +1337,6 @@ function WidgetPreview({
                   data-value="yes"
                   onClick={() => setSessionFeedbackResolved(true)}
                 >
-                  <ThumbsUp aria-hidden="true" strokeWidth={2} />
                   <span>Sí</span>
                 </button>
                 <button
@@ -1339,7 +1345,6 @@ function WidgetPreview({
                   data-value="no"
                   onClick={() => setSessionFeedbackResolved(false)}
                 >
-                  <ThumbsDown aria-hidden="true" strokeWidth={2} />
                   <span>No</span>
                 </button>
               </div>
@@ -1513,6 +1518,37 @@ function getPreviewWidgetSize(size: 'small' | 'medium' | 'large') {
   if (size === 'small') return 56
   if (size === 'large') return 72
   return 64
+}
+
+function getPreviewResponseFeedbackCopy(language: string) {
+  if (language === 'ca') {
+    return {
+      groupLabel: 'Valorar la resposta',
+      prompt: 'T’ha ajudat?',
+      positive: 'Sí',
+      positiveLabel: 'La resposta m’ha ajudat',
+      negative: 'No',
+      negativeLabel: 'La resposta no m’ha ajudat',
+    }
+  }
+  if (language === 'en') {
+    return {
+      groupLabel: 'Rate this answer',
+      prompt: 'Was this helpful?',
+      positive: 'Yes',
+      positiveLabel: 'This answer was helpful',
+      negative: 'No',
+      negativeLabel: 'This answer was not helpful',
+    }
+  }
+  return {
+    groupLabel: 'Valorar la respuesta',
+    prompt: '¿Te ha ayudado?',
+    positive: 'Sí',
+    positiveLabel: 'La respuesta me ha ayudado',
+    negative: 'No',
+    negativeLabel: 'La respuesta no me ha ayudado',
+  }
 }
 
 function getPreviewPosition(position: string, blockOffset: number, inlineOffset: number) {

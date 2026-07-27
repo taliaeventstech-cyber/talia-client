@@ -52,6 +52,8 @@
     var suggestedQuestions = getVisibleSuggestedQuestions(config.suggestedQuestions, getCurrentPageUrl());
     var host = document.createElement('div');
     host.id = 'talia-widget-root';
+    host.classList.add('notranslate');
+    host.setAttribute('translate', 'no');
     document.body.appendChild(host);
     registerFloatingWidget(host, 'chatbot', position, {
       widgetSize: widgetSize,
@@ -197,8 +199,8 @@
       prompt.innerHTML = '\
         <strong class="session-feedback-title">Antes de empezar de nuevo, ¿he resuelto tu consulta?</strong>\
         <div class="session-feedback-choices">\
-          <button class="session-feedback-choice" data-session-feedback-choice data-value="yes" type="button">' + getThumbsUpIcon() + '<span>Sí</span></button>\
-          <button class="session-feedback-choice" data-session-feedback-choice data-value="no" type="button">' + getThumbsDownIcon() + '<span>No</span></button>\
+          <button class="session-feedback-choice" data-session-feedback-choice data-value="yes" type="button"><span>Sí</span></button>\
+          <button class="session-feedback-choice" data-session-feedback-choice data-value="no" type="button"><span>No</span></button>\
         </div>\
         <textarea data-session-feedback-comments maxlength="1000" placeholder="Añade comentarios adicionales..."></textarea>\
         <div class="session-feedback-actions">\
@@ -361,7 +363,8 @@
           false,
           data.actions,
           data.assistant_message_id || data.assistantMessageId,
-          requestSessionId
+          requestSessionId,
+          fallbackLanguage
         );
       })
       .catch(function () {
@@ -371,9 +374,10 @@
       });
   }
 
-  function appendMessage(container, text, role, typing, actions, messageId, feedbackSessionId) {
+  function appendMessage(container, text, role, typing, actions, messageId, feedbackSessionId, feedbackLanguage) {
     var item = document.createElement('div');
-    item.className = 'message ' + role;
+    item.className = 'message notranslate ' + role;
+    item.setAttribute('translate', 'no');
     if (typing) item.setAttribute('data-typing', 'true');
     if (typing) {
       item.setAttribute('aria-label', 'TALIA está escribiendo');
@@ -383,7 +387,7 @@
     }
     container.appendChild(item);
     if (role === 'assistant' && !typing && messageId) {
-      container.appendChild(createFeedbackControls(messageId, feedbackSessionId || sessionId));
+      container.appendChild(createFeedbackControls(messageId, feedbackSessionId || sessionId, feedbackLanguage));
     }
     container.scrollTop = container.scrollHeight;
   }
@@ -520,30 +524,68 @@
     return 'Pregúntame sobre...';
   }
 
-  function createFeedbackControls(messageId, feedbackSessionId) {
+  function createFeedbackControls(messageId, feedbackSessionId, language) {
+    var copy = getResponseFeedbackCopy(language);
     var wrapper = document.createElement('div');
     wrapper.className = 'feedback';
-    wrapper.setAttribute('aria-label', 'Valorar respuesta');
+    wrapper.setAttribute('aria-label', copy.groupLabel);
 
-    var positive = createFeedbackButton(messageId, feedbackSessionId, 'positive', 'Respuesta útil', getThumbsUpIcon());
-    var negative = createFeedbackButton(messageId, feedbackSessionId, 'negative', 'Respuesta no útil', getThumbsDownIcon());
-    wrapper.appendChild(positive);
-    wrapper.appendChild(negative);
+    var prompt = document.createElement('span');
+    prompt.className = 'feedback-prompt';
+    prompt.textContent = copy.prompt;
+    wrapper.appendChild(prompt);
+
+    var actions = document.createElement('span');
+    actions.className = 'feedback-actions';
+    actions.appendChild(createFeedbackButton(messageId, feedbackSessionId, 'positive', copy.positiveLabel, copy.positive));
+    actions.appendChild(createFeedbackButton(messageId, feedbackSessionId, 'negative', copy.negativeLabel, copy.negative));
+    wrapper.appendChild(actions);
     return wrapper;
   }
 
-  function createFeedbackButton(messageId, feedbackSessionId, rating, label, icon) {
+  function createFeedbackButton(messageId, feedbackSessionId, rating, label, text) {
     var button = document.createElement('button');
     button.type = 'button';
     button.className = 'feedback-button';
     button.setAttribute('aria-label', label);
     button.setAttribute('title', label);
     button.setAttribute('data-rating', rating);
-    button.innerHTML = icon;
+    button.textContent = text;
     button.addEventListener('click', function () {
       submitFeedback(messageId, feedbackSessionId, rating, button);
     });
     return button;
+  }
+
+  function getResponseFeedbackCopy(language) {
+    if (language === 'ca') {
+      return {
+        groupLabel: 'Valorar la resposta',
+        prompt: 'T’ha ajudat?',
+        positive: 'Sí',
+        positiveLabel: 'La resposta m’ha ajudat',
+        negative: 'No',
+        negativeLabel: 'La resposta no m’ha ajudat'
+      };
+    }
+    if (language === 'en') {
+      return {
+        groupLabel: 'Rate this answer',
+        prompt: 'Was this helpful?',
+        positive: 'Yes',
+        positiveLabel: 'This answer was helpful',
+        negative: 'No',
+        negativeLabel: 'This answer was not helpful'
+      };
+    }
+    return {
+      groupLabel: 'Valorar la respuesta',
+      prompt: '¿Te ha ayudado?',
+      positive: 'Sí',
+      positiveLabel: 'La respuesta me ha ayudado',
+      negative: 'No',
+      negativeLabel: 'La respuesta no me ha ayudado'
+    };
   }
 
   function submitFeedback(messageId, feedbackSessionId, rating, button) {
@@ -1330,13 +1372,14 @@
         @keyframes taliaTypingBounce { 0%, 70%, 100% { opacity: .38; transform: translateY(0); } 35% { opacity: .95; transform: translateY(-4px); } }\
         .assistant { align-self: flex-start; border-top-left-radius: 4px; background: ' + botBubbleBackground + '; color: ' + botBubbleColor + '; box-shadow: 0 1px 2px rgba(0,0,0,.06); }\
         .user { align-self: flex-end; border-bottom-right-radius: 4px; background: ' + primaryColor + '; color: white; }\
-        .feedback { align-self: flex-start; display: flex; gap: 8px; margin: -5px 0 1px 4px; }\
-        .feedback-button { display: grid; width: 34px; height: 34px; place-items: center; border: .5px solid rgba(26,26,46,.18); border-radius: 8px; padding: 0; background: rgba(255,255,255,.72); color: rgba(26,26,46,.62); cursor: pointer; transition: border-color 150ms ease, color 150ms ease, background 150ms ease; }\
-        .feedback-button:hover { border-color: rgba(26,26,46,.34); color: rgba(26,26,46,.9); background: #fff; }\
-        .feedback-button:disabled { cursor: default; }\
-        .feedback-button svg { display: block; width: 18px; height: 18px; fill: none; stroke: currentColor; }\
-        .feedback-button--active[data-rating="positive"] { border-color: rgba(40,167,69,.42); color: #1f9d3a; background: rgba(40,167,69,.08); }\
-        .feedback-button--active[data-rating="negative"] { border-color: rgba(220,53,69,.42); color: #dc3545; background: rgba(220,53,69,.08); }\
+        .feedback { align-self: flex-start; display: inline-flex; min-height: 30px; align-items: center; gap: 7px; margin: -5px 0 1px 4px; border: .5px solid rgba(26,26,46,.13); border-radius: 999px; padding: 3px 4px 3px 10px; background: rgba(255,255,255,.58); color: rgba(26,26,46,.58); box-shadow: 0 1px 2px rgba(26,26,46,.04); }\
+        .feedback-prompt { font: 600 11px/1.2 "Space Grotesk", system-ui; white-space: nowrap; }\
+        .feedback-actions { display: inline-flex; align-items: center; gap: 2px; }\
+        .feedback-button { min-width: 34px; height: 24px; border: 0; border-radius: 999px; padding: 0 9px; background: transparent; color: rgba(26,26,46,.72); font: 700 11px/1 "Space Grotesk", system-ui; cursor: pointer; transition: color 150ms ease, background 150ms ease, box-shadow 150ms ease, opacity 150ms ease; }\
+        .feedback-button:hover { color: color-mix(in srgb, ' + primaryColor + ' 82%, #1A1A2E); background: color-mix(in srgb, ' + primaryColor + ' 10%, transparent); }\
+        .feedback-button:disabled { cursor: default; opacity: .48; }\
+        .feedback-button--active:disabled { opacity: 1; }\
+        .feedback-button--active { color: white; background: ' + primaryColor + '; box-shadow: 0 2px 7px color-mix(in srgb, ' + primaryColor + ' 28%, transparent); }\
         .suggested-questions { align-self: stretch; display: grid; gap: 8px; }\
         .suggested-questions-title { margin: 2px 2px 0; color: ' + botBubbleColor + '; font: 650 12px/1.3 "Space Grotesk", system-ui; opacity: .68; }\
         .suggested-questions-actions { display: flex; flex-wrap: wrap; gap: 8px; }\
@@ -1346,7 +1389,6 @@
         .session-feedback-title { color: inherit; font: inherit; font-weight: 700; letter-spacing: 0; white-space: normal; }\
         .session-feedback-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }\
         .session-feedback-choice { display: inline-flex; min-width: 0; height: 42px; align-items: center; justify-content: center; gap: 7px; border: 1px solid rgba(17,24,39,.14); border-radius: 8px; background: #fff; color: #374151; font: 700 14px/1 "Space Grotesk", system-ui; cursor: pointer; }\
-        .session-feedback-choice svg { width: 18px; height: 18px; fill: none; stroke: currentColor; }\
         .session-feedback-choice[data-value="yes"] { color: #2dae1f; }\
         .session-feedback-choice[data-value="no"] { color: #e02424; }\
         .session-feedback-choice--active[data-value="yes"] { border-color: rgba(45,174,31,.45); background: rgba(45,174,31,.08); }\
@@ -1367,17 +1409,17 @@
         @media (prefers-reduced-motion: reduce) { .panel, .welcome { transition: opacity 120ms ease; } .toggle { transition: none; } .typing-dots span { animation: none; opacity: .62; } }\
         ' + reducedTransparencyFallback + '\
       </style>\
-      <aside class="welcome" data-welcome aria-hidden="true" aria-label="Saludo del asistente">\
+      <aside class="welcome notranslate" data-welcome translate="no" aria-hidden="true" aria-label="Saludo del asistente">\
         <button class="welcome-action" data-welcome-action type="button">\
           <span class="welcome-brand"><span class="welcome-mark">' + launcherIconMarkup + '</span><strong class="welcome-name">' + escapeHtml(assistantName) + '</strong></span>\
           <span class="welcome-message">' + escapeHtml(proactiveMessage) + '</span>\
         </button>\
         <button class="welcome-close" data-welcome-close type="button" aria-label="Cerrar">×</button>\
       </aside>\
-      <section class="panel" data-panel>\
+      <section class="panel notranslate" data-panel translate="no">\
         <div class="header"><span class="header-brand"><span class="header-mark">' + launcherIconMarkup + '</span><span class="header-name">' + escapeHtml(assistantName) + '</span></span><div class="header-actions"><button class="header-button" data-restart type="button" aria-label="Volver a comenzar" title="Volver a comenzar">' + getRestartIcon() + '</button><button class="header-button close" data-close type="button" aria-label="Cerrar">×</button></div></div>\
-        <div class="messages" data-messages><div class="message assistant">' + escapeHtml(initialMessage) + '</div></div>\
-        <form class="form" data-form><textarea class="input" data-input rows="1" placeholder="Escribe tu mensaje..." autocomplete="off"></textarea><button class="send" type="submit">Enviar</button></form>\
+        <div class="messages notranslate" data-messages translate="no"><div class="message notranslate assistant" translate="no">' + escapeHtml(initialMessage) + '</div></div>\
+        <form class="form notranslate" data-form translate="no"><textarea class="input notranslate" data-input translate="no" rows="1" placeholder="Escribe tu mensaje..." autocomplete="off"></textarea><button class="send notranslate" translate="no" type="submit">Enviar</button></form>\
         <div class="powered"><a href="https://talia.events" target="_blank" rel="noopener noreferrer">Powered by TALIA</a></div>\
       </section>\
       <button class="toggle" data-toggle aria-label="Abrir asistente virtual">\
@@ -1403,14 +1445,6 @@
 
   function getRestartIcon() {
     return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v6h6"></path></svg>';
-  }
-
-  function getThumbsUpIcon() {
-    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v11"></path><path d="M15 5.9 14 10h5.8a2 2 0 0 1 2 2.4l-1.4 6.5a2 2 0 0 1-2 1.6H7"></path><path d="M7 10l3.2-6.4A2 2 0 0 1 12 2.5a2 2 0 0 1 2 2v1.4"></path><path d="M3 10h4v11H3z"></path></svg>';
-  }
-
-  function getThumbsDownIcon() {
-    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14V3"></path><path d="M15 18.1 14 14h5.8a2 2 0 0 0 2-2.4L20.4 5a2 2 0 0 0-2-1.6H7"></path><path d="M7 14l3.2 6.4a2 2 0 0 0 1.8 1.1 2 2 0 0 0 2-2v-1.4"></path><path d="M3 3h4v11H3z"></path></svg>';
   }
 
   function createSessionId() {

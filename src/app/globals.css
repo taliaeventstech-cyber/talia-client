@@ -9789,28 +9789,45 @@ textarea {
 }
 
 .widget-preview-feedback {
-  display: flex;
+  display: inline-flex;
+  min-height: 30px;
   align-self: flex-start;
-  gap: 8px;
+  align-items: center;
+  gap: 7px;
   margin: -5px 0 1px 4px;
+  border: 1px solid rgba(26, 26, 46, 0.13);
+  border-radius: 999px;
+  padding: 3px 4px 3px 10px;
+  background: rgba(255, 255, 255, 0.58);
+  color: rgba(26, 26, 46, 0.58);
+  box-shadow: 0 1px 2px rgba(26, 26, 46, 0.04);
+}
+
+.widget-preview-feedback > span {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.widget-preview-feedback > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .widget-preview-feedback-button {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border: 1px solid rgba(26, 26, 46, 0.18);
-  border-radius: 8px;
-  padding: 0;
-  background: rgba(255, 255, 255, 0.72);
-  color: rgba(26, 26, 46, 0.62);
+  min-width: 34px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 9px;
+  background: transparent;
+  color: rgba(26, 26, 46, 0.72);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
   cursor: default;
-}
-
-.widget-preview-feedback-button svg {
-  width: 18px;
-  height: 18px;
 }
 
 .widget-preview-suggested-questions {
@@ -9896,11 +9913,6 @@ textarea {
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-}
-
-.widget-preview-session-feedback-choice svg {
-  width: 18px;
-  height: 18px;
 }
 
 .widget-preview-session-feedback-choice[data-value="yes"] {
