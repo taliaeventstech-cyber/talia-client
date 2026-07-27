@@ -2,6 +2,8 @@ export type ManagedWebOutcome =
   | 'paused'
   | 'queued'
   | 'running'
+  | 'preparing'
+  | 'embedding_error'
   | 'updated'
   | 'unchanged'
   | 'partial_discovery'
@@ -11,7 +13,7 @@ export type ManagedWebOutcome =
   | 'failed'
   | 'pending'
 
-export type ManagedWebAction = 'retry' | 'support' | 'widget'
+export type ManagedWebAction = 'retry' | 'retry_embeddings' | 'support' | 'widget'
 
 export type ManagedWebRunSummary = {
   status: string
@@ -21,6 +23,13 @@ export type ManagedWebRunSummary = {
   failed_count: number
   blocked_count: number
   error_code: string | null
+}
+
+type ManagedWebEmbeddingCounts = {
+  ready: number
+  pending: number
+  processing: number
+  error: number
 }
 
 export type ManagedWebPresentation = {
@@ -33,6 +42,7 @@ export function getManagedWebPresentation(input: {
   syncEnabled: boolean
   sourceStatus: string
   run: ManagedWebRunSummary | null
+  embeddingCounts?: ManagedWebEmbeddingCounts
 }): ManagedWebPresentation {
   if (!input.syncEnabled) return presentation('paused', 'neutral', [])
 
@@ -59,6 +69,12 @@ export function getManagedWebPresentation(input: {
   }
 
   if (run?.status === 'succeeded') {
+    if ((input.embeddingCounts?.pending ?? 0) + (input.embeddingCounts?.processing ?? 0) > 0) {
+      return presentation('preparing', 'neutral', [])
+    }
+    if ((input.embeddingCounts?.error ?? 0) > 0) {
+      return presentation('embedding_error', 'danger', ['retry_embeddings'])
+    }
     return run.changed_count > 0
       ? presentation('updated', 'success', [])
       : presentation('unchanged', 'success', [])

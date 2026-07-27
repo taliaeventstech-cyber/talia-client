@@ -1,10 +1,18 @@
 'use client'
 
-import { startTransition, useActionState, useState } from 'react'
-import { ArrowLeft, ArrowRight, Bot, Check, Database, MessageSquare, Palette } from 'lucide-react'
+import { startTransition, useActionState, useMemo, useState, useTransition } from 'react'
+import { ArrowLeft, ArrowRight, Bot, Check, Database, Link2, MessageSquare, Palette } from 'lucide-react'
 import Link from 'next/link'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
-import { saveChatbotSetup, type ChatbotSetupState } from './actions'
+import {
+  getChatbotOnboardingSourceUrlIssue,
+  normalizeChatbotOnboardingSourceUrl,
+} from '@/lib/knowledge/chatbot-onboarding-source'
+import {
+  saveChatbotSetup,
+  saveChatbotWebsiteSource,
+  type ChatbotSetupState,
+} from './actions'
 
 type Step = 0 | 1 | 2
 type Tone = 'close' | 'formal' | 'brief'
@@ -15,7 +23,13 @@ type InitialValues = {
   primaryColor: string
   tone: Tone
   fallbackBehavior: FallbackBehavior
+  sourceUrl: string
   systemPrompt: string
+}
+
+type WebsiteSourceState = {
+  status: 'idle' | 'created' | 'existing' | 'error'
+  sourceUrl: string
 }
 
 export type ChatbotSetupFormCopy = Omit<Dictionary['chatbotSetup'], 'title' | 'stepLabel'> & {
@@ -31,21 +45,46 @@ export function ChatbotSetupForm({
   copy,
   tenantId,
   skipHref,
+  showWebsiteSource,
+  initialSourceConfigured,
   initialValues,
 }: {
   copy: ChatbotSetupFormCopy
   tenantId: string
   skipHref?: string | null
+  showWebsiteSource: boolean
+  initialSourceConfigured: boolean
   initialValues: InitialValues
 }) {
-  const [state, action, pending] = useActionState(saveChatbotSetup.bind(null, tenantId), initialState)
+  const [state, action, setupPending] = useActionState(saveChatbotSetup.bind(null, tenantId), initialState)
+  const [sourcePending, startSourceTransition] = useTransition()
   const [step, setStep] = useState<Step>(0)
   const [values, setValues] = useState(initialValues)
+  const [sourceState, setSourceState] = useState<WebsiteSourceState>({
+    status: initialSourceConfigured ? 'existing' : 'idle',
+    sourceUrl: initialSourceConfigured
+      ? normalizeChatbotOnboardingSourceUrl(initialValues.sourceUrl)
+      : '',
+  })
   const [previewOpen, setPreviewOpen] = useState(true)
-  const canContinue = isStepValid(step, values)
+  const normalizedSourceUrl = useMemo(
+    () => normalizeChatbotOnboardingSourceUrl(values.sourceUrl),
+    [values.sourceUrl],
+  )
+  const sourceUrlIssue = showWebsiteSource
+    ? getChatbotOnboardingSourceUrlIssue(values.sourceUrl)
+    : null
+  const sourceUrlError = sourceUrlIssue
+    ? copy.knowledge.sourceErrors[sourceUrlIssue]
+    : ''
+  const pending = setupPending || sourcePending
+  const canContinue = isStepValid(step, values, sourceUrlError)
 
   function update<K extends keyof InitialValues>(key: K, value: InitialValues[K]) {
     setValues((current) => ({ ...current, [key]: value }))
+    if (key === 'sourceUrl') {
+      setSourceState({ status: 'idle', sourceUrl: '' })
+    }
   }
 
   function next() {
@@ -61,8 +100,34 @@ export function ChatbotSetupForm({
 
     if (!canContinue) return
 
-    if (step < 2) {
+    if (step === 0) {
       next()
+      return
+    }
+
+    if (step === 1) {
+      if (
+        !showWebsiteSource
+        || !normalizedSourceUrl
+        || (
+          (sourceState.status === 'created' || sourceState.status === 'existing')
+          && sourceState.sourceUrl === normalizedSourceUrl
+        )
+      ) {
+        next()
+        return
+      }
+
+      startSourceTransition(async () => {
+        const result = await saveChatbotWebsiteSource(tenantId, normalizedSourceUrl)
+        if (!result.ok) {
+          setSourceState({ status: 'error', sourceUrl: normalizedSourceUrl })
+          return
+        }
+
+        setSourceState({ status: result.status, sourceUrl: normalizedSourceUrl })
+        next()
+      })
       return
     }
 
@@ -91,6 +156,28 @@ export function ChatbotSetupForm({
         </p>
       ) : null}
 
+      {step > 0 && showWebsiteSource && (sourcePending || sourceState.status !== 'idle') ? (
+        <p
+          className={`notice ${
+            sourceState.status === 'error'
+              ? 'notice-error'
+              : sourcePending
+                ? 'notice-info'
+                : 'notice-success'
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {sourcePending
+            ? copy.knowledge.sourceSaving
+            : sourceState.status === 'created'
+              ? copy.knowledge.sourceCreated
+              : sourceState.status === 'existing'
+                ? copy.knowledge.sourceExisting
+                : copy.knowledge.sourceError}
+        </p>
+      ) : null}
+
       <div className="chatbot-setup-grid">
         <section className="chatbot-setup-main">
           {step === 0 ? <BasicStep copy={copy} values={values} update={update} /> : null}
@@ -99,6 +186,9 @@ export function ChatbotSetupForm({
               copy={copy}
               values={values}
               update={update}
+              showWebsiteSource={showWebsiteSource}
+              sourceUrlError={sourceUrlError}
+              sourcePending={sourcePending}
             />
           ) : null}
           {step === 2 ? <WidgetStep copy={copy} values={values} update={update} /> : null}
@@ -267,10 +357,16 @@ function KnowledgeStep({
   copy,
   values,
   update,
+  showWebsiteSource,
+  sourceUrlError,
+  sourcePending,
 }: {
   copy: ChatbotSetupFormCopy
   values: InitialValues
   update: <K extends keyof InitialValues>(key: K, value: InitialValues[K]) => void
+  showWebsiteSource: boolean
+  sourceUrlError: string
+  sourcePending: boolean
 }) {
   const knowledge = copy.knowledge
   return (
@@ -279,6 +375,41 @@ function KnowledgeStep({
       <p className="section-label">{copy.stepLabels[1]}</p>
       <h2>{knowledge.title}</h2>
       <p className="muted">{knowledge.description}</p>
+
+      {showWebsiteSource ? (
+        <label className="field">
+          {knowledge.sourceLabel}
+          <div className="chatbot-setup-url-row">
+            <Link2 size={18} strokeWidth={2} aria-hidden="true" />
+            <input
+              value={values.sourceUrl}
+              onChange={(event) => update('sourceUrl', event.target.value)}
+              type="text"
+              inputMode="url"
+              autoComplete="url"
+              placeholder={knowledge.sourcePlaceholder}
+              aria-invalid={Boolean(sourceUrlError)}
+              aria-describedby={sourceUrlError ? 'chatbot-source-url-error' : 'chatbot-source-url-hint'}
+              disabled={sourcePending}
+            />
+          </div>
+          {sourceUrlError ? (
+            <span className="field-error" id="chatbot-source-url-error">{sourceUrlError}</span>
+          ) : (
+            <span className="field-hint" id="chatbot-source-url-hint">{knowledge.sourceHint}</span>
+          )}
+          {values.sourceUrl ? (
+            <button
+              className="button-link button-fit"
+              type="button"
+              onClick={() => update('sourceUrl', '')}
+              disabled={sourcePending}
+            >
+              {knowledge.sourceLater}
+            </button>
+          ) : null}
+        </label>
+      ) : null}
 
       <label className="field">
         {knowledge.promptLabel}
@@ -409,8 +540,8 @@ function ChoiceButton({
   )
 }
 
-function isStepValid(step: Step, values: InitialValues) {
+function isStepValid(step: Step, values: InitialValues, sourceUrlError: string) {
   if (step === 0) return values.initialMessage.trim().length > 0
-  if (step === 1) return true
+  if (step === 1) return !sourceUrlError
   return /^#[0-9a-fA-F]{6}$/.test(values.primaryColor)
 }

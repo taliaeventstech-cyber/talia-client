@@ -1,12 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireTenantPermission } from '@/lib/auth/tenant-access'
-import { isTenantModuleEnabled } from '@/lib/auth/permissions'
+import { hasTenantPermission, isTenantModuleEnabled } from '@/lib/auth/permissions'
 import { classifyConversationTopic } from '@/lib/analytics/topics'
 import { isChatbotSetupCompleted } from '@/lib/chatbot/setup-status'
 import { getDictionary, getLocale, getTopicLabel } from '@/lib/i18n/dictionaries'
 import { getActiveSubscription, getChatbotBillableMessagesForPeriod } from '@/lib/usage/service'
-import { Bot, CheckCircle2, Database, Mail, MessagesSquare, Plus } from 'lucide-react'
+import { getWidgetEmbedCode } from '@/lib/widget/embed-code'
+import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
+import { CopyScriptButton } from '@/components/copy-script-button'
+import { Bot, CheckCircle2, Code2, Database, Mail, MessagesSquare, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
@@ -23,6 +26,8 @@ export default async function OverviewPage({ params }: Props) {
   const access = await requireTenantPermission(tenantId, 'view_overview')
   const hasEmailModule = isTenantModuleEnabled(access.modules.email)
   const hasInstagramModule = isTenantModuleEnabled(access.modules.instagram)
+  const canManageChatbot = isTenantModuleEnabled(access.modules.chatbot)
+    && hasTenantPermission(access.role, 'manage_chatbot')
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -35,6 +40,9 @@ export default async function OverviewPage({ params }: Props) {
     { data: recentConversations },
     { count: totalConversations },
     { count: totalMessages },
+    { count: totalAssistantResponses },
+    { count: positiveResponses },
+    { count: negativeResponses },
     { data: topics },
     { count: knowledgeItems },
     { count: knowledgeSources },
@@ -46,7 +54,7 @@ export default async function OverviewPage({ params }: Props) {
   ] = await Promise.all([
       admin
         .from('theatres')
-        .select('name, n8n_webhook_url, widget_config, system_prompt, fallback_email, fallback_phone, onboarding_completed')
+        .select('name, website_url, n8n_webhook_url, widget_config, system_prompt, fallback_email, fallback_phone, onboarding_completed')
         .eq('id', tenantId)
         .single(),
       admin
@@ -63,6 +71,23 @@ export default async function OverviewPage({ params }: Props) {
         .from('messages')
         .select('*', { count: 'exact', head: true })
         .eq('theatre_id', tenantId),
+      admin
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('theatre_id', tenantId)
+        .eq('role', 'assistant'),
+      admin
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('theatre_id', tenantId)
+        .eq('role', 'assistant')
+        .contains('metadata', { feedback: { rating: 'positive' } }),
+      admin
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('theatre_id', tenantId)
+        .eq('role', 'assistant')
+        .contains('metadata', { feedback: { rating: 'negative' } }),
       admin
         .from('conversation_topics')
         .select('topic, user_message, created_at')
@@ -123,6 +148,11 @@ export default async function OverviewPage({ params }: Props) {
   const chatLimitReached = chatLimit > 0 && chatUsed >= chatLimit
   const chatLimitNearing = chatLimit > 0 && !chatLimitReached && chatUsed / chatLimit >= 0.8
   const topTopics = getTopTopics(topics ?? [], 5)
+  const feedbackMetrics = getResponseFeedbackMetrics({
+    positiveCount: positiveResponses ?? 0,
+    negativeCount: negativeResponses ?? 0,
+    totalCount: totalAssistantResponses ?? 0,
+  })
   const latestTopics = (topics ?? [])
     .filter((item) => item.user_message)
     .slice(0, 4)
@@ -132,6 +162,12 @@ export default async function OverviewPage({ params }: Props) {
   const isChatbotConfigured = isChatbotSetupCompleted({
     widgetConfig: theatre?.widget_config,
   })
+  const hasScriptAccess = canManageChatbot
+    && access.billingAccess.hasProductAccess
+    && isChatbotConfigured
+  const embedCode = theatre
+    ? getWidgetEmbedCode({ tenantId, websiteUrl: theatre.website_url })
+    : null
   const chatbotHref = isChatbotConfigured
     ? `/${tenantId}/settings`
     : `/${tenantId}/chatbot/setup`
@@ -179,6 +215,10 @@ export default async function OverviewPage({ params }: Props) {
             <SummaryMetric label={copy.kpis.conversations} value={totalConversations ?? 0} />
             <SummaryMetric label={copy.kpis.messages} value={totalMessages ?? 0} />
             <SummaryMetric label={copy.kpis.faqs} value={knowledgeItems ?? 0} />
+            <SummaryMetric
+              label={copy.kpis.satisfaction(feedbackMetrics.ratedCount)}
+              value={feedbackMetrics.accuracyPercent === null ? '—' : `${feedbackMetrics.accuracyPercent}%`}
+            />
           </div>
         </div>
       </header>
@@ -237,6 +277,16 @@ export default async function OverviewPage({ params }: Props) {
           ) : null}
         </div>
       </section>
+
+      {canManageChatbot && embedCode ? (
+        <ChatbotInstallationCard
+          copy={copy.installation}
+          embedCode={embedCode}
+          hasScriptAccess={hasScriptAccess}
+          settingsHref={chatbotHref}
+          websiteUrl={getWebsiteUrl(theatre?.website_url)}
+        />
+      ) : null}
 
       <div className="overview-two-column">
         <section className="card stack">
@@ -367,6 +417,21 @@ function getVisitorEmail(metadata: unknown) {
   return typeof email === 'string' && email ? email : null
 }
 
+function compactSnippet(value: string) {
+  return value.replace(/\s+/g, ' ').trim()
+}
+
+function getWebsiteUrl(value: string | null | undefined) {
+  if (!value) return null
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+    return url.toString().replace(/\/$/, '')
+  } catch {
+    return null
+  }
+}
+
 function getTopTopics(topics: { topic: string | null; user_message: string | null }[], limit: number) {
   const counts = new Map<string, number>()
   topics.forEach(({ topic, user_message }) => {
@@ -397,12 +462,82 @@ function TopicBar({ topic, count, max }: { topic: string; count: number; max: nu
   )
 }
 
-function SummaryMetric({ label, value }: { label: string; value: number }) {
+function SummaryMetric({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="summary-metric">
       <span className="summary-metric-value">{value}</span>
       <span className="summary-metric-label">{label}</span>
     </div>
+  )
+}
+
+function ChatbotInstallationCard({
+  copy,
+  embedCode,
+  hasScriptAccess,
+  settingsHref,
+  websiteUrl,
+}: {
+  copy: {
+    section: string
+    title: string
+    description: string
+    pending: string
+    copy: string
+    copied: string
+    settings: string
+    setup: string
+  }
+  embedCode: string
+  hasScriptAccess: boolean
+  settingsHref: string
+  websiteUrl: string | null
+}) {
+  return (
+    <section className="card overview-install-card">
+      <div className="overview-install-copy">
+        <div>
+          <p className="eyebrow">{copy.section}</p>
+          <div className="overview-install-title">
+            <Code2 className="section-icon" size={20} strokeWidth={2} aria-hidden="true" />
+            <h2>{copy.title}</h2>
+          </div>
+        </div>
+        <p className="muted">{hasScriptAccess ? copy.description : copy.pending}</p>
+        {hasScriptAccess && websiteUrl ? (
+          <a
+            className="overview-install-target"
+            href={websiteUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {websiteUrl}
+          </a>
+        ) : null}
+      </div>
+
+      {hasScriptAccess ? (
+        <div className="overview-install-snippet">
+          <div className="overview-install-code" aria-label={copy.title}>
+            <code>{compactSnippet(embedCode)}</code>
+          </div>
+          <div className="overview-install-actions">
+            <CopyScriptButton
+              value={embedCode}
+              label={copy.copy}
+              copiedLabel={copy.copied}
+              showLabel
+            />
+            <Link className="button-outline button-fit" href={settingsHref}>{copy.settings}</Link>
+          </div>
+        </div>
+      ) : (
+        <div className="overview-install-pending">
+          <span className="status-pill status-pill-soon">{copy.pending}</span>
+          <Link className="button-primary button-fit" href={settingsHref}>{copy.setup}</Link>
+        </div>
+      )}
+    </section>
   )
 }
 

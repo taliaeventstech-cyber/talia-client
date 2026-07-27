@@ -9,14 +9,18 @@ import { ChevronLeft, ChevronRight, FileText, LayoutDashboard, LifeBuoy } from '
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { EditClientForm } from './edit-client-form'
-import { BackstageManagedWebSyncToggle, BackstageReindexTenantKnowledgeButton, BackstageReprocessSourceButton, BackstageRetryEmbeddingsButton } from './knowledge-source-actions'
+import { BackstageDeleteKnowledgeSourceButton, BackstageManagedWebSyncToggle, BackstageReindexTenantKnowledgeButton, BackstageReprocessSourceButton, BackstageRetryEmbeddingsButton } from './knowledge-source-actions'
 import { KnowledgeWebAlerts } from '../../knowledge-web-alerts'
 import { KnowledgeSyncRealtime } from '@/components/knowledge-sync-realtime'
+import { getKnowledgeSyncActivity } from '@/lib/knowledge/sync-activity'
 import { BackstagePageSizeSelect } from '../../backstage-page-size-select'
 import { SubscriptionCancellationPanel } from './subscription-cancellation-panel'
 import { VenueDetailsPanel } from './venue-details-panel'
 import { VenueTabs, type VenueTabKey } from './venue-tabs'
 import { KnowledgeSourceTypeFilter } from './knowledge-source-type-filter'
+import { buildResponseTraceExport, buildResponseTraceFilename } from '@/lib/knowledge/response-trace-export'
+import { ResponseTraceDownloadButton } from './response-trace-download-button'
+import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -45,7 +49,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
   const sourceTypeFilter = normalizeKnowledgeSourceTypeFilter(query?.source_type)
   const sourceFrom = (sourcePage - 1) * sourcePageSize
   const admin = createAdminClient()
-  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, usageResult, traceMessagesResult, knowledgeSourcesResult, { data: knowledgeSourceSummaries }, activeKnowledgeSyncResult, managedWebQuota, webAlerts, { data: knowledgeSupportRequests }] = await Promise.all([
+  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, usageResult, traceMessagesResult, positiveFeedbackCountResult, negativeFeedbackCountResult, knowledgeSourcesResult, { data: knowledgeSourceSummaries }, activeKnowledgeSyncResult, managedWebQuota, webAlerts, { data: knowledgeSupportRequests }] = await Promise.all([
     admin
       .from('theatres')
       .select('id, account_id, name, slug, entity_type, primary_language, plan, website_url, fallback_email, fallback_phone, n8n_webhook_url, system_prompt, widget_config, voice_phone_number, voice_phone_provider, voice_phone_mode, voice_public_phone_number, voice_forwarding_notes, voice_operational_status')
@@ -76,6 +80,18 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
       .eq('role', 'assistant')
       .order('created_at', { ascending: false })
       .range(traceFrom, traceFrom + tracePageSize - 1),
+    admin
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('theatre_id', tenantId)
+      .eq('role', 'assistant')
+      .contains('metadata', { feedback: { rating: 'positive' } }),
+    admin
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('theatre_id', tenantId)
+      .eq('role', 'assistant')
+      .contains('metadata', { feedback: { rating: 'negative' } }),
     getKnowledgeSourcesPage(admin, {
       tenantId,
       sourceType: sourceTypeFilter,
@@ -84,14 +100,13 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
     }),
     admin
       .from('knowledge_sources')
-      .select('id, name, type, status, config')
+      .select('id, name, type, status, config, sync_enabled')
       .eq('theatre_id', tenantId),
     admin
       .from('knowledge_sync_runs')
-      .select('id')
+      .select('source_id, status, discovered_count, checked_count, metadata')
       .eq('theatre_id', tenantId)
-      .in('status', ['queued', 'running'])
-      .limit(1),
+      .in('status', ['queued', 'running']),
     getManagedWebQuotaUsage(admin, tenantId),
     getKnowledgeWebOperationalAlerts(admin, { tenantId }),
     admin
@@ -106,6 +121,11 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
 
   const traceMessages = traceMessagesResult.data ?? []
   const traceCount = traceMessagesResult.count ?? 0
+  const responseFeedbackMetrics = getResponseFeedbackMetrics({
+    positiveCount: positiveFeedbackCountResult.count ?? 0,
+    negativeCount: negativeFeedbackCountResult.count ?? 0,
+    totalCount: traceCount,
+  })
   const tracePageCount = Math.max(1, Math.ceil(traceCount / tracePageSize))
   if (activeTab === 'traceability' && tracePage > tracePageCount) {
     redirect(`/backstage/tenants/${tenantId}?tab=traceability&page=${tracePageCount}&page_size=${tracePageSize}`)
@@ -187,7 +207,36 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
   const chunkStatsBySource = getChunkStatsBySource(knowledgeChunks ?? [])
   const documentCountsBySource = getDocumentCountsBySource(knowledgeDocuments ?? [])
   const latestSyncRunBySource = getLatestSyncRunBySource(knowledgeSyncRuns ?? [])
-  const hasActiveKnowledgeSync = (activeKnowledgeSyncResult.data ?? []).length > 0
+  const activeSyncRunBySource = new Map(
+    (activeKnowledgeSyncResult.data ?? []).map((run) => [run.source_id, run]),
+  )
+  const knowledgeSyncActivity = getKnowledgeSyncActivity(
+    (knowledgeSourceSummaries ?? [])
+      .filter((source) => isManagedWebSource(source.type))
+      .map((source) => {
+        const stats = chunkStatsBySource.get(source.id) ?? createEmptyChunkStats()
+        const activeRun = activeSyncRunBySource.get(source.id)
+        const hasPendingEmbeddings = source.status === 'ready' && stats.pending + stats.processing > 0
+        return {
+          name: getKnowledgeSourceName(source),
+          syncEnabled: source.sync_enabled,
+          latestSyncRun: activeRun ?? (hasPendingEmbeddings
+            ? {
+              status: 'succeeded',
+              discovered_count: 0,
+              checked_count: 0,
+              metadata: {},
+            }
+            : null),
+          embeddingCounts: {
+            ready: stats.ready,
+            pending: stats.pending,
+            processing: stats.processing,
+            error: stats.error,
+          },
+        }
+      }),
+  )
   const knowledgeSourceNameById = new Map((knowledgeSourceSummaries ?? []).map((source) => [source.id, getKnowledgeSourceName(source)]))
   const knowledgeSourceTypeOptions = getKnowledgeSourceTypeOptions(knowledgeSourceSummaries ?? [])
   const ragHealth = getRagHealth(knowledgeSourceSummaries ?? [], chunkStatsBySource)
@@ -346,6 +395,27 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
 
         <p className="muted traceability-summary-caption">Resumen de las respuestas visibles en esta página.</p>
 
+        <div className="rag-feedback-accuracy-card" aria-label="Accuracy de respuestas según valoraciones">
+          <div>
+            <span>Accuracy según valoraciones</span>
+            <strong>
+              {responseFeedbackMetrics.accuracyPercent === null
+                ? 'Sin datos'
+                : `${responseFeedbackMetrics.accuracyPercent}%`}
+            </strong>
+          </div>
+          <div className="rag-feedback-accuracy-meta">
+            <p>
+              <strong>{responseFeedbackMetrics.positiveCount}</strong> útiles de{' '}
+              <strong>{responseFeedbackMetrics.ratedCount}</strong> respuestas valoradas
+            </p>
+            <span>
+              Cobertura de valoración: {responseFeedbackMetrics.coveragePercent}% ·{' '}
+              {responseFeedbackMetrics.ratedCount} de {responseFeedbackMetrics.totalCount}
+            </span>
+          </div>
+        </div>
+
         <div className="rag-trace-summary-grid" aria-label="Resumen de trazabilidad RAG">
           <div className="rag-trace-summary-card rag-trace-summary-card-ok">
             <span>Con fuentes</span>
@@ -423,10 +493,61 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                 sources,
                 retrievalChunks,
               })
+              const traceExport = buildResponseTraceExport({
+                venue: {
+                  id: tenantId,
+                  name: client.name,
+                },
+                response: {
+                  message_id: message.id,
+                  conversation_id: message.conversation_id,
+                  created_at: message.created_at,
+                  question: userMessage,
+                  answer: message.content,
+                },
+                provider: {
+                  requested: requestedProvider,
+                  used: provider,
+                  model,
+                },
+                language: {
+                  response_language: language,
+                  agent: languageTrace,
+                },
+                retrieval: {
+                  status: retrievalStatus,
+                  low_confidence: lowConfidence,
+                  fallback_reason: fallbackReason,
+                  sources: sources.map((source) => ({
+                    ...source,
+                    name: source.source_id
+                      ? getKnowledgeSourceName(sourceById.get(source.source_id) ?? {
+                        name: source.source_type ?? 'Fuente',
+                        config: {},
+                      })
+                      : source.source_type,
+                  })),
+                  chunks: retrievalChunks.map((chunk) => ({
+                    ...chunk,
+                    source_name: chunk.source_id
+                      ? getKnowledgeSourceName(sourceById.get(chunk.source_id) ?? {
+                        name: chunk.source_type ?? 'Fuente',
+                        config: {},
+                      })
+                      : chunk.source_type,
+                  })),
+                  context_assembly: contextAssembly,
+                },
+                feedback: {
+                  response: responseFeedback,
+                  session: sessionFeedback,
+                },
+                metadata: message.metadata ?? {},
+              })
 
               return (
                 <tbody className={`traceability-table-group traceability-table-group-${traceSummary.tone}`} key={message.id}>
-                  <tr>
+                  <tr className="traceability-entry-header">
                     <td><span className={`rag-trace-state rag-trace-state-${traceSummary.tone}`}>{traceSummary.label}</span></td>
                     <td>
                       <strong className="traceability-question">
@@ -454,9 +575,17 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                   </tr>
                   <tr className="traceability-detail-row">
                     <td colSpan={5}>
-                      <details className="rag-trace-details traceability-details">
-                        <summary>Ver respuesta y detalle RAG</summary>
-                        <div className="rag-trace-detail-body">
+                      <div className="traceability-detail-shell">
+                        <div className="traceability-export-row">
+                          <span>Acciones de esta respuesta</span>
+                          <ResponseTraceDownloadButton
+                            filename={buildResponseTraceFilename(message.created_at, message.id)}
+                            trace={traceExport}
+                          />
+                        </div>
+                        <details className="rag-trace-details traceability-details">
+                          <summary>Ver respuesta y detalle RAG</summary>
+                          <div className="rag-trace-detail-body">
                           <div className="rag-trace-answer traceability-answer">
                             <span>Respuesta</span>
                             <p>{message.content}</p>
@@ -509,8 +638,9 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                               {isNoSourcesStatus(retrievalStatus) ? <span>Sin fuentes usadas</span> : null}
                             </div>
                           ) : null}
-                        </div>
-                      </details>
+                          </div>
+                        </details>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -540,7 +670,9 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
             <h2>Fuentes procesadas</h2>
           </div>
           <div className="section-heading-actions">
-            {hasActiveKnowledgeSync ? <KnowledgeSyncRealtime tenantId={tenantId} hasActiveRun /> : null}
+            {knowledgeSyncActivity ? (
+              <KnowledgeSyncRealtime tenantId={tenantId} activity={knowledgeSyncActivity} />
+            ) : null}
             <KnowledgeSourceTypeFilter options={knowledgeSourceTypeOptions} value={sourceTypeFilter ?? 'all'} />
           </div>
         </div>
@@ -596,7 +728,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                       <div className="knowledge-file-title-statuses">
                         {isManagedWebSource(source.type) ? (
                           <span className={`knowledge-file-status ${source.sync_enabled ? 'knowledge-file-status-ready' : 'knowledge-file-status-paused'}`}>
-                            {source.sync_enabled ? 'Sync activa' : 'Sync pausada'}
+                            {source.sync_enabled ? 'Fuente habilitada' : 'Fuente pausada'}
                           </span>
                         ) : null}
                         <span className={`knowledge-file-status knowledge-file-status-${source.status}`}>
@@ -620,7 +752,11 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                     </div>
                     {latestSyncRun ? (
                       <div className="knowledge-installed-signals" aria-label="Última sincronización web">
-                        <span className="knowledge-installed-signal">{syncPresentation.statusLabel}</span>
+                        <span className="knowledge-installed-signal">
+                          {latestSyncRun.status === 'succeeded' && stats.pending + stats.processing > 0
+                            ? 'Preparando conocimiento'
+                            : syncPresentation.statusLabel}
+                        </span>
                         {latestSyncRun.status === 'running' ? (
                           <span className="knowledge-installed-signal knowledge-installed-signal-ok">
                             {getBackstageSyncPhase(latestSyncRun.metadata)}
@@ -666,6 +802,11 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                     {canReprocessKnowledgeSourceFromBackstage(source.type) && (!isManagedWebSource(source.type) || source.sync_enabled) ? (
                       <BackstageReprocessSourceButton tenantId={tenantId} sourceId={source.id} sourceType={source.type} />
                     ) : null}
+                    <BackstageDeleteKnowledgeSourceButton
+                      tenantId={tenantId}
+                      sourceId={source.id}
+                      sourceName={fileName}
+                    />
                   </div>
                 </article>
               )

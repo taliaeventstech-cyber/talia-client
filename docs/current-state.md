@@ -113,7 +113,9 @@ Implemented:
 - Chatbot-specific wizard after client onboarding.
 - Agora sidebar hidden while the initial wizard is pending.
 - Language selector and day/night mode also available in this wizard.
-- Configuration of initial message, tone, first knowledge source, color and fallback.
+- Configuration of initial message, tone, first managed web source from the
+  venue URL, color and fallback. The source reuses the Knowledge managed-web
+  flow and remains subject to its rollout controls, quotas and permissions.
 - Upon completion, the user returns to Agora.
 
 Pending:
@@ -126,6 +128,10 @@ Pending:
 Implemented:
 
 - Dashboard per venue.
+- Overview includes a compact chatbot-installation card for authorized
+  operators. It reuses the canonical widget snippet generator, supports
+  one-click copy and links to the complete chatbot configuration without
+  claiming that installation was detected when no reliable signal exists.
 - Sidebar with modules visible based on permissions, plan and access.
 - Launch-facing navigation limited to the Web AI Assistant and Accessibility;
   Overview and Knowledge remain as supporting operational areas.
@@ -164,8 +170,19 @@ Implemented:
 - Initial message and brand color.
 - Configurable proactive greeting that appears beside the launcher after a delay
   without opening the chat panel; selecting it starts the conversation.
+- Up to 24 tenant-scoped suggested questions can be created, activated,
+  deactivated and reordered in Agora, with at most six visible at once. They use
+  the chatbot's configured primary language and can remain general or target up
+  to five page rules by exact hostname, path prefix or exact public URL.
+  Contextual matches are shown first and remaining slots are filled with
+  general questions without duplicate text. The configuration preview can
+  simulate a public page URL, while the installed widget recalculates the
+  suggestions on SPA navigation. Selections follow the normal agent/RAG flow
+  and persist whether they were contextual or general plus the server-validated
+  matching rule.
 - Interactive, production-sized Agora preview for the launcher, proactive
-  greeting and chat panel; message submission stays disabled in preview mode.
+  greeting, suggested questions and chat panel; message submission stays
+  disabled in preview mode.
 - Auto-growing chat composer in production and preview, with `Enter` to send,
   `Shift + Enter` for line breaks and a bounded internal scroll for long drafts.
 - Channel prompt.
@@ -182,13 +199,15 @@ Implemented:
 - Persisted conversations and messages.
 - Basic analytics of topics and intents.
 - Usage tied to billing/limits.
-- Internal chat runtime in `src/lib/agent-runtime/chat.ts`, with n8n encapsulated as a temporary adapter.
-- Selectable `talia-ai` provider via `CHAT_AGENT_PROVIDER=talia-ai`, with temporary fallback to n8n on 5xx errors.
-- When `CHAT_AGENT_PROVIDER=talia-ai`, Next acts as a gateway: it validates tenant, limits and session, and delegates retrieval + response to `/v1/chat/respond`.
-- In that delegated flow, `talia-ai` is the sole authority for visitor-language
+- Internal chat runtime in `src/lib/agent-runtime/chat.ts`, with `talia-ai` as
+  the sole provider for new web-chat responses.
+- Next acts as a gateway: it validates tenant, limits and session, and delegates
+  retrieval + response to `/v1/chat/respond`. A `talia-ai` failure remains
+  visible and never falls back to n8n.
+- `talia-ai` is the sole authority for visitor-language
   detection and response-language selection. Next sends the tenant language as
-  `fallback_language`, requires `metadata.response_language` in successful
-  responses and keeps local language detection only for the legacy n8n path.
+  `fallback_language` and requires `metadata.response_language` in successful
+  responses.
 - Agent runtime responses save compact sources (`id`, `source_id`, `source_type`, `score`) in the assistant message metadata, legacy conversation metadata, and usage for auditing.
 - `talia-ai` reports measured usage separately for the Answer Agent, optional
   Language Agent and retrieval embedding. `talia-client` persists each
@@ -198,13 +217,30 @@ Implemented:
   model and component. It updates when the view is loaded instead of polling in
   the background. Legacy heuristic estimates remain visibly separate.
 - Backstage shows RAG health per venue, response traceability, original question, requested/used provider, model, language, retrieval status, low-confidence/fallback warnings, sources, scores, chunks retrieved from `talia-ai`, and internal actions to reprocess PDFs or retry embeddings.
+- Response traceability reports venue-wide feedback accuracy as useful responses
+  divided by all positively or negatively rated responses, together with rating
+  coverage so small or biased samples remain visible.
+- Agora exposes the same venue-wide signal to customers as response satisfaction:
+  a compact percentage appears in Overview, while Analytics includes
+  helpful/unhelpful counts, total ratings and coverage in Spanish, Catalan and
+  English.
+- Every successful web-assistant turn persists a message-linked, idempotent
+  analytics event from `talia-ai` with versioned topic, visitor intent,
+  classification confidence and source. Deterministic runtime classification
+  covers model-free paths, and the additive migration backfills historical
+  assistant messages that were not analyzed after the n8n-to-`talia-ai`
+  migration.
+- Each Backstage response trace can be downloaded as a versioned JSON file with
+  the question, answer, provider, language decision, retrieval sources/chunks,
+  feedback and persisted trace metadata for support and debugging without
+  screenshots.
 
 Pending:
 
 - Validate in production that `metadata.retrieval.chunks` appears in Backstage after deploying `talia-ai`.
 - Consolidate knowledge as the primary source ahead of free-form prompts.
 - Improve integrated preview/test.
-- Stabilize `/v1/chat/respond` in the external `talia-ai` repo to reduce dependency on n8n.
+- Validate `/v1/chat/respond` and its analytics contract under production load.
 
 Reference:
 
@@ -243,17 +279,27 @@ Implemented:
 - Knowledge base shared per venue.
 - FAQs/official answers.
 - PDF import with text extraction and knowledge fragments.
-- Manual FAQs and Excel/CSV are saved as `knowledge_items` for UI/fallback, but are reindexed as `knowledge_chunks` via `talia-ai`.
+- Manual FAQs and Excel/CSV are saved as `knowledge_items` and also maintain
+  item-level embeddings. Their rendered aggregate chunks remain available
+  during backfill but the unified retrieval functions avoid returning duplicate
+  structured evidence once the item-level representation is ready.
 - Agora currently exposes Web, Files and FAQs as knowledge-source tabs. Apps and
   Spreadsheets remain implemented but hidden, including from direct tab URLs,
   until their product reliability is audited.
 - `knowledge_chunks` table for documentary fragments prepared for retrieval and embeddings.
 - Internal ingestion seam in `src/lib/knowledge/ingestion.ts`, which uploads PDFs to Storage and delegates parsing/chunking to `talia-ai`; for structured sources it normalizes text and delegates chunking/embeddings to `talia-ai`.
 - Internal retrieval seam in `src/lib/knowledge/retrieval.ts`.
-- Embeddings delegated to `talia-ai` via server-to-server HTTP; Next does not generate embeddings locally.
-- Semantic retrieval delegated to `talia-ai`; in the main chatbot flow with `CHAT_AGENT_PROVIDER=talia-ai`, retrieval happens inside `/v1/chat/respond`.
+- Embeddings for documentary chunks and curated FAQs are delegated to `talia-ai`
+  via server-to-server HTTP; Next does not generate embeddings locally.
+- Semantic retrieval and indexed full-text retrieval over the complete active
+  tenant corpus are delegated to `talia-ai`; in the main chatbot flow with
+  retrieval happens inside `/v1/chat/respond`.
 - Reprocessable PDFs from Storage: Backstage can ask `talia-ai` to regenerate chunks and embeddings without re-uploading the file.
 - Backstage allows reindexing all of a venue's knowledge and reprocessing individual RAG sources.
+- Backstage can delete an individual processed source after explicit
+  confirmation. The deletion is tenant-scoped, removes its structured items and
+  cascaded chunks/documents/sync history, cleans up stored files when applicable
+  and records the platform-admin action for audit.
 - Local text-only fallback in Next over chunks/items.
 - Installed-web detection is opt-in per venue and defaults to disabled. Agora
   offers a manual mode, which exposes the explicit capture actions, and an
@@ -289,11 +335,21 @@ Implemented:
   latest sync run over the generic source status. Complete, unchanged, partial,
   blocked, quota and failed results have bounded explanations and relevant
   actions without exposing raw worker errors.
+- Agora and Backstage present one shared operational sequence for managed web
+  knowledge: queued, worker phase, embedding preparation and ready. Supabase
+  Realtime invalidates active sync runs, while embedding preparation uses a
+  bounded polling fallback because chunk updates are not exposed through the
+  realtime publication.
+- Installed-widget capture is labelled as an optional, independent ingestion
+  path. Enabling or disabling it does not activate, pause or block managed web
+  sources.
 - Customers can register an idempotent support request from an affected source.
   The request stores tenant/source/run context without page or chunk bodies and
   sends a traceable support email when the application mail provider is
   configured; otherwise it remains pending for operational follow-up.
-- Ingestion via external URLs is outside the main Agora flow for clients; the recommended path is to install the script on the client's own website and capture detected pages.
+- Managed public URLs are the primary Agora web-source flow. Installed-widget
+  capture remains an optional fallback for pages the managed worker cannot read
+  reliably.
 - Structured import per the configuration screen, already connected to RAG for manual FAQs and Excel/CSV.
 
 Product direction:
@@ -478,7 +534,8 @@ Active debt:
 
 - Separate editable prompts from technical prompts.
 - Create a separate `talia-ai` repo following `docs/architecture/talia-ai-service.md`.
-- Reduce the remaining n8n dependency in chat; email no longer uses it at runtime.
+- Remove dormant legacy n8n configuration and webhook routes after the
+  production rollback window closes.
 - Consolidate roadmap docs so there are no parallel sources.
 - Complete advanced roles and permissions.
 - Complete observability and reporting.

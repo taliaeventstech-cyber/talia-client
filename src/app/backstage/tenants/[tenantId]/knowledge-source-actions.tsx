@@ -1,10 +1,10 @@
 'use client'
 
 import { ToastNotice } from '@/components/ui/toast-notice'
-import { CirclePause, CirclePlay, RefreshCw } from 'lucide-react'
+import { CirclePause, CirclePlay, RefreshCw, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
-import { reindexBackstageTenantKnowledge, reprocessBackstageKnowledgeSource, retryBackstageKnowledgeSourceEmbeddings, setBackstageManagedWebSyncEnabled } from './actions'
+import { deleteBackstageKnowledgeSource, reindexBackstageTenantKnowledge, reprocessBackstageKnowledgeSource, retryBackstageKnowledgeSourceEmbeddings, setBackstageManagedWebSyncEnabled } from './actions'
 
 type ToastState = {
   id: number
@@ -162,13 +162,81 @@ export function BackstageManagedWebSyncToggle({
         className="knowledge-retry-button"
         onClick={handleToggle}
         disabled={isPending}
-        aria-label={enabled ? 'Pausar sincronización web' : 'Reactivar sincronización web'}
+        aria-label={enabled ? 'Pausar fuente web' : 'Habilitar fuente web'}
       >
         {enabled
           ? <CirclePause size={13} strokeWidth={2.2} aria-hidden="true" />
           : <CirclePlay size={13} strokeWidth={2.2} aria-hidden="true" />}
-        {isPending ? 'Guardando...' : enabled ? 'Pausar sync' : 'Reactivar sync'}
+        {isPending ? 'Guardando...' : enabled ? 'Pausar fuente' : 'Habilitar fuente'}
       </button>
+    </>
+  )
+}
+
+export function BackstageDeleteKnowledgeSourceButton({
+  tenantId,
+  sourceId,
+  sourceName,
+}: {
+  tenantId: string
+  sourceId: string
+  sourceName: string
+}) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [confirming, setConfirming] = useState(false)
+  const [toast, setToast] = useState<ToastState | null>(null)
+
+  function handleDelete() {
+    startTransition(async () => {
+      const result = await deleteBackstageKnowledgeSource(tenantId, sourceId)
+      setToast({
+        id: Date.now(),
+        message: result.message,
+        tone: result.ok ? 'success' : 'error',
+      })
+
+      if (result.ok) {
+        setConfirming(false)
+        router.refresh()
+      }
+    })
+  }
+
+  return (
+    <>
+      {toast ? <ToastNotice key={toast.id} message={toast.message} tone={toast.tone} /> : null}
+      <div className="knowledge-delete-control">
+        <div className={confirming ? 'knowledge-delete-confirm knowledge-delete-confirm-open' : 'knowledge-delete-confirm'}>
+          <button
+            type="button"
+            className="knowledge-delete-secondary"
+            onClick={() => setConfirming(false)}
+            disabled={isPending}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className="knowledge-delete-danger"
+            onClick={handleDelete}
+            disabled={isPending}
+          >
+            {isPending ? 'Eliminando...' : 'Sí, eliminar'}
+          </button>
+        </div>
+        <button
+          type="button"
+          className="knowledge-delete-icon"
+          onClick={() => setConfirming(true)}
+          disabled={isPending}
+          aria-expanded={confirming}
+          aria-label={`Eliminar la fuente ${sourceName}`}
+          title="Eliminar fuente y conocimiento procesado"
+        >
+          <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
+        </button>
+      </div>
     </>
   )
 }

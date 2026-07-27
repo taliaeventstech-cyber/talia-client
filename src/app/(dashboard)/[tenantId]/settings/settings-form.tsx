@@ -5,13 +5,21 @@ import { ConfirmationToast } from '@/components/ui/confirmation-toast'
 import { useActionState, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { CopyScriptButton } from './copy-script-button'
+import { CopyScriptButton } from '@/components/copy-script-button'
 import { updateTenantSettings, type SettingsFormState } from './actions'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry } from '@/lib/phone/international'
 import Image from 'next/image'
-import { ArrowUpRight, Bot, ChevronLeft, MessageCircle, MessageCircleMore, RefreshCcw, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpRight, Bot, ChevronLeft, MessageCircle, MessageCircleMore, Plus, RefreshCcw, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react'
 import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
+import {
+  getVisibleSuggestedQuestions,
+  MAX_SUGGESTED_QUESTION_TARGETS,
+  MAX_SUGGESTED_QUESTIONS,
+  type SuggestedQuestion,
+  type SuggestedQuestionTarget,
+  type SuggestedQuestionTargetType,
+} from '@/lib/widget/suggested-questions'
 
 type SettingsFormLabels = {
   chatbot: string
@@ -23,6 +31,33 @@ type SettingsFormLabels = {
   planDescription: string
   managePlan: string
   initialMessage: string
+  suggestedQuestions: string
+  suggestedQuestionsHint: string
+  suggestedQuestionsLanguage: string
+  suggestedQuestionsPrompt: string
+  suggestedQuestionsEmpty: string
+  suggestedQuestionAdd: string
+  suggestedQuestionActive: string
+  suggestedQuestionMoveUp: string
+  suggestedQuestionMoveDown: string
+  suggestedQuestionRemove: string
+  suggestedQuestionText: string
+  suggestedQuestionScope: string
+  suggestedQuestionScopeGeneral: string
+  suggestedQuestionScopeContextual: string
+  suggestedQuestionTargets: string
+  suggestedQuestionTargetsHint: string
+  suggestedQuestionTargetAdd: string
+  suggestedQuestionTargetRemove: string
+  suggestedQuestionTargetTypeHostname: string
+  suggestedQuestionTargetTypePathPrefix: string
+  suggestedQuestionTargetTypeExactUrl: string
+  suggestedQuestionTargetValue: string
+  suggestedQuestionsPreviewUrl: string
+  suggestedQuestionsPreviewUrlHint: string
+  suggestedQuestionLanguageEs: string
+  suggestedQuestionLanguageCa: string
+  suggestedQuestionLanguageEn: string
   primaryColor: string
   fallbackEmail: string
   fallbackPhone: string
@@ -79,6 +114,7 @@ type SettingsFormProps = {
     fallback_email: string | null
     fallback_phone: string | null
     primary_language: string
+    website_url: string | null
   }
   commercialPlan: {
     title: string
@@ -103,6 +139,7 @@ type SettingsFormProps = {
     autoOpen: boolean
     autoOpenDelay: number
     proactiveMessage: string
+    suggestedQuestions: SuggestedQuestion[]
     allowedDomains: string[]
     fallbackMessage: string | null
     fallbackWhatsApp: boolean
@@ -149,7 +186,11 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
     glassTranslucency: widgetConfig.glassTranslucency,
     autoOpen: widgetConfig.autoOpen,
     proactiveMessage: widgetConfig.proactiveMessage,
+    suggestedQuestions: widgetConfig.suggestedQuestions,
+    fallbackLanguage: theatre.primary_language,
+    pageUrl: theatre.website_url ?? '',
   })
+  const [suggestedQuestions, setSuggestedQuestions] = useState(widgetConfig.suggestedQuestions)
 
   useEffect(() => {
     if (!state.ok) return
@@ -214,6 +255,22 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
     setDirty(false)
     navigationTriggerRef.current = null
     router.push(destination)
+  }
+
+  const markDirty = () => {
+    changeVersionRef.current += 1
+    setDirty(true)
+  }
+
+  const updateSuggestedQuestions = (
+    updater: (current: SuggestedQuestion[]) => SuggestedQuestion[],
+  ) => {
+    setSuggestedQuestions((current) => {
+      const next = updater(current)
+      setPreviewConfig((preview) => ({ ...preview, suggestedQuestions: next }))
+      return next
+    })
+    markDirty()
   }
 
   return (
@@ -295,6 +352,13 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
                   onChange={(event) => setPreviewConfig((current) => ({ ...current, initialMessage: event.target.value }))}
                 />
               </label>
+
+              <SuggestedQuestionsEditor
+                questions={suggestedQuestions}
+                chatbotLanguage={theatre.primary_language}
+                labels={labels}
+                onChange={updateSuggestedQuestions}
+              />
 
               <label className="field">
                 {labels.primaryColor}
@@ -533,7 +597,25 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
                 onSelect={(glassBackground) => setPreviewConfig((current) => ({ ...current, glassBackground }))}
               />
             </div>
-            <WidgetPreview key={previewConfig.autoOpen ? 'proactive' : 'manual'} widgetConfig={previewConfig} />
+            <label className="field suggested-questions-preview-url">
+              {labels.suggestedQuestionsPreviewUrl}
+              <input
+                type="url"
+                value={previewConfig.pageUrl}
+                placeholder="https://example.org/agenda"
+                onChange={(event) => {
+                  event.stopPropagation()
+                  setPreviewConfig((current) => ({ ...current, pageUrl: event.target.value }))
+                }}
+              />
+              <span className="muted">{labels.suggestedQuestionsPreviewUrlHint}</span>
+            </label>
+            <WidgetPreview
+              key={previewConfig.autoOpen ? 'proactive' : 'manual'}
+              widgetConfig={previewConfig}
+              suggestedQuestionsLabel={labels.suggestedQuestions}
+              suggestedQuestionsPrompt={labels.suggestedQuestionsPrompt}
+            />
           </section>
 
           <section className="card stack">
@@ -591,6 +673,278 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
       </div>
     </form>
   )
+}
+
+function SuggestedQuestionsEditor({
+  questions,
+  chatbotLanguage,
+  labels,
+  onChange,
+}: {
+  questions: SuggestedQuestion[]
+  chatbotLanguage: string
+  labels: SettingsFormLabels
+  onChange: (updater: (current: SuggestedQuestion[]) => SuggestedQuestion[]) => void
+}) {
+  const addQuestion = () => {
+    onChange((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        enabled: true,
+        text: '',
+        targets: [],
+      },
+    ])
+  }
+
+  const updateQuestion = (
+    id: string,
+    updater: (question: SuggestedQuestion) => SuggestedQuestion,
+  ) => {
+    onChange((current) => current.map((question) => (
+      question.id === id ? updater(question) : question
+    )))
+  }
+
+  const moveQuestion = (index: number, offset: -1 | 1) => {
+    onChange((current) => {
+      const target = index + offset
+      if (target < 0 || target >= current.length) return current
+      const next = [...current]
+      const [question] = next.splice(index, 1)
+      next.splice(target, 0, question)
+      return next
+    })
+  }
+
+  const setQuestionScope = (id: string, contextual: boolean) => {
+    updateQuestion(id, (question) => ({
+      ...question,
+      targets: contextual
+        ? question.targets.length > 0
+          ? question.targets
+          : [createSuggestedQuestionTarget()]
+        : [],
+    }))
+  }
+
+  const addQuestionTarget = (id: string) => {
+    updateQuestion(id, (question) => ({
+      ...question,
+      targets: question.targets.length >= MAX_SUGGESTED_QUESTION_TARGETS
+        ? question.targets
+        : [...question.targets, createSuggestedQuestionTarget()],
+    }))
+  }
+
+  const updateQuestionTarget = (
+    questionId: string,
+    targetId: string,
+    updater: (target: SuggestedQuestionTarget) => SuggestedQuestionTarget,
+  ) => {
+    updateQuestion(questionId, (question) => ({
+      ...question,
+      targets: question.targets.map((target) => (
+        target.id === targetId ? updater(target) : target
+      )),
+    }))
+  }
+
+  const removeQuestionTarget = (questionId: string, targetId: string) => {
+    updateQuestion(questionId, (question) => ({
+      ...question,
+      targets: question.targets.filter((target) => target.id !== targetId),
+    }))
+  }
+
+  return (
+    <fieldset className="suggested-questions-editor">
+      <legend>{labels.suggestedQuestions}</legend>
+      <p className="muted">{labels.suggestedQuestionsHint}</p>
+      <p className="suggested-questions-language">
+        <strong>{labels.suggestedQuestionsLanguage}:</strong>{' '}
+        {getSuggestedQuestionLanguageLabel(chatbotLanguage, labels)}
+      </p>
+      <input type="hidden" name="suggested_questions" value={JSON.stringify(questions)} />
+
+      <div className="suggested-questions-editor-list">
+        {questions.length === 0 ? (
+          <p className="suggested-questions-empty">{labels.suggestedQuestionsEmpty}</p>
+        ) : questions.map((question, index) => (
+          <article className="suggested-question-editor-item" key={question.id}>
+            <header className="suggested-question-editor-header">
+              <strong>#{index + 1}</strong>
+              <label className="suggested-question-enabled">
+                <input
+                  type="checkbox"
+                  checked={question.enabled}
+                  onChange={(event) => updateQuestion(question.id, (current) => ({
+                    ...current,
+                    enabled: event.target.checked,
+                  }))}
+                />
+                {labels.suggestedQuestionActive}
+              </label>
+              <span className="suggested-question-editor-actions">
+                <button
+                  type="button"
+                  className="icon-button"
+                  disabled={index === 0}
+                  aria-label={labels.suggestedQuestionMoveUp}
+                  title={labels.suggestedQuestionMoveUp}
+                  onClick={() => moveQuestion(index, -1)}
+                >
+                  <ArrowUp aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="icon-button"
+                  disabled={index === questions.length - 1}
+                  aria-label={labels.suggestedQuestionMoveDown}
+                  title={labels.suggestedQuestionMoveDown}
+                  onClick={() => moveQuestion(index, 1)}
+                >
+                  <ArrowDown aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="icon-button suggested-question-remove"
+                  aria-label={labels.suggestedQuestionRemove}
+                  title={labels.suggestedQuestionRemove}
+                  onClick={() => onChange((current) => current.filter((item) => item.id !== question.id))}
+                >
+                  <Trash2 aria-hidden="true" />
+                </button>
+              </span>
+            </header>
+
+            <label className="field">
+              {labels.suggestedQuestionText}
+              <input
+                type="text"
+                maxLength={160}
+                value={question.text}
+                onChange={(event) => updateQuestion(question.id, (current) => ({
+                  ...current,
+                  text: event.target.value,
+                }))}
+              />
+            </label>
+
+            <label className="field">
+              {labels.suggestedQuestionScope}
+              <select
+                value={question.targets.length > 0 ? 'contextual' : 'general'}
+                onChange={(event) => setQuestionScope(
+                  question.id,
+                  event.target.value === 'contextual',
+                )}
+              >
+                <option value="general">{labels.suggestedQuestionScopeGeneral}</option>
+                <option value="contextual">{labels.suggestedQuestionScopeContextual}</option>
+              </select>
+            </label>
+
+            {question.targets.length > 0 ? (
+              <div className="suggested-question-targets">
+                <div>
+                  <strong>{labels.suggestedQuestionTargets}</strong>
+                  <p className="muted">{labels.suggestedQuestionTargetsHint}</p>
+                </div>
+                <div className="suggested-question-target-list">
+                  {question.targets.map((target, targetIndex) => (
+                    <div className="suggested-question-target-row" key={target.id}>
+                      <select
+                        aria-label={`${labels.suggestedQuestionScope} ${targetIndex + 1}`}
+                        value={target.type}
+                        onChange={(event) => updateQuestionTarget(
+                          question.id,
+                          target.id,
+                          (current) => ({
+                            ...current,
+                            type: event.target.value as SuggestedQuestionTargetType,
+                            value: '',
+                          }),
+                        )}
+                      >
+                        <option value="hostname">{labels.suggestedQuestionTargetTypeHostname}</option>
+                        <option value="path_prefix">{labels.suggestedQuestionTargetTypePathPrefix}</option>
+                        <option value="exact_url">{labels.suggestedQuestionTargetTypeExactUrl}</option>
+                      </select>
+                      <input
+                        aria-label={`${labels.suggestedQuestionTargetValue} ${targetIndex + 1}`}
+                        type="text"
+                        maxLength={2048}
+                        placeholder={getSuggestedQuestionTargetPlaceholder(target.type)}
+                        value={target.value}
+                        onChange={(event) => updateQuestionTarget(
+                          question.id,
+                          target.id,
+                          (current) => ({ ...current, value: event.target.value }),
+                        )}
+                      />
+                      <button
+                        type="button"
+                        className="icon-button suggested-question-remove"
+                        aria-label={labels.suggestedQuestionTargetRemove}
+                        title={labels.suggestedQuestionTargetRemove}
+                        onClick={() => removeQuestionTarget(question.id, target.id)}
+                      >
+                        <Trash2 aria-hidden="true" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="button-outline button-fit"
+                  disabled={question.targets.length >= MAX_SUGGESTED_QUESTION_TARGETS}
+                  onClick={() => addQuestionTarget(question.id)}
+                >
+                  <Plus size={15} aria-hidden="true" />
+                  {labels.suggestedQuestionTargetAdd}
+                </button>
+              </div>
+            ) : null}
+          </article>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        className="button-outline button-fit"
+        disabled={questions.length >= MAX_SUGGESTED_QUESTIONS}
+        onClick={addQuestion}
+      >
+        <Plus size={16} aria-hidden="true" />
+        {labels.suggestedQuestionAdd}
+      </button>
+    </fieldset>
+  )
+}
+
+function getSuggestedQuestionLanguageLabel(
+  language: string,
+  labels: SettingsFormLabels,
+) {
+  if (language === 'ca') return labels.suggestedQuestionLanguageCa
+  if (language === 'en') return labels.suggestedQuestionLanguageEn
+  return labels.suggestedQuestionLanguageEs
+}
+
+function createSuggestedQuestionTarget(): SuggestedQuestionTarget {
+  return {
+    id: crypto.randomUUID(),
+    type: 'path_prefix',
+    value: '',
+  }
+}
+
+function getSuggestedQuestionTargetPlaceholder(type: SuggestedQuestionTargetType) {
+  if (type === 'hostname') return 'example.org'
+  if (type === 'exact_url') return 'https://example.org/agenda/hamlet'
+  return '/agenda'
 }
 
 function ThemeToggle({
@@ -794,6 +1148,8 @@ function BackgroundToggle({
 
 function WidgetPreview({
   widgetConfig,
+  suggestedQuestionsLabel,
+  suggestedQuestionsPrompt,
 }: {
   widgetConfig: {
     assistantName: string
@@ -811,12 +1167,18 @@ function WidgetPreview({
     glassTranslucency: number
     autoOpen: boolean
     proactiveMessage: string
+    suggestedQuestions: SuggestedQuestion[]
+    fallbackLanguage: string
+    pageUrl: string
   }
+  suggestedQuestionsLabel: string
+  suggestedQuestionsPrompt: string
 }) {
   const [panelOpen, setPanelOpen] = useState(false)
   const [greetingVisible, setGreetingVisible] = useState(widgetConfig.autoOpen)
   const [sessionFeedbackOpen, setSessionFeedbackOpen] = useState(false)
   const [sessionFeedbackResolved, setSessionFeedbackResolved] = useState<boolean | null>(null)
+  const [selectedSuggestedQuestion, setSelectedSuggestedQuestion] = useState<string | null>(null)
   const launcherRef = useRef<HTMLButtonElement>(null)
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const chatbotOffset = widgetConfig.blockOffset
@@ -828,6 +1190,11 @@ function WidgetPreview({
   const color = widgetConfig.primaryColor
   const skin = getGlassSkin(color, widgetConfig.glassBackground, widgetConfig.glassTranslucency)
   const stageBackground = glass ? skin.stage : getSolidPreviewStage(widgetConfig.glassBackground)
+  const visibleSuggestedQuestions = getVisibleSuggestedQuestions(
+    widgetConfig.suggestedQuestions,
+    widgetConfig.fallbackLanguage,
+    widgetConfig.pageUrl,
+  )
 
   const filter = `blur(${widgetConfig.glassBlur}px) saturate(200%) brightness(${skin.bright})`
 
@@ -872,6 +1239,7 @@ function WidgetPreview({
   function closeSessionFeedback() {
     setSessionFeedbackOpen(false)
     setSessionFeedbackResolved(null)
+    setSelectedSuggestedQuestion(null)
   }
 
   return (
@@ -920,6 +1288,38 @@ function WidgetPreview({
               <ThumbsDown aria-hidden="true" strokeWidth={2} />
             </button>
           </div>
+          {!selectedSuggestedQuestion && !sessionFeedbackOpen && visibleSuggestedQuestions.length > 0 ? (
+            <div
+              className="widget-preview-suggested-questions"
+              role="group"
+              aria-label={suggestedQuestionsLabel}
+              style={{ ['--widget-preview-suggestion-color' as string]: color }}
+            >
+              <p className="widget-preview-suggested-questions-title">
+                {suggestedQuestionsPrompt}
+              </p>
+              <div className="widget-preview-suggested-questions-actions">
+                {visibleSuggestedQuestions.map((question) => (
+                  <button
+                    type="button"
+                    className="widget-preview-suggested-question"
+                    key={question.id}
+                    onClick={() => {
+                      setSelectedSuggestedQuestion(question.text)
+                      requestAnimationFrame(() => composerRef.current?.focus())
+                    }}
+                  >
+                    {question.text}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {selectedSuggestedQuestion ? (
+            <p className="widget-preview-message widget-preview-message-user" style={{ background: color }}>
+              {selectedSuggestedQuestion}
+            </p>
+          ) : null}
           {sessionFeedbackOpen ? (
             <div className="widget-preview-message widget-preview-session-feedback" style={botBubbleStyle} aria-label="Feedback antes de reiniciar">
               <strong>Antes de empezar de nuevo, ¿he resuelto tu consulta?</strong>

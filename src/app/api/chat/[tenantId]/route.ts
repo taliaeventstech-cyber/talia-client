@@ -1,5 +1,5 @@
 import { getLatestAssistantMessageMetadata, saveConversation } from '@/lib/chat/service'
-import { saveConversationTopic } from '@/lib/analytics/topics'
+import { getFallbackChatAnalytics, parseChatAnalytics, saveConversationTopic } from '@/lib/analytics/topics'
 import { isTaliaAiPrimaryProvider, runChatAgent, type ChatAgentPendingClarification } from '@/lib/agent-runtime/chat'
 import { corsJson, corsNoContent } from '@/lib/http/cors'
 import { buildRelevantKnowledgeHints, retrieveTenantKnowledge } from '@/lib/knowledge/retrieval'
@@ -18,6 +18,11 @@ import {
   estimateTokenCount,
   recordUsageEvent,
 } from '@/lib/usage/service'
+import {
+  validateSuggestedQuestionSelection,
+  type SuggestedQuestionSelectionInput,
+  type VisibleSuggestedQuestion,
+} from '@/lib/widget/suggested-questions'
 
 type ChatPayload = {
   session_id?: string
@@ -25,6 +30,7 @@ type ChatPayload = {
   message?: string
   page_url?: string
   pageUrl?: string
+  suggested_question?: SuggestedQuestionSelectionInput
 }
 
 type AgentSourceSummary = {
@@ -111,6 +117,15 @@ export async function POST(
     return corsJson({ error: domain.error }, { status: 403 })
   }
 
+  const suggestedQuestion = validateSuggestedQuestionSelection(
+    tenant.config.suggestedQuestions,
+    payload.suggested_question,
+    message,
+    tenant.config.language,
+    pageUrl,
+  )
+  const suggestedQuestionTrace = getSuggestedQuestionTrace(suggestedQuestion)
+
   // Botsonic model: the reply we are about to generate is the billable unit, so
   // the limit is checked on every incoming message (not only on new conversations).
   const limit = await checkTenantLimit(admin, {
@@ -150,6 +165,7 @@ export async function POST(
       tenant_fallback_language: tenant.config.language,
       retrieval_status: 'not_run',
       fallback_reason: 'usage_limit_reached',
+      ...suggestedQuestionTrace,
       limit: limit.limit,
       current: limit.current,
     } satisfies Record<string, Json>
@@ -159,7 +175,7 @@ export async function POST(
         tenantId,
         sessionId,
         messages: [
-          { role: 'user', content: message },
+          { role: 'user', content: message, metadata: suggestedQuestionTrace },
           { role: 'assistant', content: fallbackReply, metadata: fallbackMetadata },
         ],
         metadata: fallbackMetadata,
@@ -194,6 +210,7 @@ export async function POST(
     sessionId,
     message,
     phase: 'user_message',
+    metadata: suggestedQuestionTrace,
   })
 
   const shouldDelegateKnowledgeToTaliaAi = isTaliaAiPrimaryProvider()
@@ -239,6 +256,7 @@ export async function POST(
           score: match.score,
         },
       ],
+      ...suggestedQuestionTrace,
     } satisfies Record<string, Json>
 
     const [saveResult] = await Promise.all([
@@ -246,7 +264,7 @@ export async function POST(
         tenantId,
         sessionId,
         messages: [
-          { role: 'user', content: message },
+          { role: 'user', content: message, metadata: suggestedQuestionTrace },
           { role: 'assistant', content: match.answer, metadata: directKnowledgeMetadata },
         ],
         metadata: directKnowledgeMetadata,
@@ -362,13 +380,14 @@ export async function POST(
     retrieval: retrievalTrace,
     pending_clarification: pendingClarification ? serializePendingClarification(pendingClarification) : null,
     agent_metadata: agentMetadata,
+    ...suggestedQuestionTrace,
   } satisfies Record<string, Json>
 
   const saveResult = await saveConversation(admin, {
     tenantId,
     sessionId,
     messages: [
-      { role: 'user', content: message },
+      { role: 'user', content: message, metadata: suggestedQuestionTrace },
       { role: 'assistant', content: safeReply, metadata: assistantTraceMetadata },
     ],
     metadata: assistantTraceMetadata,
@@ -388,13 +407,37 @@ export async function POST(
     }, { status: 500 })
   }
 
+  const assistantMessageId = saveResult.messages.find((item) => item.role === 'assistant')?.id
+  const analytics = parseChatAnalytics(agentMetadata.analytics) ?? getFallbackChatAnalytics(message)
+  const topicSaveResult = await saveConversationTopic(admin, {
+    tenantId,
+    sessionId,
+    messageId: assistantMessageId,
+    topic: analytics.topic,
+    intent: analytics.intent,
+    confidence: analytics.confidence,
+    taxonomyVersion: analytics.taxonomyVersion,
+    classificationSource: analytics.source,
+    userMessage: message,
+    channel: 'web',
+  })
+  if (!topicSaveResult.ok) {
+    console.error('[chat] failed to persist analytics classification', {
+      tenantId,
+      sessionId,
+      assistantMessageId,
+      error: topicSaveResult.error,
+      details: topicSaveResult.details,
+    })
+  }
+
   await recordChatbotUsage(admin, {
     tenantId,
     sessionId,
     message: safeReply,
     phase: 'assistant_message',
     inputText: message,
-    assistantMessageId: saveResult.messages.find((item) => item.role === 'assistant')?.id,
+    assistantMessageId,
     usageMeasurement: response.provider === 'talia-ai' ? 'precise' : 'legacy',
     usageComponents: response.usageComponents,
     metadata: {
@@ -422,7 +465,7 @@ export async function POST(
     reply: safeReply,
     actions: agentActions,
     session_id: sessionId,
-    assistant_message_id: saveResult.messages.find((item) => item.role === 'assistant')?.id,
+    assistant_message_id: assistantMessageId,
     source: {
       type: 'agent_runtime',
       provider: response.provider,
@@ -431,6 +474,25 @@ export async function POST(
       metadata: agentMetadata,
     },
   })
+}
+
+function getSuggestedQuestionTrace(
+  selection: VisibleSuggestedQuestion | null,
+): Record<string, Json> {
+  if (!selection) return {}
+
+  return {
+    suggested_question: {
+      id: selection.id,
+      position: selection.position,
+      language: selection.language,
+      source: selection.source,
+      matched_target: selection.matchedTarget ? {
+        type: selection.matchedTarget.type,
+        value: selection.matchedTarget.value,
+      } : null,
+    },
+  }
 }
 
 function normalizePageUrl(value: unknown) {
@@ -575,6 +637,7 @@ async function recordChatbotUsage(
         metadata: {
           session_id: input.sessionId,
           role: 'user',
+          ...(input.metadata ?? {}),
         },
       }),
     ])
@@ -719,6 +782,17 @@ function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): 
 
   const languageAgent = summarizeLanguageAgent(metadata.language_agent)
   if (languageAgent) result.language_agent = languageAgent
+
+  const analytics = parseChatAnalytics(metadata.analytics)
+  if (analytics) {
+    result.analytics = {
+      topic: analytics.topic,
+      intent: analytics.intent,
+      confidence: analytics.confidence,
+      taxonomy_version: analytics.taxonomyVersion,
+      source: analytics.source,
+    }
+  }
 
   return result
 }
