@@ -642,32 +642,54 @@ export type Database = {
       conversation_topics: {
         Row: {
           channel: string
+          classification_source: string | null
+          confidence: number | null
           created_at: string | null
           id: string
+          intent: string | null
+          message_id: string | null
           session_id: string | null
+          taxonomy_version: string | null
           theatre_id: string | null
           topic: string | null
           user_message: string | null
         }
         Insert: {
           channel?: string
+          classification_source?: string | null
+          confidence?: number | null
           created_at?: string | null
           id?: string
+          intent?: string | null
+          message_id?: string | null
           session_id?: string | null
+          taxonomy_version?: string | null
           theatre_id?: string | null
           topic?: string | null
           user_message?: string | null
         }
         Update: {
           channel?: string
+          classification_source?: string | null
+          confidence?: number | null
           created_at?: string | null
           id?: string
+          intent?: string | null
+          message_id?: string | null
           session_id?: string | null
+          taxonomy_version?: string | null
           theatre_id?: string | null
           topic?: string | null
           user_message?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "conversation_topics_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: true
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "conversation_topics_theatre_id_fkey"
             columns: ["theatre_id"]
@@ -764,6 +786,10 @@ export type Database = {
           answer: string
           category: string | null
           created_at: string
+          embedding: string | null
+          embedding_model: string | null
+          embedding_status: string
+          embedding_updated_at: string | null
           id: string
           language: string
           metadata: Json
@@ -778,6 +804,10 @@ export type Database = {
           answer: string
           category?: string | null
           created_at?: string
+          embedding?: string | null
+          embedding_model?: string | null
+          embedding_status?: string
+          embedding_updated_at?: string | null
           id?: string
           language?: string
           metadata?: Json
@@ -792,6 +822,10 @@ export type Database = {
           answer?: string
           category?: string | null
           created_at?: string
+          embedding?: string | null
+          embedding_model?: string | null
+          embedding_status?: string
+          embedding_updated_at?: string | null
           id?: string
           language?: string
           metadata?: Json
@@ -1998,6 +2032,47 @@ export type Database = {
           language: string
           metadata: Json
           similarity: number
+          source_id: string | null
+        }[]
+      }
+      match_knowledge: {
+        Args: {
+          p_match_count?: number
+          p_min_similarity?: number
+          p_query_embedding: string
+          p_theatre_id: string
+        }
+        Returns: {
+          answer: string
+          category: string
+          chunk_index: number | null
+          id: string
+          language: string
+          metadata: Json
+          priority: number
+          question: string | null
+          record_type: string
+          similarity: number
+          source_id: string | null
+        }[]
+      }
+      search_knowledge_text: {
+        Args: {
+          p_match_count?: number
+          p_query: string
+          p_theatre_id: string
+        }
+        Returns: {
+          answer: string
+          category: string
+          chunk_index: number | null
+          id: string
+          language: string
+          metadata: Json
+          priority: number
+          question: string | null
+          rank: number
+          record_type: string
           source_id: string | null
         }[]
       }

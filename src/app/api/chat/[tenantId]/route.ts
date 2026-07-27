@@ -1,5 +1,5 @@
 import { getLatestAssistantMessageMetadata, saveConversation } from '@/lib/chat/service'
-import { saveConversationTopic } from '@/lib/analytics/topics'
+import { getFallbackChatAnalytics, parseChatAnalytics, saveConversationTopic } from '@/lib/analytics/topics'
 import { isTaliaAiPrimaryProvider, runChatAgent, type ChatAgentPendingClarification } from '@/lib/agent-runtime/chat'
 import { corsJson, corsNoContent } from '@/lib/http/cors'
 import { buildRelevantKnowledgeHints, retrieveTenantKnowledge } from '@/lib/knowledge/retrieval'
@@ -407,13 +407,37 @@ export async function POST(
     }, { status: 500 })
   }
 
+  const assistantMessageId = saveResult.messages.find((item) => item.role === 'assistant')?.id
+  const analytics = parseChatAnalytics(agentMetadata.analytics) ?? getFallbackChatAnalytics(message)
+  const topicSaveResult = await saveConversationTopic(admin, {
+    tenantId,
+    sessionId,
+    messageId: assistantMessageId,
+    topic: analytics.topic,
+    intent: analytics.intent,
+    confidence: analytics.confidence,
+    taxonomyVersion: analytics.taxonomyVersion,
+    classificationSource: analytics.source,
+    userMessage: message,
+    channel: 'web',
+  })
+  if (!topicSaveResult.ok) {
+    console.error('[chat] failed to persist analytics classification', {
+      tenantId,
+      sessionId,
+      assistantMessageId,
+      error: topicSaveResult.error,
+      details: topicSaveResult.details,
+    })
+  }
+
   await recordChatbotUsage(admin, {
     tenantId,
     sessionId,
     message: safeReply,
     phase: 'assistant_message',
     inputText: message,
-    assistantMessageId: saveResult.messages.find((item) => item.role === 'assistant')?.id,
+    assistantMessageId,
     usageMeasurement: response.provider === 'talia-ai' ? 'precise' : 'legacy',
     usageComponents: response.usageComponents,
     metadata: {
@@ -441,7 +465,7 @@ export async function POST(
     reply: safeReply,
     actions: agentActions,
     session_id: sessionId,
-    assistant_message_id: saveResult.messages.find((item) => item.role === 'assistant')?.id,
+    assistant_message_id: assistantMessageId,
     source: {
       type: 'agent_runtime',
       provider: response.provider,
@@ -758,6 +782,17 @@ function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): 
 
   const languageAgent = summarizeLanguageAgent(metadata.language_agent)
   if (languageAgent) result.language_agent = languageAgent
+
+  const analytics = parseChatAnalytics(metadata.analytics)
+  if (analytics) {
+    result.analytics = {
+      topic: analytics.topic,
+      intent: analytics.intent,
+      confidence: analytics.confidence,
+      taxonomy_version: analytics.taxonomyVersion,
+      source: analytics.source,
+    }
+  }
 
   return result
 }

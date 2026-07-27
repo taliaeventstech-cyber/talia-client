@@ -2,7 +2,9 @@
 
 ## Goal
 
-`/api/chat/:tenantId` must not know whether the response comes from n8n, from an in-house backend, or from another AI provider. The widget's public API must always talk to TALIA, and TALIA must decide the runtime.
+`/api/chat/:tenantId` delegates new web-chat responses to `talia-ai`. The
+widget's public API always talks to TALIA and never calls a workflow provider
+directly.
 
 ## Current State
 
@@ -32,8 +34,8 @@ Current provider:
 Current selector:
 
 ```txt
-CHAT_AGENT_PROVIDER=n8n
-CHAT_AGENT_PROVIDER=talia-ai
+TALIA_AI_BASE_URL=https://...
+TALIA_AI_INTERNAL_API_KEY=...
 ```
 
 Variables for `talia-ai`:
@@ -43,7 +45,9 @@ TALIA_AI_BASE_URL=https://talia-ai.fly.dev
 TALIA_AI_INTERNAL_API_KEY=...
 ```
 
-If `CHAT_AGENT_PROVIDER=talia-ai` and the service returns a temporary 5xx error, TALIA can fall back to `N8nChatAgentProvider` if the tenant has `n8nWebhookUrl` configured.
+If `talia-ai` returns an error, the gateway surfaces that failure. It does not
+fall back to n8n, because doing so would reintroduce a second runtime contract
+and produce inconsistent retrieval, language and analytics behavior.
 
 Route handler responsibilities:
 
@@ -71,4 +75,5 @@ The provider selector can already decide by environment:
 n8n -> in-house runtime -> external backend
 ```
 
-The migration must be gradual: keep n8n as a fallback while `talia-ai` stabilizes chat, retrieval, and embeddings.
+Historical n8n adapters and webhook routes may remain during the rollback
+window, but the provider factory cannot select or fall back to them.

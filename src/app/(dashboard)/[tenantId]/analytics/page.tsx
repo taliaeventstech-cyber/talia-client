@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { classifyConversationTopic } from '@/lib/analytics/topics'
 import { getDictionary, getLocale, getTopicLabel } from '@/lib/i18n/dictionaries'
+import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
 import Link from 'next/link'
 
 interface Props {
@@ -23,21 +24,51 @@ export default async function AnalyticsPage({ params, searchParams }: Props) {
 
   const admin = createAdminClient()
 
-  const { data: topics } = await admin
-    .from('conversation_topics')
-    .select('topic, user_message, created_at')
-    .eq('theatre_id', tenantId)
-    .eq('channel', 'web')
-    .order('created_at', { ascending: false })
-    .limit(500)
+  const [
+    { data: topics },
+    { count: totalResponses },
+    { count: positiveResponses },
+    { count: negativeResponses },
+  ] = await Promise.all([
+    admin
+      .from('conversation_topics')
+      .select('topic, intent, user_message, created_at')
+      .eq('theatre_id', tenantId)
+      .eq('channel', 'web')
+      .order('created_at', { ascending: false })
+      .limit(500),
+    admin
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('theatre_id', tenantId)
+      .eq('role', 'assistant'),
+    admin
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('theatre_id', tenantId)
+      .eq('role', 'assistant')
+      .contains('metadata', { feedback: { rating: 'positive' } }),
+    admin
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('theatre_id', tenantId)
+      .eq('role', 'assistant')
+      .contains('metadata', { feedback: { rating: 'negative' } }),
+  ])
 
   const normalizedTopics = (topics ?? []).map((t) => ({
     ...t,
     topic: classifyConversationTopic(t.topic ?? undefined, t.user_message ?? undefined),
+    intent: normalizeConversationIntent(t.intent, t.topic),
   }))
 
-  const topTopics = getTopTopics(normalizedTopics)
+  const topIntents = getTopIntents(normalizedTopics)
   const recentTopics = normalizedTopics.slice(0, 50)
+  const feedbackMetrics = getResponseFeedbackMetrics({
+    positiveCount: positiveResponses ?? 0,
+    negativeCount: negativeResponses ?? 0,
+    totalCount: totalResponses ?? 0,
+  })
 
   return (
     <main className="page-shell">
@@ -46,6 +77,64 @@ export default async function AnalyticsPage({ params, searchParams }: Props) {
         <h1>{dictionary.analytics.title}</h1>
         <p className="muted">{dictionary.analytics.description}</p>
       </header>
+
+      <section className="card stack analytics-feedback-section" aria-labelledby="response-satisfaction-title">
+        <div className="section-title-row">
+          <div>
+            <p className="eyebrow">{dictionary.analytics.feedback.section}</p>
+            <h2 id="response-satisfaction-title">{dictionary.analytics.feedback.title}</h2>
+            <p className="muted">{dictionary.analytics.feedback.description}</p>
+          </div>
+          <div className="analytics-feedback-score">
+            <span>{dictionary.analytics.feedback.accuracy}</span>
+            <strong>
+              {feedbackMetrics.accuracyPercent === null
+                ? dictionary.analytics.feedback.noData
+                : `${feedbackMetrics.accuracyPercent}%`}
+            </strong>
+          </div>
+        </div>
+
+        <div className="analytics-feedback-grid">
+          <div>
+            <span>{dictionary.analytics.feedback.positive}</span>
+            <strong>{feedbackMetrics.positiveCount}</strong>
+          </div>
+          <div>
+            <span>{dictionary.analytics.feedback.negative}</span>
+            <strong>{feedbackMetrics.negativeCount}</strong>
+          </div>
+          <div>
+            <span>{dictionary.analytics.feedback.rated}</span>
+            <strong>{feedbackMetrics.ratedCount}</strong>
+          </div>
+        </div>
+
+        <div className="analytics-feedback-coverage">
+          <div>
+            <span>{dictionary.analytics.feedback.coverage}</span>
+            <strong>{feedbackMetrics.coveragePercent}%</strong>
+          </div>
+          <div
+            className="progress-track"
+            role="progressbar"
+            aria-label={dictionary.analytics.feedback.coverage}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={feedbackMetrics.coveragePercent}
+          >
+            <div className="progress-fill" style={{ width: `${feedbackMetrics.coveragePercent}%` }} />
+          </div>
+          <small>
+            {dictionary.analytics.feedback.coverageDetail(
+              feedbackMetrics.ratedCount,
+              feedbackMetrics.totalCount
+            )}
+          </small>
+        </div>
+
+        <p className="muted analytics-feedback-method">{dictionary.analytics.feedback.method}</p>
+      </section>
 
       <div className="channel-tabs" role="tablist">
         {tabs.map(({ value, label }) => {
@@ -69,7 +158,7 @@ export default async function AnalyticsPage({ params, searchParams }: Props) {
         <section className="card stack">
           <h2>{dictionary.analytics.intentTitle}</h2>
           <p className="muted">{dictionary.analytics.intentDescription}</p>
-          {topTopics.length === 0 ? (
+          {topIntents.length === 0 ? (
             <p className="muted">{dictionary.analytics.noData}</p>
           ) : (
             <table className="data-table">
@@ -81,9 +170,9 @@ export default async function AnalyticsPage({ params, searchParams }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {topTopics.map((item) => (
-                  <tr key={item.topic}>
-                    <td>{getTopicLabel(dictionary, item.topic)}</td>
+                {topIntents.map((item) => (
+                  <tr key={item.intent}>
+                    <td>{dictionary.analytics.intents[item.intent]}</td>
                     <td>{item.count}</td>
                     <td>
                       <div className="progress-track">
@@ -132,18 +221,38 @@ export default async function AnalyticsPage({ params, searchParams }: Props) {
   )
 }
 
-function getTopTopics(topics: { topic: string }[]) {
+type ConversationIntent = 'information' | 'planning' | 'transaction' | 'navigation' | 'support' | 'greeting' | 'other'
+
+function getTopIntents(rows: { intent: ConversationIntent }[]) {
   const counts = new Map<string, number>()
-  topics.forEach(({ topic }) => {
-    if (!topic || topic === 'otro') return
-    counts.set(topic, (counts.get(topic) ?? 0) + 1)
+  rows.forEach(({ intent }) => {
+    if (intent === 'greeting' || intent === 'other') return
+    counts.set(intent, (counts.get(intent) ?? 0) + 1)
   })
   const total = Array.from(counts.values()).reduce((sum, n) => sum + n, 0)
   return Array.from(counts.entries())
-    .map(([topic, count]) => ({
-      topic,
+    .map(([intent, count]) => ({
+      intent: intent as Exclude<ConversationIntent, 'greeting' | 'other'>,
       count,
       percentage: total === 0 ? 0 : Math.round((count / total) * 100),
     }))
     .sort((a, b) => b.count - a.count)
+}
+
+function normalizeConversationIntent(intent: string | null, topic: string | null): ConversationIntent {
+  if (
+    intent === 'information'
+    || intent === 'planning'
+    || intent === 'transaction'
+    || intent === 'navigation'
+    || intent === 'support'
+    || intent === 'greeting'
+    || intent === 'other'
+  ) return intent
+
+  if (topic === 'ubicacion') return 'navigation'
+  if (topic === 'entradas') return 'transaction'
+  if (topic === 'agenda' || topic === 'horarios' || topic === 'visita' || topic === 'accesibilidad') return 'planning'
+  if (topic === 'precios') return 'information'
+  return 'other'
 }

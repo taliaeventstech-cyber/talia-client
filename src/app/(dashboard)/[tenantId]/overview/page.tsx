@@ -7,6 +7,7 @@ import { isChatbotSetupCompleted } from '@/lib/chatbot/setup-status'
 import { getDictionary, getLocale, getTopicLabel } from '@/lib/i18n/dictionaries'
 import { getActiveSubscription, getChatbotBillableMessagesForPeriod } from '@/lib/usage/service'
 import { getWidgetEmbedCode } from '@/lib/widget/embed-code'
+import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
 import { CopyScriptButton } from '@/components/copy-script-button'
 import { Bot, CheckCircle2, Code2, Database, Mail, MessagesSquare, Plus } from 'lucide-react'
 import Link from 'next/link'
@@ -39,6 +40,9 @@ export default async function OverviewPage({ params }: Props) {
     { data: recentConversations },
     { count: totalConversations },
     { count: totalMessages },
+    { count: totalAssistantResponses },
+    { count: positiveResponses },
+    { count: negativeResponses },
     { data: topics },
     { count: knowledgeItems },
     { count: knowledgeSources },
@@ -67,6 +71,23 @@ export default async function OverviewPage({ params }: Props) {
         .from('messages')
         .select('*', { count: 'exact', head: true })
         .eq('theatre_id', tenantId),
+      admin
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('theatre_id', tenantId)
+        .eq('role', 'assistant'),
+      admin
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('theatre_id', tenantId)
+        .eq('role', 'assistant')
+        .contains('metadata', { feedback: { rating: 'positive' } }),
+      admin
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('theatre_id', tenantId)
+        .eq('role', 'assistant')
+        .contains('metadata', { feedback: { rating: 'negative' } }),
       admin
         .from('conversation_topics')
         .select('topic, user_message, created_at')
@@ -127,6 +148,11 @@ export default async function OverviewPage({ params }: Props) {
   const chatLimitReached = chatLimit > 0 && chatUsed >= chatLimit
   const chatLimitNearing = chatLimit > 0 && !chatLimitReached && chatUsed / chatLimit >= 0.8
   const topTopics = getTopTopics(topics ?? [], 5)
+  const feedbackMetrics = getResponseFeedbackMetrics({
+    positiveCount: positiveResponses ?? 0,
+    negativeCount: negativeResponses ?? 0,
+    totalCount: totalAssistantResponses ?? 0,
+  })
   const latestTopics = (topics ?? [])
     .filter((item) => item.user_message)
     .slice(0, 4)
@@ -189,6 +215,10 @@ export default async function OverviewPage({ params }: Props) {
             <SummaryMetric label={copy.kpis.conversations} value={totalConversations ?? 0} />
             <SummaryMetric label={copy.kpis.messages} value={totalMessages ?? 0} />
             <SummaryMetric label={copy.kpis.faqs} value={knowledgeItems ?? 0} />
+            <SummaryMetric
+              label={copy.kpis.satisfaction(feedbackMetrics.ratedCount)}
+              value={feedbackMetrics.accuracyPercent === null ? '—' : `${feedbackMetrics.accuracyPercent}%`}
+            />
           </div>
         </div>
       </header>
@@ -432,7 +462,7 @@ function TopicBar({ topic, count, max }: { topic: string; count: number; max: nu
   )
 }
 
-function SummaryMetric({ label, value }: { label: string; value: number }) {
+function SummaryMetric({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="summary-metric">
       <span className="summary-metric-value">{value}</span>

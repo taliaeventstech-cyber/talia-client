@@ -110,14 +110,7 @@ export class N8nChatAgentProvider implements ChatAgentProvider {
 }
 
 export function createChatAgentProvider(): ChatAgentProvider {
-  if (isTaliaAiPrimaryProvider()) {
-    return new FallbackChatAgentProvider(
-      new TaliaAiChatAgentProvider(),
-      new N8nChatAgentProvider(),
-    )
-  }
-
-  return new N8nChatAgentProvider()
+  return new TaliaAiChatAgentProvider()
 }
 
 export async function runChatAgent(input: ChatAgentRuntimeInput) {
@@ -125,35 +118,5 @@ export async function runChatAgent(input: ChatAgentRuntimeInput) {
 }
 
 export function isTaliaAiPrimaryProvider() {
-  return process.env.CHAT_AGENT_PROVIDER === 'talia-ai'
-}
-
-class FallbackChatAgentProvider implements ChatAgentProvider {
-  readonly name: ChatAgentProviderName
-
-  constructor(
-    private readonly primary: ChatAgentProvider,
-    private readonly fallback: ChatAgentProvider,
-  ) {
-    this.name = primary.name
-  }
-
-  async respond(input: ChatAgentRuntimeInput): Promise<ChatAgentRuntimeResult> {
-    const result = await this.primary.respond(input)
-    if (result.ok || !shouldFallback(result) || !input.n8nWebhookUrl) return result
-
-    console.warn('[chat-agent-runtime] primary provider failed, falling back', {
-      primary: result.provider,
-      fallback: this.fallback.name,
-      status: result.status,
-      error: result.error,
-      tenantId: input.tenantId,
-    })
-
-    return this.fallback.respond(input)
-  }
-}
-
-function shouldFallback(result: Extract<ChatAgentRuntimeResult, { ok: false }>) {
-  return result.provider === 'talia-ai' && result.status >= 500
+  return true
 }
