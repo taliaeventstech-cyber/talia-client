@@ -274,30 +274,25 @@ describe('TaliaAiChatAgentProvider', () => {
     })
   })
 
-  it('selects talia-ai and falls back to n8n on transient provider errors', async () => {
+  it('keeps talia-ai authoritative and never falls back to n8n', async () => {
     process.env.CHAT_AGENT_PROVIDER = 'talia-ai'
     process.env.TALIA_AI_BASE_URL = 'https://talia-ai.example.test'
     process.env.TALIA_AI_INTERNAL_API_KEY = 'secret'
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
-    vi.stubGlobal('fetch', vi.fn()
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 503,
-        text: async () => JSON.stringify({ ok: false, error: 'temporarily_unavailable' }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        text: async () => JSON.stringify({ reply: 'Respuesta fallback n8n' }),
-      }))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      text: async () => JSON.stringify({ ok: false, error: 'temporarily_unavailable' }),
+    }))
 
     const provider = createChatAgentProvider()
     const result = await provider.respond(runtimeInput)
 
     expect(result).toMatchObject({
-      ok: true,
-      provider: 'n8n',
-      reply: 'Respuesta fallback n8n',
+      ok: false,
+      provider: 'talia-ai',
+      status: 503,
+      error: 'temporarily_unavailable',
     })
-    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
 })

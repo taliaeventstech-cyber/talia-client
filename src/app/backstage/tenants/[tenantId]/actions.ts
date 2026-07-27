@@ -6,6 +6,7 @@ import { embedKnowledgeSourceWithTaliaAi } from '@/lib/knowledge/talia-ai-embedd
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { isManagedWebSourceType } from '@/lib/knowledge/managed-web-sources'
+import { deleteKnowledgeSourceData } from '@/lib/knowledge/source-deletion'
 import { randomUUID } from 'node:crypto'
 
 export async function reprocessBackstageKnowledgeSource(
@@ -75,6 +76,60 @@ export async function setBackstageManagedWebSyncEnabled(
     message: enabled
       ? 'Sincronización reactivada. La fuente programada queda preparada para el siguiente worker.'
       : 'Sincronización pausada. Los jobs en cola se han cancelado y el conocimiento actual se conserva.',
+  }
+}
+
+export async function deleteBackstageKnowledgeSource(
+  tenantId: string,
+  sourceId: string,
+): Promise<{ ok: boolean; message: string }> {
+  const platformAccess = await requirePlatformAdmin()
+  const admin = createAdminClient()
+  const { data: venue, error: venueError } = await admin
+    .from('theatres')
+    .select('account_id')
+    .eq('id', tenantId)
+    .maybeSingle()
+
+  if (venueError) return { ok: false, message: venueError.message }
+  if (!venue) return { ok: false, message: 'Venue no encontrado.' }
+
+  const result = await deleteKnowledgeSourceData({ admin, tenantId, sourceId })
+  if (!result.ok) return { ok: false, message: `No se pudo eliminar la fuente: ${result.error}` }
+
+  const audit = await admin.from('audit_events').insert({
+    account_id: venue.account_id,
+    theatre_id: tenantId,
+    actor_user_id: platformAccess.user.id,
+    action: 'knowledge.source_deleted_from_backstage',
+    target_type: 'knowledge_source',
+    target_id: result.source.id,
+    metadata: {
+      source_name: result.source.name,
+      source_type: result.source.type,
+      storage_cleanup: result.storageCleanupError ? 'failed' : 'completed_or_not_required',
+      storage_cleanup_error: result.storageCleanupError ?? null,
+    },
+  })
+
+  if (audit.error) {
+    console.error('[backstage-knowledge-source-delete] failed to record audit event', {
+      tenantId,
+      sourceId,
+      error: audit.error.message,
+    })
+  }
+
+  revalidatePath('/backstage')
+  revalidatePath(`/backstage/tenants/${tenantId}`)
+  revalidatePath(`/${tenantId}/knowledge`)
+  revalidatePath(`/${tenantId}/overview`)
+
+  return {
+    ok: true,
+    message: result.storageCleanupError
+      ? `Fuente eliminada. El conocimiento dejó de estar disponible, pero no se pudo limpiar el archivo de Storage: ${result.storageCleanupError}`
+      : `Fuente "${result.source.name}" eliminada junto con su conocimiento procesado.`,
   }
 }
 
