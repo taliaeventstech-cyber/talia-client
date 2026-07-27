@@ -113,6 +113,8 @@ Implemented:
 - Chatbot-specific wizard after client onboarding.
 - Agora sidebar hidden while the initial wizard is pending.
 - Language selector and day/night mode also available in this wizard.
+- If the user postpones the wizard, the AI Assistant configuration link remains
+  visible in Agora and returns to the wizard until the initial setup is complete.
 - Configuration of initial message, tone, first managed web source from the
   venue URL, color and fallback. The source reuses the Knowledge managed-web
   flow and remains subject to its rollout controls, quotas and permissions.
@@ -185,6 +187,8 @@ Implemented:
   disabled in preview mode.
 - Auto-growing chat composer in production and preview, with `Enter` to send,
   `Shift + Enter` for line breaks and a bounded internal scroll for long drafts.
+- Public widget service errors are rendered as localized retry messages instead
+  of exposing internal error codes to visitors.
 - Channel prompt.
 - Configurable fallback.
 - Structured fallback policy delegated to `talia-ai`, with an optional tenant

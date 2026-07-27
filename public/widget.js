@@ -290,7 +290,7 @@
       removeSuggestedQuestions(messages);
       appendMessage(messages, text, 'user');
       conversationHasActivity = true;
-      sendMessage(text, messages);
+      sendMessage(text, messages, undefined, fallbackLanguage);
     });
 
     input.addEventListener('input', resizeComposer);
@@ -324,7 +324,7 @@
             id: question.id,
             position: question.position,
             language: fallbackLanguage,
-          });
+          }, fallbackLanguage);
           input.focus();
         }
       );
@@ -337,7 +337,7 @@
     }
   }
 
-  function sendMessage(text, messages, suggestedQuestion) {
+  function sendMessage(text, messages, suggestedQuestion, fallbackLanguage) {
     var requestSessionId = sessionId;
     appendMessage(messages, '...', 'assistant', true);
     fetch(baseUrl + '/api/chat/' + tenantId, {
@@ -356,7 +356,7 @@
         removeTyping(messages);
         appendMessage(
           messages,
-          data.reply || getChatErrorMessage(data.error) || 'No he podido responder ahora mismo.',
+          data.reply || getChatErrorMessage(data.error, fallbackLanguage),
           'assistant',
           false,
           data.actions,
@@ -367,7 +367,7 @@
       .catch(function () {
         if (requestSessionId !== sessionId) return;
         removeTyping(messages);
-        appendMessage(messages, 'No he podido conectar con TALIA ahora mismo.', 'assistant');
+        appendMessage(messages, getChatUnavailableMessage(fallbackLanguage), 'assistant');
       });
   }
 
@@ -767,9 +767,19 @@
     if (typing) typing.remove();
   }
 
-  function getChatErrorMessage(error) {
-    if (error === 'domain_not_allowed') return 'Este dominio no está autorizado para usar este asistente de TALIA.';
-    return error || null;
+  function getChatErrorMessage(error, language) {
+    if (error === 'domain_not_allowed') {
+      if (language === 'ca') return 'Aquest domini no està autoritzat per utilitzar aquest assistent de TALIA.';
+      if (language === 'en') return 'This domain is not authorized to use this TALIA assistant.';
+      return 'Este dominio no está autorizado para usar este asistente de TALIA.';
+    }
+    return getChatUnavailableMessage(language);
+  }
+
+  function getChatUnavailableMessage(language) {
+    if (language === 'ca') return 'Ara mateix no puc respondre. Si us plau, torna-ho a provar d’aquí a uns instants.';
+    if (language === 'en') return 'I cannot respond right now. Please try again in a moment.';
+    return 'Ahora mismo no puedo responder. Por favor, vuelve a intentarlo en unos instantes.';
   }
 
   function installNavigationObserver() {

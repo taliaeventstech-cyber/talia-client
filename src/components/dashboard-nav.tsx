@@ -55,6 +55,12 @@ type DashboardNavLabels = {
   trialEndsIn: string
 }
 
+export function getChatbotConfigurationHref(tenantId: string, setupCompleted: boolean) {
+  return setupCompleted
+    ? `/${tenantId}/settings`
+    : `/${tenantId}/chatbot/setup`
+}
+
 export function DashboardNav({
   tenantId,
   labels,
@@ -93,6 +99,7 @@ export function DashboardNav({
   const showKnowledge = hasProductAccess && dataEnabled && canManageKnowledge
   const showEmail = emailAgentPreviewEnabled && hasProductAccess && emailEnabled && canManageEmail
   const showAttention = showChatbot || showAccessibility || showEmail
+  const chatbotConfigurationHref = getChatbotConfigurationHref(tenantId, chatbotSetupCompleted)
   const trialProgress = trialDaysRemaining === null
     ? 0
     : Math.max(0, Math.min(100, Math.round((trialDaysRemaining / FREE_TRIAL_DAYS) * 100)))
@@ -156,10 +163,10 @@ export function DashboardNav({
                     {labels.analysis}
                   </Link>
                 ) : null}
-                {chatbotSetupCompleted && canManageChatbot ? (
+                {canManageChatbot ? (
                   <Link
-                    className={`nav-link nav-link-nested ${active(`/${tenantId}/settings`) ? 'nav-link-active' : ''}`}
-                    href={`/${tenantId}/settings`}
+                    className={`nav-link nav-link-nested ${active(chatbotConfigurationHref) ? 'nav-link-active' : ''}`}
+                    href={chatbotConfigurationHref}
                   >
                     <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
                     {labels.settings}
