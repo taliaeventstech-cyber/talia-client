@@ -1,4 +1,10 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
+import {
+  boundConversationContext,
+  CONVERSATION_CONTEXT_LIMITS,
+  type ChatConversationContextMessage,
+  type ConversationContextRow,
+} from '@/lib/chat/conversation-context'
 import type { Json } from '@/types/database.types'
 
 type AdminClient = ReturnType<typeof createAdminClient>
@@ -19,6 +25,10 @@ export type SaveConversationInput = {
   sessionId: string
   messages: IncomingChatMessage[]
   metadata?: Json
+}
+
+type ConversationStateRow = ConversationContextRow & {
+  metadata?: unknown
 }
 
 export async function saveConversation(admin: AdminClient, input: SaveConversationInput) {
@@ -115,4 +125,48 @@ export async function getLatestAssistantMessageMetadata(admin: AdminClient, tena
     .maybeSingle()
 
   return message?.metadata
+}
+
+export async function getRecentConversationState(admin: AdminClient, tenantId: string, sessionId: string) {
+  const { data: conversation } = await admin
+    .from('conversations')
+    .select('id')
+    .eq('theatre_id', tenantId)
+    .eq('session_id', sessionId)
+    .maybeSingle()
+
+  if (!conversation) {
+    return {
+      messages: [] as ChatConversationContextMessage[],
+      latestAssistantMetadata: undefined as Json | undefined,
+    }
+  }
+
+  const { data } = await admin
+    .from('messages')
+    .select('role, content, metadata')
+    .eq('theatre_id', tenantId)
+    .eq('conversation_id', conversation.id)
+    .in('role', ['user', 'assistant'])
+    .order('created_at', { ascending: false })
+    .limit(CONVERSATION_CONTEXT_LIMITS.maxMessages)
+
+  const rows = (data ?? []) as ConversationStateRow[]
+  const latestAssistant = rows.find((row) => row.role === 'assistant')
+
+  return {
+    messages: boundConversationContext(rows),
+    latestAssistantMetadata: isJsonValue(latestAssistant?.metadata)
+      ? latestAssistant.metadata
+      : undefined,
+  }
+}
+
+function isJsonValue(value: unknown): value is Json {
+  return value === null
+    || typeof value === 'string'
+    || typeof value === 'number'
+    || typeof value === 'boolean'
+    || Array.isArray(value)
+    || (typeof value === 'object' && value !== null)
 }

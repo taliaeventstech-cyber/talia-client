@@ -46,6 +46,14 @@ export class TaliaAiChatAgentProvider implements ChatAgentProvider {
           session_id: input.sessionId,
           message: input.message,
           ...(input.pageUrl ? { page_url: input.pageUrl } : {}),
+          ...(input.conversationContext?.length
+            ? {
+              conversation_context: input.conversationContext.map((message) => ({
+                role: message.role,
+                content: message.content,
+              })),
+            }
+            : {}),
           ...(input.pendingClarification
             ? {
               pending_clarification: {

@@ -132,6 +132,10 @@ describe('TaliaAiChatAgentProvider', () => {
     const result = await provider.respond({
       ...runtimeInput,
       pageUrl: 'https://talia.events/pricing',
+      conversationContext: [
+        { role: 'user', content: '¿Tenéis descuentos?' },
+        { role: 'assistant', content: 'Sí. Las personas jubiladas tienen una tarifa de 15 €.' },
+      ],
       pendingClarification: {
         intent: 'pricing',
         reason: 'ambiguous_price_intent',
@@ -186,6 +190,10 @@ describe('TaliaAiChatAgentProvider', () => {
       tenant_id: 'tenant-1',
       session_id: 'session-1',
       page_url: 'https://talia.events/pricing',
+      conversation_context: [
+        { role: 'user', content: '¿Tenéis descuentos?' },
+        { role: 'assistant', content: 'Sí. Las personas jubiladas tienen una tarifa de 15 €.' },
+      ],
       pending_clarification: {
         intent: 'pricing',
         reason: 'ambiguous_price_intent',

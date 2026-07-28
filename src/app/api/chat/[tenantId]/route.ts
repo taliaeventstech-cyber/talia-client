@@ -1,4 +1,4 @@
-import { getLatestAssistantMessageMetadata, saveConversation } from '@/lib/chat/service'
+import { getRecentConversationState, saveConversation } from '@/lib/chat/service'
 import { getFallbackChatAnalytics, parseChatAnalytics, saveConversationTopic } from '@/lib/analytics/topics'
 import { isTaliaAiPrimaryProvider, runChatAgent, type ChatAgentPendingClarification } from '@/lib/agent-runtime/chat'
 import { corsJson, corsNoContent } from '@/lib/http/cors'
@@ -214,11 +214,14 @@ export async function POST(
   })
 
   const shouldDelegateKnowledgeToTaliaAi = isTaliaAiPrimaryProvider()
+  const recentConversation = shouldDelegateKnowledgeToTaliaAi
+    ? await getRecentConversationState(admin, tenantId, sessionId)
+    : { messages: [], latestAssistantMetadata: undefined }
   const legacyVisitorLanguage = shouldDelegateKnowledgeToTaliaAi
     ? null
     : detectChatLanguage(message, tenant.config.language)
   const pendingClarification = shouldDelegateKnowledgeToTaliaAi
-    ? extractPendingClarification(await getLatestAssistantMessageMetadata(admin, tenantId, sessionId))
+    ? extractPendingClarification(recentConversation.latestAssistantMetadata)
     : undefined
   const knowledge = shouldDelegateKnowledgeToTaliaAi
     ? {
@@ -315,6 +318,7 @@ export async function POST(
     sessionId,
     message,
     pageUrl,
+    conversationContext: recentConversation.messages,
     pendingClarification,
     tenant: {
       name: tenant.config.name,
@@ -342,6 +346,7 @@ export async function POST(
     ? requireAgentResponseLanguage(agentMetadata)
     : detectChatLanguage(message, tenant.config.language)
   const agentActions = summarizeVerifiedChatActions(response.actions, {
+    tenantName: tenant.config.name,
     fallbackPhone: tenant.config.fallbackPhone,
     whatsappEnabled: tenant.config.aiSettings.fallbackWhatsApp,
   })
@@ -783,6 +788,12 @@ function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): 
   const languageAgent = summarizeLanguageAgent(metadata.language_agent)
   if (languageAgent) result.language_agent = languageAgent
 
+  const conversation = summarizeConversation(metadata.conversation)
+  if (conversation) result.conversation = conversation
+
+  const locationAction = summarizeLocationAction(metadata.location_action)
+  if (locationAction) result.location_action = locationAction
+
   const analytics = parseChatAnalytics(metadata.analytics)
   if (analytics) {
     result.analytics = {
@@ -795,6 +806,44 @@ function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): 
   }
 
   return result
+}
+
+function summarizeLocationAction(value: unknown): Json | null {
+  if (!isRecord(value)) return null
+  const status = value.status === 'verified'
+    || value.status === 'rejected'
+    || value.status === 'not_requested'
+    ? value.status
+    : null
+  const reason = typeof value.reason === 'string' ? value.reason.trim().slice(0, 120) : ''
+  if (!status || !reason) return null
+
+  return {
+    status,
+    reason,
+    supported_source_id: typeof value.supported_source_id === 'string'
+      ? value.supported_source_id.slice(0, 200)
+      : null,
+  }
+}
+
+function summarizeConversation(value: unknown): Json | null {
+  if (!isRecord(value)) return null
+
+  const contextMessageCount = typeof value.context_message_count === 'number'
+    && Number.isFinite(value.context_message_count)
+    ? Math.max(0, Math.trunc(value.context_message_count))
+    : null
+  const semanticQuery = typeof value.semantic_query === 'string'
+    ? value.semantic_query.trim().slice(0, 2_000)
+    : ''
+  if (contextMessageCount === null || !semanticQuery) return null
+
+  return {
+    context_message_count: contextMessageCount,
+    follow_up: value.follow_up === true,
+    semantic_query: semanticQuery,
+  }
 }
 
 function summarizeLanguageAgent(value: unknown): Json | null {

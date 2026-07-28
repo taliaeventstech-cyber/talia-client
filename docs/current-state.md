@@ -189,6 +189,11 @@ Implemented:
   `Shift + Enter` for line breaks and a bounded internal scroll for long drafts.
 - Per-response feedback uses a localized TALIA micro-survey with compact
   Yes/No chips instead of generic thumbs-up/down icon buttons.
+- Stable chatbot UI copy, including response ratings and the compact
+  pre-restart survey, uses the chatbot's configured primary language. This UI
+  language does not constrain the Answer Agent: TALIA still replies in the
+  language used in each visitor message, and the initial message remains
+  configurable as free text in any language.
 - The widget host, chrome, composer and dynamic messages opt out of automatic
   browser translation so translated host pages cannot rewrite TALIA content.
 - Public widget service errors are rendered as localized retry messages instead
@@ -201,10 +206,32 @@ Implemented:
 - Verified chat actions keep WhatsApp destinations separate from visible reply
   text, so the widget displays the configured phone number as the link label
   instead of exposing the full `wa.me` URL.
+- Source-backed physical-address answers can include a verified location action.
+  `talia-ai` copies the postal address from a cited Knowledge source and builds
+  Google Maps destinations deterministically; Next validates them again before
+  the widget renders a localized venue card, progressive embedded map and
+  external Maps link. TALIA and ContigoSí allow only the exact Google Maps frame
+  origins needed by that card; third-party hosts must do the same or the branded
+  fallback and external link remain usable. If the Answer Agent omits its
+  auxiliary location field, `talia-ai` can derive the card from one unambiguous
+  cited postal address; it never chooses automatically between several venues.
+  Unsupported postal addresses invalidate the full answer before rendering,
+  and named venues are not admitted unless the selected tenant evidence
+  actually supports that entity.
 - International fallback phone input shared by onboarding, Agora and Backstage;
   country prefix and national number are edited separately while storage and
   service contracts keep a single normalized E.164 value.
 - Persisted conversations and messages.
+- Each new turn sends at most the six most recent messages from the same
+  tenant-scoped public session to `talia-ai` (maximum 2,000 characters per
+  message and 6,000 characters in total). This bounded context lets TALIA
+  understand conversational references without exposing another venue or
+  session; restarting the widget creates a new session and therefore clears the
+  context.
+- Conversation context is not treated as Knowledge. `talia-ai` rewrites a
+  probable follow-up into a standalone semantic query and runs tenant-scoped
+  retrieval again, so factual answers must still be supported by the current
+  knowledge base.
 - Basic analytics of topics and intents.
 - Usage tied to billing/limits.
 - Internal chat runtime in `src/lib/agent-runtime/chat.ts`, with `talia-ai` as

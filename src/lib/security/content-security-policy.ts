@@ -35,6 +35,7 @@ export function buildContentSecurityPolicy(options: {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     `connect-src ${connectSources.join(' ')}`,
+    "frame-src 'self' https://www.google.com https://maps.google.com",
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
