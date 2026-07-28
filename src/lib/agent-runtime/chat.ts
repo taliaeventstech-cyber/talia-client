@@ -1,4 +1,5 @@
 import { sendChatMessageToN8n } from '@/lib/chat/n8n'
+import type { ChatConversationContextMessage } from '@/lib/chat/conversation-context'
 import type { ChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import type { RelevantKnowledgeHint } from '@/lib/knowledge/retrieval'
 import type { ChatbotResponseTone } from '@/lib/tenants/service'
@@ -11,6 +12,7 @@ export type ChatAgentRuntimeInput = {
   sessionId: string
   message: string
   pageUrl?: string
+  conversationContext?: ChatConversationContextMessage[]
   pendingClarification?: ChatAgentPendingClarification
   n8nWebhookUrl: string | null
   tenant: {

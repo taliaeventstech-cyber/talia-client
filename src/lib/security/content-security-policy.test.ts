@@ -11,6 +11,7 @@ describe('buildContentSecurityPolicy', () => {
 
     expect(policy).toContain("object-src 'none'")
     expect(policy).toContain("frame-ancestors 'none'")
+    expect(policy).toContain("frame-src 'self' https://www.google.com https://maps.google.com")
     expect(policy).toContain("base-uri 'self'")
     expect(policy).toContain('https://project.supabase.co')
     expect(policy).toContain('wss://project.supabase.co')
