@@ -177,7 +177,7 @@
         return;
       }
 
-      sessionFeedbackPrompt = createSessionFeedbackPrompt(sessionId);
+      sessionFeedbackPrompt = createSessionFeedbackPrompt(sessionId, fallbackLanguage);
       messages.appendChild(sessionFeedbackPrompt);
       messages.scrollTop = messages.scrollHeight;
       var firstChoice = sessionFeedbackPrompt.querySelector('[data-session-feedback-choice]');
@@ -191,21 +191,27 @@
       sessionFeedbackPrompt = null;
     }
 
-    function createSessionFeedbackPrompt(feedbackSessionId) {
+    function createSessionFeedbackPrompt(feedbackSessionId, language) {
       var prompt = document.createElement('div');
       var resolved = null;
-      prompt.className = 'message assistant session-feedback';
+      var copy = getSessionFeedbackCopy(language);
+      prompt.className = 'message notranslate assistant session-feedback';
+      prompt.setAttribute('translate', 'no');
       prompt.setAttribute('data-session-feedback', 'true');
+      prompt.setAttribute('aria-label', copy.groupLabel);
       prompt.innerHTML = '\
-        <strong class="session-feedback-title">Antes de empezar de nuevo, ¿he resuelto tu consulta?</strong>\
-        <div class="session-feedback-choices">\
-          <button class="session-feedback-choice" data-session-feedback-choice data-value="yes" type="button"><span>Sí</span></button>\
-          <button class="session-feedback-choice" data-session-feedback-choice data-value="no" type="button"><span>No</span></button>\
+        <div class="session-feedback-heading">\
+          <strong class="session-feedback-title">' + escapeHtml(copy.title) + '</strong>\
+          <span class="session-feedback-description">' + escapeHtml(copy.description) + '</span>\
         </div>\
-        <textarea data-session-feedback-comments maxlength="1000" placeholder="Añade comentarios adicionales..."></textarea>\
+        <div class="session-feedback-choices">\
+          <button class="session-feedback-choice" data-session-feedback-choice data-value="yes" type="button"><span>' + escapeHtml(copy.positive) + '</span></button>\
+          <button class="session-feedback-choice" data-session-feedback-choice data-value="no" type="button"><span>' + escapeHtml(copy.negative) + '</span></button>\
+        </div>\
+        <textarea data-session-feedback-comments maxlength="1000" placeholder="' + escapeHtml(copy.commentsPlaceholder) + '"></textarea>\
         <div class="session-feedback-actions">\
-          <button class="session-feedback-button session-feedback-submit" data-session-feedback-submit type="button" disabled>Enviar y reiniciar</button>\
-          <button class="session-feedback-button" data-session-feedback-skip type="button">Saltar</button>\
+          <button class="session-feedback-button session-feedback-submit" data-session-feedback-submit type="button" disabled>' + escapeHtml(copy.submit) + '</button>\
+          <button class="session-feedback-button session-feedback-skip" data-session-feedback-skip type="button">' + escapeHtml(copy.skip) + '</button>\
         </div>';
 
       var choices = prompt.querySelectorAll('[data-session-feedback-choice]');
@@ -364,7 +370,8 @@
           data.actions,
           data.assistant_message_id || data.assistantMessageId,
           requestSessionId,
-          fallbackLanguage
+          fallbackLanguage,
+          getAgentResponseLanguage(data, fallbackLanguage)
         );
       })
       .catch(function () {
@@ -374,7 +381,7 @@
       });
   }
 
-  function appendMessage(container, text, role, typing, actions, messageId, feedbackSessionId, feedbackLanguage) {
+  function appendMessage(container, text, role, typing, actions, messageId, feedbackSessionId, feedbackLanguage, contentLanguage) {
     var item = document.createElement('div');
     item.className = 'message notranslate ' + role;
     item.setAttribute('translate', 'no');
@@ -383,7 +390,7 @@
       item.setAttribute('aria-label', 'TALIA está escribiendo');
       item.innerHTML = '<span class="typing-dots" aria-hidden="true"><span></span><span></span><span></span></span>';
     } else {
-      appendMessageContent(item, text, actions);
+      appendMessageContent(item, text, actions, contentLanguage || feedbackLanguage);
     }
     container.appendChild(item);
     if (role === 'assistant' && !typing && messageId) {
@@ -588,6 +595,43 @@
     };
   }
 
+  function getSessionFeedbackCopy(language) {
+    if (language === 'ca') {
+      return {
+        groupLabel: 'Valoració abans de reiniciar',
+        title: 'Tornem a començar?',
+        description: 'Abans, digues-me si he resolt la teva consulta.',
+        positive: 'Sí, gràcies',
+        negative: 'No del tot',
+        commentsPlaceholder: 'Comentari opcional',
+        submit: 'Enviar i reiniciar',
+        skip: 'Reiniciar sense valorar'
+      };
+    }
+    if (language === 'en') {
+      return {
+        groupLabel: 'Feedback before restarting',
+        title: 'Start a new conversation?',
+        description: 'Before we do, did I resolve your question?',
+        positive: 'Yes, thanks',
+        negative: 'Not quite',
+        commentsPlaceholder: 'Optional comment',
+        submit: 'Submit and restart',
+        skip: 'Restart without rating'
+      };
+    }
+    return {
+      groupLabel: 'Valoración antes de reiniciar',
+      title: '¿Empezamos de nuevo?',
+      description: 'Antes, dime si he resuelto tu consulta.',
+      positive: 'Sí, gracias',
+      negative: 'No del todo',
+      commentsPlaceholder: 'Comentario opcional',
+      submit: 'Enviar y reiniciar',
+      skip: 'Reiniciar sin valorar'
+    };
+  }
+
   function submitFeedback(messageId, feedbackSessionId, rating, button) {
     var wrapper = button.parentElement;
     if (!wrapper) return;
@@ -619,7 +663,7 @@
       });
   }
 
-  function appendMessageContent(container, text, actions) {
+  function appendMessageContent(container, text, actions, language) {
     var value = String(text || '').replace(/\r\n/g, '\n');
     var safeActions = normalizeMessageActions(actions);
     var paragraphLines = [];
@@ -675,6 +719,7 @@
 
     flushParagraph();
     flushList();
+    appendLocationActions(container, safeActions, language);
   }
 
   function appendInlineMessageContent(container, text, actions) {
@@ -781,20 +826,123 @@
   function normalizeMessageActions(actions) {
     if (!Array.isArray(actions)) return [];
     return actions.filter(function (action) {
-      if (!action || action.type !== 'whatsapp' || typeof action.label !== 'string' || typeof action.href !== 'string') return false;
-      if (!action.label || action.label.length > 100) return false;
-      try {
-        var url = new URL(action.href);
-        return url.protocol === 'https:' && url.hostname === 'wa.me' && /^\/\d{8,15}$/.test(url.pathname);
-      } catch {
-        return false;
+      if (!action || typeof action.label !== 'string' || typeof action.href !== 'string') return false;
+      if (!action.label || action.label.length > 120) return false;
+      if (action.type === 'whatsapp') {
+        try {
+          var whatsappUrl = new URL(action.href);
+          return whatsappUrl.protocol === 'https:' && whatsappUrl.hostname === 'wa.me' && /^\/\d{8,15}$/.test(whatsappUrl.pathname);
+        } catch {
+          return false;
+        }
       }
+      if (action.type === 'location') {
+        if (typeof action.address !== 'string' || typeof action.embed_href !== 'string') return false;
+        var address = action.address.trim().replace(/\s+/g, ' ');
+        if (address.length < 5 || address.length > 300 || /[\r\n<>]/.test(address)) return false;
+        var encodedAddress = encodeURIComponent(address);
+        return action.href === 'https://www.google.com/maps/search/?api=1&query=' + encodedAddress
+          && action.embed_href === 'https://www.google.com/maps?q=' + encodedAddress + '&output=embed';
+      }
+      return false;
     });
+  }
+
+  function appendLocationActions(container, actions, language) {
+    var action = actions.find(function (item) { return item.type === 'location'; });
+    if (!action) return;
+
+    var copy = getLocationActionCopy(language);
+    var card = document.createElement('section');
+    card.className = 'location-card';
+    card.setAttribute('aria-label', copy.locationLabel);
+
+    var heading = document.createElement('div');
+    heading.className = 'location-heading';
+    var marker = document.createElement('span');
+    marker.className = 'location-marker';
+    marker.setAttribute('aria-hidden', 'true');
+    marker.innerHTML = '<svg viewBox="0 0 24 24" focusable="false"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>';
+    var details = document.createElement('span');
+    details.className = 'location-details';
+    var label = document.createElement('strong');
+    label.textContent = action.label;
+    var address = document.createElement('span');
+    address.textContent = action.address;
+    details.appendChild(label);
+    details.appendChild(address);
+    heading.appendChild(marker);
+    heading.appendChild(details);
+
+    var mapShell = document.createElement('div');
+    mapShell.className = 'location-map-shell';
+    var placeholder = document.createElement('div');
+    placeholder.className = 'location-map-placeholder';
+    placeholder.setAttribute('aria-hidden', 'true');
+    placeholder.innerHTML = '<span></span><span></span><span></span><b></b>';
+    mapShell.appendChild(placeholder);
+
+    var frame = document.createElement('iframe');
+    frame.className = 'location-map-frame';
+    frame.src = action.embed_href;
+    frame.title = copy.mapTitle + ': ' + action.label;
+    frame.loading = 'lazy';
+    frame.referrerPolicy = 'no-referrer';
+    frame.setAttribute('allowfullscreen', '');
+    frame.addEventListener('load', function () {
+      mapShell.classList.add('location-map-shell--loaded');
+    });
+    mapShell.appendChild(frame);
+
+    var handleMapCspViolation = function (event) {
+      var blockedUri = String(event && event.blockedURI || '');
+      var directive = String(event && event.violatedDirective || '');
+      if (!card.isConnected || directive.indexOf('frame') === -1 || blockedUri.indexOf('google.com') === -1) return;
+      mapShell.classList.add('location-map-shell--blocked');
+      if (frame.parentNode) frame.remove();
+      window.removeEventListener('securitypolicyviolation', handleMapCspViolation);
+    };
+    window.addEventListener('securitypolicyviolation', handleMapCspViolation);
+    window.setTimeout(function () {
+      window.removeEventListener('securitypolicyviolation', handleMapCspViolation);
+    }, 5000);
+
+    var link = document.createElement('a');
+    link.className = 'location-open-link';
+    link.href = action.href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = copy.openMaps;
+    link.setAttribute('aria-label', copy.openMaps + ': ' + action.address);
+
+    card.appendChild(heading);
+    card.appendChild(mapShell);
+    card.appendChild(link);
+    container.appendChild(card);
+  }
+
+  function getLocationActionCopy(language) {
+    var normalized = getWidgetLanguage(language, 'es');
+    if (normalized === 'ca') {
+      return { locationLabel: 'Ubicació', mapTitle: 'Mapa', openMaps: 'Obrir a Maps' };
+    }
+    if (normalized === 'en') {
+      return { locationLabel: 'Location', mapTitle: 'Map', openMaps: 'Open in Maps' };
+    }
+    return { locationLabel: 'Ubicación', mapTitle: 'Mapa', openMaps: 'Abrir en Maps' };
+  }
+
+  function getAgentResponseLanguage(data, fallbackLanguage) {
+    var metadata = data && data.source && data.source.metadata;
+    return metadata && typeof metadata.response_language === 'string'
+      ? getWidgetLanguage(metadata.response_language, fallbackLanguage)
+      : fallbackLanguage;
   }
 
   function findNextActionMatch(value, cursor, actions) {
     var best = null;
     actions.forEach(function (action) {
+      if (action.type !== 'whatsapp') return;
       var prefix = 'WhatsApp: ';
       var tokenIndex = value.indexOf(prefix + action.label, cursor);
       if (tokenIndex === -1) return;
@@ -1365,6 +1513,27 @@
         .message strong { font-weight: 700; }\
         .message em { font-style: italic; }\
         .message a { color: inherit; text-decoration: underline; overflow-wrap: anywhere; }\
+        .location-card { display: grid; gap: 10px; margin-top: 12px; overflow: hidden; border: 1px solid rgba(26,26,46,.12); border-radius: 12px; padding: 10px; background: color-mix(in srgb, ' + primaryColor + ' 5%, #fff); white-space: normal; }\
+        .location-heading { display: flex; min-width: 0; align-items: flex-start; gap: 9px; }\
+        .location-marker { flex: 0 0 30px; display: grid; width: 30px; height: 30px; place-items: center; border-radius: 999px; background: color-mix(in srgb, ' + primaryColor + ' 12%, #fff); color: ' + primaryColor + '; }\
+        .location-marker svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }\
+        .location-details { min-width: 0; display: grid; gap: 2px; color: inherit; }\
+        .location-details strong { overflow: hidden; font: 700 13px/1.25 "Space Grotesk", system-ui; text-overflow: ellipsis; white-space: nowrap; }\
+        .location-details span { font: 500 12px/1.35 "Space Grotesk", system-ui; opacity: .7; }\
+        .location-map-shell { position: relative; height: 156px; overflow: hidden; border-radius: 9px; background: color-mix(in srgb, ' + primaryColor + ' 7%, #ebe8e2); }\
+        .location-map-placeholder { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(29deg, transparent 46%, rgba(255,255,255,.78) 47%, rgba(255,255,255,.78) 52%, transparent 53%), linear-gradient(151deg, transparent 35%, rgba(255,255,255,.58) 36%, rgba(255,255,255,.58) 41%, transparent 42%), color-mix(in srgb, ' + primaryColor + ' 7%, #e8e4dc); }\
+        .location-map-placeholder span { position: absolute; height: 2px; width: 140%; left: -20%; background: rgba(26,26,46,.1); transform: rotate(-18deg); }\
+        .location-map-placeholder span:nth-child(1) { top: 28%; }\
+        .location-map-placeholder span:nth-child(2) { top: 58%; transform: rotate(23deg); }\
+        .location-map-placeholder span:nth-child(3) { top: 78%; transform: rotate(-4deg); }\
+        .location-map-placeholder b { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; border-radius: 50% 50% 50% 0; background: ' + primaryColor + '; box-shadow: 0 4px 10px rgba(26,26,46,.24); transform: translate(-50%,-65%) rotate(-45deg); }\
+        .location-map-placeholder b::after { content: ""; position: absolute; width: 6px; height: 6px; left: 6px; top: 6px; border-radius: 50%; background: #fff; }\
+        .location-map-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; opacity: 0; transition: opacity 180ms ease; }\
+        .location-map-shell--loaded .location-map-frame { opacity: 1; }\
+        .location-map-shell--blocked { height: 104px; }\
+        .location-open-link { display: flex; min-height: 36px; align-items: center; justify-content: center; border-radius: 8px; background: ' + primaryColor + '; color: #fff !important; font: 700 12px/1 "Space Grotesk", system-ui; text-decoration: none !important; }\
+        .location-open-link:hover { filter: brightness(.96); }\
+        .location-open-link:focus-visible { outline: 2px solid ' + primaryColor + '; outline-offset: 2px; }\
         .typing-dots { display: inline-flex; align-items: center; gap: 4px; min-width: 34px; height: 18px; }\
         .typing-dots span { display: block; width: 7px; height: 7px; border-radius: 999px; background: currentColor; opacity: .38; transform: translateY(0); animation: taliaTypingBounce 1s ease-in-out infinite; }\
         .typing-dots span:nth-child(2) { animation-delay: 140ms; }\
@@ -1385,19 +1554,20 @@
         .suggested-questions-actions { display: flex; flex-wrap: wrap; gap: 8px; }\
         .suggested-question { min-height: 38px; border: 1px solid color-mix(in srgb, ' + primaryColor + ' 45%, rgba(26,26,46,.16)); border-radius: 999px; padding: 8px 12px; background: rgba(255,255,255,.82); color: color-mix(in srgb, ' + primaryColor + ' 82%, #1A1A2E); font: 650 13px/1.25 "Space Grotesk", system-ui; text-align: left; cursor: pointer; }\
         .suggested-question:hover { background: color-mix(in srgb, ' + primaryColor + ' 9%, #fff); }\
-        .session-feedback { display: grid; gap: 12px; width: min(340px, 84%); max-width: 84%; box-sizing: border-box; }\
-        .session-feedback-title { color: inherit; font: inherit; font-weight: 700; letter-spacing: 0; white-space: normal; }\
-        .session-feedback-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }\
-        .session-feedback-choice { display: inline-flex; min-width: 0; height: 42px; align-items: center; justify-content: center; gap: 7px; border: 1px solid rgba(17,24,39,.14); border-radius: 8px; background: #fff; color: #374151; font: 700 14px/1 "Space Grotesk", system-ui; cursor: pointer; }\
-        .session-feedback-choice[data-value="yes"] { color: #2dae1f; }\
-        .session-feedback-choice[data-value="no"] { color: #e02424; }\
-        .session-feedback-choice--active[data-value="yes"] { border-color: rgba(45,174,31,.45); background: rgba(45,174,31,.08); }\
-        .session-feedback-choice--active[data-value="no"] { border-color: rgba(224,36,36,.45); background: rgba(224,36,36,.08); }\
-        .session-feedback textarea { display: block; width: 100%; min-height: 78px; resize: vertical; box-sizing: border-box; border: 1px solid rgba(17,24,39,.14); border-radius: 8px; padding: 11px; color: #111827; background: #fff; font: 14px/1.42 "Space Grotesk", system-ui; }\
-        .session-feedback-actions { display: grid; gap: 8px; }\
-        .session-feedback-button { min-height: 42px; border: 1px solid rgba(17,24,39,.14); border-radius: 8px; background: #fff; color: #6b7280; font: 700 14px/1.2 "Space Grotesk", system-ui; cursor: pointer; }\
-        .session-feedback-submit { border-color: transparent; background: #111827; color: #fff; }\
-        .session-feedback-submit:disabled { background: #8b8b8b; cursor: default; }\
+        .session-feedback { display: grid; gap: 11px; width: min(320px, 84%); max-width: 84%; box-sizing: border-box; }\
+        .session-feedback-heading { display: grid; gap: 3px; }\
+        .session-feedback-title { color: inherit; font: 700 15px/1.32 "Space Grotesk", system-ui; letter-spacing: 0; white-space: normal; }\
+        .session-feedback-description { color: inherit; font: 500 12px/1.4 "Space Grotesk", system-ui; opacity: .62; white-space: normal; }\
+        .session-feedback-choices { display: flex; flex-wrap: wrap; gap: 6px; }\
+        .session-feedback-choice { display: inline-flex; min-width: 0; min-height: 32px; align-items: center; justify-content: center; border: 1px solid rgba(17,24,39,.14); border-radius: 999px; padding: 0 12px; background: #fff; color: rgba(26,26,46,.72); font: 700 12px/1 "Space Grotesk", system-ui; cursor: pointer; transition: border-color 150ms ease, background 150ms ease, color 150ms ease; }\
+        .session-feedback-choice:hover { border-color: color-mix(in srgb, ' + primaryColor + ' 45%, rgba(17,24,39,.14)); color: color-mix(in srgb, ' + primaryColor + ' 82%, #1A1A2E); }\
+        .session-feedback-choice--active { border-color: ' + primaryColor + '; background: ' + primaryColor + '; color: #fff; }\
+        .session-feedback textarea { display: block; width: 100%; min-height: 52px; resize: vertical; box-sizing: border-box; border: 1px solid rgba(17,24,39,.14); border-radius: 10px; padding: 9px 10px; color: #111827; background: #fff; font: 12px/1.42 "Space Grotesk", system-ui; }\
+        .session-feedback-actions { display: flex; align-items: center; gap: 10px; }\
+        .session-feedback-button { min-height: 34px; border: 0; border-radius: 999px; padding: 0 13px; background: transparent; color: rgba(26,26,46,.62); font: 650 11px/1.2 "Space Grotesk", system-ui; cursor: pointer; }\
+        .session-feedback-submit { background: ' + primaryColor + '; color: #fff; }\
+        .session-feedback-submit:disabled { opacity: .42; cursor: default; }\
+        .session-feedback-skip { padding-inline: 2px; }\
         .form { display: flex; align-items: flex-end; gap: 9px; padding: 13px; background: ' + formBackground + '; ' + formFilter + ' ' + formBorder + ' }\
         .input { min-width: 0; min-height: 44px; max-height: 120px; flex: 1; resize: none; overflow-y: hidden; border: .5px solid rgba(26,26,46,.25); border-radius: 7px; padding: 11px; color: #1A1A2E; caret-color: ' + primaryColor + '; font: 15px/1.4 "Space Grotesk", system-ui; background: ' + inputBackground + '; box-sizing: border-box; }\
         .input:focus { outline: none; border-color: ' + primaryColor + '; box-shadow: 0 0 0 2px color-mix(in srgb, ' + primaryColor + ' 22%, transparent); }\

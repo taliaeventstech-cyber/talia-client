@@ -12,6 +12,7 @@ import { getDefaultPhoneCountry } from '@/lib/phone/international'
 import Image from 'next/image'
 import { ArrowDown, ArrowUp, ArrowUpRight, Bot, ChevronLeft, MessageCircle, MessageCircleMore, Plus, RefreshCcw, Trash2 } from 'lucide-react'
 import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
+import { getSessionFeedbackCopy } from '@/lib/widget/session-feedback-copy'
 import {
   getVisibleSuggestedQuestions,
   MAX_SUGGESTED_QUESTION_TARGETS,
@@ -1196,6 +1197,7 @@ function WidgetPreview({
     widgetConfig.pageUrl,
   )
   const responseFeedbackCopy = getPreviewResponseFeedbackCopy(widgetConfig.fallbackLanguage)
+  const sessionFeedbackCopy = getSessionFeedbackCopy(widgetConfig.fallbackLanguage)
 
   const filter = `blur(${widgetConfig.glassBlur}px) saturate(200%) brightness(${skin.bright})`
 
@@ -1328,8 +1330,18 @@ function WidgetPreview({
             </p>
           ) : null}
           {sessionFeedbackOpen ? (
-            <div className="widget-preview-message widget-preview-session-feedback" style={botBubbleStyle} aria-label="Feedback antes de reiniciar">
-              <strong>Antes de empezar de nuevo, ¿he resuelto tu consulta?</strong>
+            <div
+              className="widget-preview-message widget-preview-session-feedback"
+              style={{
+                ...botBubbleStyle,
+                ['--widget-preview-session-feedback-color' as string]: color,
+              }}
+              aria-label={sessionFeedbackCopy.groupLabel}
+            >
+              <div className="widget-preview-session-feedback-heading">
+                <strong>{sessionFeedbackCopy.title}</strong>
+                <span>{sessionFeedbackCopy.description}</span>
+              </div>
               <div className="widget-preview-session-feedback-choices">
                 <button
                   type="button"
@@ -1337,7 +1349,7 @@ function WidgetPreview({
                   data-value="yes"
                   onClick={() => setSessionFeedbackResolved(true)}
                 >
-                  <span>Sí</span>
+                  <span>{sessionFeedbackCopy.positive}</span>
                 </button>
                 <button
                   type="button"
@@ -1345,13 +1357,13 @@ function WidgetPreview({
                   data-value="no"
                   onClick={() => setSessionFeedbackResolved(false)}
                 >
-                  <span>No</span>
+                  <span>{sessionFeedbackCopy.negative}</span>
                 </button>
               </div>
-              <textarea maxLength={1000} placeholder="Añade comentarios adicionales..." />
+              <textarea maxLength={1000} placeholder={sessionFeedbackCopy.commentsPlaceholder} />
               <div className="widget-preview-session-feedback-actions">
-                <button type="button" className="widget-preview-session-feedback-button widget-preview-session-feedback-submit" disabled={sessionFeedbackResolved === null} onClick={closeSessionFeedback}>Enviar y reiniciar</button>
-                <button type="button" className="widget-preview-session-feedback-button" onClick={closeSessionFeedback}>Saltar</button>
+                <button type="button" className="widget-preview-session-feedback-button widget-preview-session-feedback-submit" disabled={sessionFeedbackResolved === null} onClick={closeSessionFeedback}>{sessionFeedbackCopy.submit}</button>
+                <button type="button" className="widget-preview-session-feedback-button widget-preview-session-feedback-skip" onClick={closeSessionFeedback}>{sessionFeedbackCopy.skip}</button>
               </div>
             </div>
           ) : null}
