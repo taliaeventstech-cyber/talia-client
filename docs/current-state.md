@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: July 15, 2026
+Last updated: July 29, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -218,6 +218,12 @@ Implemented:
   Unsupported postal addresses invalidate the full answer before rendering,
   and named venues are not admitted unless the selected tenant evidence
   actually supports that entity.
+- Explicit purchase and reservation turns can include a verified purchase CTA.
+  Managed web ingestion preserves a bounded set of HTTPS transaction links in
+  Knowledge; `talia-ai` requires the selected item and exact destination to
+  belong to the same cited evidence before publishing an action. Next validates
+  the service metadata again, and the widget renders a localized
+  "Comprar/Buy" card instead of trusting or parsing a generated raw URL.
 - International fallback phone input shared by onboarding, Agora and Backstage;
   country prefix and national number are edited separately while storage and
   service contracts keep a single normalized E.164 value.
@@ -385,6 +391,10 @@ Implemented:
 - Managed public URLs are the primary Agora web-source flow. Installed-widget
   capture remains an optional fallback for pages the managed worker cannot read
   reliably.
+- Managed page refreshes preserve secure ticket, booking, reservation and
+  checkout links as source-scoped chunk metadata for verified chatbot purchase
+  actions. Existing sources need their normal refresh/reprocess cycle to gain
+  this metadata; no schema migration is required.
 - Structured import per the configuration screen, already connected to RAG for manual FAQs and Excel/CSV.
 
 Product direction:

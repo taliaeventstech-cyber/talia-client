@@ -1145,8 +1145,11 @@ function LanguageAgentTrace({
   return (
     <div className="context-assembly-trace">
       <div className="context-assembly-header">
-        <span>LanguageAgent</span>
-        <div>
+        <div className="trace-agent-identity">
+          <span>Agente</span>
+          <strong>Language Agent</strong>
+        </div>
+        <div className="context-assembly-meta">
           <span>{language.mode}</span>
           {typeof language.confidence === 'number' ? <span>confianza {language.confidence.toFixed(2)}</span> : null}
         </div>
@@ -1177,8 +1180,11 @@ function FallbackTrace({ fallback }: { fallback: FallbackTraceData }) {
   return (
     <div className="context-assembly-trace">
       <div className="context-assembly-header">
-        <span>FallbackPolicy</span>
-        <div>
+        <div className="trace-agent-identity">
+          <span>Política</span>
+          <strong>Fallback Policy</strong>
+        </div>
+        <div className="context-assembly-meta">
           <span>{fallback.strategy}</span>
           {fallback.language ? <span>{fallback.language}</span> : null}
         </div>
@@ -1213,8 +1219,11 @@ function ContextAssemblyTrace({
   return (
     <div className="context-assembly-trace">
       <div className="context-assembly-header">
-        <span>ContextAssembler</span>
-        <div>
+        <div className="trace-agent-identity">
+          <span>Agente</span>
+          <strong>Context Assembler</strong>
+        </div>
+        <div className="context-assembly-meta">
           <span>{getContextAssemblyModeLabel(contextAssembly.mode)}</span>
           {contextAssembly.focus ? <span>{getContextAssemblyFocusLabel(contextAssembly.focus)}</span> : null}
           {typeof contextAssembly.confidence === 'number' ? <span>confianza {contextAssembly.confidence.toFixed(2)}</span> : null}
@@ -1295,9 +1304,14 @@ function RetrievalChunkList({
           <article className="retrieval-chunk-item" key={`${chunk.id ?? chunk.source_id ?? 'chunk'}-${index}`}>
             <div className="retrieval-chunk-header">
               <strong>#{chunk.rank ?? index + 1} · {sourceName}</strong>
-              <div>
+              <div className="retrieval-chunk-meta">
                 {chunk.language ? <span>{chunk.language}</span> : null}
-                {typeof chunk.score === 'number' ? <span>score {chunk.score.toFixed(2)}</span> : null}
+                {typeof chunk.score === 'number' ? (
+                  <span className="retrieval-chunk-score" aria-label={`Score de recuperación ${chunk.score.toFixed(2)}`}>
+                    <small>Score</small>
+                    <strong>{chunk.score.toFixed(2)}</strong>
+                  </span>
+                ) : null}
               </div>
             </div>
             {chunk.preview ? <p>{chunk.preview}</p> : <p className="muted">Sin preview de contenido.</p>}

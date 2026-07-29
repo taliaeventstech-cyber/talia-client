@@ -349,6 +349,7 @@ export async function POST(
     tenantName: tenant.config.name,
     fallbackPhone: tenant.config.fallbackPhone,
     whatsappEnabled: tenant.config.aiSettings.fallbackWhatsApp,
+    purchaseAction: response.metadata?.purchase_action,
   })
   const retrievalTrace = summarizeRetrievalTrace(response.metadata)
   const contactGuard = enforceAllowedContactEmails(response.reply, {
@@ -794,6 +795,9 @@ function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): 
   const locationAction = summarizeLocationAction(metadata.location_action)
   if (locationAction) result.location_action = locationAction
 
+  const purchaseAction = summarizePurchaseAction(metadata.purchase_action)
+  if (purchaseAction) result.purchase_action = purchaseAction
+
   const analytics = parseChatAnalytics(metadata.analytics)
   if (analytics) {
     result.analytics = {
@@ -821,6 +825,30 @@ function summarizeLocationAction(value: unknown): Json | null {
   return {
     status,
     reason,
+    supported_source_id: typeof value.supported_source_id === 'string'
+      ? value.supported_source_id.slice(0, 200)
+      : null,
+  }
+}
+
+function summarizePurchaseAction(value: unknown): Json | null {
+  if (!isRecord(value)) return null
+  const status = value.status === 'verified'
+    || value.status === 'needs_clarification'
+    || value.status === 'not_requested'
+    || value.status === 'unavailable'
+    || value.status === 'rejected'
+    ? value.status
+    : null
+  const reason = typeof value.reason === 'string' ? value.reason.trim().slice(0, 120) : ''
+  if (!status || !reason) return null
+
+  return {
+    status,
+    reason,
+    item_name: typeof value.item_name === 'string'
+      ? value.item_name.trim().slice(0, 200)
+      : null,
     supported_source_id: typeof value.supported_source_id === 'string'
       ? value.supported_source_id.slice(0, 200)
       : null,

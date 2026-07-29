@@ -13,6 +13,11 @@ export type PublicChatAction =
     href: string
     embed_href: string
   }
+  | {
+    type: 'purchase'
+    label: string
+    href: string
+  }
 
 export function summarizeVerifiedChatActions(
   value: unknown,
@@ -20,6 +25,7 @@ export function summarizeVerifiedChatActions(
     tenantName: string
     fallbackPhone: string | null
     whatsappEnabled: boolean
+    purchaseAction?: unknown
   },
 ): PublicChatAction[] {
   if (!Array.isArray(value)) return []
@@ -29,6 +35,8 @@ export function summarizeVerifiedChatActions(
   if (whatsapp) actions.push(whatsapp)
   const location = buildVerifiedLocationAction(value, config.tenantName)
   if (location) actions.push(location)
+  const purchase = buildVerifiedPurchaseAction(value, config.purchaseAction)
+  if (purchase) actions.push(purchase)
   return actions
 }
 
@@ -84,6 +92,40 @@ function buildVerifiedLocationAction(
   }
 
   return null
+}
+
+function buildVerifiedPurchaseAction(
+  value: unknown[],
+  metadata: unknown,
+): PublicChatAction | null {
+  if (!isRecord(metadata) || metadata.status !== 'verified') return null
+  if (metadata.reason !== 'source_backed_purchase_url') return null
+  if (typeof metadata.item_name !== 'string' || typeof metadata.supported_source_id !== 'string') return null
+
+  const expectedLabel = metadata.item_name.trim().replace(/\s+/g, ' ')
+  if (!expectedLabel || expectedLabel.length > 200 || !metadata.supported_source_id.trim()) return null
+
+  for (const action of value) {
+    if (!isRecord(action) || action.type !== 'purchase' || action.label !== expectedLabel) continue
+    if (typeof action.href !== 'string') continue
+
+    const href = normalizeSecureExternalUrl(action.href)
+    if (!href) continue
+    return { type: 'purchase', label: expectedLabel, href }
+  }
+
+  return null
+}
+
+function normalizeSecureExternalUrl(value: string) {
+  if (value.length > 2_000) return null
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'https:' || url.username || url.password) return null
+    return url.toString()
+  } catch {
+    return null
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -66,4 +66,48 @@ describe('summarizeVerifiedChatActions', () => {
       embed_href: 'https://www.google.com/maps?q=Carrer%20de%20la%20Riereta%2C%2031%2C%20Barcelona&output=embed',
     }], config)).toEqual([])
   })
+
+  it('accepts a secure purchase action only with matching verified runtime metadata', () => {
+    expect(summarizeVerifiedChatActions([{
+      type: 'purchase',
+      label: 'Front Zone',
+      href: 'https://tickets.example.com/front-zone',
+    }], {
+      ...config,
+      purchaseAction: {
+        status: 'verified',
+        reason: 'source_backed_purchase_url',
+        item_name: 'Front Zone',
+        supported_source_id: 'front-zone',
+      },
+    })).toEqual([{
+      type: 'purchase',
+      label: 'Front Zone',
+      href: 'https://tickets.example.com/front-zone',
+    }])
+  })
+
+  it('rejects purchase actions without verified metadata or with an unsafe destination', () => {
+    const purchaseAction = {
+      status: 'verified',
+      reason: 'source_backed_purchase_url',
+      item_name: 'Front Zone',
+      supported_source_id: 'front-zone',
+    }
+    expect(summarizeVerifiedChatActions([{
+      type: 'purchase',
+      label: 'Front Zone',
+      href: 'https://tickets.example.com/front-zone',
+    }], config)).toEqual([])
+    expect(summarizeVerifiedChatActions([{
+      type: 'purchase',
+      label: 'Front Zone',
+      href: 'http://tickets.example.com/front-zone',
+    }], { ...config, purchaseAction })).toEqual([])
+    expect(summarizeVerifiedChatActions([{
+      type: 'purchase',
+      label: 'Another ticket',
+      href: 'https://tickets.example.com/front-zone',
+    }], { ...config, purchaseAction })).toEqual([])
+  })
 })

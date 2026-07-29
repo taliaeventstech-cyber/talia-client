@@ -720,6 +720,7 @@
     flushParagraph();
     flushList();
     appendLocationActions(container, safeActions, language);
+    appendPurchaseActions(container, safeActions, language);
   }
 
   function appendInlineMessageContent(container, text, actions) {
@@ -844,6 +845,17 @@
         return action.href === 'https://www.google.com/maps/search/?api=1&query=' + encodedAddress
           && action.embed_href === 'https://www.google.com/maps?q=' + encodedAddress + '&output=embed';
       }
+      if (action.type === 'purchase') {
+        try {
+          var purchaseUrl = new URL(action.href);
+          return purchaseUrl.protocol === 'https:'
+            && !purchaseUrl.username
+            && !purchaseUrl.password
+            && action.href.length <= 2000;
+        } catch {
+          return false;
+        }
+      }
       return false;
     });
   }
@@ -930,6 +942,56 @@
       return { locationLabel: 'Location', mapTitle: 'Map', openMaps: 'Open in Maps' };
     }
     return { locationLabel: 'Ubicación', mapTitle: 'Mapa', openMaps: 'Abrir en Maps' };
+  }
+
+  function appendPurchaseActions(container, actions, language) {
+    var action = actions.find(function (item) { return item.type === 'purchase'; });
+    if (!action) return;
+
+    var copy = getPurchaseActionCopy(language);
+    var card = document.createElement('section');
+    card.className = 'purchase-card';
+    card.setAttribute('aria-label', copy.purchaseLabel);
+
+    var heading = document.createElement('div');
+    heading.className = 'purchase-heading';
+    var marker = document.createElement('span');
+    marker.className = 'purchase-marker';
+    marker.setAttribute('aria-hidden', 'true');
+    marker.innerHTML = '<svg viewBox="0 0 24 24" focusable="false"><path d="M4 7.5A2.5 2.5 0 0 0 6.5 10 2.5 2.5 0 0 0 4 12.5V17h16v-4.5a2.5 2.5 0 0 0 0-5V3H4Z"></path><path d="M14 6v8"></path></svg>';
+    var details = document.createElement('span');
+    details.className = 'purchase-details';
+    var title = document.createElement('strong');
+    title.textContent = action.label;
+    var description = document.createElement('span');
+    description.textContent = copy.officialPurchase;
+    details.appendChild(title);
+    details.appendChild(description);
+    heading.appendChild(marker);
+    heading.appendChild(details);
+
+    var link = document.createElement('a');
+    link.className = 'purchase-open-link';
+    link.href = action.href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = copy.buy + ' ' + action.label;
+    link.setAttribute('aria-label', copy.buy + ' ' + action.label);
+
+    card.appendChild(heading);
+    card.appendChild(link);
+    container.appendChild(card);
+  }
+
+  function getPurchaseActionCopy(language) {
+    var normalized = getWidgetLanguage(language, 'es');
+    if (normalized === 'ca') {
+      return { purchaseLabel: 'Compra', officialPurchase: 'Enllaç oficial', buy: 'Comprar' };
+    }
+    if (normalized === 'en') {
+      return { purchaseLabel: 'Purchase', officialPurchase: 'Official link', buy: 'Buy' };
+    }
+    return { purchaseLabel: 'Compra', officialPurchase: 'Enlace oficial', buy: 'Comprar' };
   }
 
   function getAgentResponseLanguage(data, fallbackLanguage) {
@@ -1501,7 +1563,7 @@
         .header-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }\
         .header-button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 999px; padding: 0; background: transparent; color: white; cursor: pointer; line-height: 1; }\
         .header-button:hover { background: rgba(255,255,255,.14); }\
-        .header-button:focus-visible, .feedback-button:focus-visible, .suggested-question:focus-visible, .session-feedback-choice:focus-visible, .session-feedback-button:focus-visible, .session-feedback textarea:focus-visible, .powered a:focus-visible { outline: 2px solid ' + primaryColor + '; outline-offset: 2px; }\
+        .header-button:focus-visible, .feedback-button:focus-visible, .suggested-question:focus-visible, .session-feedback-choice:focus-visible, .session-feedback-button:focus-visible, .session-feedback textarea:focus-visible, .purchase-open-link:focus-visible, .powered a:focus-visible { outline: 2px solid ' + primaryColor + '; outline-offset: 2px; }\
         .header-button svg { display: block; width: 21px; height: 21px; fill: none; stroke: currentColor; }\
         .close { font-size: 22px; }\
         .messages { position: relative; padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 11px; background: ' + messagesBackground + '; }\
@@ -1534,6 +1596,15 @@
         .location-open-link { display: flex; min-height: 36px; align-items: center; justify-content: center; border-radius: 8px; background: ' + primaryColor + '; color: #fff !important; font: 700 12px/1 "Space Grotesk", system-ui; text-decoration: none !important; }\
         .location-open-link:hover { filter: brightness(.96); }\
         .location-open-link:focus-visible { outline: 2px solid ' + primaryColor + '; outline-offset: 2px; }\
+        .purchase-card { display: grid; gap: 10px; margin-top: 12px; border: 1px solid color-mix(in srgb, ' + primaryColor + ' 22%, rgba(26,26,46,.12)); border-radius: 12px; padding: 11px; background: color-mix(in srgb, ' + primaryColor + ' 6%, #fff); white-space: normal; }\
+        .purchase-heading { display: flex; min-width: 0; align-items: center; gap: 9px; }\
+        .purchase-marker { flex: 0 0 32px; display: grid; width: 32px; height: 32px; place-items: center; border-radius: 10px; background: color-mix(in srgb, ' + primaryColor + ' 13%, #fff); color: ' + primaryColor + '; }\
+        .purchase-marker svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }\
+        .purchase-details { min-width: 0; display: grid; gap: 2px; color: inherit; }\
+        .purchase-details strong { overflow: hidden; font: 700 13px/1.25 "Space Grotesk", system-ui; text-overflow: ellipsis; white-space: nowrap; }\
+        .purchase-details span { font: 500 11px/1.3 "Space Grotesk", system-ui; opacity: .64; }\
+        .purchase-open-link { display: flex; min-height: 38px; align-items: center; justify-content: center; border-radius: 9px; padding: 0 12px; background: ' + primaryColor + '; color: #fff !important; font: 700 12px/1.2 "Space Grotesk", system-ui; text-align: center; text-decoration: none !important; }\
+        .purchase-open-link:hover { filter: brightness(.96); }\
         .typing-dots { display: inline-flex; align-items: center; gap: 4px; min-width: 34px; height: 18px; }\
         .typing-dots span { display: block; width: 7px; height: 7px; border-radius: 999px; background: currentColor; opacity: .38; transform: translateY(0); animation: taliaTypingBounce 1s ease-in-out infinite; }\
         .typing-dots span:nth-child(2) { animation-delay: 140ms; }\

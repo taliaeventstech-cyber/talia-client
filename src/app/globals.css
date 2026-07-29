@@ -7264,7 +7264,6 @@ textarea {
   gap: 10px;
 }
 
-.context-assembly-header > span,
 .context-assembly-rejections > span {
   color: var(--color-text-tertiary);
   font-size: 10px;
@@ -7273,14 +7272,38 @@ textarea {
   text-transform: uppercase;
 }
 
-.context-assembly-header div {
+.trace-agent-identity {
+  display: grid;
+  gap: 3px;
+}
+
+.trace-agent-identity > span {
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trace-agent-identity strong {
+  width: fit-content;
+  border: 0.5px solid color-mix(in srgb, var(--color-success) 42%, var(--color-border));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--color-success) 13%, var(--color-surface));
+  color: var(--color-text-primary);
+  font-size: 13px;
+  line-height: 1.2;
+  padding: 5px 8px;
+}
+
+.context-assembly-meta {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 5px;
 }
 
-.context-assembly-header div span {
+.context-assembly-meta span {
   border: 0.5px solid var(--color-border);
   border-radius: 999px;
   color: var(--color-text-tertiary);
@@ -7367,7 +7390,7 @@ textarea {
   white-space: nowrap;
 }
 
-.retrieval-chunk-header div {
+.retrieval-chunk-meta {
   display: flex;
   flex-shrink: 0;
   flex-wrap: wrap;
@@ -7375,13 +7398,38 @@ textarea {
   gap: 5px;
 }
 
-.retrieval-chunk-header span {
+.retrieval-chunk-meta > span {
   border: 0.5px solid var(--color-border);
   border-radius: 999px;
   color: var(--color-text-tertiary);
   font-size: 10px;
   font-weight: 800;
   padding: 3px 6px;
+}
+
+.retrieval-chunk-meta > .retrieval-chunk-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-color: color-mix(in srgb, var(--color-success) 52%, var(--color-border));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--color-success) 13%, var(--color-surface));
+  color: var(--color-success);
+  padding: 3px 7px;
+}
+
+.retrieval-chunk-score small {
+  color: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.retrieval-chunk-score strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  line-height: 1;
 }
 
 .retrieval-chunk-item p {
@@ -7484,7 +7532,7 @@ textarea {
     display: grid;
   }
 
-  .retrieval-chunk-header div {
+  .retrieval-chunk-meta {
     justify-content: flex-start;
   }
 
@@ -7492,7 +7540,7 @@ textarea {
     display: grid;
   }
 
-  .context-assembly-header div {
+  .context-assembly-meta {
     justify-content: flex-start;
   }
 
