@@ -23,6 +23,11 @@ Allow a venue to install TALIA on its website via a script and answer visitor qu
 - Respond in the language of the visitor's latest message when it can be
   determined, using the configured tenant language only as fallback.
 - Use the knowledge base before generative responses.
+- Maintain conversational context through discovery, recommendation and an
+  explicit purchase or reservation turn, while retrieving tenant Knowledge
+  again for every factual response.
+- Render a localized purchase CTA only when `talia-ai` returns an item and exact
+  HTTPS destination verified against the same cited Knowledge source.
 - Save history.
 - Allow configuring:
   - base prompt;
@@ -45,6 +50,9 @@ Allow a venue to install TALIA on its website via a script and answer visitor qu
 - No dependency on n8n in the browser.
 - Fallback if no webhook is configured.
 - Logging of usage events.
+- Treat model output as untrusted for external destinations. Next accepts a
+  purchase action only with `metadata.purchase_action=verified`, matching item
+  labels and a secure URL, and the widget validates it again before rendering.
 - When `talia-ai` is the active provider, language detection, multilingual
   retrieval expansion and response-language selection belong exclusively to
   `talia-ai`. The client sends `fallback_language` as the canonical field,
