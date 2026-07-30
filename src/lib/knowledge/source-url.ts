@@ -39,3 +39,18 @@ export function normalizeKnowledgeSourceUrl(value: string): string | null {
     return null
   }
 }
+
+export function normalizeInstalledPageUrl(value: string): string | null {
+  const normalized = normalizeKnowledgeSourceUrl(value)
+  if (!normalized) return null
+
+  const url = new URL(normalized)
+  for (const key of new Set(url.searchParams.keys())) {
+    if (url.searchParams.getAll(key).every((queryValue) => !queryValue.trim())) {
+      url.searchParams.delete(key)
+    }
+  }
+
+  url.searchParams.sort()
+  return url.toString()
+}

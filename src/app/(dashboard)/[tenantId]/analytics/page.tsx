@@ -2,7 +2,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { classifyConversationTopic } from '@/lib/analytics/topics'
 import { getDictionary, getLocale, getTopicLabel } from '@/lib/i18n/dictionaries'
-import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
 import Link from 'next/link'
 
 interface Props {
@@ -24,37 +23,13 @@ export default async function AnalyticsPage({ params, searchParams }: Props) {
 
   const admin = createAdminClient()
 
-  const [
-    { data: topics },
-    { count: totalResponses },
-    { count: positiveResponses },
-    { count: negativeResponses },
-  ] = await Promise.all([
-    admin
-      .from('conversation_topics')
-      .select('topic, intent, user_message, created_at')
-      .eq('theatre_id', tenantId)
-      .eq('channel', 'web')
-      .order('created_at', { ascending: false })
-      .limit(500),
-    admin
-      .from('messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('theatre_id', tenantId)
-      .eq('role', 'assistant'),
-    admin
-      .from('messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('theatre_id', tenantId)
-      .eq('role', 'assistant')
-      .contains('metadata', { feedback: { rating: 'positive' } }),
-    admin
-      .from('messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('theatre_id', tenantId)
-      .eq('role', 'assistant')
-      .contains('metadata', { feedback: { rating: 'negative' } }),
-  ])
+  const { data: topics } = await admin
+    .from('conversation_topics')
+    .select('topic, intent, user_message, created_at')
+    .eq('theatre_id', tenantId)
+    .eq('channel', 'web')
+    .order('created_at', { ascending: false })
+    .limit(500)
 
   const normalizedTopics = (topics ?? []).map((t) => ({
     ...t,
@@ -64,11 +39,6 @@ export default async function AnalyticsPage({ params, searchParams }: Props) {
 
   const topIntents = getTopIntents(normalizedTopics)
   const recentTopics = normalizedTopics.slice(0, 50)
-  const feedbackMetrics = getResponseFeedbackMetrics({
-    positiveCount: positiveResponses ?? 0,
-    negativeCount: negativeResponses ?? 0,
-    totalCount: totalResponses ?? 0,
-  })
 
   return (
     <main className="page-shell">
@@ -77,64 +47,6 @@ export default async function AnalyticsPage({ params, searchParams }: Props) {
         <h1>{dictionary.analytics.title}</h1>
         <p className="muted">{dictionary.analytics.description}</p>
       </header>
-
-      <section className="card stack analytics-feedback-section" aria-labelledby="response-satisfaction-title">
-        <div className="section-title-row">
-          <div>
-            <p className="eyebrow">{dictionary.analytics.feedback.section}</p>
-            <h2 id="response-satisfaction-title">{dictionary.analytics.feedback.title}</h2>
-            <p className="muted">{dictionary.analytics.feedback.description}</p>
-          </div>
-          <div className="analytics-feedback-score">
-            <span>{dictionary.analytics.feedback.accuracy}</span>
-            <strong>
-              {feedbackMetrics.accuracyPercent === null
-                ? dictionary.analytics.feedback.noData
-                : `${feedbackMetrics.accuracyPercent}%`}
-            </strong>
-          </div>
-        </div>
-
-        <div className="analytics-feedback-grid">
-          <div>
-            <span>{dictionary.analytics.feedback.positive}</span>
-            <strong>{feedbackMetrics.positiveCount}</strong>
-          </div>
-          <div>
-            <span>{dictionary.analytics.feedback.negative}</span>
-            <strong>{feedbackMetrics.negativeCount}</strong>
-          </div>
-          <div>
-            <span>{dictionary.analytics.feedback.rated}</span>
-            <strong>{feedbackMetrics.ratedCount}</strong>
-          </div>
-        </div>
-
-        <div className="analytics-feedback-coverage">
-          <div>
-            <span>{dictionary.analytics.feedback.coverage}</span>
-            <strong>{feedbackMetrics.coveragePercent}%</strong>
-          </div>
-          <div
-            className="progress-track"
-            role="progressbar"
-            aria-label={dictionary.analytics.feedback.coverage}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={feedbackMetrics.coveragePercent}
-          >
-            <div className="progress-fill" style={{ width: `${feedbackMetrics.coveragePercent}%` }} />
-          </div>
-          <small>
-            {dictionary.analytics.feedback.coverageDetail(
-              feedbackMetrics.ratedCount,
-              feedbackMetrics.totalCount
-            )}
-          </small>
-        </div>
-
-        <p className="muted analytics-feedback-method">{dictionary.analytics.feedback.method}</p>
-      </section>
 
       <div className="channel-tabs" role="tablist">
         {tabs.map(({ value, label }) => {

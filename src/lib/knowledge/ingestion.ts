@@ -1,6 +1,6 @@
 import { embedKnowledgeSourceWithTaliaAi } from './talia-ai-embeddings'
 import { ingestKnowledgeTextWithTaliaAi } from './talia-ai-ingestion'
-import { normalizeKnowledgeSourceUrl } from './source-url'
+import { normalizeInstalledPageUrl } from './source-url'
 import { getWebPageRejection } from './web-page-validity'
 import type { createAdminClient } from '@/lib/supabase/admin'
 import { createHash } from 'node:crypto'
@@ -229,7 +229,7 @@ export async function registerInstalledWebPage({
   heading?: string | null
   httpStatus?: number | null
 }): Promise<KnowledgeImportResult & { sourceId?: string }> {
-  const normalizedUrl = normalizeKnowledgeSourceUrl(url)
+  const normalizedUrl = normalizeInstalledPageUrl(url)
   if (!normalizedUrl) return { ok: false, message: 'URL no válida.' }
 
   const name = title?.trim() || getPageSourceName(normalizedUrl)
@@ -370,7 +370,7 @@ export async function ingestWebSnapshotSource({
   text: string
   captureMode?: 'manual' | 'automatic'
 }): Promise<KnowledgeImportResult> {
-  const normalizedUrl = normalizeKnowledgeSourceUrl(url)
+  const normalizedUrl = normalizeInstalledPageUrl(url)
   if (!normalizedUrl) return { ok: false, message: 'URL no válida.' }
 
   const rejection = getWebPageRejection({ httpStatus, title, heading })
@@ -598,7 +598,7 @@ async function attachOrphanKnowledgeItemsToManualSource({
   return { ok: true, count, message: `${count} FAQs huérfanas asociadas a la fuente manual.` }
 }
 
-async function getOrCreateManualKnowledgeSource({
+export async function getOrCreateManualKnowledgeSource({
   admin,
   tenantId,
 }: {

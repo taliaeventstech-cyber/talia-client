@@ -6816,11 +6816,24 @@ textarea {
 }
 
 .rag-health-notice {
-  margin: 0;
   border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   font-size: 13px;
   line-height: 1.45;
+  margin: 0;
   padding: 10px 12px;
+}
+
+.rag-health-notice a,
+.knowledge-source-filter-notice a {
+  color: inherit;
+  flex: 0 0 auto;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .rag-health-notice-muted {
@@ -6836,6 +6849,17 @@ textarea {
 .rag-health-notice-error {
   background: color-mix(in srgb, #ef4444 12%, transparent);
   color: #ef4444;
+}
+
+.knowledge-source-filter-notice {
+  align-items: center;
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+  border-radius: 10px;
+  color: var(--color-success);
+  display: flex;
+  font-size: 13px;
+  justify-content: space-between;
+  padding: 10px 12px;
 }
 
 .knowledge-web-alerts {
@@ -9123,6 +9147,370 @@ textarea {
   margin-bottom: 12px;
   color: var(--color-text-tertiary);
   font-size: 11px;
+}
+
+.conversation-feedback-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 0.5px solid color-mix(in srgb, var(--color-border) 76%, transparent);
+}
+
+.conversation-review-statuses {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 170px;
+}
+
+.conversation-review-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 25px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 999px;
+  padding: 4px 9px;
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-decoration: none;
+}
+
+.conversation-review-badge:hover {
+  filter: brightness(1.08);
+}
+
+.conversation-review-badge-improvement {
+  border-color: color-mix(in srgb, var(--color-warning) 42%, var(--color-border));
+  background: color-mix(in srgb, var(--color-warning) 11%, var(--color-surface));
+  color: color-mix(in srgb, var(--color-warning) 80%, var(--color-text-primary));
+}
+
+.conversation-review-badge-corrected {
+  border-color: color-mix(in srgb, var(--color-success) 38%, var(--color-border));
+  background: color-mix(in srgb, var(--color-success) 9%, var(--color-surface));
+  color: var(--color-success);
+}
+
+.conversation-review-badge-accepted {
+  border-color: color-mix(in srgb, var(--color-ia) 38%, var(--color-border));
+  background: color-mix(in srgb, var(--color-ia) 9%, var(--color-surface));
+  color: var(--color-ia);
+}
+
+.conversation-review-navigator {
+  position: sticky;
+  top: 16px;
+  z-index: 20;
+  display: grid;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-brand) 28%, var(--color-border));
+  border-radius: 14px;
+  padding: 13px 14px;
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  box-shadow: 0 10px 30px color-mix(in srgb, #08081f 12%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.conversation-review-navigator-summary,
+.conversation-review-navigator-controls,
+.conversation-review-current,
+.conversation-review-navigator-controls > div {
+  display: flex;
+  align-items: center;
+}
+
+.conversation-review-navigator-summary,
+.conversation-review-navigator-controls {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.conversation-review-navigator-summary > strong {
+  font-size: 13px;
+}
+
+.conversation-review-navigator-summary > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.conversation-review-count {
+  border: 0.5px solid var(--color-border);
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: var(--color-text-tertiary);
+  background: var(--color-surface-2);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.conversation-review-count-pending {
+  border-color: color-mix(in srgb, var(--color-warning) 38%, var(--color-border));
+  color: color-mix(in srgb, var(--color-warning) 78%, var(--color-text-primary));
+}
+
+.conversation-review-count-corrected {
+  border-color: color-mix(in srgb, var(--color-success) 32%, var(--color-border));
+  color: var(--color-success);
+}
+
+.conversation-review-count-accepted {
+  border-color: color-mix(in srgb, var(--color-ia) 32%, var(--color-border));
+  color: var(--color-ia);
+}
+
+.conversation-review-navigator-controls {
+  border: 0.5px solid color-mix(in srgb, var(--color-brand) 30%, var(--color-border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-brand) 6%, var(--color-surface-2));
+  padding: 9px 10px 9px 13px;
+}
+
+.conversation-review-current {
+  min-width: 0;
+  flex: 1;
+  justify-content: space-between;
+  gap: 14px;
+  border: 0;
+  padding: 0;
+  color: var(--color-text-primary);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.conversation-review-current span {
+  color: color-mix(in srgb, var(--color-warning) 78%, var(--color-text-primary));
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.conversation-review-current strong {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.conversation-review-navigator-controls > div {
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.conversation-review-none {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.message-card[id^="response-"],
+.message-card[id^="question-"] {
+  scroll-margin-top: 154px;
+  transition:
+    border-color 220ms ease,
+    background-color 220ms ease,
+    box-shadow 220ms ease,
+    transform 220ms ease;
+}
+
+.message-card[id^="response-"]:target {
+  border-color: color-mix(in srgb, var(--color-brand) 70%, var(--color-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 13%, transparent);
+}
+
+.message-card.conversation-review-active {
+  border-color: color-mix(in srgb, var(--color-brand) 62%, var(--color-border));
+  background: color-mix(in srgb, var(--color-brand) 9%, var(--color-surface));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--color-brand) 12%, transparent),
+    0 12px 30px color-mix(in srgb, var(--color-brand) 10%, transparent);
+}
+
+.message-card.conversation-review-pulse {
+  animation: conversation-review-pulse 1.3s ease-out;
+}
+
+@keyframes conversation-review-pulse {
+  0% {
+    transform: scale(0.995);
+    background: color-mix(in srgb, var(--color-brand) 18%, var(--color-surface));
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--color-brand) 62%, transparent),
+      0 0 0 8px color-mix(in srgb, var(--color-brand) 17%, transparent);
+  }
+
+  55% {
+    transform: scale(1.002);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-card.conversation-review-pulse {
+    animation: none;
+  }
+}
+
+.conversation-feedback-pill,
+.supervised-faq-human-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border: 0.5px solid var(--color-border);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: var(--color-text-tertiary);
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.conversation-feedback-positive {
+  border-color: color-mix(in srgb, #36a269 35%, transparent);
+  color: #278255;
+  background: color-mix(in srgb, #36a269 10%, var(--color-surface));
+}
+
+.conversation-feedback-improvement {
+  border-color: color-mix(in srgb, var(--color-warning) 38%, transparent);
+  color: color-mix(in srgb, var(--color-warning) 78%, var(--color-text-primary));
+  background: color-mix(in srgb, var(--color-warning) 10%, var(--color-surface));
+}
+
+.supervised-faq-form,
+.supervised-faq-published {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+  border: 1px solid color-mix(in srgb, var(--color-ia) 30%, var(--color-border));
+  border-radius: 14px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--color-ia-bg) 72%, var(--color-surface));
+}
+
+.supervised-faq-heading,
+.supervised-faq-footer,
+.supervised-faq-published {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.supervised-faq-heading {
+  display: grid;
+  gap: 16px;
+}
+
+.supervised-faq-heading p,
+.supervised-faq-published p {
+  margin: 4px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.supervised-faq-human-badge {
+  border-color: color-mix(in srgb, var(--color-ia) 34%, transparent);
+  color: var(--color-ia);
+}
+
+.supervised-faq-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.supervised-faq-form textarea {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  font: inherit;
+  font-weight: 450;
+  resize: vertical;
+}
+
+.supervised-faq-form textarea:focus {
+  border-color: var(--color-ia);
+  outline: 2px solid color-mix(in srgb, var(--color-ia) 18%, transparent);
+  outline-offset: 1px;
+}
+
+.supervised-faq-footer {
+  display: grid;
+  gap: 16px;
+}
+
+.supervised-faq-footer p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.supervised-faq-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.supervised-response-accept-confirmation {
+  display: grid;
+  gap: 5px;
+  border: 0.5px solid color-mix(in srgb, var(--color-ia) 30%, var(--color-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-ia) 7%, var(--color-surface));
+  padding: 12px 13px;
+}
+
+.supervised-response-accept-confirmation p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.supervised-response-accepted {
+  grid-template-columns: 1fr;
+  border-color: color-mix(in srgb, var(--color-ia) 34%, var(--color-border));
+}
+
+.supervised-faq-form > small {
+  color: var(--color-text-tertiary);
+  line-height: 1.5;
+}
+
+.supervised-faq-published {
+  display: grid;
+}
+
+@media (max-width: 700px) {
+  .supervised-faq-heading,
+  .supervised-faq-footer,
+  .supervised-faq-published {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .conversation-review-navigator-summary > div,
+  .conversation-review-navigator-controls > div,
+  .supervised-faq-actions {
+    justify-content: flex-start;
+  }
 }
 
 .conversation-source-panel {
