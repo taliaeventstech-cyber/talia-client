@@ -17,7 +17,7 @@ Current state:
 - Client dashboard: **Agora**, per venue.
 - Internal panel: **Backstage**.
 - Current commercial model: 14-day free trial, upgrade to paid plans and add-ons.
-- Mexico/Brazil launch scope: **Web AI Assistant**. Email remains available for
+- Mexico/Brazil launch scope: **Web Agent**. Email remains available for
   internal testing and the `talia.events.tech@gmail.com` legacy account, but is not
   exposed to other client accounts or the public upgrade offer during this phase.
 
@@ -113,7 +113,7 @@ Implemented:
 - Chatbot-specific wizard after client onboarding.
 - Agora sidebar hidden while the initial wizard is pending.
 - Language selector and day/night mode also available in this wizard.
-- If the user postpones the wizard, the AI Assistant configuration link remains
+- If the user postpones the wizard, the Web Agent configuration link remains
   visible in Agora and returns to the wizard until the initial setup is complete.
 - Configuration of initial message, tone, first managed web source from the
   venue URL, color and fallback. The source reuses the Knowledge managed-web
@@ -135,7 +135,7 @@ Implemented:
   one-click copy and links to the complete chatbot configuration without
   claiming that installation was detected when no reliable signal exists.
 - Sidebar with modules visible based on permissions, plan and access.
-- Launch-facing navigation limited to the Web AI Assistant and Accessibility;
+- Launch-facing navigation limited to the Web Agent and Accessibility;
   Overview and Knowledge remain as supporting operational areas.
 - The Email Agent navigation and customer-facing routes are restricted to the
   authenticated legacy account allowlist (`LEGACY_EMAIL_AGENT_ACCOUNT_EMAILS`),
@@ -189,6 +189,38 @@ Implemented:
   `Shift + Enter` for line breaks and a bounded internal scroll for long drafts.
 - Per-response feedback uses a localized TALIA micro-survey with compact
   Yes/No chips instead of generic thumbs-up/down icon buttons.
+- Agora conversation details expose positive and negative response ratings.
+  Responses with negative feedback or a controlled fallback offer an
+  owner/admin-only supervised correction form. Confirming the correction
+  creates an active manual FAQ with a deterministic link to the assistant
+  message, reindexes the tenant's manual Knowledge source and records an audit
+  event. The form does not ask for a response language: source-language
+  metadata never governs TALIA's answer. Conversation text or public feedback
+  alone never modifies Knowledge. The complete supervised-correction UI,
+  including validation and indexing states, is localized in Spanish, Catalan
+  and English. Brazilian Portuguese copy is prepared for this flow but remains
+  inactive until Agora supports Portuguese as a complete locale.
+- The Agora conversation list is server-side paginated with selectable page
+  sizes of 10, 25, 50 or 100 sessions. It also exposes the same all-time
+  response-feedback accuracy and rating-coverage metrics used by Backstage, so
+  unrated answers are never treated as incorrect answers. Each conversation
+  row distinguishes pending negative responses, pending controlled fallbacks
+  and supervised corrections already applied; these states link directly to
+  the relevant assistant response. Negative visitor feedback and controlled
+  fallbacks are presented to customers under one constructive
+  "opportunity to improve" state; their technical causes remain separate in
+  metadata for internal diagnosis. Conversation detail shows the newest turn
+  first while preserving question-before-answer order inside each turn. The
+  list displays and sorts by the latest message activity, not by the date when
+  a long-running session originally started. Its header includes a review
+  sticky navigator that remains visible while it cycles through responses with
+  improvement opportunities. Each navigation step briefly highlights the
+  related visitor question and TALIA response together, then keeps the selected
+  turn visually active. Review
+  controls stay collapsed until requested and allow an authorized operator to
+  either correct and publish knowledge or validate TALIA's original response.
+  Validation preserves the visitor's original rating, creates no Knowledge
+  entry and records the human decision in message metadata and `audit_events`.
 - Stable chatbot UI copy, including response ratings and the compact
   pre-restart survey, uses the chatbot's configured primary language. This UI
   language does not constrain the Answer Agent: TALIA still replies in the
@@ -238,6 +270,12 @@ Implemented:
   probable follow-up into a standalone semantic query and runs tenant-scoped
   retrieval again, so factual answers must still be supported by the current
   knowledge base.
+- Each assistant turn persists a compact, versioned conversational-resolution
+  state and the gateway sends it back on the next turn. The runtime
+  distinguishes active, clarification, evidence-backed answer, partial answer
+  and handoff states without treating model output as the authority. It allows
+  at most two consecutive clarification requests before activating the
+  controlled fallback, preventing open-ended clarification loops.
 - Basic analytics of topics and intents.
 - Usage tied to billing/limits.
 - Internal chat runtime in `src/lib/agent-runtime/chat.ts`, with `talia-ai` as
@@ -249,6 +287,10 @@ Implemented:
   detection and response-language selection. Next sends the tenant language as
   `fallback_language` and requires `metadata.response_language` in successful
   responses.
+- The latest visitor message is always authoritative for response language.
+  Knowledge may be written in any other language; retrieval does not penalize a
+  source for that difference, and the Answer Agent translates or synthesizes
+  the evidence into the visitor's language.
 - Agent runtime responses save compact sources (`id`, `source_id`, `source_type`, `score`) in the assistant message metadata, legacy conversation metadata, and usage for auditing.
 - `talia-ai` reports measured usage separately for the Answer Agent, optional
   Language Agent and retrieval embedding. `talia-client` persists each
@@ -261,10 +303,11 @@ Implemented:
 - Response traceability reports venue-wide feedback accuracy as useful responses
   divided by all positively or negatively rated responses, together with rating
   coverage so small or biased samples remain visible.
-- Agora exposes the same venue-wide signal to customers as response satisfaction:
-  a compact percentage appears in Overview, while Analytics includes
-  helpful/unhelpful counts, total ratings and coverage in Spanish, Catalan and
-  English.
+- Agora exposes the same venue-wide signal to customers as response
+  satisfaction. A compact percentage appears in Overview, while Conversations
+  contains the actionable detail with helpful/unhelpful counts, total ratings
+  and coverage in Spanish, Catalan and English. Analytics stays focused on
+  intents, topics and demand trends.
 - Every successful web-assistant turn persists a message-linked, idempotent
   analytics event from `talia-ai` with versioned topic, visitor intent,
   classification confidence and source. Deterministic runtime classification
@@ -476,8 +519,8 @@ Reference:
 Implemented:
 
 - 14-day free trial.
-- After the trial, access to the Web AI Assistant is replaced by an upgrade prompt.
-- `/upgrade` screen with the public Web AI Assistant plan and compatible add-ons.
+- After the trial, access to the Web Agent is replaced by an upgrade prompt.
+- `/upgrade` screen with the public Web Agent plan and compatible add-ons.
 - The current commercial plan is read-only in chatbot settings. Subscription
   changes go through the billing flow and cannot be written by the widget settings
   server action.

@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, type Locale } from './config'
+import { SUPERVISED_FAQ_COPY } from './supervised-faq-copy'
 
 const es = {
   common: {
@@ -23,7 +24,7 @@ const es = {
     main: 'Navegación principal',
     overview: 'Resumen',
     attention: 'Atención',
-    webChatbot: 'Asistente de IA',
+    webChatbot: 'Agente Web',
     accessibility: 'Accesibilidad',
     emailAgent: 'Agente de email',
     inbox: 'Bandeja',
@@ -42,8 +43,8 @@ const es = {
     title: 'Tu prueba gratuita de 14 días ha terminado',
     close: 'Cerrar aviso',
     headline: 'Mejora tu plan para seguir usando TALIA',
-    description: 'Mantén activos el asistente de IA y las métricas de Àgora con un plan mensual.',
-    chatbotTitle: 'Asistente de IA',
+    description: 'Mantén activos el Agente Web y las métricas de Àgora con un plan mensual.',
+    chatbotTitle: 'Agente Web',
     chatbotMessage: 'Hola, ¿en qué puedo ayudarte?',
     emailTitle: 'Agente de email',
     emailMessage: 'Borrador preparado para revisar.',
@@ -204,12 +205,12 @@ const es = {
     },
   },
   chatbotSetup: {
-    eyebrow: 'Setup del asistente',
-    title: (name: string) => `Configura el asistente de IA de ${name}`,
-    description: 'Un flujo corto y enfocado para dejar lista la primera experiencia del asistente.',
+    eyebrow: 'Configuración del Agente Web',
+    title: (name: string) => `Configura el Agente Web de ${name}`,
+    description: 'Un flujo corto y enfocado para dejar lista la primera experiencia del Agente Web.',
     steps: ['Setup básico', 'Conocimiento', 'Widget'],
-    progressLabel: 'Progreso de configuración del asistente',
-    previewLabel: 'Vista previa del asistente',
+    progressLabel: 'Progreso de configuración del Agente Web',
+    previewLabel: 'Vista previa del Agente Web',
     closePreview: 'Cerrar preview',
     previewUserMessage: 'Quiero información',
     inputPlaceholder: 'Escribe tu mensaje...',
@@ -223,7 +224,7 @@ const es = {
     submit: 'Guardar y entrar al Àgora',
     basic: {
       title: 'Define cómo debe responder TALIA',
-      description: 'Estos ajustes marcan la primera impresión del asistente antes de entrar en configuración avanzada.',
+      description: 'Estos ajustes marcan la primera impresión del Agente Web antes de entrar en configuración avanzada.',
       initialMessage: 'Mensaje inicial',
       initialMessagePlaceholder: 'Hola, soy TALIA. ¿En qué puedo ayudarte?',
       tones: {
@@ -248,18 +249,18 @@ const es = {
         domain: 'Introduce un dominio válido, por ejemplo www.example.org.',
         invalid: 'Introduce una URL válida, por ejemplo www.example.org.',
       },
-      promptLabel: 'Instrucciones internas del canal asistente',
+      promptLabel: 'Instrucciones internas del Agente Web',
       promptPlaceholder: 'Ejemplo: Responde siempre con tono claro, deriva a taquilla cuando no haya certeza y prioriza programación, horarios y entradas.',
     },
     widget: {
       title: 'Ajusta la presencia del widget',
-      description: 'Deja una base visual coherente. Los detalles finos siguen disponibles en la configuración del asistente.',
+      description: 'Deja una base visual coherente. Los detalles finos siguen disponibles en la configuración del Agente Web.',
       color: 'Color principal',
       brandColor: 'Color de marca',
       openColorPicker: 'Abrir selector de color',
       hexColor: 'Color en formato hexadecimal',
       fallbackTitle: 'Cuando TALIA no tenga una respuesta clara',
-      fallbackDescription: 'Elige cómo debe actuar el asistente si una pregunta necesita confirmación. Esto evita respuestas inventadas y ayuda a derivar al visitante de forma clara.',
+      fallbackDescription: 'Elige cómo debe actuar el Agente Web si una pregunta necesita confirmación. Esto evita respuestas inventadas y ayuda a derivar al visitante de forma clara.',
       fallbackOptions: {
         contact: { title: 'Derivar a contacto', description: 'Muestra el email o teléfono oficial para que la persona pueda contactar.' },
         human: { title: 'Pedir revisión', description: 'Indica que el equipo humano revisará el caso antes de responder.' },
@@ -403,7 +404,7 @@ const es = {
   upgrade: {
     eyebrow: '14 días de prueba gratuita · Sin tarjeta · Servidor en Europa · RGPD',
     title: 'GoTalia · Planes y precios',
-    trialExpired: 'Tu prueba ha terminado. Elige un plan para reactivar el Asistente de IA.',
+    trialExpired: 'Tu prueba ha terminado. Elige un plan para reactivar el Agente Web.',
     trialActive: 'Elige el plan que quieras activar al terminar la prueba.',
     plansAria: 'Planes GoTalia',
     addonsAria: 'Complementos de marca blanca',
@@ -434,20 +435,20 @@ const es = {
     },
     plans: {
       chatbot_web: {
-        title: 'Asistente de IA',
+        title: 'Agente Web',
         includedLabel: '1.000 mensajes / mes',
         features: [
-          'Asistente 24/7 en catalán, castellano e inglés',
+          'Agente Web 24/7 en catalán, castellano e inglés',
           'Dashboard Àgora incluido',
           'Informe mensual de actividad',
           'Supervisión humana continua',
         ],
       },
       chatbot_email: {
-        title: 'Asistente de IA + Email',
+        title: 'Agente Web + Email',
         includedLabel: '1.000 mensajes / canal',
         features: [
-          'Todo lo incluido en Asistente de IA',
+          'Todo lo incluido en Agente Web',
           'Agente de email para buzón info@',
           'Respuestas automáticas por email',
           'Informes y supervisión continua',
@@ -480,7 +481,7 @@ const es = {
     },
   },
   analytics: {
-    section: 'Asistente de IA',
+    section: 'Agente Web',
     title: 'Análisis',
     description: 'Intenciones detectadas y temas frecuentes en las conversaciones del chatbot.',
     feedback: {
@@ -525,17 +526,42 @@ const es = {
   conversations: {
     title: 'Conversaciones',
     count: (count: number) => `${count} conversaciones`,
+    pagination: {
+      label: 'Paginación de conversaciones',
+      pageSize: 'Ver',
+      pageSizeAria: 'Conversaciones por página',
+      summary: (from: number, to: number, total: number, page: number, pageCount: number) =>
+        `Mostrando ${from}-${to} de ${total} conversaciones · Página ${page} de ${pageCount}`,
+      previous: 'Página anterior',
+      next: 'Página siguiente',
+    },
+    review: {
+      column: 'Revisión',
+      pendingImprovement: (count: number) => count === 1
+        ? '1 oportunidad de mejora'
+        : `${count} oportunidades de mejora`,
+      corrected: (count: number) => count === 1
+        ? '1 corrección aplicada'
+        : `${count} correcciones aplicadas`,
+      accepted: (count: number) => count === 1
+        ? '1 respuesta validada'
+        : `${count} respuestas validadas`,
+      openPending: 'Abrir la primera respuesta pendiente',
+      openCorrected: 'Abrir la primera respuesta corregida',
+      openAccepted: 'Abrir la primera respuesta validada',
+    },
     table: {
       session: 'Session ID',
       email: 'Email',
       lastMessage: 'Último mensaje',
-      started: 'Inicio',
+      started: 'Última actividad',
       messages: 'Mensajes',
     },
     viewMessages: 'Ver mensajes',
+    supervisedFaq: SUPERVISED_FAQ_COPY.es,
   },
   settings: {
-    section: 'Asistente de IA',
+    section: 'Agente Web',
     title: 'Configuración',
     tabs: {
       general: 'General',
@@ -585,7 +611,7 @@ const es = {
       suggestedQuestionLanguageCa: 'Catalán',
       suggestedQuestionLanguageEn: 'Inglés',
       primaryColor: 'Color principal',
-      position: 'Posición del asistente',
+      position: 'Posición del Agente Web',
       widgetSize: 'Tamaño del widget',
       widgetTheme: 'Estilo del widget',
       widgetThemeHint: 'El estilo Cristal usa un material translúcido tipo iOS que se funde con la web. Cae a opaco automáticamente si el visitante tiene activada la reducción de transparencias.',
@@ -597,7 +623,7 @@ const es = {
       widgetIconTalia: 'Icono de TALIA',
       widgetIconChat: 'Icono de conversación',
       widgetIconBubble: 'Burbuja de diálogo',
-      widgetIconBot: 'Icono de asistente IA',
+      widgetIconBot: 'Icono del Agente Web',
       widgetIconExpand: 'Mostrar iconos disponibles',
       widgetIconCollapse: 'Ocultar iconos disponibles',
       glassBackground: 'Fondo de tu web',
@@ -623,7 +649,7 @@ const es = {
       delay: 'Retardo (segundos)',
       allowedDomains: 'Dominios autorizados',
       allowedDomainsHint: 'Añade dominios adicionales donde este script puede funcionar, uno por línea. La web oficial ya queda autorizada automáticamente.',
-      channelPrompt: 'Prompt del asistente',
+      channelPrompt: 'Instrucciones del Agente Web',
       channelPromptHint: 'Instrucciones específicas del canal web. La base de conocimiento común se gestiona en Conocimiento.',
       unsavedChanges: 'Tienes cambios sin guardar',
       unsavedChangesWarning: 'Tienes cambios sin guardar. Si sales ahora, se perderán.',
@@ -1135,7 +1161,7 @@ const ca: Dictionary = {
     main: 'Navegació principal',
     overview: 'Resum',
     attention: 'Atenció',
-    webChatbot: 'Assistent IA',
+    webChatbot: 'Agent Web',
     accessibility: 'Accessibilitat',
     emailAgent: 'Agent d’email',
     inbox: 'Safata',
@@ -1154,8 +1180,8 @@ const ca: Dictionary = {
     title: 'La teva prova gratuïta de 14 dies ha acabat',
     close: 'Tancar avís',
     headline: 'Millora el teu pla per continuar fent servir TALIA',
-    description: 'Mantén actius l’assistent IA i les mètriques d’Àgora amb un pla mensual.',
-    chatbotTitle: 'Assistent IA',
+    description: 'Mantén actius l’Agent Web i les mètriques d’Àgora amb un pla mensual.',
+    chatbotTitle: 'Agent Web',
     chatbotMessage: 'Hola, en què et puc ajudar?',
     emailTitle: 'Agent d’email',
     emailMessage: 'Esborrany preparat per revisar.',
@@ -1318,12 +1344,12 @@ const ca: Dictionary = {
   },
   chatbotSetup: {
     ...es.chatbotSetup,
-    eyebrow: 'Setup de l’assistent',
-    title: (name: string) => `Configura l’assistent IA de ${name}`,
-    description: 'Un flux curt i enfocat per deixar preparada la primera experiència de l’assistent.',
+    eyebrow: 'Configuració de l’Agent Web',
+    title: (name: string) => `Configura l’Agent Web de ${name}`,
+    description: 'Un flux curt i enfocat per deixar preparada la primera experiència de l’Agent Web.',
     steps: ['Setup bàsic', 'Coneixement', 'Widget'],
-    progressLabel: 'Progrés de configuració de l’assistent',
-    previewLabel: 'Vista prèvia de l’assistent',
+    progressLabel: 'Progrés de configuració de l’Agent Web',
+    previewLabel: 'Vista prèvia de l’Agent Web',
     closePreview: 'Tancar vista prèvia',
     previewUserMessage: 'Vull informació',
     inputPlaceholder: 'Escriu el teu missatge...',
@@ -1337,7 +1363,7 @@ const ca: Dictionary = {
     submit: 'Desar i entrar a l’Àgora',
     basic: {
       title: 'Defineix com ha de respondre TALIA',
-      description: 'Aquests ajustos marquen la primera impressió de l’assistent abans d’entrar en la configuració avançada.',
+      description: 'Aquests ajustos marquen la primera impressió de l’Agent Web abans d’entrar en la configuració avançada.',
       initialMessage: 'Missatge inicial',
       initialMessagePlaceholder: 'Hola, soc TALIA. En què et puc ajudar?',
       tones: {
@@ -1362,18 +1388,18 @@ const ca: Dictionary = {
         domain: 'Introdueix un domini vàlid, per exemple www.example.org.',
         invalid: 'Introdueix un URL vàlid, per exemple www.example.org.',
       },
-      promptLabel: 'Instruccions internes del canal assistent',
+      promptLabel: 'Instruccions internes de l’Agent Web',
       promptPlaceholder: 'Exemple: Respon sempre amb un to clar, deriva a taquilla quan no hi hagi certesa i prioritza programació, horaris i entrades.',
     },
     widget: {
       title: 'Ajusta la presència del widget',
-      description: 'Deixa una base visual coherent. Els detalls fins continuen disponibles a la configuració de l’assistent.',
+      description: 'Deixa una base visual coherent. Els detalls fins continuen disponibles a la configuració de l’Agent Web.',
       color: 'Color principal',
       brandColor: 'Color de marca',
       openColorPicker: 'Obrir selector de color',
       hexColor: 'Color en format hexadecimal',
       fallbackTitle: 'Quan TALIA no tingui una resposta clara',
-      fallbackDescription: 'Tria com ha d’actuar l’assistent si una pregunta necessita confirmació. Això evita respostes inventades i ajuda a derivar la persona visitant amb claredat.',
+      fallbackDescription: 'Tria com ha d’actuar l’Agent Web si una pregunta necessita confirmació. Això evita respostes inventades i ajuda a derivar la persona visitant amb claredat.',
       fallbackOptions: {
         contact: { title: 'Derivar a contacte', description: 'Mostra l’email o telèfon oficial perquè la persona pugui contactar.' },
         human: { title: 'Demanar revisió', description: 'Indica que l’equip humà revisarà el cas abans de respondre.' },
@@ -1517,7 +1543,7 @@ const ca: Dictionary = {
   upgrade: {
     eyebrow: '7 dies de prova gratuïta · Sense targeta · Servidor a Europa · RGPD',
     title: 'GoTalia · Plans i preus',
-    trialExpired: 'La teva prova ha acabat. Tria un pla per reactivar l’Assistent IA.',
+    trialExpired: 'La teva prova ha acabat. Tria un pla per reactivar l’Agent Web.',
     trialActive: 'Tria el pla que vulguis activar quan acabi la prova.',
     plansAria: 'Plans GoTalia',
     addonsAria: 'Complements de marca blanca',
@@ -1548,20 +1574,20 @@ const ca: Dictionary = {
     },
     plans: {
       chatbot_web: {
-        title: 'Assistent IA',
+        title: 'Agent Web',
         includedLabel: '1.000 missatges / mes',
         features: [
-          'Assistent 24/7 en català, castellà i anglès',
+          'Agent Web 24/7 en català, castellà i anglès',
           'Dashboard Àgora inclòs',
           'Informe mensual d’activitat',
           'Supervisió humana contínua',
         ],
       },
       chatbot_email: {
-        title: 'Assistent IA + Email',
+        title: 'Agent Web + Email',
         includedLabel: '1.000 missatges / canal',
         features: [
-          'Tot l’inclòs a l’Assistent IA',
+          'Tot l’inclòs a l’Agent Web',
           'Agent d’email per a bústia info@',
           'Respostes automàtiques per email',
           'Informes i supervisió contínua',
@@ -1594,7 +1620,7 @@ const ca: Dictionary = {
     },
   },
   analytics: {
-    section: 'Assistent IA',
+    section: 'Agent Web',
     title: 'Anàlisi',
     description: 'Intencions detectades i temes freqüents en les converses del chatbot.',
     feedback: {
@@ -1639,17 +1665,42 @@ const ca: Dictionary = {
   conversations: {
     title: 'Converses',
     count: (count: number) => `${count} converses`,
+    pagination: {
+      label: 'Paginació de converses',
+      pageSize: 'Veure',
+      pageSizeAria: 'Converses per pàgina',
+      summary: (from: number, to: number, total: number, page: number, pageCount: number) =>
+        `Mostrant ${from}-${to} de ${total} converses · Pàgina ${page} de ${pageCount}`,
+      previous: 'Pàgina anterior',
+      next: 'Pàgina següent',
+    },
+    review: {
+      column: 'Revisió',
+      pendingImprovement: (count: number) => count === 1
+        ? '1 oportunitat de millora'
+        : `${count} oportunitats de millora`,
+      corrected: (count: number) => count === 1
+        ? '1 correcció aplicada'
+        : `${count} correccions aplicades`,
+      accepted: (count: number) => count === 1
+        ? '1 resposta validada'
+        : `${count} respostes validades`,
+      openPending: 'Obrir la primera resposta pendent',
+      openCorrected: 'Obrir la primera resposta corregida',
+      openAccepted: 'Obrir la primera resposta validada',
+    },
     table: {
       session: 'Session ID',
       email: 'Email',
       lastMessage: 'Últim missatge',
-      started: 'Inici',
+      started: 'Última activitat',
       messages: 'Missatges',
     },
     viewMessages: 'Veure missatges',
+    supervisedFaq: SUPERVISED_FAQ_COPY.ca,
   },
   settings: {
-    section: 'Assistent IA',
+    section: 'Agent Web',
     title: 'Configuració',
     tabs: {
       general: 'General',
@@ -1699,7 +1750,7 @@ const ca: Dictionary = {
       suggestedQuestionLanguageCa: 'Català',
       suggestedQuestionLanguageEn: 'Anglès',
       primaryColor: 'Color principal',
-      position: 'Posició de l’assistent',
+      position: 'Posició de l’Agent Web',
       widgetSize: 'Mida del widget',
       widgetTheme: 'Estil del widget',
       widgetThemeHint: 'L’estil Vidre fa servir un material translúcid tipus iOS que es fon amb el web. Passa a opac automàticament si el visitant té activada la reducció de transparències.',
@@ -1711,7 +1762,7 @@ const ca: Dictionary = {
       widgetIconTalia: 'Icona de TALIA',
       widgetIconChat: 'Icona de conversa',
       widgetIconBubble: 'Bombolla de diàleg',
-      widgetIconBot: 'Icona d’assistent IA',
+      widgetIconBot: 'Icona de l’Agent Web',
       widgetIconExpand: 'Mostra les icones disponibles',
       widgetIconCollapse: 'Amaga les icones disponibles',
       glassBackground: 'Fons del teu web',
@@ -1737,7 +1788,7 @@ const ca: Dictionary = {
       delay: 'Retard (segons)',
       allowedDomains: 'Dominis autoritzats',
       allowedDomainsHint: 'Afegeix dominis addicionals on aquest script pot funcionar, un per línia. El web oficial ja queda autoritzat automàticament.',
-      channelPrompt: 'Prompt de l’assistent',
+      channelPrompt: 'Instruccions de l’Agent Web',
       channelPromptHint: 'Instruccions específiques del canal web. La base de coneixement comuna es gestiona a Coneixement.',
       unsavedChanges: 'Tens canvis sense desar',
       unsavedChangesWarning: 'Tens canvis sense desar. Si surts ara, es perdran.',
@@ -2230,7 +2281,7 @@ const en: Dictionary = {
     main: 'Main navigation',
     overview: 'Overview',
     attention: 'Support',
-    webChatbot: 'AI Assistant',
+    webChatbot: 'Web Agent',
     accessibility: 'Accessibility',
     emailAgent: 'Email agent',
     inbox: 'Inbox',
@@ -2249,8 +2300,8 @@ const en: Dictionary = {
     title: 'Your 14-day free trial has ended',
     close: 'Close notice',
     headline: 'Upgrade your plan to keep using TALIA',
-    description: 'Keep the AI assistant and Àgora metrics active with a monthly plan.',
-    chatbotTitle: 'AI Assistant',
+    description: 'Keep the Web Agent and Àgora metrics active with a monthly plan.',
+    chatbotTitle: 'Web Agent',
     chatbotMessage: 'Hi, how can I help you?',
     emailTitle: 'Email agent',
     emailMessage: 'Draft ready for review.',
@@ -2548,7 +2599,7 @@ const en: Dictionary = {
     ...es.upgrade,
     eyebrow: '14-day free trial · No card · Server in Europe · GDPR',
     title: 'GoTalia · Plans and pricing',
-    trialExpired: 'Your trial has ended. Choose a plan to reactivate the AI Assistant.',
+    trialExpired: 'Your trial has ended. Choose a plan to reactivate the Web Agent.',
     trialActive: 'Choose the plan you want to activate when the trial ends.',
     plansAria: 'GoTalia plans',
     addonsAria: 'White-label add-ons',
@@ -2579,20 +2630,20 @@ const en: Dictionary = {
     },
     plans: {
       chatbot_web: {
-        title: 'AI Assistant',
+        title: 'Web Agent',
         includedLabel: '1,000 messages / month',
         features: [
-          '24/7 AI assistant in Catalan, Spanish, and English',
+          '24/7 Web Agent in Catalan, Spanish, and English',
           'Agora dashboard included',
           'Monthly activity report',
           'Continuous human supervision',
         ],
       },
       chatbot_email: {
-        title: 'AI Assistant + Email',
+        title: 'Web Agent + Email',
         includedLabel: '1,000 messages / channel',
         features: [
-          'Everything included in AI Assistant',
+          'Everything included in Web Agent',
           'Email agent for info@ mailbox',
           'Automatic replies by email',
           'Reports and continuous supervision',
@@ -2625,7 +2676,7 @@ const en: Dictionary = {
     },
   },
   analytics: {
-    section: 'AI Assistant',
+    section: 'Web Agent',
     title: 'Analytics',
     description: 'Detected intents and frequent topics in chatbot conversations.',
     feedback: {
@@ -2670,18 +2721,43 @@ const en: Dictionary = {
   conversations: {
     title: 'Conversations',
     count: (count: number) => `${count} conversations`,
+    pagination: {
+      label: 'Conversations pagination',
+      pageSize: 'Show',
+      pageSizeAria: 'Conversations per page',
+      summary: (from: number, to: number, total: number, page: number, pageCount: number) =>
+        `Showing ${from}-${to} of ${total} conversations · Page ${page} of ${pageCount}`,
+      previous: 'Previous page',
+      next: 'Next page',
+    },
+    review: {
+      column: 'Review',
+      pendingImprovement: (count: number) => count === 1
+        ? '1 opportunity to improve'
+        : `${count} opportunities to improve`,
+      corrected: (count: number) => count === 1
+        ? '1 correction applied'
+        : `${count} corrections applied`,
+      accepted: (count: number) => count === 1
+        ? '1 response validated'
+        : `${count} responses validated`,
+      openPending: 'Open the first pending response',
+      openCorrected: 'Open the first corrected response',
+      openAccepted: 'Open the first validated response',
+    },
     table: {
       session: 'Session ID',
       email: 'Email',
       lastMessage: 'Last message',
-      started: 'Started',
+      started: 'Last activity',
       messages: 'Messages',
     },
     viewMessages: 'View messages',
+    supervisedFaq: SUPERVISED_FAQ_COPY.en,
   },
   settings: {
     ...es.settings,
-    section: 'AI Assistant',
+    section: 'Web Agent',
     title: 'Settings',
     tabs: {
       general: 'General',
@@ -2731,7 +2807,7 @@ const en: Dictionary = {
       suggestedQuestionLanguageCa: 'Catalan',
       suggestedQuestionLanguageEn: 'English',
       primaryColor: 'Primary color',
-      position: 'Assistant position',
+      position: 'Web Agent position',
       widgetSize: 'Widget size',
       widgetTheme: 'Widget style',
       widgetThemeHint: 'The Glass style uses a translucent, iOS-like material that blends with the site. It automatically falls back to opaque when the visitor has reduced transparency enabled.',
@@ -2743,7 +2819,7 @@ const en: Dictionary = {
       widgetIconTalia: 'TALIA icon',
       widgetIconChat: 'Conversation icon',
       widgetIconBubble: 'Dialogue bubble',
-      widgetIconBot: 'AI assistant icon',
+      widgetIconBot: 'Web Agent icon',
       widgetIconExpand: 'Show available icons',
       widgetIconCollapse: 'Hide available icons',
       glassBackground: 'Your site background',
@@ -2769,7 +2845,7 @@ const en: Dictionary = {
       delay: 'Delay (seconds)',
       allowedDomains: 'Authorized domains',
       allowedDomainsHint: 'Add extra domains where this script can run, one per line. The official website is authorized automatically.',
-      channelPrompt: 'Assistant prompt',
+      channelPrompt: 'Web Agent instructions',
       channelPromptHint: 'Specific instructions for the web channel. The shared knowledge base is managed in Knowledge.',
       unsavedChanges: 'You have unsaved changes',
       unsavedChangesWarning: 'You have unsaved changes. If you leave now, they will be lost.',
@@ -3175,12 +3251,12 @@ const en: Dictionary = {
   },
   chatbotSetup: {
     ...es.chatbotSetup,
-    eyebrow: 'AI assistant setup',
-    title: (name: string) => `Configure ${name}'s AI assistant`,
-    description: 'A short focused flow to prepare the assistant’s first experience.',
+    eyebrow: 'Web Agent setup',
+    title: (name: string) => `Configure ${name}'s Web Agent`,
+    description: 'A short focused flow to prepare the Web Agent’s first experience.',
     steps: ['Basic setup', 'Knowledge', 'Widget'],
-    progressLabel: 'AI assistant setup progress',
-    previewLabel: 'AI assistant preview',
+    progressLabel: 'Web Agent setup progress',
+    previewLabel: 'Web Agent preview',
     closePreview: 'Close preview',
     previewUserMessage: 'I want information',
     inputPlaceholder: 'Write your message...',
@@ -3194,7 +3270,7 @@ const en: Dictionary = {
     submit: 'Save and enter Agora',
     basic: {
       title: 'Define how TALIA should respond',
-      description: 'These settings shape the assistant’s first impression before advanced configuration.',
+      description: 'These settings shape the Web Agent’s first impression before advanced configuration.',
       initialMessage: 'Initial message',
       initialMessagePlaceholder: 'Hi, I am TALIA. How can I help you?',
       tones: {
@@ -3219,18 +3295,18 @@ const en: Dictionary = {
         domain: 'Enter a valid domain, for example www.example.org.',
         invalid: 'Enter a valid URL, for example www.example.org.',
       },
-      promptLabel: 'Internal instructions for the assistant channel',
+      promptLabel: 'Internal Web Agent instructions',
       promptPlaceholder: 'Example: Always respond clearly, refer to the box office when there is uncertainty, and prioritize programming, opening hours, and tickets.',
     },
     widget: {
       title: 'Adjust the widget presence',
-      description: 'Set a coherent visual base. Fine details remain available in the assistant settings.',
+      description: 'Set a coherent visual base. Fine details remain available in the Web Agent settings.',
       color: 'Main color',
       brandColor: 'Brand color',
       openColorPicker: 'Open color picker',
       hexColor: 'Hexadecimal color',
       fallbackTitle: 'When TALIA does not have a clear answer',
-      fallbackDescription: 'Choose how the assistant should behave when a question needs confirmation. This avoids invented answers and helps redirect visitors clearly.',
+      fallbackDescription: 'Choose how the Web Agent should behave when a question needs confirmation. This avoids invented answers and helps redirect visitors clearly.',
       fallbackOptions: {
         contact: { title: 'Refer to contact', description: 'Shows the official email or phone so the person can contact your team.' },
         human: { title: 'Ask for review', description: 'Explains that a human team member will review the case before answering.' },

@@ -10,7 +10,7 @@ const labels = {
   main: 'Main navigation',
   overview: 'Overview',
   attention: 'Attention',
-  webChatbot: 'AI assistant',
+  webChatbot: 'Web Agent',
   accessibility: 'Accessibility',
   emailAgent: 'Email agent',
   inbox: 'Inbox',
