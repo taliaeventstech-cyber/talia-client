@@ -34,12 +34,12 @@ export const PUBLIC_BILLING_PLAN_KEYS: readonly BillingPlanKey[] = ['chatbot_web
 export const BILLING_PLANS: BillingPlan[] = [
   {
     key: 'chatbot_web',
-    title: 'Asistente de IA',
+    title: 'Agente Web',
     priceMonthly: 19,
     includedLabel: '1.000 missatges / mes',
-    description: 'Asistente 24/7 para web.',
+    description: 'Agente Web disponible 24/7.',
     features: [
-      'Asistente 24/7 en catalán, castellano e inglés',
+      'Agente Web 24/7 en catalán, castellano e inglés',
       'Dashboard Àgora incluido',
       'Informe mensual de actividad',
       'Supervisión humana continua',
@@ -51,12 +51,12 @@ export const BILLING_PLANS: BillingPlan[] = [
   },
   {
     key: 'chatbot_email',
-    title: 'Asistente de IA + Correo',
+    title: 'Agente Web + Correo',
     priceMonthly: 39,
     includedLabel: '1.000 missatges / canal',
-    description: 'Asistente web y agente de correo.',
+    description: 'Agente Web y agente de correo.',
     features: [
-      'Todo lo incluido en Asistente de IA',
+      'Todo lo incluido en Agente Web',
       'Agente de correo para buzón info@',
       'Respuestas automáticas por mail',
       'Informes y supervisión continua',

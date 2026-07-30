@@ -64,6 +64,17 @@ export class TaliaAiChatAgentProvider implements ChatAgentProvider {
               },
             }
             : {}),
+          ...(input.previousResolution
+            ? {
+              previous_resolution: {
+                version: input.previousResolution.version,
+                state: input.previousResolution.state,
+                clarification_attempts: input.previousResolution.clarificationAttempts,
+                ...(input.previousResolution.topic ? { topic: input.previousResolution.topic } : {}),
+                ...(input.previousResolution.intent ? { intent: input.previousResolution.intent } : {}),
+              },
+            }
+            : {}),
           fallback_language: input.tenant.fallbackLanguage,
           // Remove after every deployed talia-ai instance accepts fallback_language.
           language: input.tenant.fallbackLanguage,

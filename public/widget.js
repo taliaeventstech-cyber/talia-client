@@ -1302,25 +1302,26 @@
     var explicitUrl = normalizePublicPageUrl(pageUrlOverride);
     if (explicitUrl) return explicitUrl;
 
-    var mappedUrl = getMappedSiteOriginUrl(siteOriginOverride);
-    if (mappedUrl) return mappedUrl;
-
     var canonical = document.querySelector('link[rel="canonical"]');
     var canonicalUrl = canonical ? normalizePublicPageUrl(canonical.getAttribute('href')) : null;
-    if (canonicalUrl) return canonicalUrl;
+    if (canonicalUrl) {
+      return getMappedSiteOriginUrl(siteOriginOverride, canonicalUrl) || canonicalUrl;
+    }
 
     var ogUrl = document.querySelector('meta[property="og:url"], meta[name="og:url"]');
     var openGraphUrl = ogUrl ? normalizePublicPageUrl(ogUrl.getAttribute('content')) : null;
-    if (openGraphUrl) return openGraphUrl;
+    if (openGraphUrl) {
+      return getMappedSiteOriginUrl(siteOriginOverride, openGraphUrl) || openGraphUrl;
+    }
 
-    return null;
+    return getMappedSiteOriginUrl(siteOriginOverride, window.location.href);
   }
 
-  function getMappedSiteOriginUrl(originValue) {
+  function getMappedSiteOriginUrl(originValue, pageValue) {
     if (!originValue) return null;
     try {
       var origin = new URL(originValue);
-      var current = new URL(window.location.href);
+      var current = new URL(pageValue || window.location.href, window.location.href);
       var url = new URL(origin.origin);
       url.pathname = current.pathname;
       url.search = current.search;

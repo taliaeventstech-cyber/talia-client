@@ -21,6 +21,7 @@ import { KnowledgeSourceTypeFilter } from './knowledge-source-type-filter'
 import { buildResponseTraceExport, buildResponseTraceFilename } from '@/lib/knowledge/response-trace-export'
 import { ResponseTraceDownloadButton } from './response-trace-download-button'
 import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
+import { buildBackstageKnowledgeHealth, loadBackstageKnowledgeChunks, loadBackstageKnowledgeHealth } from '@/lib/knowledge/backstage-knowledge-health'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -31,6 +32,7 @@ interface Props {
     source_page?: string
     source_page_size?: string
     source_type?: string
+    source_status?: string
   }>
 }
 
@@ -47,9 +49,10 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
   const sourcePageSize = normalizeKnowledgeSourcePageSize(query?.source_page_size)
   const sourcePage = normalizePositiveInteger(query?.source_page, 1)
   const sourceTypeFilter = normalizeKnowledgeSourceTypeFilter(query?.source_type)
+  const sourceStatusFilter = normalizeKnowledgeSourceStatusFilter(query?.source_status)
   const sourceFrom = (sourcePage - 1) * sourcePageSize
   const admin = createAdminClient()
-  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, usageResult, traceMessagesResult, positiveFeedbackCountResult, negativeFeedbackCountResult, knowledgeSourcesResult, { data: knowledgeSourceSummaries }, activeKnowledgeSyncResult, managedWebQuota, webAlerts, { data: knowledgeSupportRequests }] = await Promise.all([
+  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, usageResult, traceMessagesResult, positiveFeedbackCountResult, negativeFeedbackCountResult, knowledgeSourcesResult, knowledgeSourceSummaries, knowledgeHealthResult, activeKnowledgeSyncResult, managedWebQuota, webAlerts, { data: knowledgeSupportRequests }] = await Promise.all([
     admin
       .from('theatres')
       .select('id, account_id, name, slug, entity_type, primary_language, plan, website_url, fallback_email, fallback_phone, n8n_webhook_url, system_prompt, widget_config, voice_phone_number, voice_phone_provider, voice_phone_mode, voice_public_phone_number, voice_forwarding_notes, voice_operational_status')
@@ -95,13 +98,12 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
     getKnowledgeSourcesPage(admin, {
       tenantId,
       sourceType: sourceTypeFilter,
+      sourceStatus: sourceStatusFilter,
       from: sourceFrom,
       pageSize: sourcePageSize,
     }),
-    admin
-      .from('knowledge_sources')
-      .select('id, name, type, status, config, sync_enabled')
-      .eq('theatre_id', tenantId),
+    getAllKnowledgeSourceSummaries(admin, tenantId),
+    loadBackstageKnowledgeHealth(admin, tenantId),
     admin
       .from('knowledge_sync_runs')
       .select('source_id, status, discovered_count, checked_count, metadata')
@@ -139,6 +141,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
       page: sourcePageCount,
       pageSize: sourcePageSize,
       sourceType: sourceTypeFilter,
+      sourceStatus: sourceStatusFilter,
     }))
   }
 
@@ -152,9 +155,8 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
     .flatMap((message) => getAgentSources(message.metadata))
     .map((source) => source.source_id)
     .filter((sourceId): sourceId is string => Boolean(sourceId))))
-  const knowledgeSourceIds = (knowledgeSourceSummaries ?? []).map((source) => source.id)
   const visibleKnowledgeSourceIds = knowledgeSources.map((source) => source.id)
-  const [{ data: traceConversations }, { data: traceSources }, { data: knowledgeChunks }, { data: knowledgeDocuments }, { data: knowledgeSyncRuns }] = await Promise.all([
+  const [{ data: traceConversations }, { data: traceSources }, knowledgeChunksResult, { data: knowledgeDocuments }, { data: knowledgeSyncRuns }] = await Promise.all([
     traceMessages.length
       ? admin
         .from('conversations')
@@ -169,13 +171,10 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
         .in('id', traceSourceIds)
         .eq('theatre_id', tenantId)
       : Promise.resolve({ data: [] }),
-    knowledgeSourceIds.length
-      ? admin
-        .from('knowledge_chunks')
-        .select('source_id, embedding_status, active')
-        .eq('theatre_id', tenantId)
-        .in('source_id', knowledgeSourceIds)
-      : Promise.resolve({ data: [] }),
+    loadBackstageKnowledgeChunks(admin, {
+      tenantId,
+      sourceIds: visibleKnowledgeSourceIds,
+    }),
     visibleKnowledgeSourceIds.length
       ? admin
         .from('knowledge_documents')
@@ -204,14 +203,15 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
   ])
   const conversationById = new Map((traceConversations ?? []).map((conversation) => [conversation.id, conversation]))
   const sourceById = new Map((traceSources ?? []).map((source) => [source.id, source]))
-  const chunkStatsBySource = getChunkStatsBySource(knowledgeChunks ?? [])
+  const chunkStatsAvailable = knowledgeChunksResult.error === null
+  const chunkStatsBySource = getChunkStatsBySource(knowledgeChunksResult.data ?? [])
   const documentCountsBySource = getDocumentCountsBySource(knowledgeDocuments ?? [])
   const latestSyncRunBySource = getLatestSyncRunBySource(knowledgeSyncRuns ?? [])
   const activeSyncRunBySource = new Map(
     (activeKnowledgeSyncResult.data ?? []).map((run) => [run.source_id, run]),
   )
   const knowledgeSyncActivity = getKnowledgeSyncActivity(
-    (knowledgeSourceSummaries ?? [])
+    knowledgeSourceSummaries
       .filter((source) => isManagedWebSource(source.type))
       .map((source) => {
         const stats = chunkStatsBySource.get(source.id) ?? createEmptyChunkStats()
@@ -237,9 +237,9 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
         }
       }),
   )
-  const knowledgeSourceNameById = new Map((knowledgeSourceSummaries ?? []).map((source) => [source.id, getKnowledgeSourceName(source)]))
-  const knowledgeSourceTypeOptions = getKnowledgeSourceTypeOptions(knowledgeSourceSummaries ?? [])
-  const ragHealth = getRagHealth(knowledgeSourceSummaries ?? [], chunkStatsBySource)
+  const knowledgeSourceNameById = new Map(knowledgeSourceSummaries.map((source) => [source.id, getKnowledgeSourceName(source)]))
+  const knowledgeSourceTypeOptions = getKnowledgeSourceTypeOptions(knowledgeSourceSummaries)
+  const ragHealth = buildBackstageKnowledgeHealth(knowledgeHealthResult.counts)
   const traceStats = getTraceStats(traceMessages)
   const feedbackStats = getTraceFeedbackStats(traceMessages, traceConversations ?? [])
   const accountBilling = getAccountBillingMetadata(account?.metadata)
@@ -359,27 +359,47 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
         <div className="rag-health-grid">
           <div className="rag-health-card">
             <span>Fuentes</span>
-            <strong>{ragHealth.sourceCount}</strong>
-            <small>{ragHealth.readySources} listos · {ragHealth.errorSources} con error</small>
+            <strong>{formatKnowledgeMetric(ragHealth.sourceCount)}</strong>
+            <small>{formatKnowledgeMetric(ragHealth.readySources)} listos · {formatKnowledgeMetric(ragHealth.errorSources)} con error</small>
           </div>
           <div className="rag-health-card">
             <span>Fragmentos</span>
-            <strong>{ragHealth.totalChunks}</strong>
-            <small>{ragHealth.readyChunks} con embeddings listos</small>
+            <strong>{formatKnowledgeMetric(ragHealth.totalChunks)}</strong>
+            <small>{formatKnowledgeMetric(ragHealth.readyChunks)} con embeddings listos</small>
           </div>
           <div className="rag-health-card">
             <span>Pendientes</span>
-            <strong>{ragHealth.pendingChunks + ragHealth.processingChunks}</strong>
-            <small>{ragHealth.pendingChunks} pendientes · {ragHealth.processingChunks} procesando</small>
+            <strong>{formatKnowledgeMetric(sumKnowledgeMetrics(ragHealth.pendingChunks, ragHealth.processingChunks))}</strong>
+            <small>{formatKnowledgeMetric(ragHealth.pendingChunks)} pendientes · {formatKnowledgeMetric(ragHealth.processingChunks)} procesando</small>
           </div>
           <div className="rag-health-card">
             <span>Errores</span>
-            <strong>{ragHealth.errorChunks}</strong>
-            <small>{ragHealth.readinessPercent}% preparado</small>
+            <strong>{formatKnowledgeMetric(ragHealth.errorCount)}</strong>
+            <small>
+              {formatKnowledgeMetric(ragHealth.errorSources)} fuentes · {formatKnowledgeMetric(ragHealth.errorChunks)} embeddings
+              {ragHealth.readinessPercent === null ? '' : ` · ${ragHealth.readinessPercent}% preparado`}
+            </small>
           </div>
         </div>
 
-        {ragHealth.notice ? <p className={`rag-health-notice ${ragHealth.noticeTone}`}>{ragHealth.notice}</p> : null}
+        {ragHealth.notice ? (
+          <div className={`rag-health-notice ${ragHealth.noticeTone}`}>
+            <span>{ragHealth.notice}</span>
+            {ragHealth.errorSources !== null && ragHealth.errorSources > 0 ? (
+              <Link
+                href={buildKnowledgeSourcesHref({
+                  tenantId,
+                  page: 1,
+                  pageSize: sourcePageSize,
+                  sourceType: sourceTypeFilter,
+                  sourceStatus: 'error',
+                })}
+              >
+                Ver fuentes con error
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
       </section>
       ) : null}
 
@@ -680,7 +700,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
         <dl className="backstage-knowledge-usage" aria-label="Resumen del conocimiento">
           <div>
             <dt>Fuentes registradas</dt>
-            <dd>{knowledgeSourceSummaries?.length ?? 0}</dd>
+            <dd>{formatKnowledgeMetric(ragHealth.sourceCount)}</dd>
           </div>
           <div>
             <dt>Fuentes web gestionadas</dt>
@@ -703,6 +723,23 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
             showTenant={false}
             title="Alertas de actualización web"
           />
+        ) : null}
+
+        {sourceStatusFilter ? (
+          <div className="knowledge-source-filter-notice">
+            <span>Mostrando fuentes con estado: {getSourceStatusLabel(sourceStatusFilter)}.</span>
+            <Link
+              href={buildKnowledgeSourcesHref({
+                tenantId,
+                page: 1,
+                pageSize: sourcePageSize,
+                sourceType: sourceTypeFilter,
+                sourceStatus: null,
+              })}
+            >
+              Ver todas
+            </Link>
+          </div>
         ) : null}
 
         {knowledgeSources.length ? (
@@ -738,7 +775,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                     </div>
                     <div className="knowledge-file-meta">
                       <span>{getSourceTypeLabel(source.type)}</span>
-                      <span>{stats.total} fragmentos</span>
+                      <span>{chunkStatsAvailable ? `${stats.total} fragmentos` : 'Fragmentos no disponibles'}</span>
                       {source.source_url ? <span>{source.source_url}</span> : null}
                       {source.last_synced_at ? <span>Actualizado {formatDate(source.last_synced_at)}</span> : null}
                       {isManagedWebSource(source.type) ? (
@@ -779,7 +816,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                         {syncPresentation.issue}
                       </p>
                     ) : null}
-                    {stats.total > 0 ? (
+                    {chunkStatsAvailable && stats.total > 0 ? (
                       <div className="knowledge-embedding-stats" aria-label="Estado de embeddings">
                         <span className="knowledge-embedding-stat knowledge-embedding-stat-ready">{stats.ready} listos</span>
                         {stats.processing > 0 ? <span className="knowledge-embedding-stat">{stats.processing} procesando</span> : null}
@@ -820,6 +857,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
           pageCount={sourcePageCount}
           pageSize={sourcePageSize}
           sourceType={sourceTypeFilter}
+          sourceStatus={sourceStatusFilter}
           tenantId={tenantId}
           total={knowledgeSourceCount}
         />
@@ -876,6 +914,7 @@ function KnowledgeSourcePagination({
   pageCount,
   pageSize,
   sourceType,
+  sourceStatus,
   tenantId,
   total,
 }: {
@@ -883,6 +922,7 @@ function KnowledgeSourcePagination({
   pageCount: number
   pageSize: number
   sourceType: string | null
+  sourceStatus: string | null
   tenantId: string
   total: number
 }) {
@@ -895,6 +935,7 @@ function KnowledgeSourcePagination({
     page: targetPage,
     pageSize,
     sourceType,
+    sourceStatus,
   })
 
   return (
@@ -999,16 +1040,24 @@ function normalizeKnowledgeSourceTypeFilter(value: string | undefined) {
   return value
 }
 
+function normalizeKnowledgeSourceStatusFilter(value: string | undefined) {
+  return value === 'connected' || value === 'processing' || value === 'ready' || value === 'error'
+    ? value
+    : null
+}
+
 function buildKnowledgeSourcesHref({
   tenantId,
   page,
   pageSize,
   sourceType,
+  sourceStatus,
 }: {
   tenantId: string
   page: number
   pageSize: number
   sourceType: string | null
+  sourceStatus: string | null
 }) {
   const params = new URLSearchParams({
     tab: 'knowledge',
@@ -1016,6 +1065,7 @@ function buildKnowledgeSourcesHref({
     source_page_size: String(pageSize),
   })
   if (sourceType) params.set('source_type', sourceType)
+  if (sourceStatus) params.set('source_status', sourceStatus)
   return `/backstage/tenants/${tenantId}?${params.toString()}#knowledge-web-sources`
 }
 
@@ -1028,16 +1078,52 @@ function getKnowledgeSourceTypeOptions(sources: Array<{ type: string }>) {
     .sort((left, right) => left.label.localeCompare(right.label, 'es'))
 }
 
+async function getAllKnowledgeSourceSummaries(
+  admin: ReturnType<typeof createAdminClient>,
+  tenantId: string,
+) {
+  const sources: Array<{
+    id: string
+    name: string
+    type: string
+    status: string
+    config: unknown
+    sync_enabled: boolean
+  }> = []
+  const pageSize = 1_000
+
+  for (let from = 0; ; from += pageSize) {
+    const result = await admin
+      .from('knowledge_sources')
+      .select('id, name, type, status, config, sync_enabled')
+      .eq('theatre_id', tenantId)
+      .order('id', { ascending: true })
+      .range(from, from + pageSize - 1)
+
+    if (result.error) {
+      throw new Error(`No se pudieron consultar las fuentes de conocimiento: ${result.error.message}`)
+    }
+
+    const page = result.data ?? []
+    sources.push(...page)
+    if (page.length < pageSize) break
+  }
+
+  return sources
+}
+
 function getKnowledgeSourcesPage(
   admin: ReturnType<typeof createAdminClient>,
   {
     tenantId,
     sourceType,
+    sourceStatus,
     from,
     pageSize,
   }: {
     tenantId: string
     sourceType: string | null
+    sourceStatus: string | null
     from: number
     pageSize: number
   },
@@ -1048,6 +1134,7 @@ function getKnowledgeSourcesPage(
     .eq('theatre_id', tenantId)
 
   if (sourceType) request = request.eq('type', sourceType)
+  if (sourceStatus) request = request.eq('status', sourceStatus)
 
   return request
     .order('created_at', { ascending: false })
@@ -1641,85 +1728,6 @@ type ChunkStats = {
   error: number
 }
 
-type KnowledgeSourceSummary = {
-  id: string
-  status: string
-}
-
-function getRagHealth(sources: KnowledgeSourceSummary[], chunkStatsBySource: Map<string, ChunkStats>) {
-  const totals = sources.reduce((acc, source) => {
-    const stats = chunkStatsBySource.get(source.id) ?? createEmptyChunkStats()
-    acc.totalChunks += stats.total
-    acc.readyChunks += stats.ready
-    acc.pendingChunks += stats.pending
-    acc.processingChunks += stats.processing
-    acc.errorChunks += stats.error
-    if (source.status === 'ready') acc.readySources += 1
-    if (source.status === 'error') acc.errorSources += 1
-    return acc
-  }, {
-    totalChunks: 0,
-    readyChunks: 0,
-    pendingChunks: 0,
-    processingChunks: 0,
-    errorChunks: 0,
-    readySources: 0,
-    errorSources: 0,
-  })
-
-  const readinessPercent = totals.totalChunks > 0
-    ? Math.round((totals.readyChunks / totals.totalChunks) * 100)
-    : 0
-  const hasErrors = totals.errorChunks > 0 || totals.errorSources > 0
-  const hasPending = totals.pendingChunks > 0 || totals.processingChunks > 0
-
-  if (!sources.length) {
-    return {
-      ...totals,
-      sourceCount: 0,
-      readinessPercent,
-      statusClass: 'status-pill-muted',
-      statusLabel: 'sin fuentes',
-      notice: 'Este venue todavía no tiene fuentes preparadas para retrieval.',
-      noticeTone: 'rag-health-notice-muted',
-    }
-  }
-
-  if (hasErrors) {
-    return {
-      ...totals,
-      sourceCount: sources.length,
-      readinessPercent,
-      statusClass: 'status-pill-danger',
-      statusLabel: 'revisar',
-      notice: 'Hay fuentes o embeddings con error. Reintenta embeddings o reprocesa la fuente desde Backstage.',
-      noticeTone: 'rag-health-notice-error',
-    }
-  }
-
-  if (hasPending) {
-    return {
-      ...totals,
-      sourceCount: sources.length,
-      readinessPercent,
-      statusClass: 'status-pill-soon',
-      statusLabel: 'procesando',
-      notice: 'Hay embeddings pendientes o en proceso. Si no avanzan, usa el reintento desde Backstage.',
-      noticeTone: 'rag-health-notice-warning',
-    }
-  }
-
-  return {
-    ...totals,
-    sourceCount: sources.length,
-    readinessPercent,
-    statusClass: 'status-pill-active',
-    statusLabel: 'operativo',
-    notice: null,
-    noticeTone: 'rag-health-notice-muted',
-  }
-}
-
 function createEmptyChunkStats(): ChunkStats {
   return {
     total: 0,
@@ -1728,6 +1736,14 @@ function createEmptyChunkStats(): ChunkStats {
     processing: 0,
     error: 0,
   }
+}
+
+function formatKnowledgeMetric(value: number | null) {
+  return value === null ? '—' : value.toLocaleString('es-ES')
+}
+
+function sumKnowledgeMetrics(left: number | null, right: number | null) {
+  return left === null || right === null ? null : left + right
 }
 
 function getChunkStatsBySource(chunks: Array<{ source_id: string | null; embedding_status: string; active: boolean }>) {

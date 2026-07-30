@@ -638,7 +638,7 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
               </>
             ) : (
               <div className="locked-panel">
-                <span className="status-pill status-pill-soon">Configura el asistente</span>
+                <span className="status-pill status-pill-soon">Configura el Agente Web</span>
                 <h3>El script se desbloquea al completar la configuración</h3>
                 <p className="muted">
                   Completa el setup inicial para generar el script de instalación.
@@ -667,7 +667,7 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
               defaultValue={theatre.system_prompt ?? ''}
               rows={8}
               className="mono"
-              placeholder="Instrucciones específicas para el asistente de IA."
+              placeholder="Instrucciones específicas para el Agente Web."
             />
           </section>
         </aside>
@@ -1430,7 +1430,7 @@ function WidgetPreview({
         ref={launcherRef}
         type="button"
         className="widget-preview-launcher"
-        aria-label={panelOpen ? 'Cerrar asistente' : 'Abrir asistente'}
+        aria-label={panelOpen ? 'Cerrar Agente Web' : 'Abrir Agente Web'}
         aria-expanded={panelOpen}
         style={{ ...chatbotPosition, width: previewSize, height: previewSize, ...toggleStyle }}
         onClick={() => {

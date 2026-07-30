@@ -142,6 +142,13 @@ describe('TaliaAiChatAgentProvider', () => {
         optionKeys: ['tickets', 'plans'],
         options: ['entradas', 'planes'],
       },
+      previousResolution: {
+        version: 1,
+        state: 'needs_clarification',
+        clarificationAttempts: 1,
+        topic: 'precios',
+        intent: 'information',
+      },
       relevantKnowledge: [{
         id: 'chunk-1',
         sourceId: 'source-1',
@@ -199,6 +206,13 @@ describe('TaliaAiChatAgentProvider', () => {
         reason: 'ambiguous_price_intent',
         option_keys: ['tickets', 'plans'],
         options: ['entradas', 'planes'],
+      },
+      previous_resolution: {
+        version: 1,
+        state: 'needs_clarification',
+        clarification_attempts: 1,
+        topic: 'precios',
+        intent: 'information',
       },
       fallback_language: 'es',
       language: 'es',

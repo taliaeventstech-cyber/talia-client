@@ -5,6 +5,10 @@ import { corsJson, corsNoContent } from '@/lib/http/cors'
 import { buildRelevantKnowledgeHints, retrieveTenantKnowledge } from '@/lib/knowledge/retrieval'
 import { detectChatLanguage } from '@/lib/chat/language'
 import { summarizeVerifiedChatActions } from '@/lib/chat/agent-actions'
+import {
+  CHAT_CONVERSATION_RESOLUTION_STATES,
+  extractPreviousConversationResolution,
+} from '@/lib/chat/conversation-resolution'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getTenantChatConfig } from '@/lib/tenants/service'
 import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/lib/widget/domain-allowlist'
@@ -223,6 +227,9 @@ export async function POST(
   const pendingClarification = shouldDelegateKnowledgeToTaliaAi
     ? extractPendingClarification(recentConversation.latestAssistantMetadata)
     : undefined
+  const previousResolution = shouldDelegateKnowledgeToTaliaAi
+    ? extractPreviousConversationResolution(recentConversation.latestAssistantMetadata)
+    : undefined
   const knowledge = shouldDelegateKnowledgeToTaliaAi
     ? {
       query: message,
@@ -320,6 +327,7 @@ export async function POST(
     pageUrl,
     conversationContext: recentConversation.messages,
     pendingClarification,
+    previousResolution,
     tenant: {
       name: tenant.config.name,
       fallbackLanguage: tenant.config.language,
@@ -792,6 +800,9 @@ function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): 
   const conversation = summarizeConversation(metadata.conversation)
   if (conversation) result.conversation = conversation
 
+  const resolution = summarizeConversationResolution(metadata.resolution)
+  if (resolution) result.resolution = resolution
+
   const locationAction = summarizeLocationAction(metadata.location_action)
   if (locationAction) result.location_action = locationAction
 
@@ -810,6 +821,59 @@ function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): 
   }
 
   return result
+}
+
+function summarizeConversationResolution(value: unknown): Json | null {
+  if (!isRecord(value) || value.version !== 1) return null
+  if (
+    typeof value.state !== 'string'
+    || !CHAT_CONVERSATION_RESOLUTION_STATES.some((state) => state === value.state)
+  ) return null
+
+  const clarificationAttempts = toBoundedInteger(value.clarification_attempts, 0, 2)
+  const maxClarificationAttempts = toBoundedInteger(value.max_clarification_attempts, 1, 10)
+  const transition = typeof value.transition === 'string'
+    ? value.transition.trim().slice(0, 80)
+    : ''
+  const evidenceLevel = value.evidence_level === 'none'
+    || value.evidence_level === 'partial'
+    || value.evidence_level === 'sufficient'
+    ? value.evidence_level
+    : null
+  if (
+    clarificationAttempts === null
+    || maxClarificationAttempts === null
+    || !transition
+    || !evidenceLevel
+    || typeof value.terminal !== 'boolean'
+  ) return null
+
+  const previousState = typeof value.previous_state === 'string'
+    && CHAT_CONVERSATION_RESOLUTION_STATES.some((state) => state === value.previous_state)
+    ? value.previous_state
+    : null
+
+  return {
+    version: 1,
+    state: value.state,
+    previous_state: previousState,
+    transition,
+    clarification_attempts: clarificationAttempts,
+    max_clarification_attempts: maxClarificationAttempts,
+    terminal: value.terminal,
+    evidence_level: evidenceLevel,
+    topic: typeof value.topic === 'string' ? value.topic.trim().slice(0, 48) : null,
+    intent: typeof value.intent === 'string' ? value.intent.trim().slice(0, 48) : null,
+  }
+}
+
+function toBoundedInteger(value: unknown, minimum: number, maximum: number) {
+  return typeof value === 'number'
+    && Number.isInteger(value)
+    && value >= minimum
+    && value <= maximum
+    ? value
+    : null
 }
 
 function summarizeLocationAction(value: unknown): Json | null {
