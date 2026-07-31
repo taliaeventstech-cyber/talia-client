@@ -5,6 +5,7 @@ import { corsJson, corsNoContent } from '@/lib/http/cors'
 import { buildRelevantKnowledgeHints, retrieveTenantKnowledge } from '@/lib/knowledge/retrieval'
 import { detectChatLanguage } from '@/lib/chat/language'
 import { summarizeVerifiedChatActions } from '@/lib/chat/agent-actions'
+import { summarizeGroundingValidation } from '@/lib/chat/grounding-validation'
 import {
   CHAT_CONVERSATION_RESOLUTION_STATES,
   extractPreviousConversationResolution,
@@ -808,6 +809,9 @@ function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): 
 
   const purchaseAction = summarizePurchaseAction(metadata.purchase_action)
   if (purchaseAction) result.purchase_action = purchaseAction
+
+  const groundingValidation = summarizeGroundingValidation(metadata.grounding_validation)
+  if (groundingValidation) result.grounding_validation = groundingValidation
 
   const analytics = parseChatAnalytics(metadata.analytics)
   if (analytics) {

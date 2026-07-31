@@ -249,7 +249,9 @@ Implemented:
   cited postal address; it never chooses automatically between several venues.
   Unsupported postal addresses invalidate the full answer before rendering,
   and named venues are not admitted unless the selected tenant evidence
-  actually supports that entity.
+  actually supports that entity. Response traces retain bounded grounding-gate
+  diagnostics so Backstage exports identify the exact critical fact or source
+  declaration that caused a safe rejection.
 - Explicit purchase and reservation turns can include a verified purchase CTA.
   Managed web ingestion preserves a bounded set of HTTPS transaction links in
   Knowledge; `talia-ai` requires the selected item and exact destination to
