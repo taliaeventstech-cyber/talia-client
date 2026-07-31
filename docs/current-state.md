@@ -302,6 +302,11 @@ Implemented:
   model and component. It updates when the view is loaded instead of polling in
   the background. Legacy heuristic estimates remain visibly separate.
 - Backstage shows RAG health per venue, response traceability, original question, requested/used provider, model, language, retrieval status, low-confidence/fallback warnings, sources, scores, chunks retrieved from `talia-ai`, and internal actions to reprocess PDFs or retry embeddings.
+- Bounded conversational retrieval remains fully traceable through the Next
+  gateway: each initial or agent-requested Knowledge query is sanitized and
+  persisted with its reason, result count, selected count, top score and status.
+  Backstage renders those attempts in the RAG detail and includes them in the
+  downloadable response-trace JSON, without requiring a database migration.
 - Response traceability reports venue-wide feedback accuracy as useful responses
   divided by all positively or negatively rated responses, together with rating
   coverage so small or biased samples remain visible.

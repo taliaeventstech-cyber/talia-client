@@ -25,10 +25,13 @@ export type ResponseTraceExport = {
   }
   retrieval: {
     status: string | null
+    retrieval_query: string | null
+    refinement_used: boolean
     low_confidence: boolean
     fallback_reason: string | null
     sources: Json[]
     chunks: Json[]
+    attempts: Json[]
     context_assembly: Json | null
   }
   feedback: {

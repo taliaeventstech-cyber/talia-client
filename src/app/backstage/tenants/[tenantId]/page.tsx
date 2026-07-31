@@ -22,6 +22,7 @@ import { ResponseTraceDownloadButton } from './response-trace-download-button'
 import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
 import { buildBackstageKnowledgeHealth, loadBackstageKnowledgeChunks, loadBackstageKnowledgeHealth } from '@/lib/knowledge/backstage-knowledge-health'
 import { getBackstageResponseTraceMetrics } from '@/lib/knowledge/backstage-response-trace-metrics'
+import { summarizeRetrievalTrace, type RetrievalTraceAttempt } from '@/lib/chat/retrieval-trace'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -547,7 +548,17 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
               const language = typeof metadata.response_language === 'string' ? metadata.response_language : null
               const userMessage = typeof metadata.user_message === 'string' ? metadata.user_message : null
               const retrievalStatus = typeof metadata.retrieval_status === 'string' ? metadata.retrieval_status : null
-              const retrievalChunks = getRetrievalChunks(metadata.retrieval)
+              const retrievalTrace = summarizeRetrievalTrace(metadata)
+              const retrievalChunks = (retrievalTrace?.chunks ?? []).map((chunk) => ({
+                id: chunk.id,
+                source_id: chunk.source_id,
+                source_type: chunk.source_type,
+                score: chunk.score,
+                rank: chunk.rank,
+                language: chunk.language,
+                preview: chunk.preview,
+              }))
+              const retrievalAttempts = retrievalTrace?.attempts ?? []
               const contextAssembly = getContextAssembly(metadata)
               const languageTrace = getLanguageTrace(metadata)
               const fallbackTrace = getFallbackTrace(metadata)
@@ -585,6 +596,8 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                 },
                 retrieval: {
                   status: retrievalStatus,
+                  retrieval_query: retrievalTrace?.retrieval_query ?? null,
+                  refinement_used: retrievalTrace?.refinement_used ?? false,
                   low_confidence: lowConfidence,
                   fallback_reason: fallbackReason,
                   sources: sources.map((source) => ({
@@ -605,6 +618,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                       })
                       : chunk.source_type,
                   })),
+                  attempts: retrievalAttempts,
                   context_assembly: contextAssembly,
                 },
                 feedback: {
@@ -673,6 +687,13 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
 
                       {languageTrace ? <LanguageAgentTrace language={languageTrace} responseLanguage={language} /> : null}
 
+                      {retrievalAttempts.length ? (
+                        <RetrievalAttemptsTrace
+                          attempts={retrievalAttempts}
+                          refinementUsed={retrievalTrace?.refinement_used ?? false}
+                        />
+                      ) : null}
+
                       {fallbackTrace ? <FallbackTrace fallback={fallbackTrace} /> : null}
 
                       {sources.length ? (
@@ -692,6 +713,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                               {requestedProvider && requestedProvider !== provider ? <span>pedido {requestedProvider}</span> : null}
                               {language ? <span>{language}</span> : null}
                               {retrievalStatus ? <span>{getRetrievalStatusLabel(retrievalStatus)}</span> : null}
+                              {retrievalAttempts.length ? <span>{retrievalAttempts.length} búsquedas</span> : null}
                               {contextAssembly ? <span>{getContextAssemblyModeLabel(contextAssembly.mode)}</span> : null}
                               {languageTrace ? <span>idioma {languageTrace.mode}</span> : null}
                               {fallbackTrace ? <span>{fallbackTrace.strategy}</span> : null}
@@ -1226,6 +1248,50 @@ type RetrievalChunk = {
   preview: string | null
 }
 
+function RetrievalAttemptsTrace({
+  attempts,
+  refinementUsed,
+}: {
+  attempts: RetrievalTraceAttempt[]
+  refinementUsed: boolean
+}) {
+  return (
+    <div className="context-assembly-trace">
+      <div className="context-assembly-header">
+        <div className="trace-agent-identity">
+          <span>Retrieval</span>
+          <strong>Búsqueda conversacional</strong>
+        </div>
+        <div className="context-assembly-meta">
+          <span>{attempts.length} {attempts.length === 1 ? 'intento' : 'intentos'}</span>
+          {refinementUsed ? <span>reformulada</span> : <span>directa</span>}
+        </div>
+      </div>
+      <div className="context-assembly-rejections">
+        <span>Consultas ejecutadas</span>
+        {attempts.map((attempt) => (
+          <p key={`${attempt.attempt}-${attempt.query}`}>
+            <strong>#{attempt.attempt + 1} · {getRetrievalAttemptReasonLabel(attempt.reason)}</strong>
+            {' — '}{truncate(attempt.query, 500)}
+            {' · '}{attempt.retrieved_count} recuperados
+            {' · '}{attempt.selected_count} seleccionados
+            {typeof attempt.top_score === 'number' ? ` · score ${attempt.top_score.toFixed(2)}` : ''}
+            {attempt.status !== 'completed' ? ` · ${attempt.status}` : ''}
+          </p>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function getRetrievalAttemptReasonLabel(reason: string) {
+  if (reason === 'initial') return 'búsqueda inicial'
+  if (reason === 'missing_evidence') return 'faltaba evidencia'
+  if (reason === 'incomplete_evidence') return 'evidencia incompleta'
+  if (reason === 'follow_up_context') return 'contexto conversacional'
+  return reason
+}
+
 type ContextAssembly = {
   mode: string
   focus: string | null
@@ -1599,25 +1665,6 @@ function getAgentSources(metadata: unknown): AgentSource[] {
       return { id, source_id: sourceId, source_type: sourceType, score }
     })
     .filter((source): source is AgentSource => Boolean(source))
-}
-
-function getRetrievalChunks(retrieval: unknown): RetrievalChunk[] {
-  if (!isRecord(retrieval) || !Array.isArray(retrieval.chunks)) return []
-
-  return retrieval.chunks
-    .map((chunk) => {
-      if (!isRecord(chunk)) return null
-      const id = typeof chunk.id === 'string' ? chunk.id : null
-      const sourceId = typeof chunk.source_id === 'string' ? chunk.source_id : null
-      const sourceType = typeof chunk.source_type === 'string' ? chunk.source_type : null
-      const score = typeof chunk.score === 'number' && Number.isFinite(chunk.score) ? chunk.score : null
-      const rank = typeof chunk.rank === 'number' && Number.isFinite(chunk.rank) ? chunk.rank : null
-      const language = typeof chunk.language === 'string' ? chunk.language : null
-      const preview = typeof chunk.preview === 'string' ? chunk.preview : null
-      if (!id && !sourceId && !sourceType && !preview) return null
-      return { id, source_id: sourceId, source_type: sourceType, score, rank, language, preview }
-    })
-    .filter((chunk): chunk is RetrievalChunk => Boolean(chunk))
 }
 
 function getContextAssembly(metadata: unknown): ContextAssembly | null {

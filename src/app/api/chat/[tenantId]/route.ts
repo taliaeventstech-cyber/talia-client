@@ -15,6 +15,7 @@ import { getTenantChatConfig } from '@/lib/tenants/service'
 import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/lib/widget/domain-allowlist'
 import type { Json } from '@/types/database.types'
 import type { ChatAiUsageComponent } from '@/lib/agent-runtime/chat'
+import { summarizeRetrievalTrace, type RetrievalTrace } from '@/lib/chat/retrieval-trace'
 import { recordMeasuredAiUsage } from '@/lib/usage/ai-cost'
 import { consumeRateLimit, getClientIp } from '@/lib/auth/security'
 import {
@@ -43,24 +44,6 @@ type AgentSourceSummary = {
   source_id: string | null
   source_type: string | null
   score: number | null
-}
-
-type RetrievalTraceChunk = {
-  id: string | null
-  source_id: string | null
-  source_type: string | null
-  score: number | null
-  rank: number | null
-  used: boolean | null
-  language: string | null
-  preview: string | null
-}
-
-type RetrievalTrace = {
-  status: string | null
-  query_language: string | null
-  top_score: number | null
-  chunks: RetrievalTraceChunk[]
 }
 
 export async function POST(
@@ -1111,51 +1094,6 @@ function serializePendingClarification(value: ChatAgentPendingClarification): Js
 
 function isClarificationIntent(value: unknown): value is ChatAgentPendingClarification['intent'] {
   return value === 'pricing' || value === 'schedule' || value === 'program'
-}
-
-function summarizeRetrievalTrace(metadata: Record<string, unknown> | undefined): RetrievalTrace | null {
-  if (!metadata || !isRecord(metadata.retrieval)) return null
-
-  const retrieval = metadata.retrieval
-  const chunks = Array.isArray(retrieval.chunks)
-    ? retrieval.chunks
-      .map((chunk, index) => summarizeRetrievalChunk(chunk, index))
-      .filter((chunk): chunk is RetrievalTraceChunk => Boolean(chunk))
-      .slice(0, 8)
-    : []
-
-  return {
-    status: typeof retrieval.status === 'string' ? retrieval.status : null,
-    query_language: typeof retrieval.query_language === 'string' ? retrieval.query_language : null,
-    top_score: typeof retrieval.top_score === 'number' && Number.isFinite(retrieval.top_score) ? retrieval.top_score : null,
-    chunks,
-  }
-}
-
-function summarizeRetrievalChunk(chunk: unknown, fallbackIndex: number): RetrievalTraceChunk | null {
-  if (!isRecord(chunk)) return null
-
-  const id = typeof chunk.id === 'string' ? chunk.id : null
-  const sourceId = typeof chunk.source_id === 'string' ? chunk.source_id : null
-  const sourceType = typeof chunk.source_type === 'string' ? chunk.source_type : null
-  const score = typeof chunk.score === 'number' && Number.isFinite(chunk.score) ? chunk.score : null
-  const rank = typeof chunk.rank === 'number' && Number.isFinite(chunk.rank) ? chunk.rank : fallbackIndex + 1
-  const used = typeof chunk.used === 'boolean' ? chunk.used : null
-  const language = typeof chunk.language === 'string' ? chunk.language : null
-  const preview = typeof chunk.preview === 'string' ? truncateForMetadata(chunk.preview, 360) : null
-
-  if (!id && !sourceId && !sourceType && !preview) return null
-
-  return {
-    id,
-    source_id: sourceId,
-    source_type: sourceType,
-    score,
-    rank,
-    used,
-    language,
-    preview,
-  }
 }
 
 function getRetrievalStatus({

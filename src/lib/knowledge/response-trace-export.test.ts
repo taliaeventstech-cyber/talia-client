@@ -20,10 +20,13 @@ describe('response trace export', () => {
       },
       retrieval: {
         status: 'sources_used',
+        retrieval_query: 'accessible theatre wheelchair access',
+        refinement_used: true,
         low_confidence: false,
         fallback_reason: null,
         sources: [{ source_id: 'source-1', score: 0.81 }],
         chunks: [{ id: 'chunk-1', preview: 'El teatro es accesible.' }],
+        attempts: [{ attempt: 0, reason: 'initial' }, { attempt: 1, reason: 'incomplete_evidence' }],
         context_assembly: { selected_count: 1 },
       },
       feedback: { response: null, session: null },
@@ -35,6 +38,8 @@ describe('response trace export', () => {
       exported_at: '2026-07-27T17:00:00.000Z',
       response: { question: 'Is the theater accessible?' },
       retrieval: {
+        refinement_used: true,
+        attempts: [{ attempt: 0 }, { attempt: 1 }],
         sources: [{ source_id: 'source-1', score: 0.81 }],
         chunks: [{ id: 'chunk-1', preview: 'El teatro es accesible.' }],
       },

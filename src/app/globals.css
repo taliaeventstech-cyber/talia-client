@@ -7511,6 +7511,7 @@ textarea {
   margin: 0;
   color: var(--color-text-secondary);
   font-size: 11px;
+  overflow-wrap: anywhere;
 }
 
 .retrieval-chunk-list {
