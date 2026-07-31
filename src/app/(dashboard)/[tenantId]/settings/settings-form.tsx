@@ -1175,8 +1175,8 @@ function WidgetPreview({
   suggestedQuestionsLabel: string
   suggestedQuestionsPrompt: string
 }) {
-  const [panelOpen, setPanelOpen] = useState(false)
-  const [greetingVisible, setGreetingVisible] = useState(widgetConfig.autoOpen)
+  const [panelOpen, setPanelOpen] = useState(true)
+  const [greetingVisible, setGreetingVisible] = useState(false)
   const [sessionFeedbackOpen, setSessionFeedbackOpen] = useState(false)
   const [sessionFeedbackResolved, setSessionFeedbackResolved] = useState<boolean | null>(null)
   const [selectedSuggestedQuestion, setSelectedSuggestedQuestion] = useState<string | null>(null)

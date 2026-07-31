@@ -5,7 +5,7 @@ import { getManagedWebQuotaUsage } from '@/lib/knowledge/web-source-quotas'
 import { canReprocessKnowledgeSourceFromBackstage, getBackstageSyncRunPresentation } from '@/lib/knowledge/backstage-sources'
 import { requirePlatformAdmin } from '@/lib/platform/auth'
 import { hasPlatformPermission } from '@/lib/platform/permissions'
-import { ChevronLeft, ChevronRight, FileText, LayoutDashboard, LifeBuoy } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FileText, LayoutDashboard, LifeBuoy, ScanHeart, TextSearch } from 'lucide-react'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { EditClientForm } from './edit-client-form'
@@ -16,12 +16,12 @@ import { getKnowledgeSyncActivity } from '@/lib/knowledge/sync-activity'
 import { BackstagePageSizeSelect } from '../../backstage-page-size-select'
 import { SubscriptionCancellationPanel } from './subscription-cancellation-panel'
 import { VenueDetailsPanel } from './venue-details-panel'
-import { VenueTabs, type VenueTabKey } from './venue-tabs'
 import { KnowledgeSourceTypeFilter } from './knowledge-source-type-filter'
 import { buildResponseTraceExport, buildResponseTraceFilename } from '@/lib/knowledge/response-trace-export'
 import { ResponseTraceDownloadButton } from './response-trace-download-button'
 import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
 import { buildBackstageKnowledgeHealth, loadBackstageKnowledgeChunks, loadBackstageKnowledgeHealth } from '@/lib/knowledge/backstage-knowledge-health'
+import { getBackstageResponseTraceMetrics } from '@/lib/knowledge/backstage-response-trace-metrics'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -38,6 +38,7 @@ interface Props {
 
 const TRACE_PAGE_SIZES = [10, 25, 50] as const
 const KNOWLEDGE_SOURCE_PAGE_SIZES = [10, 25, 50, 100] as const
+type VenueTabKey = 'overview' | 'knowledge' | 'traceability'
 
 export default async function BackstageClientPage({ params, searchParams }: Props) {
   const { tenantId } = await params
@@ -52,7 +53,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
   const sourceStatusFilter = normalizeKnowledgeSourceStatusFilter(query?.source_status)
   const sourceFrom = (sourcePage - 1) * sourcePageSize
   const admin = createAdminClient()
-  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, usageResult, traceMessagesResult, positiveFeedbackCountResult, negativeFeedbackCountResult, knowledgeSourcesResult, knowledgeSourceSummaries, knowledgeHealthResult, activeKnowledgeSyncResult, managedWebQuota, webAlerts, { data: knowledgeSupportRequests }] = await Promise.all([
+  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, usageResult, traceMessagesResult, positiveFeedbackCountResult, negativeFeedbackCountResult, traceMetrics, knowledgeSourcesResult, knowledgeSourceSummaries, knowledgeHealthResult, activeKnowledgeSyncResult, managedWebQuota, webAlerts, { data: knowledgeSupportRequests }] = await Promise.all([
     admin
       .from('theatres')
       .select('id, account_id, name, slug, entity_type, primary_language, plan, website_url, fallback_email, fallback_phone, n8n_webhook_url, system_prompt, widget_config, voice_phone_number, voice_phone_provider, voice_phone_mode, voice_public_phone_number, voice_forwarding_notes, voice_operational_status')
@@ -95,6 +96,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
       .eq('theatre_id', tenantId)
       .eq('role', 'assistant')
       .contains('metadata', { feedback: { rating: 'negative' } }),
+    getBackstageResponseTraceMetrics(admin, tenantId),
     getKnowledgeSourcesPage(admin, {
       tenantId,
       sourceType: sourceTypeFilter,
@@ -240,14 +242,26 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
   const knowledgeSourceNameById = new Map(knowledgeSourceSummaries.map((source) => [source.id, getKnowledgeSourceName(source)]))
   const knowledgeSourceTypeOptions = getKnowledgeSourceTypeOptions(knowledgeSourceSummaries)
   const ragHealth = buildBackstageKnowledgeHealth(knowledgeHealthResult.counts)
-  const traceStats = getTraceStats(traceMessages)
-  const feedbackStats = getTraceFeedbackStats(traceMessages, traceConversations ?? [])
+  const traceStats = traceMetrics
+  const feedbackStats = traceMetrics
   const accountBilling = getAccountBillingMetadata(account?.metadata)
   const canManageCustomerBilling = hasPlatformPermission(platformAccess.permissions, 'manage_customer_billing')
 
   return (
     <div className="stack">
-      <Link className="back-link" href="/backstage/clients">Volver a clientes</Link>
+      <nav className="backstage-venue-breadcrumbs" aria-label="Navegación del cliente">
+        <Link href="/backstage/clients">Clientes</Link>
+        <ChevronRight aria-hidden="true" size={14} strokeWidth={2} />
+        {activeTab === 'overview' ? (
+          <span aria-current="page">{client.name}</span>
+        ) : (
+          <>
+            <Link href={`/backstage/tenants/${tenantId}`}>{client.name}</Link>
+            <ChevronRight aria-hidden="true" size={14} strokeWidth={2} />
+            <span aria-current="page">{activeTab === 'knowledge' ? 'Salud del conocimiento' : 'Trazabilidad de respuestas'}</span>
+          </>
+        )}
+      </nav>
 
       <header className="page-header backstage-venue-header">
         <div>
@@ -341,14 +355,49 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
         </div>
       </header>
 
-      <VenueTabs activeTab={activeTab} tenantId={tenantId} />
+      {activeTab === 'overview' ? (
+        <section className="backstage-venue-overview" aria-label="Resumen operativo del cliente">
+          <Link className="backstage-venue-overview-card" href={`/backstage/tenants/${tenantId}?tab=knowledge`}>
+            <div className="backstage-venue-overview-card-header">
+              <div>
+                <p className="eyebrow">RAG</p>
+                <h2 className="backstage-knowledge-title"><ScanHeart aria-hidden="true" size={20} strokeWidth={2} />Salud del conocimiento</h2>
+              </div>
+              <span className={`status-pill ${ragHealth.statusClass}`}>{ragHealth.statusLabel}</span>
+            </div>
+            <p className="muted">El estado de las fuentes y de los fragmentos que TALIA puede usar para responder.</p>
+            <dl className="backstage-venue-overview-metrics">
+              <div><dt>Fuentes</dt><dd>{formatKnowledgeMetric(ragHealth.sourceCount)}</dd></div>
+              <div><dt>Preparado</dt><dd>{ragHealth.readinessPercent === null ? '—' : `${ragHealth.readinessPercent}%`}</dd></div>
+              <div><dt>Errores</dt><dd>{formatKnowledgeMetric(ragHealth.errorCount)}</dd></div>
+            </dl>
+            <span className="backstage-venue-overview-link">Ver salud del conocimiento <ChevronRight aria-hidden="true" size={16} strokeWidth={2} /></span>
+          </Link>
+          <Link className="backstage-venue-overview-card" href={`/backstage/tenants/${tenantId}?tab=traceability`}>
+            <div className="backstage-venue-overview-card-header">
+              <div>
+                <p className="eyebrow">Respuestas</p>
+                <h2 className="backstage-traceability-title"><TextSearch aria-hidden="true" size={20} strokeWidth={2} />Trazabilidad de respuestas</h2>
+              </div>
+              <span className="status-pill status-pill-muted">{traceCount} respuestas</span>
+            </div>
+            <p className="muted">Consulta la evidencia RAG, los fallbacks y las valoraciones de las respuestas del chatbot.</p>
+            <dl className="backstage-venue-overview-metrics">
+              <div><dt>Accuracy</dt><dd>{responseFeedbackMetrics.accuracyPercent === null ? '—' : `${responseFeedbackMetrics.accuracyPercent}%`}</dd></div>
+              <div><dt>Valoradas</dt><dd>{responseFeedbackMetrics.ratedCount}</dd></div>
+              <div><dt>Cobertura</dt><dd>{responseFeedbackMetrics.coveragePercent}%</dd></div>
+            </dl>
+            <span className="backstage-venue-overview-link">Ver trazabilidad <ChevronRight aria-hidden="true" size={16} strokeWidth={2} /></span>
+          </Link>
+        </section>
+      ) : null}
 
       {activeTab === 'knowledge' ? (
       <section className="card stack">
         <div className="section-title-row">
           <div>
             <p className="eyebrow">RAG</p>
-            <h2>Salud del conocimiento</h2>
+            <h2 className="backstage-knowledge-title"><ScanHeart aria-hidden="true" size={20} strokeWidth={2} />Salud del conocimiento</h2>
           </div>
           <div className="header-actions">
             <BackstageReindexTenantKnowledgeButton tenantId={tenantId} />
@@ -408,12 +457,12 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
         <div className="section-title-row">
           <div>
             <p className="eyebrow">RAG</p>
-            <h2>Trazabilidad de respuestas</h2>
+            <h2 className="backstage-traceability-title"><TextSearch aria-hidden="true" size={20} strokeWidth={2} />Trazabilidad de respuestas</h2>
           </div>
           <span className="status-pill status-pill-muted">{traceCount} respuestas</span>
         </div>
 
-        <p className="muted traceability-summary-caption">Resumen de las respuestas visibles en esta página.</p>
+        <p className="muted traceability-summary-caption">Resumen global de todas las respuestas registradas.</p>
 
         <div className="rag-feedback-accuracy-card" aria-label="Accuracy de respuestas según valoraciones">
           <div>
@@ -1022,7 +1071,8 @@ function TracePagination({
 }
 
 function normalizeVenueTab(value: string | undefined): VenueTabKey {
-  return value === 'traceability' ? 'traceability' : 'knowledge'
+  if (value === 'knowledge' || value === 'traceability') return value
+  return 'overview'
 }
 
 function normalizeTracePageSize(value: string | undefined) {
@@ -1408,60 +1458,6 @@ function RetrievalChunkList({
       })}
     </div>
   )
-}
-
-function getTraceStats(messages: Array<{ metadata: unknown }>) {
-  return messages.reduce((stats, message) => {
-    const metadata = isRecord(message.metadata) ? message.metadata : {}
-    const sources = getAgentSources(metadata)
-    const chunks = getRetrievalChunks(metadata.retrieval)
-    const retrievalStatus = typeof metadata.retrieval_status === 'string' ? metadata.retrieval_status : null
-    const fallbackReason = typeof metadata.fallback_reason === 'string' ? metadata.fallback_reason : null
-    const lowConfidence = metadata.low_confidence === true
-
-    if (sources.length || chunks.length || retrievalStatus === 'sources_used' || retrievalStatus === 'direct_match') {
-      stats.withSources += 1
-    } else if (isNoSourcesStatus(retrievalStatus)) {
-      stats.withoutSources += 1
-    }
-
-    if (lowConfidence) stats.lowConfidence += 1
-    if (fallbackReason) stats.fallbacks += 1
-    return stats
-  }, {
-    withSources: 0,
-    withoutSources: 0,
-    lowConfidence: 0,
-    fallbacks: 0,
-  })
-}
-
-function getTraceFeedbackStats(
-  messages: Array<{ metadata: unknown }>,
-  conversations: Array<{ metadata: unknown }>
-) {
-  const responseStats = messages.reduce((stats, message) => {
-    const feedback = getResponseFeedback(message.metadata)
-    if (feedback?.rating === 'positive') stats.responsePositive += 1
-    if (feedback?.rating === 'negative') stats.responseNegative += 1
-    return stats
-  }, {
-    responsePositive: 0,
-    responseNegative: 0,
-  })
-
-  return conversations.reduce((stats, conversation) => {
-    const feedback = getSessionFeedback(conversation.metadata)
-    if (feedback?.resolved === true) stats.sessionResolved += 1
-    if (feedback?.resolved === false) stats.sessionUnresolved += 1
-    if (feedback?.skipped) stats.sessionSkipped += 1
-    return stats
-  }, {
-    ...responseStats,
-    sessionResolved: 0,
-    sessionUnresolved: 0,
-    sessionSkipped: 0,
-  })
 }
 
 function getResponseFeedback(metadata: unknown): ResponseFeedback | null {
