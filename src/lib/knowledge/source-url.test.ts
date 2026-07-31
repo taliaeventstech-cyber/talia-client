@@ -31,4 +31,16 @@ describe('normalizeInstalledPageUrl', () => {
       'https://example.com/programacion?event=42&utm_source=instagram&empty=',
     )).toBe('https://example.com/programacion?event=42')
   })
+
+  it('drops abnormally long query keys injected into an installed page URL', () => {
+    expect(normalizeInstalledPageUrl(
+      'https://salafenix.com/nadie-esta-exento?historialne-e-poker-i-gry-hazardowe-w-polsce-kompleksowy-przewodnik-dla-entuzjastow=casino',
+    )).toBe('https://salafenix.com/nadie-esta-exento')
+  })
+
+  it('drops abnormally long query values injected into an installed page URL', () => {
+    expect(normalizeInstalledPageUrl(
+      `https://salafenix.com/nadie-esta-exento?search=${'casino-'.repeat(40)}`,
+    )).toBe('https://salafenix.com/nadie-esta-exento')
+  })
 })

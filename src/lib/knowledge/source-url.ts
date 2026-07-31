@@ -12,6 +12,8 @@ const TRACKING_QUERY_PARAMETERS = new Set([
   'twclid',
   'yclid',
 ])
+const MAX_INSTALLED_PAGE_QUERY_KEY_LENGTH = 64
+const MAX_INSTALLED_PAGE_QUERY_VALUE_LENGTH = 256
 
 export function normalizeKnowledgeSourceUrl(value: string): string | null {
   try {
@@ -46,7 +48,13 @@ export function normalizeInstalledPageUrl(value: string): string | null {
 
   const url = new URL(normalized)
   for (const key of new Set(url.searchParams.keys())) {
-    if (url.searchParams.getAll(key).every((queryValue) => !queryValue.trim())) {
+    const values = url.searchParams.getAll(key)
+    if (
+      !key.trim()
+      || key.length > MAX_INSTALLED_PAGE_QUERY_KEY_LENGTH
+      || values.some((queryValue) => queryValue.length > MAX_INSTALLED_PAGE_QUERY_VALUE_LENGTH)
+      || values.every((queryValue) => !queryValue.trim())
+    ) {
       url.searchParams.delete(key)
     }
   }

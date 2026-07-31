@@ -1979,6 +1979,21 @@ export type Database = {
           theatre_name: string
         }[]
       }
+      get_backstage_response_trace_metrics: {
+        Args: {
+          p_theatre_id: string
+        }
+        Returns: {
+          fallbacks: number
+          low_confidence: number
+          response_negative: number
+          response_positive: number
+          session_resolved: number
+          session_unresolved: number
+          with_sources: number
+          without_sources: number
+        }[]
+      }
       finish_email_sync_run: {
         Args: {
           p_checked_count?: number

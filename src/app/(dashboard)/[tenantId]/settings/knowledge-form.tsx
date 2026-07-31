@@ -1,15 +1,16 @@
 'use client'
 
-import { ChevronDown, FileText, Globe2, LifeBuoy, Link as LinkIcon, RefreshCw, Table2, Trash2, Workflow } from 'lucide-react'
+import { ChevronDown, FileText, Globe2, LifeBuoy, Link as LinkIcon, RefreshCw, Table2, Trash2, UploadCloud, Workflow, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useActionState, useState, useTransition, useEffect, useRef } from 'react'
-import type { ReactNode, RefObject } from 'react'
+import type { DragEvent as ReactDragEvent, ReactNode, RefObject } from 'react'
 import { KnowledgeSyncRealtime, type KnowledgeSyncRealtimeLabels } from '@/components/knowledge-sync-realtime'
 import { ToastNotice } from '@/components/ui/toast-notice'
 import type { ManagedWebQuotaUsage } from '@/lib/knowledge/web-source-quotas'
 import { getManagedWebPresentation, type ManagedWebOutcome } from '@/lib/knowledge/managed-web-presentation'
 import type { InstalledWebCaptureSettings } from '@/lib/knowledge/installed-web-capture-settings'
 import { getKnowledgeSyncActivity } from '@/lib/knowledge/sync-activity'
+import { formatPdfUploadSize, getPdfUploadCandidateError } from '@/lib/knowledge/pdf-upload'
 import { createKnowledgeItem, createManagedWebKnowledgeSource, uploadKnowledgeExcel, uploadKnowledgePdf, updateKnowledgeItem, deleteKnowledgeItem, deleteKnowledgeSource, requestKnowledgeSourceSupport, requestManagedWebSourceSync, retryKnowledgeSourceEmbeddings, updateManagedWebSourceSchedule, updateInstalledWebCaptureSettings, type SettingsFormState, type ExcelUploadState, type PdfUploadState, type InstalledWebCaptureSettingsState, type ManagedWebSourceState } from './actions'
 
 type KnowledgeItem = {
@@ -94,8 +95,14 @@ type KnowledgeFormProps = {
     importButton: string
     importPdf: string
     importPdfHelp: string
+    importPdfWarningTitle: string
     importPdfWarning: string
     importPdfButton: string
+    pdfDropTitle: string
+    pdfDropHint: string
+    pdfFileLimit: string
+    pdfRemoveFile: string
+    pdfInvalidFile: string
     urlProcessing: string
     managedWeb: string
     managedWebHelp: string
@@ -276,6 +283,10 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
   const savedInstalledWebCapture = captureSettingsState.settings ?? installedWebCapture
   const [isRefreshingInstalled, startInstalledRefresh] = useTransition()
   const [highlightedTarget, setHighlightedTarget] = useState<KnowledgeResolutionTarget | null>(null)
+  const [pdfFile, setPdfFile] = useState<File | null>(null)
+  const [pdfDragActive, setPdfDragActive] = useState(false)
+  const [pdfClientError, setPdfClientError] = useState<string | null>(null)
+  const pdfFileInputRef = useRef<HTMLInputElement>(null)
   const managedWebNameInputRef = useRef<HTMLInputElement>(null)
   const installedWidgetControlRef = useRef<HTMLLabelElement>(null)
   const installedWidgetToggleRef = useRef<HTMLInputElement>(null)
@@ -310,6 +321,47 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
     if (highlightStartTimerRef.current) clearTimeout(highlightStartTimerRef.current)
     if (highlightEndTimerRef.current) clearTimeout(highlightEndTimerRef.current)
   }, [])
+
+  useEffect(() => {
+    if (!pdfState.ok) return
+    const timer = window.setTimeout(() => {
+      setPdfFile(null)
+      setPdfClientError(null)
+      if (pdfFileInputRef.current) pdfFileInputRef.current.value = ''
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [pdfState.ok, pdfState.message])
+
+  function selectPdfFile(file: File | null) {
+    if (!file) {
+      setPdfFile(null)
+      setPdfClientError(null)
+      if (pdfFileInputRef.current) pdfFileInputRef.current.value = ''
+      return
+    }
+
+    if (getPdfUploadCandidateError(file)) {
+      setPdfFile(null)
+      setPdfClientError(labels.pdfInvalidFile)
+      if (pdfFileInputRef.current) pdfFileInputRef.current.value = ''
+      return
+    }
+
+    setPdfFile(file)
+    setPdfClientError(null)
+    if (pdfFileInputRef.current && pdfFileInputRef.current.files?.[0] !== file) {
+      const transfer = new DataTransfer()
+      transfer.items.add(file)
+      pdfFileInputRef.current.files = transfer.files
+    }
+  }
+
+  function handlePdfDrop(event: ReactDragEvent<HTMLDivElement>) {
+    event.preventDefault()
+    setPdfDragActive(false)
+    if (pdfPending) return
+    selectPdfFile(event.dataTransfer.files[0] ?? null)
+  }
 
   function navigateToResolutionTarget(target: KnowledgeResolutionTarget) {
     if (highlightStartTimerRef.current) clearTimeout(highlightStartTimerRef.current)
@@ -371,15 +423,72 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
                 </p>
               ) : null}
 
-              <p className="notice notice-warning">
-                {labels.importPdfWarning}
-              </p>
+              <div className="knowledge-pdf-replacement-notice" role="note">
+                <span className="knowledge-pdf-replacement-icon" aria-hidden="true">
+                  <RefreshCw size={18} strokeWidth={2} />
+                </span>
+                <span className="knowledge-pdf-replacement-copy">
+                  <strong>{labels.importPdfWarningTitle}</strong>
+                  <span>{labels.importPdfWarning}</span>
+                </span>
+              </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <label className="field" style={{ flex: 1, margin: 0 }}>
-                  <input type="file" name="file" accept="application/pdf,.pdf" required />
-                </label>
-                <button className="button-primary" type="submit" disabled={pdfPending} style={{ opacity: pdfPending ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+              <div
+                className={`knowledge-pdf-dropzone${pdfDragActive ? ' knowledge-pdf-dropzone-active' : ''}${pdfFile ? ' knowledge-pdf-dropzone-selected' : ''}`}
+                onDragEnter={(event) => {
+                  event.preventDefault()
+                  if (!pdfPending) setPdfDragActive(true)
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault()
+                  if (!pdfPending) {
+                    event.dataTransfer.dropEffect = 'copy'
+                    setPdfDragActive(true)
+                  }
+                }}
+                onDragLeave={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                    setPdfDragActive(false)
+                  }
+                }}
+                onDrop={handlePdfDrop}
+              >
+                <input
+                  ref={pdfFileInputRef}
+                  className="knowledge-pdf-dropzone-input"
+                  type="file"
+                  name="file"
+                  accept="application/pdf,.pdf"
+                  aria-label={labels.pdfDropTitle}
+                  disabled={pdfPending}
+                  onChange={(event) => selectPdfFile(event.target.files?.[0] ?? null)}
+                />
+                <span className="knowledge-pdf-dropzone-icon" aria-hidden="true">
+                  {pdfFile ? <FileText size={28} strokeWidth={1.8} /> : <UploadCloud size={28} strokeWidth={1.8} />}
+                </span>
+                <span className="knowledge-pdf-dropzone-copy">
+                  <strong>{pdfFile?.name ?? labels.pdfDropTitle}</strong>
+                  <span>{pdfFile ? formatPdfUploadSize(pdfFile.size) : labels.pdfDropHint}</span>
+                </span>
+                <span className="knowledge-pdf-dropzone-limit">{labels.pdfFileLimit}</span>
+              </div>
+
+              {pdfFile ? (
+                <button
+                  className="knowledge-pdf-remove"
+                  type="button"
+                  disabled={pdfPending}
+                  onClick={() => selectPdfFile(null)}
+                >
+                  <X aria-hidden="true" size={15} strokeWidth={2} />
+                  {labels.pdfRemoveFile}
+                </button>
+              ) : null}
+
+              {pdfClientError ? <p className="notice notice-error" role="alert">{pdfClientError}</p> : null}
+
+              <div className="knowledge-pdf-submit-row">
+                <button className="button-primary" type="submit" disabled={pdfPending || !pdfFile} style={{ opacity: pdfPending || !pdfFile ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                   {pdfPending ? labels.importing : labels.importPdfButton}
                 </button>
               </div>
