@@ -2,6 +2,7 @@ import { requireTenantPermission } from '@/lib/auth/tenant-access'
 import { canManageAccountBilling } from '@/lib/billing/permissions'
 import { BILLING_ADDONS, BILLING_PLANS, isPublicBillingPlan, isStripeConfiguredForAddon, isStripeConfiguredForPlan } from '@/lib/billing/plans'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
+import { getIntlLocale, type Locale } from '@/lib/i18n/config'
 import type { BillingAddonKey } from '@/lib/billing/plans'
 import { BillingConfigurator } from './billing-configurator'
 
@@ -69,14 +70,14 @@ export default async function UpgradePage({ params }: Props) {
   )
 }
 
-function getCancellationDate(metadata: Record<string, unknown>, locale: 'es' | 'ca' | 'en') {
+function getCancellationDate(metadata: Record<string, unknown>, locale: Locale) {
   const value = typeof metadata.stripe_cancel_at === 'number'
     ? metadata.stripe_cancel_at
     : metadata.stripe_current_period_end
   if (typeof value !== 'number' || !Number.isFinite(value)) return null
 
   return new Intl.DateTimeFormat(
-    locale === 'ca' ? 'ca-ES' : locale === 'en' ? 'en-GB' : 'es-ES',
+    getIntlLocale(locale),
     { dateStyle: 'long' },
   ).format(new Date(value * 1000))
 }

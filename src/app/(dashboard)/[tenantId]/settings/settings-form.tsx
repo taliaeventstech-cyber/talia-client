@@ -21,6 +21,7 @@ import {
   type SuggestedQuestionTarget,
   type SuggestedQuestionTargetType,
 } from '@/lib/widget/suggested-questions'
+import type { WidgetComplianceCopy } from '@/lib/widget/compliance'
 
 type SettingsFormLabels = {
   chatbot: string
@@ -32,6 +33,9 @@ type SettingsFormLabels = {
   planDescription: string
   managePlan: string
   initialMessage: string
+  privacyUrl: string
+  privacyUrlHint: string
+  aiDisclosureFixed: string
   suggestedQuestions: string
   suggestedQuestionsHint: string
   suggestedQuestionsLanguage: string
@@ -126,6 +130,7 @@ type SettingsFormProps = {
   widgetConfig: {
     enabled: boolean
     initialMessage: string
+    privacyUrl: string
     primaryColor: string
     position: string
     widgetSize: 'small' | 'medium' | 'large'
@@ -146,6 +151,7 @@ type SettingsFormProps = {
     fallbackWhatsApp: boolean
   }
   labels: SettingsFormLabels
+  compliance: WidgetComplianceCopy
   previewLabel: string
   integration: {
     title: string
@@ -162,7 +168,7 @@ const initialState: SettingsFormState = {
   message: '',
 }
 
-export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, labels, previewLabel, integration }: SettingsFormProps) {
+export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, labels, compliance, previewLabel, integration }: SettingsFormProps) {
   const router = useRouter()
   const [state, formAction, pending] = useActionState(updateTenantSettings.bind(null, tenantId), initialState)
   const [widgetEnabled, setWidgetEnabled] = useState(widgetConfig.enabled)
@@ -174,6 +180,7 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
   const [previewConfig, setPreviewConfig] = useState({
     assistantName: 'TALIA',
     initialMessage: widgetConfig.initialMessage,
+    privacyUrl: widgetConfig.privacyUrl,
     primaryColor: widgetConfig.primaryColor,
     position: widgetConfig.position,
     widgetSize: widgetConfig.widgetSize,
@@ -352,6 +359,24 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
                   rows={3}
                   onChange={(event) => setPreviewConfig((current) => ({ ...current, initialMessage: event.target.value }))}
                 />
+              </label>
+
+              <div className="chatbot-compliance-summary">
+                <strong>{compliance.aiLabel}</strong>
+                <p>{labels.aiDisclosureFixed}</p>
+              </div>
+
+              <label className="field">
+                {labels.privacyUrl}
+                <input
+                  name="privacy_url"
+                  type="url"
+                  inputMode="url"
+                  required
+                  defaultValue={widgetConfig.privacyUrl}
+                  onChange={(event) => setPreviewConfig((current) => ({ ...current, privacyUrl: event.target.value }))}
+                />
+                <small className="muted">{labels.privacyUrlHint}</small>
               </label>
 
               <SuggestedQuestionsEditor
@@ -614,6 +639,7 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
             <WidgetPreview
               key={previewConfig.autoOpen ? 'proactive' : 'manual'}
               widgetConfig={previewConfig}
+              compliance={compliance}
               suggestedQuestionsLabel={labels.suggestedQuestions}
               suggestedQuestionsPrompt={labels.suggestedQuestionsPrompt}
             />
@@ -1149,12 +1175,14 @@ function BackgroundToggle({
 
 function WidgetPreview({
   widgetConfig,
+  compliance,
   suggestedQuestionsLabel,
   suggestedQuestionsPrompt,
 }: {
   widgetConfig: {
     assistantName: string
     initialMessage: string
+    privacyUrl: string
     primaryColor: string
     position: string
     widgetSize: 'small' | 'medium' | 'large'
@@ -1172,6 +1200,7 @@ function WidgetPreview({
     fallbackLanguage: string
     pageUrl: string
   }
+  compliance: WidgetComplianceCopy
   suggestedQuestionsLabel: string
   suggestedQuestionsPrompt: string
 }) {
@@ -1180,6 +1209,7 @@ function WidgetPreview({
   const [sessionFeedbackOpen, setSessionFeedbackOpen] = useState(false)
   const [sessionFeedbackResolved, setSessionFeedbackResolved] = useState<boolean | null>(null)
   const [selectedSuggestedQuestion, setSelectedSuggestedQuestion] = useState<string | null>(null)
+  const [privacyConversationOpen, setPrivacyConversationOpen] = useState(false)
   const launcherRef = useRef<HTMLButtonElement>(null)
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const chatbotOffset = widgetConfig.blockOffset
@@ -1243,6 +1273,7 @@ function WidgetPreview({
     setSessionFeedbackOpen(false)
     setSessionFeedbackResolved(null)
     setSelectedSuggestedQuestion(null)
+    setPrivacyConversationOpen(false)
   }
 
   return (
@@ -1264,7 +1295,10 @@ function WidgetPreview({
             <span className="widget-preview-header-mark" style={{ color }}>
               <PreviewLauncherIcon value={widgetConfig.launcherIcon} size={34} tone="brand" />
             </span>
-            <span className="widget-preview-header-name">{widgetConfig.assistantName}</span>
+            <span className="widget-preview-header-identity">
+              <span className="widget-preview-header-name">{widgetConfig.assistantName}</span>
+              <small>{compliance.aiLabel}</small>
+            </span>
           </span>
           <span className="widget-preview-header-actions">
             <button
@@ -1280,6 +1314,7 @@ function WidgetPreview({
           </span>
         </div>
         <div className="widget-preview-messages" style={{ background: glass ? skin.msgSurface : '#F5F2EC' }}>
+          <p className="widget-preview-ai-disclosure">{compliance.disclosure}</p>
           <p className="widget-preview-message" style={botBubbleStyle}>
             {widgetConfig.initialMessage}
           </p>
@@ -1297,7 +1332,7 @@ function WidgetPreview({
               </button>
             </div>
           </div>
-          {!selectedSuggestedQuestion && !sessionFeedbackOpen && visibleSuggestedQuestions.length > 0 ? (
+          {!selectedSuggestedQuestion && !privacyConversationOpen && !sessionFeedbackOpen && visibleSuggestedQuestions.length > 0 ? (
             <div
               className="widget-preview-suggested-questions"
               role="group"
@@ -1314,6 +1349,7 @@ function WidgetPreview({
                     className="widget-preview-suggested-question"
                     key={question.id}
                     onClick={() => {
+                      setPrivacyConversationOpen(false)
                       setSelectedSuggestedQuestion(question.text)
                       requestAnimationFrame(() => composerRef.current?.focus())
                     }}
@@ -1328,6 +1364,22 @@ function WidgetPreview({
             <p className="widget-preview-message widget-preview-message-user" style={{ background: color }}>
               {selectedSuggestedQuestion}
             </p>
+          ) : null}
+          {privacyConversationOpen ? (
+            <>
+              <p className="widget-preview-message widget-preview-message-user" style={{ background: color }}>
+                {compliance.privacyQuestion}
+              </p>
+              <div className="widget-preview-message" style={botBubbleStyle}>
+                <p>{compliance.privacySummary}</p>
+                <p>
+                  {compliance.privacyMore}{' '}
+                  <a href={widgetConfig.privacyUrl} target="_blank" rel="noopener noreferrer">
+                    {widgetConfig.privacyUrl}
+                  </a>
+                </p>
+              </div>
+            </>
           ) : null}
           {sessionFeedbackOpen ? (
             <div
@@ -1393,6 +1445,19 @@ function WidgetPreview({
             WebkitBackdropFilter: glass ? filter : undefined,
           }}
         >
+          <a
+            href={widgetConfig.privacyUrl}
+            onClick={(event) => {
+              event.preventDefault()
+              setSessionFeedbackOpen(false)
+              setSelectedSuggestedQuestion(null)
+              setPrivacyConversationOpen(true)
+              openPanel()
+            }}
+          >
+            {compliance.privacyLabel}
+          </a>
+          <span aria-hidden="true"> · </span>
           <a href="https://talia.events" target="_blank" rel="noopener noreferrer">Powered by TALIA</a>
         </div>
       </section>

@@ -1,8 +1,7 @@
 'use client'
 
 import type { Locale } from '@/lib/i18n/config'
-import { setLocaleAction } from './language-toggle/actions'
-import { useRouter } from 'next/navigation'
+import { persistLocale } from '@/lib/i18n/client'
 import type React from 'react'
 import { useTransition } from 'react'
 
@@ -11,6 +10,7 @@ type AuthLanguageSelectLabels = {
   es: string
   ca: string
   en: string
+  ptBR: string
 }
 
 export function AuthLanguageSelect({
@@ -20,15 +20,13 @@ export function AuthLanguageSelect({
   locale: Locale
   labels: AuthLanguageSelectLabels
 }) {
-  const router = useRouter()
   const [pending, startTransition] = useTransition()
 
   function handleChange(event: React.ChangeEvent<HTMLSelectElement>) {
     const nextLocale = event.target.value as Locale
 
     startTransition(async () => {
-      await setLocaleAction(nextLocale)
-      router.refresh()
+      await persistLocale(nextLocale)
     })
   }
 
@@ -38,6 +36,7 @@ export function AuthLanguageSelect({
         <option value="es">{labels.es}</option>
         <option value="ca">{labels.ca}</option>
         <option value="en">{labels.en}</option>
+        <option value="pt-BR">{labels.ptBR}</option>
       </select>
     </label>
   )

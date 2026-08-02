@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getKnowledgeWebOperationalAlerts } from '@/lib/knowledge/web-source-alerts'
-import { getActiveSubscription, getTenantUsageForPeriod } from '@/lib/usage/service'
+import { getActiveSubscription, getTenantUsageHistory } from '@/lib/usage/service'
 import { getManagedWebQuotaUsage } from '@/lib/knowledge/web-source-quotas'
 import { canReprocessKnowledgeSourceFromBackstage, getBackstageSyncRunPresentation } from '@/lib/knowledge/backstage-sources'
 import { requirePlatformAdmin } from '@/lib/platform/auth'
@@ -23,6 +23,8 @@ import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-me
 import { buildBackstageKnowledgeHealth, loadBackstageKnowledgeChunks, loadBackstageKnowledgeHealth } from '@/lib/knowledge/backstage-knowledge-health'
 import { getBackstageResponseTraceMetrics } from '@/lib/knowledge/backstage-response-trace-metrics'
 import { summarizeRetrievalTrace, type RetrievalTraceAttempt } from '@/lib/chat/retrieval-trace'
+import { hasKnowledgeSourceDebugData, type DebuggableSource } from '@/lib/knowledge/source-debug'
+import { BackstageKnowledgeSourceDebugDownloadButton } from './knowledge-source-debug-download-button'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -54,7 +56,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
   const sourceStatusFilter = normalizeKnowledgeSourceStatusFilter(query?.source_status)
   const sourceFrom = (sourcePage - 1) * sourcePageSize
   const admin = createAdminClient()
-  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, usageResult, traceMessagesResult, positiveFeedbackCountResult, negativeFeedbackCountResult, traceMetrics, knowledgeSourcesResult, knowledgeSourceSummaries, knowledgeHealthResult, activeKnowledgeSyncResult, managedWebQuota, webAlerts, { data: knowledgeSupportRequests }] = await Promise.all([
+  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, traceMessagesResult, positiveFeedbackCountResult, negativeFeedbackCountResult, traceMetrics, knowledgeSourcesResult, knowledgeSourceSummaries, knowledgeHealthResult, activeKnowledgeSyncResult, managedWebQuota, webAlerts, { data: knowledgeSupportRequests }] = await Promise.all([
     admin
       .from('theatres')
       .select('id, account_id, name, slug, entity_type, primary_language, plan, website_url, fallback_email, fallback_phone, n8n_webhook_url, system_prompt, widget_config, voice_phone_number, voice_phone_provider, voice_phone_mode, voice_public_phone_number, voice_forwarding_notes, voice_operational_status')
@@ -77,7 +79,6 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
       .order('updated_at', { ascending: false })
       .limit(25),
     getActiveSubscription(admin, tenantId),
-    getTenantUsageForPeriod(admin, tenantId),
     admin
       .from('messages')
       .select('id, conversation_id, content, created_at, metadata', { count: 'exact' })
@@ -149,9 +150,13 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
   }
 
   const subscription = subscriptionResult.ok ? subscriptionResult.subscription : null
-  const usage = usageResult.ok ? usageResult.usage : null
+  const usageHistoryResult = await getTenantUsageHistory(admin, tenantId)
+  const usageHistory = usageHistoryResult.ok ? usageHistoryResult.history : []
+  const currentUsage = usageHistory.find((entry) => entry.subscriptionId === subscription?.id)
+    ?? usageHistory.find((entry) => entry.isCurrent)
+  const usage = currentUsage?.usage ?? null
   const chatLimit = subscription?.included_chat_conversations ?? 0
-  const chatUsed = usage?.conversations ?? 0
+  const chatUsed = currentUsage?.billableChatMessages ?? 0
   const chatPercent = chatLimit > 0 ? Math.min(100, Math.round((chatUsed / chatLimit) * 100)) : 0
   const totalTokens = (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0)
   const traceSourceIds = Array.from(new Set(traceMessages
@@ -188,7 +193,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
     visibleKnowledgeSourceIds.length
       ? admin
         .from('knowledge_sync_runs')
-        .select('source_id, status, trigger, discovered_count, checked_count, changed_count, failed_count, blocked_count, metadata, created_at, finished_at, error_code, error_details')
+        .select('source_id, status, trigger, discovered_count, checked_count, changed_count, unchanged_count, failed_count, blocked_count, metadata, created_at, finished_at, error_code, error_details')
         .eq('theatre_id', tenantId)
         .in('source_id', visibleKnowledgeSourceIds)
         .order('created_at', { ascending: false })
@@ -331,6 +336,54 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                     <small>{formatTokens(usage?.inputTokens ?? 0)} entrada · {formatTokens(usage?.outputTokens ?? 0)} salida</small>
                   </div>
                 </dl>
+              </div>
+
+              <div className="usage-history-backstage">
+                <div>
+                  <h3>Historial mensual</h3>
+                  <p className="muted">Últimos periodos de facturación disponibles para este cliente.</p>
+                </div>
+                {usageHistory.length === 0 ? (
+                  <p className="muted">Todavía no hay periodos de uso disponibles.</p>
+                ) : (
+                  <div className="table-scroll usage-history-table-wrap">
+                    <table className="usage-history-table">
+                      <thead>
+                        <tr>
+                          <th>Periodo</th>
+                          <th>Respuestas TALIA / límite</th>
+                          <th>Mensajes visitante</th>
+                          <th>Mensajes totales</th>
+                          <th>Sin respuesta</th>
+                          <th>Conversaciones</th>
+                          <th>Coste IA</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {usageHistory.map((entry) => (
+                          <tr key={entry.subscriptionId}>
+                            <td>
+                              <div className="usage-history-period">
+                                <strong>{formatBackstageUsagePeriod(entry.periodStart, entry.periodEnd)}</strong>
+                                {entry.isCurrent ? <span className="status-pill status-pill-active">Actual</span> : null}
+                              </div>
+                            </td>
+                            <td className="mono">
+                              {entry.includedChatMessages > 0
+                                ? `${entry.billableChatMessages} / ${entry.includedChatMessages}`
+                                : entry.billableChatMessages}
+                            </td>
+                            <td className="mono">{entry.visitorChatMessages}</td>
+                            <td className="mono">{entry.totalChatMessages}</td>
+                            <td className="mono">{entry.unansweredChatMessages}</td>
+                            <td className="mono">{entry.usage.conversations}</td>
+                            <td className="mono">{formatCurrency(entry.usage.estimatedCostCents)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </section>
 
@@ -824,6 +877,22 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                 sourceLastError: source.last_error,
               })
               const fileName = getKnowledgeSourceName(source)
+              const debugSource: DebuggableSource = {
+                id: source.id,
+                type: source.type,
+                name: fileName,
+                status: source.status,
+                syncEnabled: source.sync_enabled,
+                sourceUrl: source.source_url,
+                refreshInterval: source.refresh_interval,
+                nextSyncAt: source.next_sync_at,
+                lastSyncedAt: source.last_synced_at,
+                lastError: source.last_error,
+                documentCount,
+                chunkCount: stats.total,
+                embeddingCounts: stats,
+                latestSyncRun: latestSyncRun ?? null,
+              }
 
               return (
                 <article className="knowledge-file-item" id={`source-${source.id}`} key={source.id}>
@@ -887,6 +956,9 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                         {syncPresentation.issue}
                       </p>
                     ) : null}
+                    {hasKnowledgeSourceDebugData(debugSource) ? (
+                      <BackstageKnowledgeSourceErrorDetails source={debugSource} />
+                    ) : null}
                     {chunkStatsAvailable && stats.total > 0 ? (
                       <div className="knowledge-embedding-stats" aria-label="Estado de embeddings">
                         <span className="knowledge-embedding-stat knowledge-embedding-stat-ready">{stats.ready} listos</span>
@@ -897,6 +969,9 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                     ) : null}
                   </div>
                   <div className="knowledge-file-actions">
+                    {hasKnowledgeSourceDebugData(debugSource) ? (
+                      <BackstageKnowledgeSourceDebugDownloadButton source={debugSource} />
+                    ) : null}
                     {isManagedWebSource(source.type) ? (
                       <BackstageManagedWebSyncToggle
                         tenantId={tenantId}
@@ -1865,6 +1940,57 @@ function getLatestSyncRunBySource<T extends { source_id: string }>(runs: T[]) {
   return latest
 }
 
+function BackstageKnowledgeSourceErrorDetails({ source }: { source: DebuggableSource }) {
+  const run = source.latestSyncRun
+  const errorDetail = run?.error_details ?? source.lastError
+  const sourceErrorIsDifferent = Boolean(source.lastError && source.lastError !== errorDetail)
+  const incidents = (run?.failed_count ?? 0) + (run?.blocked_count ?? 0)
+
+  return (
+    <details className="backstage-source-error-details">
+      <summary>Ver detalle del error</summary>
+      <div className="backstage-source-error-panel">
+        <dl className="backstage-source-error-facts">
+          <div>
+            <dt>Estado de la fuente</dt>
+            <dd>{getSourceStatusLabel(source.status)}</dd>
+          </div>
+          <div>
+            <dt>Última ejecución</dt>
+            <dd>{run ? `${run.status} · ${formatDate(run.created_at)}` : 'Sin ejecución registrada'}</dd>
+          </div>
+          <div>
+            <dt>Código</dt>
+            <dd className="mono">{run?.error_code ?? '—'}</dd>
+          </div>
+          <div>
+            <dt>Incidencias</dt>
+            <dd>{incidents}</dd>
+          </div>
+          <div>
+            <dt>Embeddings con error</dt>
+            <dd>{source.embeddingCounts.error}</dd>
+          </div>
+        </dl>
+        {errorDetail ? (
+          <div className="backstage-source-error-message">
+            <span>Detalle técnico</span>
+            <pre>{errorDetail}</pre>
+          </div>
+        ) : source.embeddingCounts.error > 0 ? (
+          <p className="muted">Hay fragmentos con error de embeddings, pero la fuente no registró un mensaje técnico adicional.</p>
+        ) : null}
+        {sourceErrorIsDifferent ? (
+          <div className="backstage-source-error-message">
+            <span>Último error de la fuente</span>
+            <pre>{source.lastError}</pre>
+          </div>
+        ) : null}
+      </div>
+    </details>
+  )
+}
+
 function getRetrievalStatusLabel(status: string) {
   if (status === 'sources_used') return 'RAG usado'
   if (status === 'filtered_no_sources') return 'sin fuentes fiables'
@@ -1985,6 +2111,19 @@ function formatDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(date)
+}
+
+function formatBackstageUsagePeriod(start: string, end: string) {
+  const startDate = new Date(`${start}T00:00:00.000Z`)
+  const endDate = new Date(`${end}T00:00:00.000Z`)
+  endDate.setUTCDate(endDate.getUTCDate() - 1)
+  const formatter = new Intl.DateTimeFormat('es-ES', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+  return `${formatter.format(startDate)} – ${formatter.format(endDate)}`
 }
 
 function formatTokens(tokens: number) {

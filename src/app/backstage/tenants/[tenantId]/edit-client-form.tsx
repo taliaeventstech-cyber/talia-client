@@ -194,6 +194,7 @@ export function EditClientForm({
               <option value="es">Español</option>
               <option value="ca">Català</option>
               <option value="en">English</option>
+              <option value="pt-BR">Português (Brasil)</option>
             </select>
           </label>
           <label className="field">

@@ -9,6 +9,7 @@ import {
   type ConversationReviewSummary,
 } from '@/lib/chat/supervised-learning'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
+import { getIntlLocale, type Locale } from '@/lib/i18n/config'
 import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
 import { ChevronLeft, ChevronRight, Eye } from 'lucide-react'
 import Link from 'next/link'
@@ -133,6 +134,11 @@ export default async function ConversationsPage({ params, searchParams }: Props)
         <p className="muted">{dictionary.conversations.count(totalConversations)}</p>
       </header>
 
+      <aside className="conversation-retention-notice">
+        <strong>{dictionary.conversations.retention.title}</strong>
+        <p>{dictionary.conversations.retention.description}</p>
+      </aside>
+
       <ResponseAccuracySummary
         copy={dictionary.analytics.feedback}
         metrics={feedbackMetrics}
@@ -183,7 +189,12 @@ export default async function ConversationsPage({ params, searchParams }: Props)
                     <Eye aria-hidden="true" size={14} strokeWidth={2} />
                   </Link>
                   {access.role === 'owner' || access.role === 'admin' ? (
-                    <DeleteConversationButton tenantId={tenantId} conversationId={conversation.id} variant="icon" />
+                    <DeleteConversationButton
+                      tenantId={tenantId}
+                      conversationId={conversation.id}
+                      variant="icon"
+                      copy={dictionary.conversations.deletion}
+                    />
                   ) : null}
                 </td>
               </tr>
@@ -419,10 +430,8 @@ function getFirstSearchParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
 }
 
-function getDateLocale(locale: string) {
-  if (locale === 'ca') return 'ca-ES'
-  if (locale === 'en') return 'en-GB'
-  return 'es-ES'
+function getDateLocale(locale: Locale) {
+  return getIntlLocale(locale)
 }
 
 function chunkValues<T>(values: T[], size: number) {

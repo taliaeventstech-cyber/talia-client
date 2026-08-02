@@ -5,7 +5,8 @@ import { hasTenantPermission, isTenantModuleEnabled } from '@/lib/auth/permissio
 import { classifyConversationTopic } from '@/lib/analytics/topics'
 import { isChatbotSetupCompleted } from '@/lib/chatbot/setup-status'
 import { getDictionary, getLocale, getTopicLabel } from '@/lib/i18n/dictionaries'
-import { getActiveSubscription, getChatbotBillableMessagesForPeriod } from '@/lib/usage/service'
+import { getIntlLocale, type Locale } from '@/lib/i18n/config'
+import { getActiveSubscription, getChatbotBillableMessagesForPeriod, getTenantUsageHistory, type TenantUsageHistoryEntry } from '@/lib/usage/service'
 import { getWidgetEmbedCode } from '@/lib/widget/embed-code'
 import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
 import { CopyScriptButton } from '@/components/copy-script-button'
@@ -38,11 +39,6 @@ export default async function OverviewPage({ params }: Props) {
   const [
     { data: theatre },
     { data: recentConversations },
-    { count: totalConversations },
-    { count: totalMessages },
-    { count: totalAssistantResponses },
-    { count: positiveResponses },
-    { count: negativeResponses },
     { data: topics },
     { count: knowledgeItems },
     { count: knowledgeSources },
@@ -63,31 +59,6 @@ export default async function OverviewPage({ params }: Props) {
         .eq('theatre_id', tenantId)
         .order('started_at', { ascending: false })
         .limit(5),
-      admin
-        .from('conversations')
-        .select('*', { count: 'exact', head: true })
-        .eq('theatre_id', tenantId),
-      admin
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('theatre_id', tenantId),
-      admin
-        .from('messages')
-        .select('id', { count: 'exact', head: true })
-        .eq('theatre_id', tenantId)
-        .eq('role', 'assistant'),
-      admin
-        .from('messages')
-        .select('id', { count: 'exact', head: true })
-        .eq('theatre_id', tenantId)
-        .eq('role', 'assistant')
-        .contains('metadata', { feedback: { rating: 'positive' } }),
-      admin
-        .from('messages')
-        .select('id', { count: 'exact', head: true })
-        .eq('theatre_id', tenantId)
-        .eq('role', 'assistant')
-        .contains('metadata', { feedback: { rating: 'negative' } }),
       admin
         .from('conversation_topics')
         .select('topic, user_message, created_at')
@@ -135,23 +106,56 @@ export default async function OverviewPage({ params }: Props) {
     ])
 
   const subscription = subscriptionResult.ok ? subscriptionResult.subscription : null
+  const usageHistoryResult = await getTenantUsageHistory(admin, tenantId)
+  const usageHistory = usageHistoryResult.ok ? usageHistoryResult.history : []
+  const currentUsage = usageHistory.find((entry) => entry.subscriptionId === subscription?.id)
+    ?? usageHistory.find((entry) => entry.isCurrent)
   const chatLimit = subscription?.included_chat_conversations ?? 0
   // Botsonic model: usage shown against the plan is billable assistant replies.
-  const billableResult = subscription
+  const billableResult = subscription && !currentUsage
     ? await getChatbotBillableMessagesForPeriod(admin, tenantId, {
       startDate: subscription.billing_period_start,
       endDate: subscription.billing_period_end,
     })
     : null
-  const chatUsed = billableResult?.ok ? billableResult.count : 0
+  const chatUsed = currentUsage?.billableChatMessages ?? (billableResult?.ok ? billableResult.count : 0)
+  const currentConversations = currentUsage?.usage.conversations ?? 0
+  const currentMessages = currentUsage?.usage.messages ?? 0
+  const [assistantResponsesResult, positiveResponsesResult, negativeResponsesResult] = subscription
+    ? await Promise.all([
+      admin
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('theatre_id', tenantId)
+        .eq('role', 'assistant')
+        .gte('created_at', subscription.billing_period_start)
+        .lt('created_at', subscription.billing_period_end),
+      admin
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('theatre_id', tenantId)
+        .eq('role', 'assistant')
+        .contains('metadata', { feedback: { rating: 'positive' } })
+        .gte('created_at', subscription.billing_period_start)
+        .lt('created_at', subscription.billing_period_end),
+      admin
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('theatre_id', tenantId)
+        .eq('role', 'assistant')
+        .contains('metadata', { feedback: { rating: 'negative' } })
+        .gte('created_at', subscription.billing_period_start)
+        .lt('created_at', subscription.billing_period_end),
+    ])
+    : [{ count: 0 }, { count: 0 }, { count: 0 }]
   const chatUsagePercent = chatLimit > 0 ? Math.min(100, Math.round((chatUsed / chatLimit) * 100)) : null
   const chatLimitReached = chatLimit > 0 && chatUsed >= chatLimit
   const chatLimitNearing = chatLimit > 0 && !chatLimitReached && chatUsed / chatLimit >= 0.8
   const topTopics = getTopTopics(topics ?? [], 5)
   const feedbackMetrics = getResponseFeedbackMetrics({
-    positiveCount: positiveResponses ?? 0,
-    negativeCount: negativeResponses ?? 0,
-    totalCount: totalAssistantResponses ?? 0,
+    positiveCount: positiveResponsesResult.count ?? 0,
+    negativeCount: negativeResponsesResult.count ?? 0,
+    totalCount: assistantResponsesResult.count ?? 0,
   })
   const latestTopics = (topics ?? [])
     .filter((item) => item.user_message)
@@ -212,8 +216,8 @@ export default async function OverviewPage({ params }: Props) {
             <p className="plan-usage-notice plan-usage-notice--nearing" role="status">{copy.usage.nearingLimit}</p>
           ) : null}
           <div className="summary-metric-row">
-            <SummaryMetric label={copy.kpis.conversations} value={totalConversations ?? 0} />
-            <SummaryMetric label={copy.kpis.messages} value={totalMessages ?? 0} />
+            <SummaryMetric label={copy.kpis.conversations} value={currentConversations} />
+            <SummaryMetric label={copy.kpis.messages} value={currentMessages} />
             <SummaryMetric label={copy.kpis.faqs} value={knowledgeItems ?? 0} />
             <SummaryMetric
               label={copy.kpis.satisfaction(feedbackMetrics.ratedCount)}
@@ -222,6 +226,8 @@ export default async function OverviewPage({ params }: Props) {
           </div>
         </div>
       </header>
+
+      <UsageHistory history={usageHistory} locale={locale} copy={copy.usageHistory} />
 
       <section className="card stack">
         <div className="section-title-row">
@@ -243,7 +249,7 @@ export default async function OverviewPage({ params }: Props) {
             description={isChatbotConfigured ? copy.modules.chatbotReady : 'Configura tu chatbot para comenzar a utilizarlo.'}
           >
             <div className="module-mini-stats">
-              <span><strong>{totalConversations ?? 0}</strong>Conversaciones</span>
+              <span><strong>{currentConversations}</strong>{copy.kpis.conversations}</span>
               <span><strong>{knowledgeItems ?? 0}</strong>FAQs</span>
             </div>
           </ModuleStatusCard>
@@ -376,7 +382,7 @@ export default async function OverviewPage({ params }: Props) {
               <tr key={c.id}>
                 <td className="mono">{c.session_id.slice(0, 16)}...</td>
                 <td>{getVisitorEmail(c.metadata) ?? '-'}</td>
-                <td>{new Date(c.started_at).toLocaleString('es-ES')}</td>
+                <td>{new Date(c.started_at).toLocaleString(getIntlLocale(locale))}</td>
                 <td>{c.message_count}</td>
                 <td style={{ textAlign: 'right' }}>
                   <Link className="link-accent link-with-icon" href={`/${tenantId}/conversations/${c.id}`}>
@@ -469,6 +475,87 @@ function SummaryMetric({ label, value }: { label: string; value: number | string
       <span className="summary-metric-label">{label}</span>
     </div>
   )
+}
+
+function UsageHistory({
+  history,
+  locale,
+  copy,
+}: {
+  history: TenantUsageHistoryEntry[]
+  locale: Locale
+  copy: {
+    section: string
+    title: string
+    description: string
+    period: string
+    planUsage: string
+    conversations: string
+    visitorMessages: string
+    messages: string
+    current: string
+    empty: string
+  }
+}) {
+  return (
+    <section className="card stack usage-history-card">
+      <div>
+        <p className="eyebrow">{copy.section}</p>
+        <h2>{copy.title}</h2>
+        <p className="muted">{copy.description}</p>
+      </div>
+      {history.length === 0 ? (
+        <p className="muted">{copy.empty}</p>
+      ) : (
+        <div className="table-scroll usage-history-table-wrap">
+          <table className="usage-history-table">
+            <thead>
+              <tr>
+                <th>{copy.period}</th>
+                <th>{copy.planUsage}</th>
+                <th>{copy.visitorMessages}</th>
+                <th>{copy.messages}</th>
+                <th>{copy.conversations}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((entry) => (
+                <tr key={entry.subscriptionId}>
+                  <td>
+                    <div className="usage-history-period">
+                      <strong>{formatUsagePeriod(entry.periodStart, entry.periodEnd, locale)}</strong>
+                      {entry.isCurrent ? <span className="status-pill status-pill-active">{copy.current}</span> : null}
+                    </div>
+                  </td>
+                  <td className="mono">
+                    {entry.includedChatMessages > 0
+                      ? `${entry.billableChatMessages} / ${entry.includedChatMessages}`
+                      : entry.billableChatMessages}
+                  </td>
+                  <td className="mono">{entry.visitorChatMessages}</td>
+                  <td className="mono">{entry.totalChatMessages}</td>
+                  <td className="mono">{entry.usage.conversations}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function formatUsagePeriod(start: string, end: string, locale: Locale) {
+  const startDate = new Date(`${start}T00:00:00.000Z`)
+  const endDate = new Date(`${end}T00:00:00.000Z`)
+  endDate.setUTCDate(endDate.getUTCDate() - 1)
+  const formatter = new Intl.DateTimeFormat(getIntlLocale(locale), {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+  return `${formatter.format(startDate)} – ${formatter.format(endDate)}`
 }
 
 function ChatbotInstallationCard({

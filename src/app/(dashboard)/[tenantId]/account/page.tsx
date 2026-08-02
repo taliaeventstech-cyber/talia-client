@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getTenantAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
+import { getIntlLocale } from '@/lib/i18n/config'
 import { ArrowLeft, Building2, CreditCard, Mail, ShieldCheck, UserRound } from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
@@ -70,7 +71,7 @@ export default async function AccountPage({ params }: Props) {
               icon={<UserRound size={16} />}
               label={copy.createdAt}
               value={profile?.created_at
-                ? new Date(profile.created_at).toLocaleDateString(locale === 'ca' ? 'ca-ES' : locale === 'en' ? 'en-GB' : 'es-ES')
+                ? new Date(profile.created_at).toLocaleDateString(getIntlLocale(locale))
                 : '-'}
             />
           </div>

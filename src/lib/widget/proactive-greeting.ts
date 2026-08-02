@@ -5,6 +5,7 @@ export function getDefaultProactiveGreeting(language: unknown, assistantName = '
 
   if (language === 'ca') return `Soc ${name}. T'ajudo?`
   if (language === 'en') return `I'm ${name}. Can I help?`
+  if (language === 'pt-BR') return `Sou a ${name}. Posso ajudar?`
   return `Soy ${name}. ¿Te ayudo?`
 }
 

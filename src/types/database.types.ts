@@ -1932,6 +1932,16 @@ export type Database = {
       }
     }
     Functions: {
+      anonymize_chatbot_usage_identifiers: {
+        Args: {
+          p_session_id: string
+          p_theatre_id: string
+        }
+        Returns: {
+          affected_rows: number
+          category: string
+        }[]
+      }
       consume_security_rate_limit: {
         Args: {
           p_key_hash: string

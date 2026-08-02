@@ -9,6 +9,7 @@ import { isChatbotEnabled } from '@/lib/widget/availability'
 import { getBillingPlan, type BillingPlanKey } from '@/lib/billing/plans'
 import { normalizeSuggestedQuestions } from '@/lib/widget/suggested-questions'
 import { getWidgetEmbedCode } from '@/lib/widget/embed-code'
+import { getWidgetComplianceCopy, normalizePrivacyUrl } from '@/lib/widget/compliance'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -63,6 +64,7 @@ export default async function SettingsPage({ params }: Props) {
           widgetConfig={{
             enabled: widgetConfig.enabled,
             initialMessage: widgetConfig.initialMessage,
+            privacyUrl: widgetConfig.privacyUrl,
             primaryColor: widgetConfig.primaryColor,
             position: widgetConfig.position,
             widgetSize: widgetConfig.widgetSize,
@@ -83,6 +85,7 @@ export default async function SettingsPage({ params }: Props) {
             fallbackWhatsApp: aiSettings.fallbackWhatsApp,
           }}
           labels={dictionary.settings.form}
+          compliance={getWidgetComplianceCopy(theatre.primary_language)}
           previewLabel={dictionary.settings.preview}
           integration={{
             title: dictionary.settings.integrationCode,
@@ -121,6 +124,7 @@ function getWidgetConfig(value: unknown, language: unknown) {
       enabled: true,
       assistantName: 'TALIA',
       initialMessage: 'Hola, soc TALIA. En què et puc ajudar?',
+      privacyUrl: normalizePrivacyUrl(undefined),
       primaryColor: '#000000',
       position: 'bottom-right',
       widgetSize: 'medium' as const,
@@ -144,6 +148,8 @@ function getWidgetConfig(value: unknown, language: unknown) {
     enabled?: unknown
     assistantName?: unknown
     initialMessage?: unknown
+    privacyUrl?: unknown
+    privacy_url?: unknown
     primaryColor?: unknown
     position?: unknown
     widgetSize?: unknown
@@ -181,6 +187,7 @@ function getWidgetConfig(value: unknown, language: unknown) {
     enabled: isChatbotEnabled(config.enabled),
     assistantName,
     initialMessage: typeof config.initialMessage === 'string' ? config.initialMessage : 'Hola, soc TALIA. En què et puc ajudar?',
+    privacyUrl: normalizePrivacyUrl(config.privacyUrl ?? config.privacy_url),
     primaryColor: typeof config.primaryColor === 'string' ? config.primaryColor : '#000000',
     position: getWidgetPosition(config.position),
     widgetSize: getWidgetSize(config.widgetSize ?? config.widget_size ?? config.size),

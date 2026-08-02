@@ -7,6 +7,7 @@ import { getUserVenueAccess } from '@/lib/auth/user-venues'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { optionalInternationalPhoneSchema } from '@/lib/phone/schema'
+import { TENANT_LANGUAGES } from '@/lib/tenants/language'
 
 export type OnboardingFormState = {
   ok: boolean
@@ -21,7 +22,7 @@ const onboardingSchema = z.object({
   entityType: z.enum(['theatre', 'museum', 'cinema', 'auditorium', 'festival', 'cultural_center', 'other']),
   theatreName: z.string().trim().min(2, 'El nombre de la entidad es obligatorio').max(120),
   websiteUrl: z.string().trim().url('La web debe ser una URL válida').optional().or(z.literal('')),
-  primaryLanguage: z.enum(['ca', 'es', 'en']),
+  primaryLanguage: z.enum(TENANT_LANGUAGES),
   fallbackEmail: z.string().trim().email('El email de contacto no es válido').optional().or(z.literal('')),
   fallbackPhone: optionalInternationalPhoneSchema,
   onboardingGoals: z.array(z.enum(['faqs', 'agenda', 'tickets', 'hours', 'location', 'accessibility', 'prices'])).min(1).max(3),

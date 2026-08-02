@@ -16,7 +16,7 @@ Current state:
 - Planned or paused channels: Microsoft/Outlook, voice, WhatsApp, Instagram.
 - Client dashboard: **Agora**, per venue.
 - Internal panel: **Backstage**.
-- Current commercial model: 14-day free trial, upgrade to paid plans and add-ons.
+- Current commercial model: 15-day free trial, upgrade to paid plans and add-ons.
 - Mexico/Brazil launch scope: **Web Agent**. Email remains available for
   internal testing and the `talia.events.tech@gmail.com` legacy account, but is not
   exposed to other client accounts or the public upgrade offer during this phase.
@@ -54,6 +54,10 @@ Implemented:
   Authorized founders can schedule period-end cancellation or perform an
   immediate cancellation with stronger confirmation, mandatory reason,
   customer notification and audit events.
+- Backstage account deletion cascades through the account's venues and their
+  operational content, memberships and configuration. It refuses deletion while
+  a linked Stripe subscription is not cancelled, records the destructive action,
+  and retains only detached audit and statutory billing records.
 - The initial founder capability grant is email-matched against existing
   Supabase Auth identities in an idempotent migration; credentials are never
   stored or provisioned from the repository.
@@ -143,7 +147,11 @@ Implemented:
   `talia-ai` mailbox-level canary override. Module access and `manage_email`
   permissions remain mandatory. This keeps migration and Google verification
   work visible without exposing Email to launch customers by default.
-- Languages: Spanish, Catalan and English.
+- Interface languages: Spanish, Catalan, English and Brazilian Portuguese.
+- Overview metrics use the active subscription period instead of all-time
+  conversation totals. Agora and the venue detail in Backstage expose up to 12
+  retained billing periods with billable chatbot replies, conversations and
+  messages; Backstage also includes the estimated AI cost for each period.
 - Global day/night mode.
 - Trial visible in sidebar.
 - Upgrade button leading to the plans screen.
@@ -197,9 +205,8 @@ Implemented:
   event. The form does not ask for a response language: source-language
   metadata never governs TALIA's answer. Conversation text or public feedback
   alone never modifies Knowledge. The complete supervised-correction UI,
-  including validation and indexing states, is localized in Spanish, Catalan
-  and English. Brazilian Portuguese copy is prepared for this flow but remains
-  inactive until Agora supports Portuguese as a complete locale.
+  including validation and indexing states, is localized in Spanish, Catalan,
+  English and Brazilian Portuguese.
 - The Agora conversation list is server-side paginated with selectable page
   sizes of 10, 25, 50 or 100 sessions. It also exposes the same all-time
   response-feedback accuracy and rating-coverage metrics used by Backstage, so
@@ -409,6 +416,9 @@ Implemented:
   public pages that direct HTTP/browser capture cannot read reliably.
 - Backstage shows managed-source frequency, next refresh, document count and the
   latest sync-run counters, and can enqueue an operator-triggered refresh.
+  Sources with processing errors expose an inline technical diagnostic with the
+  latest error code, run, incident counters and embedding failures; operators
+  can also download the sanitized JSON diagnostic from the same source row.
 - Managed web ingestion currently applies one universal quota across plans: 10
   sources, 500 active documents per tenant, 100 documents per source and 10
   manual refreshes per UTC day. The database enforces limits atomically while
@@ -525,7 +535,7 @@ Reference:
 
 Implemented:
 
-- 14-day free trial.
+- 15-day free trial.
 - After the trial, access to the Web Agent is replaced by an upgrade prompt.
 - `/upgrade` screen with the public Web Agent plan and compatible add-ons.
 - The current commercial plan is read-only in chatbot settings. Subscription
@@ -600,8 +610,13 @@ Current documents:
 
 - Privacy policy for Google OAuth: `docs/legal/privacy-policy-google-en.md`.
 - Terms of Service: `docs/legal/terms-of-service-google-en.md`.
+- Data Processing Agreement: `docs/legal/data-processing-agreement.md`.
+- Subprocessor list: `docs/legal/subprocessors.md`.
+- Mexico and Brazil regional notice templates: `docs/legal/regional-notice-mexico-es.md` and `docs/legal/regional-notice-brazil-pt-br.md`.
+- EU AI Act operational controls and release gate: `docs/compliance/eu-ai-act.md`.
 - Google OAuth production checklist: `docs/operations/google-cloud-production-oauth.md`.
 - Data retention: `docs/operations/data-retention.md`.
+- Chatbot conversations and messages are retained for 90 days after their last activity. Venue owners and administrators can delete individual conversations earlier from Àgora; their content is removed, while usage records stripped of conversation and session identifiers remain for 12 months and already-recorded consumption stays unchanged for billing integrity.
 - Backup and restore exercises: `docs/operations/disaster-recovery.md`.
 - Security incident response: `docs/security/incident-response.md`.
 - Vulnerability management: `docs/security/vulnerability-management.md`.

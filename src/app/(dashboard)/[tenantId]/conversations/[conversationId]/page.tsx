@@ -8,6 +8,7 @@ import {
 } from '@/lib/chat/supervised-learning'
 import { orderConversationMessagesByNewestTurn } from '@/lib/conversations/message-order'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
+import { getIntlLocale } from '@/lib/i18n/config'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -97,7 +98,11 @@ export default async function ConversationDetailPage({ params }: Props) {
             <h1>Conversación</h1>
           </div>
           {access.role === 'owner' || access.role === 'admin' ? (
-            <DeleteConversationButton tenantId={tenantId} conversationId={conversationId} />
+            <DeleteConversationButton
+              tenantId={tenantId}
+              conversationId={conversationId}
+              copy={dictionary.conversations.deletion}
+            />
           ) : null}
         </div>
         <dl style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px 16px' }}>
@@ -106,7 +111,7 @@ export default async function ConversationDetailPage({ params }: Props) {
           <dt>Email</dt>
           <dd style={{ margin: 0 }}>{visitorEmail ?? '-'}</dd>
           <dt>Inicio</dt>
-          <dd style={{ margin: 0 }}>{new Date(conversation.started_at).toLocaleString('es-ES')}</dd>
+          <dd style={{ margin: 0 }}>{new Date(conversation.started_at).toLocaleString(getIntlLocale(locale))}</dd>
           <dt>Mensajes</dt>
           <dd style={{ margin: 0 }}>{conversation.message_count}</dd>
         </dl>
@@ -146,7 +151,7 @@ export default async function ConversationDetailPage({ params }: Props) {
               <div className="message-meta">
                 <strong>{message.role === 'assistant' ? 'TALIA' : 'Usuario'}</strong>
                 <time>
-                  {new Date(message.created_at).toLocaleString('es-ES')}
+                  {new Date(message.created_at).toLocaleString(getIntlLocale(locale))}
                 </time>
               </div>
               <p style={{ whiteSpace: 'pre-wrap' }}>{message.content}</p>

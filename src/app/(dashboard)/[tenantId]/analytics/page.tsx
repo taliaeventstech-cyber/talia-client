@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { classifyConversationTopic } from '@/lib/analytics/topics'
 import { getDictionary, getLocale, getTopicLabel } from '@/lib/i18n/dictionaries'
+import { getIntlLocale } from '@/lib/i18n/config'
 import Link from 'next/link'
 
 interface Props {
@@ -120,7 +121,7 @@ export default async function AnalyticsPage({ params, searchParams }: Props) {
                     <td>{getTopicLabel(dictionary, topic.topic)}</td>
                     <td>{topic.user_message ?? dictionary.common.empty}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>
-                      {topic.created_at ? new Date(topic.created_at).toLocaleString(locale === 'ca' ? 'ca-ES' : 'es-ES') : dictionary.common.empty}
+                      {topic.created_at ? new Date(topic.created_at).toLocaleString(getIntlLocale(locale)) : dictionary.common.empty}
                     </td>
                   </tr>
                 ))}

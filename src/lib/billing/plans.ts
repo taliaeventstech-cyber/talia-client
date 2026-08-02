@@ -28,7 +28,7 @@ export type BillingAddon = {
   includedChatConversations?: number
 }
 
-export const FREE_TRIAL_DAYS = 14
+export const FREE_TRIAL_DAYS = 15
 export const PUBLIC_BILLING_PLAN_KEYS: readonly BillingPlanKey[] = ['chatbot_web']
 
 export const BILLING_PLANS: BillingPlan[] = [
@@ -39,7 +39,7 @@ export const BILLING_PLANS: BillingPlan[] = [
     includedLabel: '1.000 missatges / mes',
     description: 'Agente Web disponible 24/7.',
     features: [
-      'Agente Web 24/7 en catalán, castellano e inglés',
+      'Agente Web 24/7 en catalán, castellano, inglés y portugués de Brasil',
       'Dashboard Àgora incluido',
       'Informe mensual de actividad',
       'Supervisión humana continua',

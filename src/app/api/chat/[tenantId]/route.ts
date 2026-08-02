@@ -186,6 +186,7 @@ export async function POST(
 
     return corsJson({
       reply: fallbackReply,
+      ai_generated: true,
       session_id: sessionId,
       assistant_message_id: assistantMessageId,
       limited: true,
@@ -289,6 +290,7 @@ export async function POST(
 
     return corsJson({
       reply: match.answer,
+      ai_generated: true,
       session_id: sessionId,
       assistant_message_id: assistantMessageId,
       source: {
@@ -461,6 +463,7 @@ export async function POST(
 
   return corsJson({
     reply: safeReply,
+    ai_generated: true,
     actions: agentActions,
     session_id: sessionId,
     assistant_message_id: assistantMessageId,

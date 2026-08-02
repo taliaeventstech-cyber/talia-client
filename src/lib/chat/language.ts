@@ -1,4 +1,4 @@
-export type SupportedChatLanguage = 'ca' | 'es' | 'en'
+export type SupportedChatLanguage = 'ca' | 'es' | 'en' | 'pt-BR'
 
 const LANGUAGE_MARKERS: Record<SupportedChatLanguage, string[]> = {
   ca: [
@@ -73,6 +73,20 @@ const LANGUAGE_MARKERS: Record<SupportedChatLanguage, string[]> = {
     'where',
     'wheelchair',
   ],
+  'pt-BR': [
+    'acessibilidade',
+    'ajuda',
+    'cadeira',
+    'horarios',
+    'ingressos',
+    'onde',
+    'posso',
+    'programacao',
+    'quais',
+    'quando',
+    'voce',
+    'voces',
+  ],
 }
 
 export function detectChatLanguage(message: string, fallback: string | null | undefined): SupportedChatLanguage {
@@ -89,7 +103,12 @@ export function detectChatLanguage(message: string, fallback: string | null | un
 }
 
 function normalizeSupportedLanguage(language: string | null | undefined): SupportedChatLanguage | null {
-  if (language === 'ca' || language === 'es' || language === 'en') return language
+  if (!language) return null
+  const normalized = language.trim().toLowerCase().replace('_', '-')
+  if (normalized === 'pt' || normalized.startsWith('pt-')) return 'pt-BR'
+  if (normalized === 'ca' || normalized.startsWith('ca-')) return 'ca'
+  if (normalized === 'es' || normalized.startsWith('es-')) return 'es'
+  if (normalized === 'en' || normalized.startsWith('en-')) return 'en'
   return null
 }
 

@@ -1,8 +1,10 @@
 'use client'
 
 import { Trash2 } from 'lucide-react'
-import { useState } from 'react'
-import { deleteAccountAction } from './actions'
+import { useActionState, useState } from 'react'
+import { deleteAccountAction, type DeleteAccountState } from './actions'
+
+const initialState: DeleteAccountState = { ok: false, message: '' }
 
 interface DeleteAccountButtonProps {
   accountId: string
@@ -12,6 +14,7 @@ interface DeleteAccountButtonProps {
 
 export function DeleteAccountButton({ accountId, accountName, iconOnly = false }: DeleteAccountButtonProps) {
   const [confirming, setConfirming] = useState(false)
+  const [state, action, pending] = useActionState(deleteAccountAction, initialState)
 
   if (!confirming) {
     return (
@@ -35,17 +38,20 @@ export function DeleteAccountButton({ accountId, accountName, iconOnly = false }
   }
 
   return (
-    <form action={deleteAccountAction} className="delete-inline-confirm">
+    <form action={action} className="delete-inline-confirm">
       <input type="hidden" name="account_id" value={accountId} />
       <p>
-        Eliminar <strong>{accountName}</strong> borrará también sus venues asociadas.
+        Eliminar <strong>{accountName}</strong> borrará sus venues, conversaciones, fuentes,
+        configuraciones y accesos. Las auditorías y registros legales de facturación se conservan
+        sin vincularlos a una cuenta activa.
       </p>
+      {state.message ? <p className="notice notice-error" role="alert">{state.message}</p> : null}
       <div className="delete-inline-actions">
-        <button className="button-outline" type="button" onClick={() => setConfirming(false)}>
+        <button className="button-outline" type="button" onClick={() => setConfirming(false)} disabled={pending}>
           Cancelar
         </button>
-        <button className="button-outline button-danger" type="submit">
-          Confirmar
+        <button className="button-outline button-danger" type="submit" disabled={pending}>
+          {pending ? 'Eliminando…' : 'Confirmar'}
         </button>
       </div>
     </form>

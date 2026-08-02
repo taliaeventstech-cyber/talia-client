@@ -2,6 +2,7 @@ import type { createAdminClient } from '@/lib/supabase/admin'
 import { createTrialMetadata } from '@/lib/billing/access'
 import type { Json } from '@/types/database.types'
 import { getDefaultProactiveGreeting } from '@/lib/widget/proactive-greeting'
+import type { TenantLanguage } from '@/lib/tenants/language'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -13,8 +14,6 @@ export type CulturalEntityType =
   | 'festival'
   | 'cultural_center'
   | 'other'
-
-export type TenantLanguage = 'ca' | 'es' | 'en'
 
 export type CreateTenantInput = {
   userId: string
@@ -211,6 +210,9 @@ function buildInitialSystemPrompt(input: CreateTenantInput) {
 }
 
 function getInitialMessage(language: TenantLanguage, entityType: CulturalEntityType) {
+  if (language === 'pt-BR') {
+    return `Olá, sou a TALIA. Como posso ajudar você com este ${getPortugueseEntityTypeLabel(entityType)}?`
+  }
   const entity = getEntityTypeLabel(entityType).toLowerCase()
 
   if (language === 'ca') return `Hola, soc TALIA. En què et puc ajudar sobre ${entity}?`
@@ -221,7 +223,21 @@ function getInitialMessage(language: TenantLanguage, entityType: CulturalEntityT
 function getLanguageName(language: TenantLanguage) {
   if (language === 'ca') return 'catalán'
   if (language === 'en') return 'inglés'
+  if (language === 'pt-BR') return 'portugués de Brasil'
   return 'español'
+}
+
+function getPortugueseEntityTypeLabel(entityType: CulturalEntityType) {
+  const labels: Record<CulturalEntityType, string> = {
+    theatre: 'teatro',
+    museum: 'museu',
+    cinema: 'cinema',
+    auditorium: 'auditório ou sala de concertos',
+    festival: 'festival',
+    cultural_center: 'centro cultural',
+    other: 'espaço cultural',
+  }
+  return labels[entityType]
 }
 
 function getEntityTypeLabel(entityType: CulturalEntityType) {

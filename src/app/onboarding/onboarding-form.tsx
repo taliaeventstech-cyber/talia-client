@@ -1,14 +1,14 @@
 'use client'
 
-import { useActionState, useMemo, useState } from 'react'
+import { useActionState, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, Globe2, Landmark, Mail, MessageSquare, Sparkles, Ticket } from 'lucide-react'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import { createTenant, type OnboardingFormState } from './actions'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry, normalizeInternationalPhoneValue } from '@/lib/phone/international'
+import type { TenantLanguage } from '@/lib/tenants/language'
 
 type EntityType = 'theatre' | 'museum' | 'cinema' | 'auditorium' | 'festival' | 'cultural_center' | 'other'
-type Language = 'ca' | 'es' | 'en'
 type WorkspaceStep = 0 | 1 | 2
 
 type FormValues = {
@@ -19,7 +19,7 @@ type FormValues = {
   entityType: EntityType
   theatreName: string
   websiteUrl: string
-  primaryLanguage: Language
+  primaryLanguage: TenantLanguage
   fallbackEmail: string
   fallbackPhone: string
   goals: string[]
@@ -52,7 +52,15 @@ const USE_CASES = [
 
 const MAX_USE_CASES = 3
 
-export function OnboardingForm({ copy, email }: { copy: OnboardingFormCopy; email: string }) {
+export function OnboardingForm({
+  copy,
+  email,
+  defaultLanguage,
+}: {
+  copy: OnboardingFormCopy
+  email: string
+  defaultLanguage: TenantLanguage
+}) {
   const [state, action, pending] = useActionState(createTenant, initialState)
   const [workspaceStep, setWorkspaceStep] = useState<WorkspaceStep>(0)
   const [values, setValues] = useState<FormValues>({
@@ -63,11 +71,19 @@ export function OnboardingForm({ copy, email }: { copy: OnboardingFormCopy; emai
     entityType: 'theatre',
     theatreName: '',
     websiteUrl: '',
-    primaryLanguage: 'es',
+    primaryLanguage: defaultLanguage,
     fallbackEmail: email,
     fallbackPhone: '',
     goals: [],
   })
+  const previousDefaultLanguage = useRef(defaultLanguage)
+
+  useEffect(() => {
+    setValues((current) => current.primaryLanguage === previousDefaultLanguage.current
+      ? { ...current, primaryLanguage: defaultLanguage }
+      : current)
+    previousDefaultLanguage.current = defaultLanguage
+  }, [defaultLanguage])
 
   const websiteUrlError = getWebsiteUrlError(values.websiteUrl, copy)
   const normalizedWebsiteUrl = useMemo(() => normalizeWebsiteUrl(values.websiteUrl), [values.websiteUrl])
@@ -281,10 +297,11 @@ function WorkspaceCompany({
       <div className="form-grid two-columns">
         <label className="field">
           {company.primaryLanguage}
-          <select value={values.primaryLanguage} onChange={(event) => update('primaryLanguage', event.target.value as Language)}>
+          <select value={values.primaryLanguage} onChange={(event) => update('primaryLanguage', event.target.value as TenantLanguage)}>
             <option value="ca">Català</option>
             <option value="es">Español</option>
             <option value="en">English</option>
+            <option value="pt-BR">Português (Brasil)</option>
           </select>
         </label>
 

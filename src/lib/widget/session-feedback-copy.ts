@@ -36,6 +36,19 @@ export function getSessionFeedbackCopy(language: string): SessionFeedbackCopy {
     }
   }
 
+  if (language === 'pt-BR') {
+    return {
+      groupLabel: 'Avaliação antes de reiniciar',
+      title: 'Começar uma nova conversa?',
+      description: 'Antes disso, diga se consegui resolver sua dúvida.',
+      positive: 'Sim, obrigado',
+      negative: 'Não totalmente',
+      commentsPlaceholder: 'Comentário opcional',
+      submit: 'Enviar e reiniciar',
+      skip: 'Reiniciar sem avaliar',
+    }
+  }
+
   return {
     groupLabel: 'Valoración antes de reiniciar',
     title: '¿Empezamos de nuevo?',

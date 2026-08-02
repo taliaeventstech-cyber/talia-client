@@ -30,12 +30,13 @@ export default async function OnboardingPage() {
             es: dictionary.language.es,
             ca: dictionary.language.ca,
             en: dictionary.language.en,
+            ptBR: dictionary.language.ptBR,
           }}
         />
         <ThemeToggle />
       </div>
       <section className="auth-card onboarding-card">
-        <OnboardingForm copy={formCopy} email={user.email ?? ''} />
+        <OnboardingForm copy={formCopy} email={user.email ?? ''} defaultLanguage={locale} />
       </section>
     </main>
   )

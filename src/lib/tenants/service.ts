@@ -5,6 +5,7 @@ import type { Json } from '@/types/database.types'
 import { normalizeWidgetLauncherIcon, type WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { normalizeProactiveGreeting } from '@/lib/widget/proactive-greeting'
 import { isChatbotEnabled } from '@/lib/widget/availability'
+import { getWidgetComplianceCopy, normalizePrivacyUrl, type WidgetComplianceCopy } from '@/lib/widget/compliance'
 import {
   getInstalledWebCaptureSettingsFromWidgetConfig,
   type InstalledWebCaptureSettings,
@@ -42,6 +43,7 @@ export type PublicWidgetConfig = {
   proactiveMessage: string
   fallbackLanguage: WidgetLanguage
   suggestedQuestions: SuggestedQuestion[]
+  compliance: WidgetComplianceCopy & { privacyUrl: string }
   installedWebCapture: InstalledWebCaptureSettings
   accessibility: PublicAccessibilityConfig
 }
@@ -229,6 +231,10 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
       proactiveMessage: normalizeProactiveGreeting(widgetConfig.proactiveMessage, data.primary_language, widgetConfig.assistantName),
       fallbackLanguage: normalizeWidgetLanguage(data.primary_language),
       suggestedQuestions: widgetConfig.suggestedQuestions,
+      compliance: {
+        ...getWidgetComplianceCopy(data.primary_language),
+        privacyUrl: widgetConfig.privacyUrl,
+      },
       installedWebCapture: widgetConfig.installedWebCapture,
       accessibility: widgetConfig.accessibility,
     } satisfies PublicWidgetConfig,
@@ -419,6 +425,7 @@ function getWidgetConfig(value: unknown, language: unknown = 'es') {
       autoOpen: false,
       autoOpenDelay: 3,
       proactiveMessage: undefined,
+      privacyUrl: normalizePrivacyUrl(undefined),
       suggestedQuestions: [],
       installedWebCapture: getInstalledWebCaptureSettingsFromWidgetConfig(undefined),
       tone: 'close' as const,
@@ -456,6 +463,8 @@ function getWidgetConfig(value: unknown, language: unknown = 'es') {
     autoOpenDelay?: unknown
     proactiveMessage?: unknown
     proactive_message?: unknown
+    privacyUrl?: unknown
+    privacy_url?: unknown
     suggestedQuestions?: unknown
     suggested_questions?: unknown
     tone?: unknown
@@ -485,6 +494,7 @@ function getWidgetConfig(value: unknown, language: unknown = 'es') {
     autoOpen: config.autoOpen === true,
     autoOpenDelay: typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3,
     proactiveMessage: config.proactiveMessage ?? config.proactive_message,
+    privacyUrl: normalizePrivacyUrl(config.privacyUrl ?? config.privacy_url),
     suggestedQuestions: normalizeSuggestedQuestions(
       config.suggestedQuestions ?? config.suggested_questions,
       language,

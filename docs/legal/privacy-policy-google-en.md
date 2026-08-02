@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: 2 June 2026
+Last updated: 2 August 2026
 
 ## 1. Who we are
 
@@ -249,6 +249,8 @@ Current or expected providers:
 
 Customers should review the applicable Data Processing Agreement and subprocessor list for more details.
 
+People interacting with the TALIA chatbot are informed that it is an AI assistant at or before their first interaction. The chatbot also provides a link to the privacy information selected by the customer organization and identifies generated replies in the product and response metadata.
+
 ## 10. Service providers and subprocessors
 
 We use third-party providers to operate TALIA. These may include providers for:
@@ -288,7 +290,8 @@ Default retention periods:
 
 - Account data: while the account remains active and for the period required to handle legal responsibilities.
 - Billing data: for the statutory accounting and tax retention period.
-- Chatbot conversations: up to 12 months after the conversation date, unless the customer requests earlier deletion or a longer period is agreed in writing.
+- Chatbot conversations: 90 days after the last activity, unless the customer deletes them earlier.
+- Chatbot usage metrics: up to 12 months in de-identified form for billing, service reporting, and capacity planning.
 - Synced emails: up to 90 days after synchronization, unless the customer requests earlier deletion or a longer period is agreed in writing.
 - Draft replies: up to 90 days after creation, unless the draft is deleted earlier by the user or a longer period is agreed in writing.
 - Technical and security logs: up to 12 months, unless longer retention is required to investigate security incidents, prevent abuse, or comply with legal obligations.

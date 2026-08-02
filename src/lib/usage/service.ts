@@ -31,6 +31,41 @@ export type UsageTotals = {
   estimatedCostCents: number
 }
 
+export type TenantUsageHistoryEntry = {
+  subscriptionId: string
+  periodStart: string
+  periodEnd: string
+  plan: string
+  status: string
+  includedChatMessages: number
+  billableChatMessages: number
+  visitorChatMessages: number
+  totalChatMessages: number
+  unansweredChatMessages: number
+  usage: UsageTotals
+  isCurrent: boolean
+}
+
+type UsageHistorySubscription = Pick<
+  Tables<'tenant_subscriptions'>,
+  'id' | 'billing_period_start' | 'billing_period_end' | 'plan' | 'status' | 'included_chat_conversations'
+>
+
+type UsageHistoryDailyRow = {
+  date: string
+  conversations: number
+  messages: number
+  ai_calls: number
+  tool_calls: number
+  input_tokens: number
+  output_tokens: number
+  voice_minutes: number
+  resolutions: number
+  fallbacks: number
+  limit_exceeded_events: number
+  estimated_cost_cents: number
+}
+
 export type RecordUsageEventInput = {
   tenantId: string
   moduleKey: UsageModuleKey
@@ -219,6 +254,104 @@ export async function getTenantUsageForPeriod(
     ok: true as const,
     usage: sumUsageRows(data ?? []),
   }
+}
+
+export async function getTenantUsageHistory(
+  admin: AdminClient,
+  tenantId: string,
+  options: { limit?: number; referenceDate?: Date } = {},
+) {
+  const limit = Math.min(12, Math.max(1, options.limit ?? 12))
+  const { data: subscriptions, error: subscriptionsError } = await admin
+    .from('tenant_subscriptions')
+    .select('id,billing_period_start,billing_period_end,plan,status,included_chat_conversations')
+    .eq('theatre_id', tenantId)
+    .order('billing_period_start', { ascending: false })
+    .limit(limit)
+
+  if (subscriptionsError) {
+    return { ok: false as const, error: subscriptionsError.message }
+  }
+
+  if (!subscriptions?.length) {
+    return { ok: true as const, history: [] as TenantUsageHistoryEntry[] }
+  }
+
+  const rangeStart = subscriptions.at(-1)?.billing_period_start ?? subscriptions[0].billing_period_start
+  const rangeEnd = subscriptions.reduce(
+    (latest, subscription) => subscription.billing_period_end > latest ? subscription.billing_period_end : latest,
+    subscriptions[0].billing_period_end,
+  )
+  const [usageResult, billableResults] = await Promise.all([
+    admin
+      .from('tenant_usage_daily')
+      .select('date,conversations,messages,ai_calls,tool_calls,input_tokens,output_tokens,voice_minutes,resolutions,fallbacks,limit_exceeded_events,estimated_cost_cents')
+      .eq('theatre_id', tenantId)
+      .gte('date', rangeStart)
+      .lt('date', rangeEnd),
+    Promise.all(subscriptions.map((subscription) => admin
+      .from('usage_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('theatre_id', tenantId)
+      .eq('channel', 'chatbot')
+      .eq('event_type', 'message')
+      .eq('metadata->>role', 'assistant')
+      .gte('occurred_at', subscription.billing_period_start)
+      .lt('occurred_at', subscription.billing_period_end))),
+  ])
+
+  if (usageResult.error) return { ok: false as const, error: usageResult.error.message }
+  const billableError = billableResults.find((result) => result.error)?.error
+  if (billableError) return { ok: false as const, error: billableError.message }
+
+  return {
+    ok: true as const,
+    history: buildTenantUsageHistory({
+      subscriptions,
+      usageRows: usageResult.data ?? [],
+      billableCounts: Object.fromEntries(
+        subscriptions.map((subscription, index) => [subscription.id, billableResults[index].count ?? 0]),
+      ),
+      referenceDate: options.referenceDate,
+    }),
+  }
+}
+
+export function buildTenantUsageHistory({
+  subscriptions,
+  usageRows,
+  billableCounts,
+  referenceDate = new Date(),
+}: {
+  subscriptions: UsageHistorySubscription[]
+  usageRows: UsageHistoryDailyRow[]
+  billableCounts: Record<string, number>
+  referenceDate?: Date
+}): TenantUsageHistoryEntry[] {
+  const reference = referenceDate.toISOString().slice(0, 10)
+
+  return subscriptions.map((subscription) => {
+    const inPeriod = (value: string) => value >= subscription.billing_period_start && value < subscription.billing_period_end
+    const periodUsage = usageRows.filter((row) => inPeriod(row.date))
+    const usage = sumUsageRows(periodUsage)
+    const billableChatMessages = billableCounts[subscription.id] ?? 0
+    const visitorChatMessages = Math.max(0, usage.messages - billableChatMessages)
+
+    return {
+      subscriptionId: subscription.id,
+      periodStart: subscription.billing_period_start,
+      periodEnd: subscription.billing_period_end,
+      plan: subscription.plan,
+      status: subscription.status,
+      includedChatMessages: subscription.included_chat_conversations,
+      billableChatMessages,
+      visitorChatMessages,
+      totalChatMessages: usage.messages,
+      unansweredChatMessages: Math.max(0, visitorChatMessages - billableChatMessages),
+      usage,
+      isCurrent: inPeriod(reference),
+    }
+  })
 }
 
 export async function checkTenantLimit(admin: AdminClient, input: LimitCheckInput) {
