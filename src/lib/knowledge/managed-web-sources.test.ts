@@ -71,4 +71,12 @@ describe('getNextKnowledgeSyncAt', () => {
   ] as const)('calculates the next %s run', (interval, expected) => {
     expect(getNextKnowledgeSyncAt(interval, from)?.toISOString()).toBe(expected)
   })
+
+  it.each([
+    ['2026-01-31T12:00:00.000Z', '2026-02-28T12:00:00.000Z'],
+    ['2028-01-31T12:00:00.000Z', '2028-02-29T12:00:00.000Z'],
+    ['2026-08-31T12:00:00.000Z', '2026-09-30T12:00:00.000Z'],
+  ])('clamps monthly runs from %s to the final valid target-month day', (start, expected) => {
+    expect(getNextKnowledgeSyncAt('monthly', new Date(start))?.toISOString()).toBe(expected)
+  })
 })

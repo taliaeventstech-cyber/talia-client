@@ -35,6 +35,8 @@ export type TenantUsageHistoryEntry = {
   subscriptionId: string
   periodStart: string
   periodEnd: string
+  periodStartAt: string
+  periodEndAt: string
   plan: string
   status: string
   includedChatMessages: number
@@ -48,22 +50,21 @@ export type TenantUsageHistoryEntry = {
 
 type UsageHistorySubscription = Pick<
   Tables<'tenant_subscriptions'>,
-  'id' | 'billing_period_start' | 'billing_period_end' | 'plan' | 'status' | 'included_chat_conversations'
+  | 'id'
+  | 'billing_period_start'
+  | 'billing_period_end'
+  | 'billing_period_start_at'
+  | 'billing_period_end_at'
+  | 'plan'
+  | 'status'
+  | 'included_chat_conversations'
 >
 
-type UsageHistoryDailyRow = {
-  date: string
-  conversations: number
-  messages: number
-  ai_calls: number
-  tool_calls: number
-  input_tokens: number
-  output_tokens: number
-  voice_minutes: number
-  resolutions: number
-  fallbacks: number
-  limit_exceeded_events: number
-  estimated_cost_cents: number
+export type BillingPeriod = {
+  startDate: string
+  endDate: string
+  startAt: string
+  endAt: string
 }
 
 export type RecordUsageEventInput = {
@@ -145,18 +146,20 @@ export function getCurrentBillingPeriod(referenceDate = new Date()) {
   return {
     startDate: toDateString(start),
     endDate: toDateString(end),
+    startAt: start.toISOString(),
+    endAt: end.toISOString(),
   }
 }
 
 export async function getActiveSubscription(admin: AdminClient, tenantId: string, referenceDate = new Date()) {
-  const date = toDateString(referenceDate)
+  const referenceAt = referenceDate.toISOString()
   const { data: existing, error: existingError } = await admin
     .from('tenant_subscriptions')
     .select('*')
     .eq('theatre_id', tenantId)
-    .lte('billing_period_start', date)
-    .gt('billing_period_end', date)
-    .order('billing_period_start', { ascending: false })
+    .lte('billing_period_start_at', referenceAt)
+    .gt('billing_period_end_at', referenceAt)
+    .order('billing_period_start_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
@@ -188,6 +191,8 @@ export async function getActiveSubscription(admin: AdminClient, tenantId: string
       plan,
       billing_period_start: period.startDate,
       billing_period_end: period.endDate,
+      billing_period_start_at: period.startAt,
+      billing_period_end_at: period.endAt,
       included_chat_conversations: defaults.includedChatConversations,
       included_email_conversations: defaults.includedEmailConversations,
       included_voice_minutes: defaults.includedVoiceMinutes,
@@ -215,7 +220,7 @@ export async function getActiveSubscription(admin: AdminClient, tenantId: string
 export async function getChatbotBillableMessagesForPeriod(
   admin: AdminClient,
   tenantId: string,
-  period = getCurrentBillingPeriod(),
+  period: Pick<BillingPeriod, 'startAt' | 'endAt'> = getCurrentBillingPeriod(),
 ) {
   const { count, error } = await admin
     .from('usage_events')
@@ -224,8 +229,8 @@ export async function getChatbotBillableMessagesForPeriod(
     .eq('channel', 'chatbot')
     .eq('event_type', 'message')
     .eq('metadata->>role', 'assistant')
-    .gte('occurred_at', period.startDate)
-    .lt('occurred_at', period.endDate)
+    .gte('occurred_at', period.startAt)
+    .lt('occurred_at', period.endAt)
 
   if (error) {
     return { ok: false as const, error: error.message }
@@ -237,14 +242,14 @@ export async function getChatbotBillableMessagesForPeriod(
 export async function getTenantUsageForPeriod(
   admin: AdminClient,
   tenantId: string,
-  period = getCurrentBillingPeriod(),
+  period: Pick<BillingPeriod, 'startAt' | 'endAt'> = getCurrentBillingPeriod(),
 ) {
   const { data, error } = await admin
-    .from('tenant_usage_daily')
-    .select('conversations,messages,ai_calls,tool_calls,input_tokens,output_tokens,voice_minutes,resolutions,fallbacks,limit_exceeded_events,estimated_cost_cents')
-    .eq('theatre_id', tenantId)
-    .gte('date', period.startDate)
-    .lt('date', period.endDate)
+    .rpc('get_tenant_usage_totals', {
+      p_theatre_id: tenantId,
+      p_period_start: period.startAt,
+      p_period_end: period.endAt,
+    })
 
   if (error) {
     return { ok: false as const, error: error.message }
@@ -252,7 +257,7 @@ export async function getTenantUsageForPeriod(
 
   return {
     ok: true as const,
-    usage: sumUsageRows(data ?? []),
+    usage: mapUsageTotals(data?.[0]),
   }
 }
 
@@ -264,9 +269,9 @@ export async function getTenantUsageHistory(
   const limit = Math.min(12, Math.max(1, options.limit ?? 12))
   const { data: subscriptions, error: subscriptionsError } = await admin
     .from('tenant_subscriptions')
-    .select('id,billing_period_start,billing_period_end,plan,status,included_chat_conversations')
+    .select('id,billing_period_start,billing_period_end,billing_period_start_at,billing_period_end_at,plan,status,included_chat_conversations')
     .eq('theatre_id', tenantId)
-    .order('billing_period_start', { ascending: false })
+    .order('billing_period_start_at', { ascending: false })
     .limit(limit)
 
   if (subscriptionsError) {
@@ -277,18 +282,11 @@ export async function getTenantUsageHistory(
     return { ok: true as const, history: [] as TenantUsageHistoryEntry[] }
   }
 
-  const rangeStart = subscriptions.at(-1)?.billing_period_start ?? subscriptions[0].billing_period_start
-  const rangeEnd = subscriptions.reduce(
-    (latest, subscription) => subscription.billing_period_end > latest ? subscription.billing_period_end : latest,
-    subscriptions[0].billing_period_end,
-  )
-  const [usageResult, billableResults] = await Promise.all([
-    admin
-      .from('tenant_usage_daily')
-      .select('date,conversations,messages,ai_calls,tool_calls,input_tokens,output_tokens,voice_minutes,resolutions,fallbacks,limit_exceeded_events,estimated_cost_cents')
-      .eq('theatre_id', tenantId)
-      .gte('date', rangeStart)
-      .lt('date', rangeEnd),
+  const [usageResults, billableResults] = await Promise.all([
+    Promise.all(subscriptions.map((subscription) => getTenantUsageForPeriod(admin, tenantId, {
+      startAt: subscription.billing_period_start_at,
+      endAt: subscription.billing_period_end_at,
+    }))),
     Promise.all(subscriptions.map((subscription) => admin
       .from('usage_events')
       .select('id', { count: 'exact', head: true })
@@ -296,11 +294,12 @@ export async function getTenantUsageHistory(
       .eq('channel', 'chatbot')
       .eq('event_type', 'message')
       .eq('metadata->>role', 'assistant')
-      .gte('occurred_at', subscription.billing_period_start)
-      .lt('occurred_at', subscription.billing_period_end))),
+      .gte('occurred_at', subscription.billing_period_start_at)
+      .lt('occurred_at', subscription.billing_period_end_at))),
   ])
 
-  if (usageResult.error) return { ok: false as const, error: usageResult.error.message }
+  const usageError = usageResults.find((result) => !result.ok)
+  if (usageError && !usageError.ok) return usageError
   const billableError = billableResults.find((result) => result.error)?.error
   if (billableError) return { ok: false as const, error: billableError.message }
 
@@ -308,7 +307,12 @@ export async function getTenantUsageHistory(
     ok: true as const,
     history: buildTenantUsageHistory({
       subscriptions,
-      usageRows: usageResult.data ?? [],
+      usageBySubscription: Object.fromEntries(
+        subscriptions.map((subscription, index) => [
+          subscription.id,
+          usageResults[index].ok ? usageResults[index].usage : emptyUsageTotals(),
+        ]),
+      ),
       billableCounts: Object.fromEntries(
         subscriptions.map((subscription, index) => [subscription.id, billableResults[index].count ?? 0]),
       ),
@@ -319,21 +323,22 @@ export async function getTenantUsageHistory(
 
 export function buildTenantUsageHistory({
   subscriptions,
-  usageRows,
+  usageBySubscription,
   billableCounts,
   referenceDate = new Date(),
 }: {
   subscriptions: UsageHistorySubscription[]
-  usageRows: UsageHistoryDailyRow[]
+  usageBySubscription: Record<string, UsageTotals>
   billableCounts: Record<string, number>
   referenceDate?: Date
 }): TenantUsageHistoryEntry[] {
-  const reference = referenceDate.toISOString().slice(0, 10)
+  const reference = referenceDate.toISOString()
 
   return subscriptions.map((subscription) => {
-    const inPeriod = (value: string) => value >= subscription.billing_period_start && value < subscription.billing_period_end
-    const periodUsage = usageRows.filter((row) => inPeriod(row.date))
-    const usage = sumUsageRows(periodUsage)
+    const isWithinExactPeriod = (value: string) => (
+      value >= subscription.billing_period_start_at && value < subscription.billing_period_end_at
+    )
+    const usage = usageBySubscription[subscription.id] ?? emptyUsageTotals()
     const billableChatMessages = billableCounts[subscription.id] ?? 0
     const visitorChatMessages = Math.max(0, usage.messages - billableChatMessages)
 
@@ -341,6 +346,8 @@ export function buildTenantUsageHistory({
       subscriptionId: subscription.id,
       periodStart: subscription.billing_period_start,
       periodEnd: subscription.billing_period_end,
+      periodStartAt: subscription.billing_period_start_at,
+      periodEndAt: subscription.billing_period_end_at,
       plan: subscription.plan,
       status: subscription.status,
       includedChatMessages: subscription.included_chat_conversations,
@@ -349,7 +356,7 @@ export function buildTenantUsageHistory({
       totalChatMessages: usage.messages,
       unansweredChatMessages: Math.max(0, visitorChatMessages - billableChatMessages),
       usage,
-      isCurrent: inPeriod(reference),
+      isCurrent: isWithinExactPeriod(reference),
     }
   })
 }
@@ -362,6 +369,8 @@ export async function checkTenantLimit(admin: AdminClient, input: LimitCheckInpu
   const period = {
     startDate: subscription.billing_period_start,
     endDate: subscription.billing_period_end,
+    startAt: subscription.billing_period_start_at,
+    endAt: subscription.billing_period_end_at,
   }
 
   let current: number
@@ -370,7 +379,10 @@ export async function checkTenantLimit(admin: AdminClient, input: LimitCheckInpu
     if (!billableResult.ok) return billableResult
     current = billableResult.count
   } else {
-    const usageResult = await getTenantUsageForPeriod(admin, input.tenantId, period)
+    const usageResult = await getTenantUsageForPeriod(admin, input.tenantId, {
+      startAt: period.startAt,
+      endAt: period.endAt,
+    })
     if (!usageResult.ok) return usageResult
     current = getUsageForChannel(usageResult.usage, input.channel)
   }
@@ -477,7 +489,7 @@ function getUsageForChannel(usage: UsageTotals, channel: LimitCheckInput['channe
   return usage.conversations
 }
 
-function sumUsageRows(rows: Array<{
+function mapUsageTotals(row: {
   conversations: number
   messages: number
   ai_calls: number
@@ -489,20 +501,25 @@ function sumUsageRows(rows: Array<{
   fallbacks: number
   limit_exceeded_events: number
   estimated_cost_cents: number
-}>): UsageTotals {
-  return rows.reduce<UsageTotals>((acc, row) => ({
-    conversations: acc.conversations + row.conversations,
-    messages: acc.messages + row.messages,
-    aiCalls: acc.aiCalls + row.ai_calls,
-    toolCalls: acc.toolCalls + row.tool_calls,
-    inputTokens: acc.inputTokens + row.input_tokens,
-    outputTokens: acc.outputTokens + row.output_tokens,
-    voiceMinutes: acc.voiceMinutes + row.voice_minutes,
-    resolutions: acc.resolutions + row.resolutions,
-    fallbacks: acc.fallbacks + row.fallbacks,
-    limitExceededEvents: acc.limitExceededEvents + row.limit_exceeded_events,
-    estimatedCostCents: acc.estimatedCostCents + row.estimated_cost_cents,
-  }), {
+} | undefined): UsageTotals {
+  if (!row) return emptyUsageTotals()
+  return {
+    conversations: Number(row.conversations),
+    messages: Number(row.messages),
+    aiCalls: Number(row.ai_calls),
+    toolCalls: Number(row.tool_calls),
+    inputTokens: Number(row.input_tokens),
+    outputTokens: Number(row.output_tokens),
+    voiceMinutes: Number(row.voice_minutes),
+    resolutions: Number(row.resolutions),
+    fallbacks: Number(row.fallbacks),
+    limitExceededEvents: Number(row.limit_exceeded_events),
+    estimatedCostCents: Number(row.estimated_cost_cents),
+  }
+}
+
+function emptyUsageTotals(): UsageTotals {
+  return {
     conversations: 0,
     messages: 0,
     aiCalls: 0,
@@ -514,7 +531,7 @@ function sumUsageRows(rows: Array<{
     fallbacks: 0,
     limitExceededEvents: 0,
     estimatedCostCents: 0,
-  })
+  }
 }
 
 function normalizePlan(value: string | null | undefined): keyof typeof planDefaults {

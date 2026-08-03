@@ -10,6 +10,7 @@ import { getActiveSubscription, getChatbotBillableMessagesForPeriod, getTenantUs
 import { getWidgetEmbedCode } from '@/lib/widget/embed-code'
 import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
 import { CopyScriptButton } from '@/components/copy-script-button'
+import { LocalDateTime } from '@/components/local-date-time'
 import { Bot, CheckCircle2, Code2, Database, Mail, MessagesSquare, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
@@ -114,8 +115,8 @@ export default async function OverviewPage({ params }: Props) {
   // Botsonic model: usage shown against the plan is billable assistant replies.
   const billableResult = subscription && !currentUsage
     ? await getChatbotBillableMessagesForPeriod(admin, tenantId, {
-      startDate: subscription.billing_period_start,
-      endDate: subscription.billing_period_end,
+      startAt: subscription.billing_period_start_at,
+      endAt: subscription.billing_period_end_at,
     })
     : null
   const chatUsed = currentUsage?.billableChatMessages ?? (billableResult?.ok ? billableResult.count : 0)
@@ -128,24 +129,24 @@ export default async function OverviewPage({ params }: Props) {
         .select('id', { count: 'exact', head: true })
         .eq('theatre_id', tenantId)
         .eq('role', 'assistant')
-        .gte('created_at', subscription.billing_period_start)
-        .lt('created_at', subscription.billing_period_end),
+        .gte('created_at', subscription.billing_period_start_at)
+        .lt('created_at', subscription.billing_period_end_at),
       admin
         .from('messages')
         .select('id', { count: 'exact', head: true })
         .eq('theatre_id', tenantId)
         .eq('role', 'assistant')
         .contains('metadata', { feedback: { rating: 'positive' } })
-        .gte('created_at', subscription.billing_period_start)
-        .lt('created_at', subscription.billing_period_end),
+        .gte('created_at', subscription.billing_period_start_at)
+        .lt('created_at', subscription.billing_period_end_at),
       admin
         .from('messages')
         .select('id', { count: 'exact', head: true })
         .eq('theatre_id', tenantId)
         .eq('role', 'assistant')
         .contains('metadata', { feedback: { rating: 'negative' } })
-        .gte('created_at', subscription.billing_period_start)
-        .lt('created_at', subscription.billing_period_end),
+        .gte('created_at', subscription.billing_period_start_at)
+        .lt('created_at', subscription.billing_period_end_at),
     ])
     : [{ count: 0 }, { count: 0 }, { count: 0 }]
   const chatUsagePercent = chatLimit > 0 ? Math.min(100, Math.round((chatUsed / chatLimit) * 100)) : null
@@ -382,7 +383,7 @@ export default async function OverviewPage({ params }: Props) {
               <tr key={c.id}>
                 <td className="mono">{c.session_id.slice(0, 16)}...</td>
                 <td>{getVisitorEmail(c.metadata) ?? '-'}</td>
-                <td>{new Date(c.started_at).toLocaleString(getIntlLocale(locale))}</td>
+                <td><LocalDateTime value={c.started_at} locale={getIntlLocale(locale)} /></td>
                 <td>{c.message_count}</td>
                 <td style={{ textAlign: 'right' }}>
                   <Link className="link-accent link-with-icon" href={`/${tenantId}/conversations/${c.id}`}>
@@ -523,7 +524,7 @@ function UsageHistory({
                 <tr key={entry.subscriptionId}>
                   <td>
                     <div className="usage-history-period">
-                      <strong>{formatUsagePeriod(entry.periodStart, entry.periodEnd, locale)}</strong>
+                      <strong>{formatUsagePeriod(entry.periodStartAt, entry.periodEndAt, locale)}</strong>
                       {entry.isCurrent ? <span className="status-pill status-pill-active">{copy.current}</span> : null}
                     </div>
                   </td>
@@ -546,9 +547,8 @@ function UsageHistory({
 }
 
 function formatUsagePeriod(start: string, end: string, locale: Locale) {
-  const startDate = new Date(`${start}T00:00:00.000Z`)
-  const endDate = new Date(`${end}T00:00:00.000Z`)
-  endDate.setUTCDate(endDate.getUTCDate() - 1)
+  const startDate = new Date(start)
+  const endDate = new Date(new Date(end).getTime() - 1)
   const formatter = new Intl.DateTimeFormat(getIntlLocale(locale), {
     day: 'numeric',
     month: 'short',

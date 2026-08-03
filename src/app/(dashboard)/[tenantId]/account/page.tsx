@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getTenantAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { getIntlLocale } from '@/lib/i18n/config'
+import { LocalDateTime } from '@/components/local-date-time'
 import { ArrowLeft, Building2, CreditCard, Mail, ShieldCheck, UserRound } from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
@@ -71,7 +72,7 @@ export default async function AccountPage({ params }: Props) {
               icon={<UserRound size={16} />}
               label={copy.createdAt}
               value={profile?.created_at
-                ? new Date(profile.created_at).toLocaleDateString(getIntlLocale(locale))
+                ? <LocalDateTime value={profile.created_at} locale={getIntlLocale(locale)} dateOnly />
                 : '-'}
             />
           </div>
@@ -142,7 +143,7 @@ function getCommercialPlanName(
   return dictionary.upgrade.plans.chatbot_web.title
 }
 
-function DetailItem({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+function DetailItem({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
   return (
     <div className="detail-item">
       <span className="detail-icon" aria-hidden="true">{icon}</span>

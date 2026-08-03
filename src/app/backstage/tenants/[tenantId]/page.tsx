@@ -364,7 +364,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                           <tr key={entry.subscriptionId}>
                             <td>
                               <div className="usage-history-period">
-                                <strong>{formatBackstageUsagePeriod(entry.periodStart, entry.periodEnd)}</strong>
+                                <strong>{formatBackstageUsagePeriod(entry.periodStartAt, entry.periodEndAt)}</strong>
                                 {entry.isCurrent ? <span className="status-pill status-pill-active">Actual</span> : null}
                               </div>
                             </td>
@@ -2114,9 +2114,8 @@ function formatDate(value: string) {
 }
 
 function formatBackstageUsagePeriod(start: string, end: string) {
-  const startDate = new Date(`${start}T00:00:00.000Z`)
-  const endDate = new Date(`${end}T00:00:00.000Z`)
-  endDate.setUTCDate(endDate.getUTCDate() - 1)
+  const startDate = new Date(start)
+  const endDate = new Date(new Date(end).getTime() - 1)
   const formatter = new Intl.DateTimeFormat('es-ES', {
     day: 'numeric',
     month: 'short',

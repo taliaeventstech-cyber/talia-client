@@ -9,8 +9,9 @@ import {
   type ConversationReviewSummary,
 } from '@/lib/chat/supervised-learning'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
-import { getIntlLocale, type Locale } from '@/lib/i18n/config'
+import { getIntlLocale } from '@/lib/i18n/config'
 import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
+import { LocalDateTime } from '@/components/local-date-time'
 import { ChevronLeft, ChevronRight, Eye } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
@@ -168,7 +169,10 @@ export default async function ConversationsPage({ params, searchParams }: Props)
                   {truncate(latestMessageByConversation.get(conversation.id) ?? '-', 120)}
                 </td>
                 <td>
-                  {new Date(conversation.last_message_at ?? conversation.started_at).toLocaleString(getDateLocale(locale))}
+                  <LocalDateTime
+                    value={conversation.last_message_at ?? conversation.started_at}
+                    locale={getIntlLocale(locale)}
+                  />
                 </td>
                 <td>{conversation.message_count}</td>
                 <td>
@@ -430,9 +434,6 @@ function getFirstSearchParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
 }
 
-function getDateLocale(locale: Locale) {
-  return getIntlLocale(locale)
-}
 
 function chunkValues<T>(values: T[], size: number) {
   const chunks: T[][] = []

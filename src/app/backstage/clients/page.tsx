@@ -51,10 +51,10 @@ export default async function BackstageClientsPage({ searchParams }: Props) {
     ? await Promise.all([
       admin
         .from('tenant_subscriptions')
-        .select('theatre_id, plan, included_chat_conversations, billing_period_start, billing_period_end')
+        .select('theatre_id, plan, included_chat_conversations,billing_period_start,billing_period_end,billing_period_start_at,billing_period_end_at')
         .in('theatre_id', tenantIds)
-        .lte('billing_period_start', period.startDate)
-        .gt('billing_period_end', period.startDate),
+        .lte('billing_period_start_at', period.startAt)
+        .gt('billing_period_end_at', period.startAt),
       admin
         .from('tenant_usage_daily')
         .select('theatre_id, conversations, input_tokens, output_tokens, estimated_cost_cents')

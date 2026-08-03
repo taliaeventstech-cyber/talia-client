@@ -1,6 +1,7 @@
 'use client'
 
 import type { BillingAddonKey, BillingPlanKey } from '@/lib/billing/plans'
+import { LocalDateTime } from '@/components/local-date-time'
 import { Check } from 'lucide-react'
 import { useState } from 'react'
 
@@ -27,13 +28,14 @@ type AddonView = {
 export function BillingConfigurator({
   addons,
   billingLabels,
-  cancellationDate,
+  cancellationAt,
   cancellationScheduled,
   canManageBilling,
   checkoutLabels,
   currentAddonKeys,
   currentPlanKey,
   isPaid,
+  locale,
   monthlyLabel,
   oneTimeLabel,
   paidAddonsLabel,
@@ -61,12 +63,13 @@ export function BillingConfigurator({
     scheduledWithoutDate: string
     ownerOnly: string
   }
-  cancellationDate: string | null
+  cancellationAt: string | null
   cancellationScheduled: boolean
   canManageBilling: boolean
   currentAddonKeys: BillingAddonKey[]
   currentPlanKey: BillingPlanKey
   isPaid: boolean
+  locale: string
   monthlyLabel: string
   oneTimeLabel: string
   paidAddonsLabel: string
@@ -261,8 +264,8 @@ export function BillingConfigurator({
               <p>{billingLabels.description}</p>
               {cancellationScheduled ? (
                 <p className="billing-cancellation-status" role="status">
-                  {cancellationDate
-                    ? billingLabels.scheduled.replace('{date}', cancellationDate)
+                  {cancellationAt
+                    ? <DateTemplate template={billingLabels.scheduled} value={cancellationAt} locale={locale} />
                     : billingLabels.scheduledWithoutDate}
                 </p>
               ) : null}
@@ -303,4 +306,9 @@ function getAddonPriceLabel(addon: AddonView, monthlyLabel: string, oneTimeLabel
   }
 
   return addon.priceMonthly > 0 ? `${addon.priceMonthly}€ ${monthlyLabel}` : ''
+}
+
+function DateTemplate({ template, value, locale }: { template: string; value: string; locale: string }) {
+  const [before, after = ''] = template.split('{date}', 2)
+  return <>{before}<LocalDateTime value={value} locale={locale} dateOnly />{after}</>
 }

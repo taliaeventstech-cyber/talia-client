@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: July 29, 2026
+Last updated: August 2, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -152,6 +152,8 @@ Implemented:
   conversation totals. Agora and the venue detail in Backstage expose up to 12
   retained billing periods with billable chatbot replies, conversations and
   messages; Backstage also includes the estimated AI cost for each period.
+  Stripe-backed periods preserve their exact UTC renewal instants, while
+  activity timestamps are rendered in each operator's browser time zone.
 - Global day/night mode.
 - Trial visible in sidebar.
 - Upgrade button leading to the plans screen.
@@ -411,7 +413,8 @@ Implemented:
 - Agora can configure managed single-page, sitemap and bounded-website sources
   with manual, daily, weekly or monthly refresh policies. The persistence model
   separates logical sources, canonical documents and auditable sync runs, with
-  worker leases, idempotency and per-run counters.
+  worker leases, idempotency and per-run counters. Monthly refreshes clamp to
+  the final valid day of shorter months instead of overflowing into the next one.
 - The installed widget remains available as a first-party capture fallback for
   public pages that direct HTTP/browser capture cannot read reliably.
 - Backstage shows managed-source frequency, next refresh, document count and the

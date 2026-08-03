@@ -72,6 +72,8 @@ export async function activateBilling(admin: AdminClient, input: BillingActivati
       status: stripeStatusToTenantSubscriptionStatus(subscriptionStatus),
       billing_period_start: period.startDate,
       billing_period_end: period.endDate,
+      billing_period_start_at: period.startAt,
+      billing_period_end_at: period.endAt,
       included_chat_conversations: getIncludedChatConversations(plan, addons),
       included_email_conversations: plan.includedEmailConversations,
       included_voice_minutes: 0,
@@ -86,12 +88,13 @@ export async function activateBilling(admin: AdminClient, input: BillingActivati
         stripe_cancel_at_period_end: input.subscription?.cancel_at_period_end === true,
         stripe_cancel_at: input.subscription?.cancel_at ?? null,
         stripe_current_period_end: input.subscription?.current_period_end ?? null,
+        stripe_current_period_start: input.subscription?.current_period_start ?? null,
         stripe_price_id: stripePriceId,
         plan_key: plan.key,
         active_addons: addons.map((addon) => addon.key),
         purchased_one_time_addons: oneTimeAddons.map((addon) => addon.key),
       },
-    }, { onConflict: 'theatre_id,billing_period_start' })
+    }, { onConflict: 'theatre_id,billing_period_start_at' })
 
   if (input.subscription) {
     await updateAccountActiveAddons(admin, input.accountId, addons, input.subscription)
@@ -128,6 +131,8 @@ export async function syncSubscriptionStatus(admin: AdminClient, subscription: S
       status: stripeStatusToTenantSubscriptionStatus(subscription.status),
       billing_period_start: period.startDate,
       billing_period_end: period.endDate,
+      billing_period_start_at: period.startAt,
+      billing_period_end_at: period.endAt,
       included_chat_conversations: getIncludedChatConversations(plan, addons),
       included_email_conversations: plan.includedEmailConversations,
       included_voice_minutes: 0,
@@ -138,11 +143,12 @@ export async function syncSubscriptionStatus(admin: AdminClient, subscription: S
         stripe_cancel_at_period_end: subscription.cancel_at_period_end === true,
         stripe_cancel_at: subscription.cancel_at ?? null,
         stripe_current_period_end: subscription.current_period_end ?? null,
+        stripe_current_period_start: subscription.current_period_start ?? null,
         stripe_price_id: subscription.items?.data?.[0]?.price?.id ?? null,
         plan_key: plan.key,
         active_addons: addons.map((addon) => addon.key),
       },
-    }, { onConflict: 'theatre_id,billing_period_start' })
+    }, { onConflict: 'theatre_id,billing_period_start_at' })
 
   await activatePlanModules(admin, tenantId, plan)
   await updateAccountActiveAddons(admin, accountId, addons, subscription)
@@ -320,14 +326,19 @@ async function activatePlanModules(admin: AdminClient, tenantId: string, plan: B
     })), { onConflict: 'theatre_id,module_key' })
 }
 
-function getSubscriptionPeriod(subscription?: StripeSubscription | null) {
+export function getSubscriptionPeriod(subscription?: StripeSubscription | null) {
   if (!subscription?.current_period_start || !subscription.current_period_end) {
     return getCurrentBillingPeriod()
   }
 
+  const start = new Date(subscription.current_period_start * 1000)
+  const end = new Date(subscription.current_period_end * 1000)
+
   return {
-    startDate: toDateString(new Date(subscription.current_period_start * 1000)),
-    endDate: toDateString(new Date(subscription.current_period_end * 1000)),
+    startDate: toDateString(start),
+    endDate: toDateString(end),
+    startAt: start.toISOString(),
+    endAt: end.toISOString(),
   }
 }
 

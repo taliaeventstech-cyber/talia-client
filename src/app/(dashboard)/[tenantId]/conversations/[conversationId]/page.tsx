@@ -9,6 +9,7 @@ import {
 import { orderConversationMessagesByNewestTurn } from '@/lib/conversations/message-order'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { getIntlLocale } from '@/lib/i18n/config'
+import { LocalDateTime } from '@/components/local-date-time'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -111,7 +112,9 @@ export default async function ConversationDetailPage({ params }: Props) {
           <dt>Email</dt>
           <dd style={{ margin: 0 }}>{visitorEmail ?? '-'}</dd>
           <dt>Inicio</dt>
-          <dd style={{ margin: 0 }}>{new Date(conversation.started_at).toLocaleString(getIntlLocale(locale))}</dd>
+          <dd style={{ margin: 0 }}>
+            <LocalDateTime value={conversation.started_at} locale={getIntlLocale(locale)} />
+          </dd>
           <dt>Mensajes</dt>
           <dd style={{ margin: 0 }}>{conversation.message_count}</dd>
         </dl>
@@ -150,9 +153,7 @@ export default async function ConversationDetailPage({ params }: Props) {
             >
               <div className="message-meta">
                 <strong>{message.role === 'assistant' ? 'TALIA' : 'Usuario'}</strong>
-                <time>
-                  {new Date(message.created_at).toLocaleString(getIntlLocale(locale))}
-                </time>
+                <LocalDateTime value={message.created_at} locale={getIntlLocale(locale)} />
               </div>
               <p style={{ whiteSpace: 'pre-wrap' }}>{message.content}</p>
 
