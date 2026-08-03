@@ -44,7 +44,9 @@ export function splitInternationalPhoneValue(
 }
 
 export function getDefaultPhoneCountry(language: string): CountryCode {
-  return language.toLowerCase().startsWith('en') ? 'GB' : 'ES'
+  const normalized = language.toLowerCase()
+  if (normalized.startsWith('pt')) return 'BR'
+  return normalized.startsWith('en') ? 'GB' : 'ES'
 }
 
 export function getPhoneCountryOptions(locale: string) {

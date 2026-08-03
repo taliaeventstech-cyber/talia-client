@@ -4,6 +4,7 @@ import { normalizeKnowledgeSourceUrl } from '@/lib/knowledge/source-url'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { LanguageToggle } from '@/components/language-toggle'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { getWidgetComplianceCopy } from '@/lib/widget/compliance'
 import { ChatbotSetupForm, type ChatbotSetupFormCopy } from './setup-form'
 
 interface Props {
@@ -24,7 +25,7 @@ export default async function ChatbotSetupPage({ params }: Props) {
   const admin = createAdminClient()
   const { data: theatre } = await admin
     .from('theatres')
-    .select('name, website_url, system_prompt, widget_config')
+    .select('name, website_url, system_prompt, widget_config, primary_language')
     .eq('id', tenantId)
     .single()
 
@@ -67,6 +68,7 @@ export default async function ChatbotSetupPage({ params }: Props) {
                 es: dictionary.language.es,
                 ca: dictionary.language.ca,
                 en: dictionary.language.en,
+                ptBR: dictionary.language.ptBR,
               }}
             />
             <ThemeToggle />
@@ -76,6 +78,7 @@ export default async function ChatbotSetupPage({ params }: Props) {
 
       <ChatbotSetupForm
         copy={formCopy}
+        compliance={getWidgetComplianceCopy(theatre?.primary_language)}
         tenantId={tenantId}
         skipHref={isOnboardingFlow ? `/${tenantId}/overview` : null}
         showWebsiteSource={isOnboardingFlow}

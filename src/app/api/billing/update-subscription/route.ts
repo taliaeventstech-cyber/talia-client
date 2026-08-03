@@ -6,7 +6,9 @@ import {
   getStripePriceIdForPlan,
   isPublicBillingPlan,
   type BillingAddon,
+  type BillingCadence,
 } from '@/lib/billing/plans'
+import { getCommercialCurrency, normalizeCommercialMarketCountry } from '@/lib/billing/market'
 import { syncSubscriptionStatus } from '@/lib/billing/stripe-sync'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { retrieveStripeSubscription, updateStripeSubscription } from '@/lib/stripe/server'
@@ -14,10 +16,11 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
-    const { tenantId, planKey, addonKeys } = await request.json() as {
+    const { tenantId, planKey, addonKeys, billingCadence } = await request.json() as {
       tenantId?: string
       planKey?: string
       addonKeys?: string[]
+      billingCadence?: BillingCadence
     }
     if (!tenantId) {
       return NextResponse.json({ error: 'tenant_id_required' }, { status: 400 })
@@ -33,23 +36,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'invalid_plan' }, { status: 400 })
     }
 
-    const planPriceId = getStripePriceIdForPlan(plan)
-    if (!process.env.STRIPE_SECRET_KEY || !planPriceId) {
-      return NextResponse.json({ error: 'stripe_not_configured' }, { status: 503 })
-    }
+    const cadence: BillingCadence = billingCadence === 'yearly' ? 'yearly' : 'monthly'
 
     const addons = (addonKeys ?? [])
       .map((addonKey) => getBillingAddon(addonKey))
       .filter((addon): addon is BillingAddon => Boolean(addon))
       .filter((addon) => addon.billingMode === 'recurring')
-    const addonPriceIds = addons
-      .map((addon) => getStripePriceIdForAddon(addon))
-      .filter((priceId): priceId is string => Boolean(priceId))
-
     const admin = createAdminClient()
     const { data: theatre, error } = await admin
       .from('theatres')
-      .select('account_id, accounts(metadata)')
+      .select('account_id, accounts(metadata, market_country_code, billing_currency)')
       .eq('id', tenantId)
       .single()
 
@@ -58,6 +54,13 @@ export async function POST(request: NextRequest) {
     }
 
     const account = Array.isArray(theatre.accounts) ? theatre.accounts[0] : theatre.accounts
+    const marketCountry = normalizeCommercialMarketCountry(account?.market_country_code)
+    const currency = getCommercialCurrency(marketCountry)
+    const planPriceId = getStripePriceIdForPlan(plan, marketCountry, cadence)
+    const addonPriceIds = addons.map((addon) => getStripePriceIdForAddon(addon, marketCountry, cadence))
+    if (!process.env.STRIPE_SECRET_KEY || !planPriceId || addonPriceIds.some((price) => !price)) {
+      return NextResponse.json({ error: 'stripe_not_configured' }, { status: 503 })
+    }
     const metadata = isPlainObject(account?.metadata) ? account.metadata : {}
     const subscriptionId = typeof metadata.stripe_subscription_id === 'string'
       ? metadata.stripe_subscription_id
@@ -72,8 +75,11 @@ export async function POST(request: NextRequest) {
       subscriptionId,
       planKey: plan.key,
       planPriceId,
-      addonPriceIds,
+      addonPriceIds: addonPriceIds as string[],
       currentSubscription,
+      billingCadence: cadence,
+      marketCountry,
+      currency,
     })
 
     await syncSubscriptionStatus(admin, updatedSubscription)

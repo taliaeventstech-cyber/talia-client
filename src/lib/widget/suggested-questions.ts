@@ -1,4 +1,4 @@
-export const WIDGET_LANGUAGES = ['es', 'ca', 'en'] as const
+export const WIDGET_LANGUAGES = ['es', 'ca', 'en', 'pt-BR'] as const
 export const SUGGESTED_QUESTION_TARGET_TYPES = ['hostname', 'path_prefix', 'exact_url'] as const
 export const MAX_SUGGESTED_QUESTIONS = 24
 export const MAX_VISIBLE_SUGGESTED_QUESTIONS = 6
@@ -44,7 +44,9 @@ export function normalizeWidgetLanguage(
   fallback: WidgetLanguage = 'es',
 ): WidgetLanguage {
   if (typeof value !== 'string') return fallback
-  const language = value.trim().toLowerCase().split(/[-_]/)[0]
+  const normalized = value.trim().toLowerCase().replace('_', '-')
+  if (normalized === 'pt' || normalized.startsWith('pt-')) return 'pt-BR'
+  const language = normalized.split('-')[0]
   return isWidgetLanguage(language) ? language : fallback
 }
 

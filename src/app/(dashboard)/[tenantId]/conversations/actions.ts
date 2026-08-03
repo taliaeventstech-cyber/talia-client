@@ -345,17 +345,24 @@ export async function deleteConversation(
   tenantId: string,
   conversationId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  await requireTenantProductAccess(tenantId, 'delete_conversations', 'chatbot')
+  const access = await requireTenantProductAccess(tenantId, 'delete_conversations', 'chatbot')
 
   const admin = createAdminClient()
 
   // Fetch session_id to clean up conversation_topics
-  const { data: conversation } = await admin
-    .from('conversations')
-    .select('session_id')
-    .eq('id', conversationId)
-    .eq('theatre_id', tenantId)
-    .single()
+  const [{ data: conversation }, { data: theatre }] = await Promise.all([
+    admin
+      .from('conversations')
+      .select('session_id')
+      .eq('id', conversationId)
+      .eq('theatre_id', tenantId)
+      .single(),
+    admin
+      .from('theatres')
+      .select('account_id')
+      .eq('id', tenantId)
+      .maybeSingle(),
+  ])
 
   if (!conversation) return { ok: false, error: 'Conversación no encontrada.' }
 
@@ -374,6 +381,38 @@ export async function deleteConversation(
     .eq('theatre_id', tenantId)
 
   if (error) return { ok: false, error: error.message }
+
+  const { error: usageAnonymizationError } = await admin.rpc('anonymize_chatbot_usage_identifiers', {
+    p_theatre_id: tenantId,
+    p_session_id: conversation.session_id,
+  })
+  if (usageAnonymizationError) {
+    console.error('[conversation-deletion] failed to anonymize retained usage identifiers', {
+      tenantId,
+      conversationId,
+      error: usageAnonymizationError.message,
+    })
+  }
+
+  const { error: auditError } = await admin.from('audit_events').insert({
+    account_id: theatre?.account_id ?? null,
+    theatre_id: tenantId,
+    actor_user_id: access.userId,
+    action: 'conversation.deleted_by_customer',
+    target_type: 'conversation',
+    target_id: conversationId,
+    metadata: {
+      content_deleted: true,
+      usage_retained: true,
+    },
+  })
+  if (auditError) {
+    console.error('[conversation-deletion] failed to audit customer deletion', {
+      tenantId,
+      conversationId,
+      error: auditError.message,
+    })
+  }
 
   revalidatePath(`/${tenantId}/conversations`)
   return { ok: true }

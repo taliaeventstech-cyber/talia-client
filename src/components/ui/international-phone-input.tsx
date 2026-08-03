@@ -149,6 +149,13 @@ function getPhoneInputCopy(locale: string) {
       invalid: 'Enter a valid number for the selected country.',
     }
   }
+  if (locale.toLowerCase().startsWith('pt')) {
+    return {
+      countryLabel: 'País e código de chamada',
+      numberLabel: 'Número de telefone',
+      invalid: 'Digite um número válido para o país selecionado.',
+    }
+  }
   return {
     countryLabel: 'País y prefijo',
     numberLabel: 'Número de teléfono',

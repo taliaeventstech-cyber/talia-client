@@ -6,6 +6,7 @@ describe('proactive greeting', () => {
     expect(getDefaultProactiveGreeting('es')).toBe('Soy TALIA. ¿Te ayudo?')
     expect(getDefaultProactiveGreeting('ca')).toBe("Soc TALIA. T'ajudo?")
     expect(getDefaultProactiveGreeting('en')).toBe("I'm TALIA. Can I help?")
+    expect(getDefaultProactiveGreeting('pt-BR')).toBe('Sou a TALIA. Posso ajudar?')
   })
 
   it('keeps a tenant-defined greeting', () => {

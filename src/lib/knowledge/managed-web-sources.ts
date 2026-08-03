@@ -90,7 +90,17 @@ export function getNextKnowledgeSyncAt(interval: KnowledgeRefreshInterval, from:
   const next = new Date(from)
   if (interval === 'daily') next.setUTCDate(next.getUTCDate() + 1)
   if (interval === 'weekly') next.setUTCDate(next.getUTCDate() + 7)
-  if (interval === 'monthly') next.setUTCMonth(next.getUTCMonth() + 1)
+  if (interval === 'monthly') {
+    const originalDay = next.getUTCDate()
+    next.setUTCDate(1)
+    next.setUTCMonth(next.getUTCMonth() + 1)
+    const finalTargetMonthDay = new Date(Date.UTC(
+      next.getUTCFullYear(),
+      next.getUTCMonth() + 1,
+      0,
+    )).getUTCDate()
+    next.setUTCDate(Math.min(originalDay, finalTargetMonthDay))
+  }
   return next
 }
 

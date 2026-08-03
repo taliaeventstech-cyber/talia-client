@@ -34,9 +34,11 @@
     });
 
   function mountWidget(config) {
+    var fallbackLanguage = getWidgetLanguage(config.fallbackLanguage, 'es');
+    var widgetCopy = getWidgetChromeCopy(fallbackLanguage);
     var assistantName = config.assistantName || script.getAttribute('data-name') || 'TALIA';
-    var initialMessage = config.initialMessage || script.getAttribute('data-initial-message') || 'Hola, soc TALIA. En què et puc ajudar?';
-    var proactiveMessage = getProactiveMessage(config.proactiveMessage || script.getAttribute('data-proactive-message'), assistantName);
+    var initialMessage = config.initialMessage || script.getAttribute('data-initial-message') || widgetCopy.initialMessage;
+    var proactiveMessage = getProactiveMessage(config.proactiveMessage || script.getAttribute('data-proactive-message'), assistantName, fallbackLanguage);
     var primaryColor = config.primaryColor || script.getAttribute('data-color') || '#000000';
     var position = getPosition(config.position || script.getAttribute('data-position') || 'bottom-right');
     var widgetSize = getWidgetSize(config.widgetSize || config.size || script.getAttribute('data-size'));
@@ -48,7 +50,7 @@
     var glassBackground = getGlassBackground(config.glassBackground || script.getAttribute('data-glass-background'));
     var glassBlur = getGlassBlur(config.glassBlur != null ? config.glassBlur : script.getAttribute('data-glass-blur'));
     var glassTranslucency = getGlassTranslucency(config.glassTranslucency != null ? config.glassTranslucency : script.getAttribute('data-glass-translucency'));
-    var fallbackLanguage = getWidgetLanguage(config.fallbackLanguage, 'es');
+    var compliance = getComplianceConfig(config.compliance, fallbackLanguage);
     var suggestedQuestions = getVisibleSuggestedQuestions(config.suggestedQuestions, getCurrentPageUrl());
     var host = document.createElement('div');
     host.id = 'talia-widget-root';
@@ -63,7 +65,7 @@
     });
 
     var root = host.attachShadow({ mode: 'open' });
-    root.innerHTML = getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, baseUrl + '/icon.svg');
+    root.innerHTML = getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, baseUrl + '/icon.svg', compliance, widgetCopy);
 
     var panel = root.querySelector('[data-panel]');
     var welcome = root.querySelector('[data-welcome]');
@@ -75,8 +77,10 @@
     var form = root.querySelector('[data-form]');
     var input = root.querySelector('[data-input]');
     var messages = root.querySelector('[data-messages]');
+    var privacyLink = root.querySelector('[data-privacy]');
     var sessionFeedbackPrompt = null;
     var conversationHasActivity = false;
+    var privacyReplyPending = false;
 
     window.addEventListener('talia:page-context-changed', refreshSuggestedQuestions);
     showSuggestedQuestions();
@@ -148,6 +152,37 @@
       toggle.focus();
     });
 
+    privacyLink.addEventListener('click', function (event) {
+      event.preventDefault();
+      if (privacyReplyPending) return;
+
+      openPanel();
+      removeSessionFeedbackPrompt();
+      removeSuggestedQuestions(messages);
+      appendMessage(messages, compliance.privacyQuestion, 'user');
+      appendMessage(messages, '...', 'assistant', true, undefined, undefined, undefined, fallbackLanguage);
+      conversationHasActivity = true;
+      privacyReplyPending = true;
+      var privacySessionId = sessionId;
+
+      setTimeout(function () {
+        if (privacySessionId !== sessionId) return;
+        removeTyping(messages);
+        appendMessage(
+          messages,
+          compliance.privacySummary + '\n\n' + compliance.privacyMore + ' ' + compliance.privacyUrl,
+          'assistant',
+          false,
+          undefined,
+          undefined,
+          sessionId,
+          fallbackLanguage
+        );
+        privacyReplyPending = false;
+        input.focus();
+      }, prefersReducedMotion ? 0 : 420);
+    });
+
     restart.addEventListener('click', function () {
       if (conversationHasActivity || hasConversationActivity(messages)) {
         showSessionFeedback();
@@ -160,6 +195,7 @@
       sessionId = createSessionId();
       localStorage.setItem(sessionKey, sessionId);
       conversationHasActivity = false;
+      privacyReplyPending = false;
       sessionFeedbackPrompt = null;
       suggestedQuestions = getVisibleSuggestedQuestions(config.suggestedQuestions, getCurrentPageUrl());
       resetMessages(messages, initialMessage);
@@ -347,7 +383,7 @@
 
   function sendMessage(text, messages, suggestedQuestion, fallbackLanguage) {
     var requestSessionId = sessionId;
-    appendMessage(messages, '...', 'assistant', true);
+    appendMessage(messages, '...', 'assistant', true, undefined, undefined, undefined, fallbackLanguage);
     fetch(baseUrl + '/api/chat/' + tenantId, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -385,9 +421,13 @@
     var item = document.createElement('div');
     item.className = 'message notranslate ' + role;
     item.setAttribute('translate', 'no');
+    if (role === 'assistant' && !typing) {
+      item.setAttribute('data-ai-generated', 'true');
+      item.setAttribute('data-ai-provider', 'talia');
+    }
     if (typing) item.setAttribute('data-typing', 'true');
     if (typing) {
-      item.setAttribute('aria-label', 'TALIA está escribiendo');
+      item.setAttribute('aria-label', getTypingLabel(feedbackLanguage));
       item.innerHTML = '<span class="typing-dots" aria-hidden="true"><span></span><span></span><span></span></span>';
     } else {
       appendMessageContent(item, text, actions, contentLanguage || feedbackLanguage);
@@ -513,22 +553,91 @@
 
   function getWidgetLanguage(value, fallbackLanguage) {
     if (typeof value !== 'string') return fallbackLanguage;
-    var language = value.trim().toLowerCase().split(/[-_]/)[0];
+    var normalized = value.trim().toLowerCase().replace('_', '-');
+    if (normalized === 'pt' || normalized.indexOf('pt-') === 0) return 'pt-BR';
+    var language = normalized.split('-')[0];
     return language === 'es' || language === 'ca' || language === 'en'
       ? language
       : fallbackLanguage;
   }
 
+  function getComplianceConfig(value, language) {
+    var localized;
+    if (language === 'ca') {
+      localized = {
+        aiLabel: 'Agent web',
+        disclosure: 'Estàs parlant amb un assistent d’IA. Pot cometre errors.',
+        privacyLabel: 'Privacitat',
+        privacyQuestion: 'Com tracteu les meves dades?',
+        privacySummary: 'Utilitzem els missatges que envies per respondre la teva consulta, supervisar la qualitat i protegir el servei. El contingut de la conversa es conserva durant 90 dies i es pot eliminar abans si ho sol·licites. No venem les teves dades.',
+        privacyMore: 'Pots consultar tots els detalls i com exercir els teus drets aquí:'
+      };
+    } else if (language === 'en') {
+      localized = {
+        aiLabel: 'Web agent',
+        disclosure: 'You are talking to an AI assistant. It can make mistakes.',
+        privacyLabel: 'Privacy',
+        privacyQuestion: 'How do you use my data?',
+        privacySummary: 'We use the messages you send to answer your question, monitor quality, and protect the service. Conversation content is retained for 90 days and can be deleted sooner if you request it. We do not sell your data.',
+        privacyMore: 'You can read the full details and learn how to exercise your rights here:'
+      };
+    } else if (language === 'pt-BR') {
+      localized = {
+        aiLabel: 'Agente web',
+        disclosure: 'Você está falando com um assistente de IA. Ele pode cometer erros.',
+        privacyLabel: 'Privacidade',
+        privacyQuestion: 'Como vocês tratam meus dados?',
+        privacySummary: 'Usamos as mensagens que você envia para responder à sua solicitação, supervisionar a qualidade e proteger o serviço. O conteúdo da conversa é mantido por 90 dias e pode ser excluído antes se você solicitar. Não vendemos seus dados.',
+        privacyMore: 'Você pode consultar todos os detalhes e saber como exercer seus direitos aqui:'
+      };
+    } else {
+      localized = {
+        aiLabel: 'Agente web',
+        disclosure: 'Estás hablando con un asistente de IA. Puede cometer errores.',
+        privacyLabel: 'Privacidad',
+        privacyQuestion: '¿Cómo tratáis mis datos?',
+        privacySummary: 'Usamos los mensajes que envías para responder a tu consulta, supervisar la calidad y proteger el servicio. El contenido de la conversación se conserva durante 90 días y puede eliminarse antes si lo solicitas. No vendemos tus datos.',
+        privacyMore: 'Puedes consultar todos los detalles y cómo ejercer tus derechos aquí:'
+      };
+    }
+    var source = value && typeof value === 'object' ? value : {};
+    var privacyUrl = 'https://talia.events/privacy';
+    try {
+      var candidate = new URL(source.privacyUrl || privacyUrl);
+      if (candidate.protocol === 'https:') privacyUrl = candidate.toString();
+    } catch {
+      // Keep the TALIA policy as the safe fallback.
+    }
+    return {
+      aiLabel: typeof source.aiLabel === 'string' ? source.aiLabel : localized.aiLabel,
+      disclosure: typeof source.disclosure === 'string' ? source.disclosure : localized.disclosure,
+      privacyLabel: typeof source.privacyLabel === 'string' ? source.privacyLabel : localized.privacyLabel,
+      privacyQuestion: typeof source.privacyQuestion === 'string' ? source.privacyQuestion : localized.privacyQuestion,
+      privacySummary: typeof source.privacySummary === 'string' ? source.privacySummary : localized.privacySummary,
+      privacyMore: typeof source.privacyMore === 'string' ? source.privacyMore : localized.privacyMore,
+      privacyUrl: privacyUrl
+    };
+  }
+
   function getSuggestedQuestionsLabel(language) {
     if (language === 'ca') return 'Preguntes suggerides';
     if (language === 'en') return 'Suggested questions';
+    if (language === 'pt-BR') return 'Perguntas sugeridas';
     return 'Preguntas sugeridas';
   }
 
   function getSuggestedQuestionsPrompt(language) {
     if (language === 'ca') return 'Pregunta’m sobre...';
     if (language === 'en') return 'Ask me about...';
+    if (language === 'pt-BR') return 'Pergunte sobre...';
     return 'Pregúntame sobre...';
+  }
+
+  function getTypingLabel(language) {
+    if (language === 'ca') return 'TALIA està escrivint';
+    if (language === 'en') return 'TALIA is typing';
+    if (language === 'pt-BR') return 'TALIA está digitando';
+    return 'TALIA está escribiendo';
   }
 
   function createFeedbackControls(messageId, feedbackSessionId, language) {
@@ -585,6 +694,16 @@
         negativeLabel: 'This answer was not helpful'
       };
     }
+    if (language === 'pt-BR') {
+      return {
+        groupLabel: 'Avaliar esta resposta',
+        prompt: 'Isso ajudou?',
+        positive: 'Sim',
+        positiveLabel: 'Esta resposta ajudou',
+        negative: 'Não',
+        negativeLabel: 'Esta resposta não ajudou'
+      };
+    }
     return {
       groupLabel: 'Valorar la respuesta',
       prompt: '¿Te ha ayudado?',
@@ -618,6 +737,18 @@
         commentsPlaceholder: 'Optional comment',
         submit: 'Submit and restart',
         skip: 'Restart without rating'
+      };
+    }
+    if (language === 'pt-BR') {
+      return {
+        groupLabel: 'Avaliação antes de reiniciar',
+        title: 'Começar uma nova conversa?',
+        description: 'Antes disso, diga se consegui resolver sua dúvida.',
+        positive: 'Sim, obrigado',
+        negative: 'Não totalmente',
+        commentsPlaceholder: 'Comentário opcional',
+        submit: 'Enviar e reiniciar',
+        skip: 'Reiniciar sem avaliar'
       };
     }
     return {
@@ -941,6 +1072,9 @@
     if (normalized === 'en') {
       return { locationLabel: 'Location', mapTitle: 'Map', openMaps: 'Open in Maps' };
     }
+    if (normalized === 'pt-BR') {
+      return { locationLabel: 'Localização', mapTitle: 'Mapa', openMaps: 'Abrir no Maps' };
+    }
     return { locationLabel: 'Ubicación', mapTitle: 'Mapa', openMaps: 'Abrir en Maps' };
   }
 
@@ -991,6 +1125,9 @@
     if (normalized === 'en') {
       return { purchaseLabel: 'Purchase', officialPurchase: 'Official link', buy: 'Buy' };
     }
+    if (normalized === 'pt-BR') {
+      return { purchaseLabel: 'Compra', officialPurchase: 'Link oficial', buy: 'Comprar' };
+    }
     return { purchaseLabel: 'Compra', officialPurchase: 'Enlace oficial', buy: 'Comprar' };
   }
 
@@ -1023,6 +1160,7 @@
     if (error === 'domain_not_allowed') {
       if (language === 'ca') return 'Aquest domini no està autoritzat per utilitzar aquest assistent de TALIA.';
       if (language === 'en') return 'This domain is not authorized to use this TALIA assistant.';
+      if (language === 'pt-BR') return 'Este domínio não está autorizado a usar este agente da TALIA.';
       return 'Este dominio no está autorizado para usar este asistente de TALIA.';
     }
     return getChatUnavailableMessage(language);
@@ -1031,6 +1169,7 @@
   function getChatUnavailableMessage(language) {
     if (language === 'ca') return 'Ara mateix no puc respondre. Si us plau, torna-ho a provar d’aquí a uns instants.';
     if (language === 'en') return 'I cannot respond right now. Please try again in a moment.';
+    if (language === 'pt-BR') return 'Não consigo responder agora. Tente novamente em instantes.';
     return 'Ahora mismo no puedo responder. Por favor, vuelve a intentarlo en unos instantes.';
   }
 
@@ -1460,7 +1599,7 @@
     notice.textContent = message;
   }
 
-  function getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, iconUrl) {
+  function getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, iconUrl, compliance, widgetCopy) {
     var togglePosition = getTogglePositionCss(position);
     var panelPosition = getPanelPositionCss(position);
     var toggleSize = getWidgetSizePixels(widgetSize);
@@ -1560,13 +1699,16 @@
         .header-mark .launcher-icon { display: block; object-fit: contain; }\
         .header-mark .launcher-icon--talia { width: 78%; height: 78%; }\
         .header-mark .launcher-icon--chat, .header-mark .launcher-icon--bubble, .header-mark .launcher-icon--bot { width: 54%; height: 54%; fill: none; stroke: currentColor; }\
+        .header-identity { min-width: 0; display: grid; gap: 2px; }\
         .header-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\
+        .header-ai-label { color: rgba(255,255,255,.76); font: 650 10px/1.1 "Space Grotesk", system-ui; letter-spacing: .04em; text-transform: uppercase; }\
         .header-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }\
         .header-button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 999px; padding: 0; background: transparent; color: white; cursor: pointer; line-height: 1; }\
         .header-button:hover { background: rgba(255,255,255,.14); }\
         .header-button:focus-visible, .feedback-button:focus-visible, .suggested-question:focus-visible, .session-feedback-choice:focus-visible, .session-feedback-button:focus-visible, .session-feedback textarea:focus-visible, .purchase-open-link:focus-visible, .powered a:focus-visible { outline: 2px solid ' + primaryColor + '; outline-offset: 2px; }\
         .header-button svg { display: block; width: 21px; height: 21px; fill: none; stroke: currentColor; }\
         .close { font-size: 22px; }\
+        .ai-disclosure { padding: 9px 16px; border-bottom: .5px solid rgba(26,26,46,.12); background: ' + messagesBackground + '; color: rgba(26,26,46,.62); font: 600 11px/1.35 "Space Grotesk", system-ui; }\
         .messages { position: relative; padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 11px; background: ' + messagesBackground + '; }\
         .message { max-width: 84%; border-radius: 13px; padding: 11px 13px; font: 15px/1.45 "Space Grotesk", system-ui; overflow-wrap: anywhere; white-space: pre-wrap; }\
         .message p { margin: 0; }\
@@ -1645,26 +1787,27 @@
         .input:focus { outline: none; border-color: ' + primaryColor + '; box-shadow: 0 0 0 2px color-mix(in srgb, ' + primaryColor + ' 22%, transparent); }\
         .input::placeholder { color: rgba(26,26,46,.48); }\
         .send { flex: 0 0 auto; height: 44px; border: 0; border-radius: 7px; padding: 0 14px; background: ' + primaryColor + '; color: white; font: 600 14px "Space Grotesk", system-ui; cursor: pointer; }\
-        .powered { padding: 0 13px 10px; background: ' + formBackground + '; ' + formFilter + ' color: rgba(26,26,46,.52); text-align: center; font: 600 11px/1.25 "Space Grotesk", system-ui; }\
+        .powered { padding: 0 13px 10px; background: ' + formBackground + '; ' + formFilter + ' color: rgba(26,26,46,.52); text-align: center; font: 600 10px/1.35 "Space Grotesk", system-ui; }\
         .powered a { color: inherit; text-decoration: none; }\
         .powered a:hover { color: ' + primaryColor + '; text-decoration: underline; }\
         @media (prefers-reduced-motion: reduce) { .panel, .welcome { transition: opacity 120ms ease; } .toggle { transition: none; } .typing-dots span { animation: none; opacity: .62; } }\
         ' + reducedTransparencyFallback + '\
       </style>\
-      <aside class="welcome notranslate" data-welcome translate="no" aria-hidden="true" aria-label="Saludo del asistente">\
+      <aside class="welcome notranslate" data-welcome translate="no" aria-hidden="true" aria-label="' + escapeHtml(widgetCopy.greetingLabel) + '">\
         <button class="welcome-action" data-welcome-action type="button">\
           <span class="welcome-brand"><span class="welcome-mark">' + launcherIconMarkup + '</span><strong class="welcome-name">' + escapeHtml(assistantName) + '</strong></span>\
           <span class="welcome-message">' + escapeHtml(proactiveMessage) + '</span>\
         </button>\
-        <button class="welcome-close" data-welcome-close type="button" aria-label="Cerrar">×</button>\
+        <button class="welcome-close" data-welcome-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button>\
       </aside>\
       <section class="panel notranslate" data-panel translate="no">\
-        <div class="header"><span class="header-brand"><span class="header-mark">' + launcherIconMarkup + '</span><span class="header-name">' + escapeHtml(assistantName) + '</span></span><div class="header-actions"><button class="header-button" data-restart type="button" aria-label="Volver a comenzar" title="Volver a comenzar">' + getRestartIcon() + '</button><button class="header-button close" data-close type="button" aria-label="Cerrar">×</button></div></div>\
-        <div class="messages notranslate" data-messages translate="no"><div class="message notranslate assistant" translate="no">' + escapeHtml(initialMessage) + '</div></div>\
-        <form class="form notranslate" data-form translate="no"><textarea class="input notranslate" data-input translate="no" rows="1" placeholder="Escribe tu mensaje..." autocomplete="off"></textarea><button class="send notranslate" translate="no" type="submit">Enviar</button></form>\
-        <div class="powered"><a href="https://talia.events" target="_blank" rel="noopener noreferrer">Powered by TALIA</a></div>\
+        <div class="header"><span class="header-brand"><span class="header-mark">' + launcherIconMarkup + '</span><span class="header-identity"><span class="header-name">' + escapeHtml(assistantName) + '</span><small class="header-ai-label">' + escapeHtml(compliance.aiLabel) + '</small></span></span><div class="header-actions"><button class="header-button" data-restart type="button" aria-label="' + escapeHtml(widgetCopy.restart) + '" title="' + escapeHtml(widgetCopy.restart) + '">' + getRestartIcon() + '</button><button class="header-button close" data-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button></div></div>\
+        <div class="ai-disclosure" id="talia-ai-disclosure">' + escapeHtml(compliance.disclosure) + '</div>\
+        <div class="messages notranslate" data-messages translate="no"><div class="message notranslate assistant" translate="no" data-ai-generated="true" data-ai-provider="talia">' + escapeHtml(initialMessage) + '</div></div>\
+        <form class="form notranslate" data-form translate="no"><textarea class="input notranslate" data-input translate="no" rows="1" placeholder="' + escapeHtml(widgetCopy.inputPlaceholder) + '" autocomplete="off" aria-describedby="talia-ai-disclosure talia-privacy-notice"></textarea><button class="send notranslate" translate="no" type="submit">' + escapeHtml(widgetCopy.send) + '</button></form>\
+        <div class="powered" id="talia-privacy-notice"><a data-privacy href="' + escapeHtml(compliance.privacyUrl) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(compliance.privacyLabel) + '</a><span aria-hidden="true"> · </span><a href="https://talia.events" target="_blank" rel="noopener noreferrer">Powered by TALIA</a></div>\
       </section>\
-      <button class="toggle" data-toggle aria-label="Abrir asistente virtual">\
+      <button class="toggle" data-toggle aria-label="' + escapeHtml(widgetCopy.openAssistant) + '">\
         ' + launcherIconMarkup + '\
       </button>';
   }
@@ -1719,8 +1862,56 @@
     return value === 'glass' ? 'glass' : 'solid';
   }
 
-  function getProactiveMessage(value, assistantName) {
+  function getWidgetChromeCopy(language) {
+    if (language === 'ca') {
+      return {
+        initialMessage: 'Hola, soc la TALIA. En què et puc ajudar?',
+        greetingLabel: 'Salutació de l’agent web',
+        close: 'Tancar',
+        restart: 'Tornar a començar',
+        inputPlaceholder: 'Escriu el teu missatge...',
+        send: 'Enviar',
+        openAssistant: 'Obrir agent web'
+      };
+    }
+    if (language === 'en') {
+      return {
+        initialMessage: 'Hi, I am TALIA. How can I help?',
+        greetingLabel: 'Web agent greeting',
+        close: 'Close',
+        restart: 'Start over',
+        inputPlaceholder: 'Type your message...',
+        send: 'Send',
+        openAssistant: 'Open web agent'
+      };
+    }
+    if (language === 'pt-BR') {
+      return {
+        initialMessage: 'Olá, sou a TALIA. Como posso ajudar?',
+        greetingLabel: 'Saudação do agente web',
+        close: 'Fechar',
+        restart: 'Começar novamente',
+        inputPlaceholder: 'Digite sua mensagem...',
+        send: 'Enviar',
+        openAssistant: 'Abrir agente web'
+      };
+    }
+    return {
+      initialMessage: 'Hola, soy TALIA. ¿En qué puedo ayudarte?',
+      greetingLabel: 'Saludo del agente web',
+      close: 'Cerrar',
+      restart: 'Volver a comenzar',
+      inputPlaceholder: 'Escribe tu mensaje...',
+      send: 'Enviar',
+      openAssistant: 'Abrir agente web'
+    };
+  }
+
+  function getProactiveMessage(value, assistantName, language) {
     if (typeof value === 'string' && value.trim()) return value.trim().slice(0, 160);
+    if (language === 'ca') return 'Soc ' + assistantName + ". T'ajudo?";
+    if (language === 'en') return "I'm " + assistantName + '. Can I help?';
+    if (language === 'pt-BR') return 'Sou a ' + assistantName + '. Posso ajudar?';
     return 'Soy ' + assistantName + '. ¿Te ayudo?';
   }
 

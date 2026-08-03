@@ -33,6 +33,8 @@ const questions: SuggestedQuestion[] = [
 describe('suggested questions', () => {
   it('normalizes locale variants and uses the tenant fallback for unsupported values', () => {
     expect(normalizeWidgetLanguage('ca-ES')).toBe('ca')
+    expect(normalizeWidgetLanguage('pt-BR')).toBe('pt-BR')
+    expect(normalizeWidgetLanguage('pt_BR')).toBe('pt-BR')
     expect(normalizeWidgetLanguage('fr-FR', 'en')).toBe('en')
   })
 

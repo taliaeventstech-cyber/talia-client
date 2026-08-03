@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildInternationalPhoneValue,
+  getDefaultPhoneCountry,
   normalizeInternationalPhoneValue,
   splitInternationalPhoneValue,
 } from './international'
@@ -31,5 +32,9 @@ describe('international phone helpers', () => {
     expect(normalizeInternationalPhoneValue('600')).toBeNull()
     expect(optionalInternationalPhoneSchema.safeParse('600').success).toBe(false)
     expect(optionalInternationalPhoneSchema.parse('')).toBe('')
+  })
+
+  it('uses Brazil as the default country for Brazilian Portuguese', () => {
+    expect(getDefaultPhoneCountry('pt-BR')).toBe('BR')
   })
 })

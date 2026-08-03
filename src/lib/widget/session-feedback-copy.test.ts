@@ -9,6 +9,7 @@ describe('session feedback copy', () => {
     ['es', '¿Empezamos de nuevo?', 'Sí, gracias', 'Reiniciar sin valorar'],
     ['ca', 'Tornem a començar?', 'Sí, gràcies', 'Reiniciar sense valorar'],
     ['en', 'Start a new conversation?', 'Yes, thanks', 'Restart without rating'],
+    ['pt-BR', 'Começar uma nova conversa?', 'Sim, obrigado', 'Reiniciar sem avaliar'],
   ])('uses the configured %s widget language', (language, title, positive, skip) => {
     expect(getSessionFeedbackCopy(language)).toMatchObject({ title, positive, skip })
   })

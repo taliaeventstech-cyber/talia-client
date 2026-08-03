@@ -185,9 +185,11 @@ export type Database = {
       accounts: {
         Row: {
           billing_email: string | null
+          billing_currency: string
           created_at: string
           id: string
           metadata: Json
+          market_country_code: string | null
           name: string
           plan: string
           slug: string
@@ -196,9 +198,11 @@ export type Database = {
         }
         Insert: {
           billing_email?: string | null
+          billing_currency?: string
           created_at?: string
           id?: string
           metadata?: Json
+          market_country_code?: string | null
           name: string
           plan?: string
           slug: string
@@ -207,9 +211,11 @@ export type Database = {
         }
         Update: {
           billing_email?: string | null
+          billing_currency?: string
           created_at?: string
           id?: string
           metadata?: Json
+          market_country_code?: string | null
           name?: string
           plan?: string
           slug?: string
@@ -1425,7 +1431,9 @@ export type Database = {
       tenant_subscriptions: {
         Row: {
           billing_period_end: string
+          billing_period_end_at: string
           billing_period_start: string
+          billing_period_start_at: string
           created_at: string
           hard_limit_behavior: string
           hard_limit_enabled: boolean
@@ -1444,7 +1452,9 @@ export type Database = {
         }
         Insert: {
           billing_period_end?: string
+          billing_period_end_at?: string
           billing_period_start?: string
+          billing_period_start_at?: string
           created_at?: string
           hard_limit_behavior?: string
           hard_limit_enabled?: boolean
@@ -1463,7 +1473,9 @@ export type Database = {
         }
         Update: {
           billing_period_end?: string
+          billing_period_end_at?: string
           billing_period_start?: string
+          billing_period_start_at?: string
           created_at?: string
           hard_limit_behavior?: string
           hard_limit_enabled?: boolean
@@ -1932,6 +1944,24 @@ export type Database = {
       }
     }
     Functions: {
+      apply_chat_message_top_up: {
+        Args: {
+          p_checkout_session_id: string
+          p_messages: number
+          p_subscription_id: string
+        }
+        Returns: boolean
+      }
+      anonymize_chatbot_usage_identifiers: {
+        Args: {
+          p_session_id: string
+          p_theatre_id: string
+        }
+        Returns: {
+          affected_rows: number
+          category: string
+        }[]
+      }
       consume_security_rate_limit: {
         Args: {
           p_key_hash: string
@@ -2032,6 +2062,26 @@ export type Database = {
           p_theatre_id: string
         }
         Returns: undefined
+      }
+      get_tenant_usage_totals: {
+        Args: {
+          p_period_end: string
+          p_period_start: string
+          p_theatre_id: string
+        }
+        Returns: {
+          ai_calls: number
+          conversations: number
+          estimated_cost_cents: number
+          fallbacks: number
+          input_tokens: number
+          limit_exceeded_events: number
+          messages: number
+          output_tokens: number
+          resolutions: number
+          tool_calls: number
+          voice_minutes: number
+        }[]
       }
       match_knowledge_chunks: {
         Args: {

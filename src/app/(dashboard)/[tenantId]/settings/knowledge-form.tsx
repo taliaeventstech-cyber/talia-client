@@ -542,6 +542,7 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
                     <option value="ca">Català</option>
                     <option value="es">Español</option>
                     <option value="en">English</option>
+                    <option value="pt-BR">Português (Brasil)</option>
                   </select>
                   <span className="field-hint">{labels.languageHint}</span>
                 </label>
@@ -1507,7 +1508,6 @@ function formatDate(value: string) {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-    timeZone: 'Europe/Madrid',
   }).format(date)
 }
 
@@ -1601,6 +1601,7 @@ function KnowledgeItemRow({ tenantId, item }: { tenantId: string; item: Knowledg
                     <option value="ca">Català</option>
                     <option value="es">Español</option>
                     <option value="en">English</option>
+                    <option value="pt-BR">Português (Brasil)</option>
                   </select>
                 </label>
 
@@ -1794,6 +1795,7 @@ function getLanguageLabel(language: string) {
     ca: 'Català',
     es: 'Español',
     en: 'English',
+    'pt-BR': 'Português (Brasil)',
   }
 
   return labels[language] ?? language

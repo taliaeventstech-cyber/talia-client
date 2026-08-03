@@ -18,6 +18,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { optionalInternationalPhoneSchema } from '@/lib/phone/schema'
+import { TENANT_LANGUAGES } from '@/lib/tenants/language'
 import { cancelStripeSubscription, retrieveStripeSubscription } from '@/lib/stripe/server'
 
 export type UpdateTenantState = {
@@ -27,6 +28,11 @@ export type UpdateTenantState = {
 
 export type AdminBillingCancellationState = {
   ok: boolean
+  message: string
+}
+
+export type DeleteAccountState = {
+  ok: false
   message: string
 }
 
@@ -61,7 +67,7 @@ const planDefaults = {
 const createTenantSchema = z.object({
   name: z.string().trim().min(2, 'El nombre debe tener al menos 2 caracteres.'),
   entityType: z.enum(['theatre', 'museum', 'cinema', 'auditorium', 'festival', 'cultural_center', 'other']),
-  primaryLanguage: z.enum(['ca', 'es', 'en']),
+  primaryLanguage: z.enum(TENANT_LANGUAGES),
   plan: z.enum(['essential', 'professional', 'enterprise']),
   websiteUrl: z.string().trim().url('La web debe ser una URL válida.').optional().or(z.literal('')),
   fallbackEmail: z.string().trim().email('El email de contacto no es válido.').optional().or(z.literal('')),
@@ -142,26 +148,84 @@ const updateTenantSchema = createTenantSchema.extend({
   emailClassificationRules: z.string().trim().max(2000, 'Las reglas de clasificación son demasiado largas.').optional(),
 })
 
-export async function deleteAccountAction(formData: FormData) {
-  await requirePlatformAdmin()
+export async function deleteAccountAction(
+  _previousState: DeleteAccountState,
+  formData: FormData,
+): Promise<DeleteAccountState> {
+  const platformAccess = await requirePlatformAdmin()
 
   const parsed = deleteAccountSchema.safeParse({
     accountId: formData.get('account_id'),
   })
 
   if (!parsed.success) {
-    throw new Error('Account no válido.')
+    return { ok: false, message: 'Account no válido.' }
   }
 
   const admin = createAdminClient()
+  const { data: account, error: accountError } = await admin
+    .from('accounts')
+    .select('id, name, metadata')
+    .eq('id', parsed.data.accountId)
+    .maybeSingle()
+
+  if (accountError) {
+    return { ok: false, message: `No se pudo comprobar la cuenta: ${accountError.message}` }
+  }
+  if (!account) {
+    return { ok: false, message: 'La cuenta ya no existe.' }
+  }
+
+  const metadata = asJsonObject(account.metadata)
+  const subscriptionId = typeof metadata.stripe_subscription_id === 'string'
+    ? metadata.stripe_subscription_id
+    : null
+  if (subscriptionId) {
+    try {
+      const subscription = await retrieveStripeSubscription(subscriptionId)
+      if (subscription.status !== 'canceled') {
+        return {
+          ok: false,
+          message: 'Cancela inmediatamente la suscripción de Stripe antes de eliminar la cuenta.',
+        }
+      }
+    } catch {
+      return {
+        ok: false,
+        message: 'No se pudo verificar la suscripción de Stripe. No se ha eliminado la cuenta.',
+      }
+    }
+  }
+
+  const { error: auditError } = await admin.from('audit_events').insert({
+    account_id: account.id,
+    actor_user_id: platformAccess.user.id,
+    action: 'account.deletion_requested',
+    target_type: 'account',
+    target_id: account.id,
+    metadata: { account_name: account.name },
+  })
+  if (auditError) {
+    return { ok: false, message: `No se pudo registrar la eliminación: ${auditError.message}` }
+  }
+
   const { error } = await admin
     .from('accounts')
     .delete()
     .eq('id', parsed.data.accountId)
 
   if (error) {
-    throw new Error(`No se pudo eliminar la cuenta: ${error.message}`)
+    return { ok: false, message: `No se pudo eliminar la cuenta: ${error.message}` }
   }
+
+  await admin.from('audit_events').insert({
+    account_id: null,
+    actor_user_id: platformAccess.user.id,
+    action: 'account.deleted',
+    target_type: 'account',
+    target_id: account.id,
+    metadata: { account_name: account.name },
+  })
 
   revalidatePath('/backstage')
   redirect('/backstage')

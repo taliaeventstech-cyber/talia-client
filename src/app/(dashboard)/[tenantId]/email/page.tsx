@@ -3,6 +3,8 @@ import { getDictionary, getLocale, type Dictionary } from '@/lib/i18n/dictionari
 import { createAdminClient } from '@/lib/supabase/admin'
 import { QueryToastNotice } from '@/components/ui/query-toast-notice'
 import { SelectAllCheckbox } from '@/components/ui/select-all-checkbox'
+import { LocalDateTime } from '@/components/local-date-time'
+import { getIntlLocale } from '@/lib/i18n/config'
 import { ChevronLeft, ChevronRight, PencilLine } from 'lucide-react'
 import Link from 'next/link'
 import { Suspense } from 'react'
@@ -203,7 +205,10 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
               <div>
                 <strong>{activeMailbox}</strong>
                 <p>
-                  {formatProvider(copy, activeProvider)} · {formatDraftMode(copy, connection?.draft_mode)} · {formatSync(copy, locale, connection?.sync_mode, connection?.last_synced_at)}
+                  {formatProvider(copy, activeProvider)} · {formatDraftMode(copy, connection?.draft_mode)} · {formatSync(copy, connection?.sync_mode)}
+                  {connection?.last_synced_at
+                    ? <> · <LocalDateTime value={connection.last_synced_at} locale={getIntlLocale(locale)} /></>
+                    : null}
                 </p>
               </div>
             </div>
@@ -430,7 +435,7 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
                               </span>
                             </span>
                             <span className="email-draft-summary-aside">
-                              <span>{formatDateTime(draft.updated_at ?? draft.created_at)}</span>
+                              <LocalDateTime value={draft.updated_at ?? draft.created_at} locale={getIntlLocale(locale)} />
                               <span className="email-draft-toggle-text">
                                 <span className="email-draft-toggle-open">{copy.drafts.expand}</span>
                                 <span className="email-draft-toggle-close">{copy.drafts.collapse}</span>
@@ -724,10 +729,8 @@ function formatDraftMode(copy: EmailCopy, mode?: string) {
   return copy.draftMode.pending
 }
 
-function formatSync(copy: EmailCopy, locale: string, mode?: string, lastSyncedAt?: string | null) {
-  const label = mode === 'webhook' ? copy.syncMode.webhook : mode === 'manual' ? copy.syncMode.manual : copy.syncMode.polling
-  if (!lastSyncedAt) return label
-  return `${label} · ${new Date(lastSyncedAt).toLocaleString(locale === 'ca' ? 'ca-ES' : 'es-ES')}`
+function formatSync(copy: EmailCopy, mode?: string) {
+  return mode === 'webhook' ? copy.syncMode.webhook : mode === 'manual' ? copy.syncMode.manual : copy.syncMode.polling
 }
 
 function getProviderConnectUrl(tenantId: string, provider?: string) {
@@ -828,16 +831,6 @@ function formatCustomTopic(topic: string) {
     .replace(/\s+/g, ' ')
     .trim()
     .replace(/\b\p{L}/gu, (letter) => letter.toUpperCase())
-}
-
-function formatDateTime(value: string | null) {
-  if (!value) return ''
-  return new Date(value).toLocaleString('es-ES', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 function getRecord(value: unknown) {

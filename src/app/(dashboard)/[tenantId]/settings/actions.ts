@@ -18,6 +18,7 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { optionalInternationalPhoneSchema } from '@/lib/phone/schema'
 import { getTenantContentHosts } from '@/lib/widget/domain-allowlist'
+import { normalizePrivacyUrl } from '@/lib/widget/compliance'
 import {
   getNextKnowledgeSyncAt,
   isKnowledgeRefreshInterval,
@@ -45,6 +46,14 @@ export type SettingsFormState = {
 const settingsSchema = z.object({
   widgetEnabled: z.boolean(),
   initialMessage: z.string().trim().min(1, 'El mensaje inicial es obligatorio').max(300),
+  privacyUrl: z.string().trim().max(2048).refine((value) => {
+    if (!value) return true
+    try {
+      return new URL(value).protocol === 'https:'
+    } catch {
+      return false
+    }
+  }, 'La URL de privacidad debe ser una URL https válida.'),
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'El color debe estar en formato hexadecimal'),
   position: z.enum(['bottom-right', 'bottom-left', 'top-right', 'top-left']),
   widgetSize: z.enum(['small', 'medium', 'large']),
@@ -71,7 +80,7 @@ const knowledgeItemSchema = z.object({
   question: z.string().trim().min(4, 'La pregunta debe tener al menos 4 caracteres').max(500),
   answer: z.string().trim().min(4, 'La respuesta debe tener al menos 4 caracteres').max(4000),
   category: z.string().trim().max(80).optional(),
-  language: z.enum(['es', 'ca', 'en']),
+  language: z.enum(['es', 'ca', 'en', 'pt-BR']),
   priority: z.coerce.number().int().min(0).max(100),
 })
 
@@ -159,6 +168,7 @@ export async function updateTenantSettings(
   const parsed = settingsSchema.safeParse({
     widgetEnabled: formData.get('widget_enabled') === 'on',
     initialMessage: formData.get('initial_message'),
+    privacyUrl: String(formData.get('privacy_url') ?? '').trim(),
     primaryColor: formData.get('primary_color'),
     position: formData.get('position') || 'bottom-right',
     widgetSize: formData.get('widget_size') || 'medium',
@@ -197,6 +207,7 @@ export async function updateTenantSettings(
       enabled: data.widgetEnabled,
       assistantName: 'TALIA',
       initialMessage: data.initialMessage,
+      privacyUrl: normalizePrivacyUrl(data.privacyUrl),
       primaryColor: data.primaryColor,
       position: data.position,
       widgetSize: data.widgetSize,

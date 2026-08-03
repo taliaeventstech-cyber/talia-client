@@ -9,7 +9,9 @@ import {
   type ConversationReviewSummary,
 } from '@/lib/chat/supervised-learning'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
+import { getIntlLocale } from '@/lib/i18n/config'
 import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
+import { LocalDateTime } from '@/components/local-date-time'
 import { ChevronLeft, ChevronRight, Eye } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
@@ -133,6 +135,11 @@ export default async function ConversationsPage({ params, searchParams }: Props)
         <p className="muted">{dictionary.conversations.count(totalConversations)}</p>
       </header>
 
+      <aside className="conversation-retention-notice">
+        <strong>{dictionary.conversations.retention.title}</strong>
+        <p>{dictionary.conversations.retention.description}</p>
+      </aside>
+
       <ResponseAccuracySummary
         copy={dictionary.analytics.feedback}
         metrics={feedbackMetrics}
@@ -162,7 +169,10 @@ export default async function ConversationsPage({ params, searchParams }: Props)
                   {truncate(latestMessageByConversation.get(conversation.id) ?? '-', 120)}
                 </td>
                 <td>
-                  {new Date(conversation.last_message_at ?? conversation.started_at).toLocaleString(getDateLocale(locale))}
+                  <LocalDateTime
+                    value={conversation.last_message_at ?? conversation.started_at}
+                    locale={getIntlLocale(locale)}
+                  />
                 </td>
                 <td>{conversation.message_count}</td>
                 <td>
@@ -183,7 +193,12 @@ export default async function ConversationsPage({ params, searchParams }: Props)
                     <Eye aria-hidden="true" size={14} strokeWidth={2} />
                   </Link>
                   {access.role === 'owner' || access.role === 'admin' ? (
-                    <DeleteConversationButton tenantId={tenantId} conversationId={conversation.id} variant="icon" />
+                    <DeleteConversationButton
+                      tenantId={tenantId}
+                      conversationId={conversation.id}
+                      variant="icon"
+                      copy={dictionary.conversations.deletion}
+                    />
                   ) : null}
                 </td>
               </tr>
@@ -419,11 +434,6 @@ function getFirstSearchParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
 }
 
-function getDateLocale(locale: string) {
-  if (locale === 'ca') return 'ca-ES'
-  if (locale === 'en') return 'en-GB'
-  return 'es-ES'
-}
 
 function chunkValues<T>(values: T[], size: number) {
   const chunks: T[][] = []
