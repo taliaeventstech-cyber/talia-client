@@ -185,9 +185,11 @@ export type Database = {
       accounts: {
         Row: {
           billing_email: string | null
+          billing_currency: string
           created_at: string
           id: string
           metadata: Json
+          market_country_code: string | null
           name: string
           plan: string
           slug: string
@@ -196,9 +198,11 @@ export type Database = {
         }
         Insert: {
           billing_email?: string | null
+          billing_currency?: string
           created_at?: string
           id?: string
           metadata?: Json
+          market_country_code?: string | null
           name: string
           plan?: string
           slug: string
@@ -207,9 +211,11 @@ export type Database = {
         }
         Update: {
           billing_email?: string | null
+          billing_currency?: string
           created_at?: string
           id?: string
           metadata?: Json
+          market_country_code?: string | null
           name?: string
           plan?: string
           slug?: string
@@ -1938,6 +1944,14 @@ export type Database = {
       }
     }
     Functions: {
+      apply_chat_message_top_up: {
+        Args: {
+          p_checkout_session_id: string
+          p_messages: number
+          p_subscription_id: string
+        }
+        Returns: boolean
+      }
       anonymize_chatbot_usage_identifiers: {
         Args: {
           p_session_id: string

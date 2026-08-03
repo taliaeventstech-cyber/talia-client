@@ -108,7 +108,11 @@ export default async function OverviewPage({ params }: Props) {
 
   const subscription = subscriptionResult.ok ? subscriptionResult.subscription : null
   const usageHistoryResult = await getTenantUsageHistory(admin, tenantId)
+  if (!usageHistoryResult.ok) {
+    console.error('[usage-history]', { tenantId, error: usageHistoryResult.error })
+  }
   const usageHistory = usageHistoryResult.ok ? usageHistoryResult.history : []
+  const usageHistoryFailed = !usageHistoryResult.ok
   const currentUsage = usageHistory.find((entry) => entry.subscriptionId === subscription?.id)
     ?? usageHistory.find((entry) => entry.isCurrent)
   const chatLimit = subscription?.included_chat_conversations ?? 0
@@ -228,7 +232,7 @@ export default async function OverviewPage({ params }: Props) {
         </div>
       </header>
 
-      <UsageHistory history={usageHistory} locale={locale} copy={copy.usageHistory} />
+      <UsageHistory history={usageHistory} failed={usageHistoryFailed} locale={locale} copy={copy.usageHistory} />
 
       <section className="card stack">
         <div className="section-title-row">
@@ -480,10 +484,12 @@ function SummaryMetric({ label, value }: { label: string; value: number | string
 
 function UsageHistory({
   history,
+  failed,
   locale,
   copy,
 }: {
   history: TenantUsageHistoryEntry[]
+  failed: boolean
   locale: Locale
   copy: {
     section: string
@@ -496,6 +502,7 @@ function UsageHistory({
     messages: string
     current: string
     empty: string
+    error: string
   }
 }) {
   return (
@@ -505,7 +512,9 @@ function UsageHistory({
         <h2>{copy.title}</h2>
         <p className="muted">{copy.description}</p>
       </div>
-      {history.length === 0 ? (
+      {failed ? (
+        <p className="notice notice-error" role="alert">{copy.error}</p>
+      ) : history.length === 0 ? (
         <p className="muted">{copy.empty}</p>
       ) : (
         <div className="table-scroll usage-history-table-wrap">

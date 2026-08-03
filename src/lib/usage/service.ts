@@ -1,5 +1,6 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
 import type { Json, Tables } from '@/types/database.types'
+import { getBillingPlan } from '@/lib/billing/plans'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -173,7 +174,7 @@ export async function getActiveSubscription(admin: AdminClient, tenantId: string
 
   const { data: tenant, error: tenantError } = await admin
     .from('theatres')
-    .select('plan')
+    .select('plan, accounts(status, metadata)')
     .eq('id', tenantId)
     .maybeSingle()
 
@@ -183,7 +184,13 @@ export async function getActiveSubscription(admin: AdminClient, tenantId: string
 
   const plan = normalizePlan(tenant?.plan)
   const defaults = planDefaults[plan]
-  const period = getCurrentBillingPeriod(referenceDate)
+  const account = Array.isArray(tenant?.accounts) ? tenant.accounts[0] : tenant?.accounts
+  const accountMetadata = isPlainObject(account?.metadata) ? account.metadata : {}
+  const annualPeriod = account?.status === 'active' && accountMetadata.billing_cadence === 'yearly'
+    ? getAnnualUsagePeriod(accountMetadata, referenceDate)
+    : null
+  const period = annualPeriod ?? getCurrentBillingPeriod(referenceDate)
+  const commercialPlan = getBillingPlan(typeof accountMetadata.commercial_plan === 'string' ? accountMetadata.commercial_plan : null)
   const { data: created, error: createError } = await admin
     .from('tenant_subscriptions')
     .insert({
@@ -193,14 +200,21 @@ export async function getActiveSubscription(admin: AdminClient, tenantId: string
       billing_period_end: period.endDate,
       billing_period_start_at: period.startAt,
       billing_period_end_at: period.endAt,
-      included_chat_conversations: defaults.includedChatConversations,
-      included_email_conversations: defaults.includedEmailConversations,
+      included_chat_conversations: commercialPlan?.includedChatConversations ?? defaults.includedChatConversations,
+      included_email_conversations: commercialPlan?.includedEmailConversations ?? defaults.includedEmailConversations,
       included_voice_minutes: defaults.includedVoiceMinutes,
       overage_price_chat_cents: defaults.overagePriceChatCents,
       overage_price_email_cents: defaults.overagePriceEmailCents,
       overage_price_voice_minute_cents: defaults.overagePriceVoiceMinuteCents,
       hard_limit_enabled: true,
       hard_limit_behavior: 'fallback',
+      metadata: annualPeriod ? {
+        billing_cadence: 'yearly',
+        stripe_subscription_id: accountMetadata.stripe_subscription_id ?? null,
+        stripe_current_period_start: accountMetadata.stripe_current_period_start ?? null,
+        stripe_current_period_end: accountMetadata.stripe_current_period_end ?? null,
+        plan_key: commercialPlan?.key ?? null,
+      } : {},
     })
     .select('*')
     .single()
@@ -210,6 +224,39 @@ export async function getActiveSubscription(admin: AdminClient, tenantId: string
   }
 
   return { ok: true as const, subscription: created }
+}
+
+function getAnnualUsagePeriod(metadata: Record<string, Json | undefined>, referenceDate: Date): BillingPeriod | null {
+  const startSeconds = typeof metadata.stripe_current_period_start === 'number' ? metadata.stripe_current_period_start : null
+  const endSeconds = typeof metadata.stripe_current_period_end === 'number' ? metadata.stripe_current_period_end : null
+  if (!startSeconds || !endSeconds) return null
+  const subscriptionStart = new Date(startSeconds * 1000)
+  const subscriptionEnd = new Date(endSeconds * 1000)
+  if (referenceDate < subscriptionStart || referenceDate >= subscriptionEnd) return null
+
+  let monthIndex = (
+    (referenceDate.getUTCFullYear() - subscriptionStart.getUTCFullYear()) * 12
+    + referenceDate.getUTCMonth() - subscriptionStart.getUTCMonth()
+  )
+  let start = addUtcMonthsClamped(subscriptionStart, monthIndex)
+  if (start > referenceDate) {
+    monthIndex -= 1
+    start = addUtcMonthsClamped(subscriptionStart, monthIndex)
+  }
+  const end = new Date(Math.min(addUtcMonthsClamped(subscriptionStart, monthIndex + 1).getTime(), subscriptionEnd.getTime()))
+  return { startDate: toDateString(start), endDate: toDateString(end), startAt: start.toISOString(), endAt: end.toISOString() }
+}
+
+function addUtcMonthsClamped(date: Date, months: number) {
+  const absoluteMonth = date.getUTCMonth() + months
+  const targetYear = date.getUTCFullYear() + Math.floor(absoluteMonth / 12)
+  const targetMonth = ((absoluteMonth % 12) + 12) % 12
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate()
+  return new Date(Date.UTC(targetYear, targetMonth, Math.min(date.getUTCDate(), lastDay), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds(), date.getUTCMilliseconds()))
+}
+
+function isPlainObject(value: unknown): value is Record<string, Json | undefined> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
 /**

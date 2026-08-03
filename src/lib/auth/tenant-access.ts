@@ -5,6 +5,7 @@ import { canManageAccountBilling } from '@/lib/billing/permissions'
 import { isChatbotSetupCompleted } from '@/lib/chatbot/setup-status'
 import { recordPlatformSupportAccess } from '@/lib/platform/support-access'
 import type { Json } from '@/types/database.types'
+import type { CommercialCurrency, CommercialMarketCountry } from '@/lib/billing/market'
 import { redirect } from 'next/navigation'
 import {
   getGlobalRole,
@@ -30,6 +31,8 @@ export type TenantAccess = {
   accountStatus?: string
   accountCreatedAt?: string | null
   accountMetadata?: Json | null
+  accountMarketCountry?: CommercialMarketCountry | null
+  accountBillingCurrency?: CommercialCurrency
   accountRole?: AccountRole | null
   globalRole: GlobalRole
   billingAccess: BillingAccess
@@ -60,7 +63,7 @@ export async function getTenantAccess(tenantId: string): Promise<TenantAccess> {
       .maybeSingle(),
     admin
       .from('theatres')
-      .select('account_id, system_prompt, widget_config, accounts(status, created_at, metadata)')
+      .select('account_id, system_prompt, widget_config, accounts(status, created_at, metadata, market_country_code, billing_currency)')
       .eq('id', tenantId)
       .maybeSingle(),
   ])
@@ -102,6 +105,9 @@ export async function getTenantAccess(tenantId: string): Promise<TenantAccess> {
   const accountStatus = getAccountStatus(tenantAccount)
   const accountCreatedAt = getAccountCreatedAt(tenantAccount)
   const accountMetadata = getAccountMetadata(tenantAccount)
+  const account = getAccount(tenantAccount)
+  const accountMarketCountry = normalizeMarketCountry(account?.market_country_code)
+  const accountBillingCurrency = normalizeCurrency(account?.billing_currency)
 
   if (source === 'platform') {
     await recordPlatformSupportAccess(admin, {
@@ -122,6 +128,8 @@ export async function getTenantAccess(tenantId: string): Promise<TenantAccess> {
     accountStatus,
     accountCreatedAt,
     accountMetadata,
+    accountMarketCountry,
+    accountBillingCurrency,
     accountRole,
     globalRole: getGlobalRole(platformAdmin?.role),
     billingAccess: getBillingAccess({
@@ -135,6 +143,14 @@ export async function getTenantAccess(tenantId: string): Promise<TenantAccess> {
     }),
     platformRole: platformAdmin?.role,
   } as TenantAccess
+}
+
+function normalizeMarketCountry(value: unknown): CommercialMarketCountry | null {
+  return value === 'ES' || value === 'MX' || value === 'BR' ? value : null
+}
+
+function normalizeCurrency(value: unknown): CommercialCurrency {
+  return value === 'MXN' || value === 'BRL' ? value : 'EUR'
 }
 
 export async function requireTenantBillingAccess(tenantId: string) {

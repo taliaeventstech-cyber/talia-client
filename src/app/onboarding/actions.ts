@@ -8,6 +8,8 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { optionalInternationalPhoneSchema } from '@/lib/phone/schema'
 import { TENANT_LANGUAGES } from '@/lib/tenants/language'
+import { COMMERCIAL_MARKET_COUNTRIES, getDefaultInterfaceLocaleForMarket } from '@/lib/billing/market'
+import { setLocaleAction } from '@/components/language-toggle/actions'
 
 export type OnboardingFormState = {
   ok: boolean
@@ -23,6 +25,7 @@ const onboardingSchema = z.object({
   theatreName: z.string().trim().min(2, 'El nombre de la entidad es obligatorio').max(120),
   websiteUrl: z.string().trim().url('La web debe ser una URL válida').optional().or(z.literal('')),
   primaryLanguage: z.enum(TENANT_LANGUAGES),
+  marketCountry: z.enum(COMMERCIAL_MARKET_COUNTRIES),
   fallbackEmail: z.string().trim().email('El email de contacto no es válido').optional().or(z.literal('')),
   fallbackPhone: optionalInternationalPhoneSchema,
   onboardingGoals: z.array(z.enum(['faqs', 'agenda', 'tickets', 'hours', 'location', 'accessibility', 'prices'])).min(1).max(3),
@@ -57,6 +60,7 @@ export async function createTenant(
     theatreName: formData.get('theatre_name'),
     websiteUrl: normalizeUrl(String(formData.get('website_url') ?? '')),
     primaryLanguage: formData.get('primary_language') || 'es',
+    marketCountry: formData.get('market_country'),
     fallbackEmail: String(formData.get('fallback_email') ?? '').trim(),
     fallbackPhone: String(formData.get('fallback_phone') ?? '').trim(),
     onboardingGoals: formData.getAll('onboarding_goals'),
@@ -79,6 +83,7 @@ export async function createTenant(
     theatreName: parsed.data.theatreName,
     websiteUrl: parsed.data.websiteUrl || undefined,
     primaryLanguage: parsed.data.primaryLanguage,
+    marketCountry: parsed.data.marketCountry,
     fallbackEmail: parsed.data.fallbackEmail || undefined,
     fallbackPhone: parsed.data.fallbackPhone || undefined,
     onboardingGoals: parsed.data.onboardingGoals,
@@ -88,5 +93,6 @@ export async function createTenant(
     return { ok: false, message: `No se pudo crear el teatro: ${created.error}` }
   }
 
+  await setLocaleAction(getDefaultInterfaceLocaleForMarket(parsed.data.marketCountry))
   redirect(`/${created.tenantId}/chatbot/setup`)
 }

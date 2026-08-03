@@ -4,7 +4,9 @@ import {
   getBillingAddonByPriceId,
   getBillingPlan,
   getBillingPlanByPriceId,
+  getBillingCadenceByPriceId,
   getDefaultUpgradePlan,
+  type BillingCadence,
   type BillingAddon,
   type BillingPlan,
 } from '@/lib/billing/plans'
@@ -31,7 +33,9 @@ export async function activateBilling(admin: AdminClient, input: BillingActivati
   const plan = getSubscriptionPlan(input.subscription)
   const addons = getSubscriptionAddons(input.subscription)
   const oneTimeAddons = getCheckoutOneTimeAddons(input.checkoutAddonKeys)
-  const period = getSubscriptionPeriod(input.subscription)
+  const cadence = getSubscriptionCadence(input.subscription)
+  const period = getSubscriptionUsagePeriod(input.subscription)
+  const initialTopUp = oneTimeAddons.some((addon) => addon.key === 'plus_2000_messages') ? 2000 : 0
 
   await updateAccountBilling(admin, input.accountId, {
     status: stripeStatusToAccountStatus(subscriptionStatus),
@@ -46,6 +50,8 @@ export async function activateBilling(admin: AdminClient, input: BillingActivati
     cancelAtPeriodEnd: input.subscription?.cancel_at_period_end === true,
     cancelAt: input.subscription?.cancel_at ?? null,
     currentPeriodEnd: input.subscription?.current_period_end ?? null,
+    currentPeriodStart: input.subscription?.current_period_start ?? null,
+    billingCadence: cadence,
     purchasedOneTimeAddonKeys: oneTimeAddons.map((addon) => addon.key),
   })
 
@@ -74,7 +80,7 @@ export async function activateBilling(admin: AdminClient, input: BillingActivati
       billing_period_end: period.endDate,
       billing_period_start_at: period.startAt,
       billing_period_end_at: period.endAt,
-      included_chat_conversations: getIncludedChatConversations(plan, addons),
+      included_chat_conversations: getIncludedChatConversations(plan, addons) + initialTopUp,
       included_email_conversations: plan.includedEmailConversations,
       included_voice_minutes: 0,
       overage_price_chat_cents: 10,
@@ -93,6 +99,8 @@ export async function activateBilling(admin: AdminClient, input: BillingActivati
         plan_key: plan.key,
         active_addons: addons.map((addon) => addon.key),
         purchased_one_time_addons: oneTimeAddons.map((addon) => addon.key),
+        billing_cadence: cadence,
+        message_top_up_checkout_sessions: initialTopUp && input.checkoutSessionId ? [input.checkoutSessionId] : [],
       },
     }, { onConflict: 'theatre_id,billing_period_start_at' })
 
@@ -109,7 +117,17 @@ export async function syncSubscriptionStatus(admin: AdminClient, subscription: S
 
   const plan = getSubscriptionPlan(subscription)
   const addons = getSubscriptionAddons(subscription)
-  const period = getSubscriptionPeriod(subscription)
+  const cadence = getSubscriptionCadence(subscription)
+  const period = getSubscriptionUsagePeriod(subscription)
+  const baseIncludedChat = getIncludedChatConversations(plan, addons)
+  const { data: existingUsagePeriod } = await admin
+    .from('tenant_subscriptions')
+    .select('included_chat_conversations, metadata')
+    .eq('theatre_id', tenantId)
+    .eq('billing_period_start_at', period.startAt)
+    .maybeSingle()
+  const existingUsageMetadata = isPlainObject(existingUsagePeriod?.metadata) ? existingUsagePeriod.metadata : {}
+  const preservedTopUp = Math.max(0, (existingUsagePeriod?.included_chat_conversations ?? baseIncludedChat) - baseIncludedChat)
   await updateAccountBilling(admin, accountId, {
     status: stripeStatusToAccountStatus(subscription.status),
     plan: 'essential',
@@ -121,6 +139,8 @@ export async function syncSubscriptionStatus(admin: AdminClient, subscription: S
     cancelAtPeriodEnd: subscription.cancel_at_period_end === true,
     cancelAt: subscription.cancel_at ?? null,
     currentPeriodEnd: subscription.current_period_end ?? null,
+    currentPeriodStart: subscription.current_period_start ?? null,
+    billingCadence: cadence,
   })
 
   await admin
@@ -133,10 +153,11 @@ export async function syncSubscriptionStatus(admin: AdminClient, subscription: S
       billing_period_end: period.endDate,
       billing_period_start_at: period.startAt,
       billing_period_end_at: period.endAt,
-      included_chat_conversations: getIncludedChatConversations(plan, addons),
+      included_chat_conversations: baseIncludedChat + preservedTopUp,
       included_email_conversations: plan.includedEmailConversations,
       included_voice_minutes: 0,
       metadata: {
+        ...existingUsageMetadata,
         stripe_customer_id: subscription.customer,
         stripe_subscription_id: subscription.id,
         stripe_subscription_status: subscription.status,
@@ -147,6 +168,7 @@ export async function syncSubscriptionStatus(admin: AdminClient, subscription: S
         stripe_price_id: subscription.items?.data?.[0]?.price?.id ?? null,
         plan_key: plan.key,
         active_addons: addons.map((addon) => addon.key),
+        billing_cadence: cadence,
       },
     }, { onConflict: 'theatre_id,billing_period_start_at' })
 
@@ -212,6 +234,36 @@ export function checkoutSessionToActivationInput(
   }
 }
 
+export async function applyOneTimeAddonPurchase(admin: AdminClient, session: StripeCheckoutSession) {
+  if (session.payment_status !== 'paid' && session.payment_status !== 'no_payment_required') return
+  const tenantId = session.metadata?.tenant_id
+  const accountId = session.metadata?.account_id
+  const addonKeys = parseAddonKeys(session.metadata?.addon_keys)
+  if (!tenantId || !accountId || !addonKeys.length) return
+
+  if (addonKeys.includes('plus_2000_messages')) {
+    const { getActiveSubscription } = await import('@/lib/usage/service')
+    const active = await getActiveSubscription(admin, tenantId)
+    if (!active.ok) throw new Error(active.error)
+    const { error } = await admin.rpc('apply_chat_message_top_up', {
+      p_subscription_id: active.subscription.id,
+      p_checkout_session_id: session.id,
+      p_messages: 2000,
+    })
+    if (error) throw new Error(error.message)
+  }
+
+  const { data: account } = await admin.from('accounts').select('metadata').eq('id', accountId).maybeSingle()
+  const metadata = isPlainObject(account?.metadata) ? account.metadata : {}
+  await admin.from('accounts').update({
+    metadata: {
+      ...metadata,
+      purchased_one_time_addons: mergeStringLists(metadata.purchased_one_time_addons, addonKeys),
+      one_time_checkout_sessions: mergeStringLists(metadata.one_time_checkout_sessions, [session.id]),
+    },
+  }).eq('id', accountId)
+}
+
 async function updateAccountBilling(
   admin: AdminClient,
   accountId: string,
@@ -228,6 +280,8 @@ async function updateAccountBilling(
     cancelAtPeriodEnd?: boolean
     cancelAt?: number | null
     currentPeriodEnd?: number | null
+    currentPeriodStart?: number | null
+    billingCadence?: BillingCadence
     purchasedOneTimeAddonKeys?: string[]
   },
 ) {
@@ -256,7 +310,11 @@ async function updateAccountBilling(
         stripe_current_period_end: input.currentPeriodEnd === undefined
           ? metadata.stripe_current_period_end ?? null
           : input.currentPeriodEnd,
+        stripe_current_period_start: input.currentPeriodStart === undefined
+          ? metadata.stripe_current_period_start ?? null
+          : input.currentPeriodStart,
         commercial_plan: input.commercialPlan ?? metadata.commercial_plan ?? null,
+        billing_cadence: input.billingCadence ?? metadata.billing_cadence ?? 'monthly',
         purchased_one_time_addons: mergeStringLists(
           metadata.purchased_one_time_addons,
           input.purchasedOneTimeAddonKeys,
@@ -340,6 +398,60 @@ export function getSubscriptionPeriod(subscription?: StripeSubscription | null) 
     startAt: start.toISOString(),
     endAt: end.toISOString(),
   }
+}
+
+export function getSubscriptionUsagePeriod(subscription?: StripeSubscription | null, referenceDate = new Date()) {
+  const stripePeriod = getSubscriptionPeriod(subscription)
+  if (getSubscriptionCadence(subscription) !== 'yearly') return stripePeriod
+
+  const subscriptionStart = new Date(stripePeriod.startAt)
+  const subscriptionEnd = new Date(stripePeriod.endAt)
+  const reference = referenceDate < subscriptionStart
+    ? subscriptionStart
+    : referenceDate >= subscriptionEnd
+      ? new Date(subscriptionEnd.getTime() - 1)
+      : referenceDate
+
+  let monthIndex = Math.max(0, (
+    (reference.getUTCFullYear() - subscriptionStart.getUTCFullYear()) * 12
+    + reference.getUTCMonth() - subscriptionStart.getUTCMonth()
+  ))
+  let start = addUtcMonthsClamped(subscriptionStart, monthIndex)
+  if (start > reference && monthIndex > 0) {
+    monthIndex -= 1
+    start = addUtcMonthsClamped(subscriptionStart, monthIndex)
+  }
+  const end = new Date(Math.min(addUtcMonthsClamped(subscriptionStart, monthIndex + 1).getTime(), subscriptionEnd.getTime()))
+
+  return {
+    startDate: toDateString(start),
+    endDate: toDateString(end),
+    startAt: start.toISOString(),
+    endAt: end.toISOString(),
+  }
+}
+
+function getSubscriptionCadence(subscription?: StripeSubscription | null): BillingCadence {
+  if (subscription?.metadata?.billing_cadence === 'yearly') return 'yearly'
+  const priceCadence = subscription?.items?.data
+    ?.map((item) => getBillingCadenceByPriceId(item.price?.id))
+    .find(Boolean)
+  return priceCadence === 'yearly' ? 'yearly' : 'monthly'
+}
+
+function addUtcMonthsClamped(date: Date, months: number) {
+  const targetYear = date.getUTCFullYear() + Math.floor((date.getUTCMonth() + months) / 12)
+  const targetMonth = ((date.getUTCMonth() + months) % 12 + 12) % 12
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate()
+  return new Date(Date.UTC(
+    targetYear,
+    targetMonth,
+    Math.min(date.getUTCDate(), lastDay),
+    date.getUTCHours(),
+    date.getUTCMinutes(),
+    date.getUTCSeconds(),
+    date.getUTCMilliseconds(),
+  ))
 }
 
 function getSubscriptionPlan(subscription?: StripeSubscription | null) {

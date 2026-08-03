@@ -7,6 +7,7 @@ import { createTenant, type OnboardingFormState } from './actions'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry, normalizeInternationalPhoneValue } from '@/lib/phone/international'
 import type { TenantLanguage } from '@/lib/tenants/language'
+import type { CommercialMarketCountry } from '@/lib/billing/market'
 
 type EntityType = 'theatre' | 'museum' | 'cinema' | 'auditorium' | 'festival' | 'cultural_center' | 'other'
 type WorkspaceStep = 0 | 1 | 2
@@ -20,6 +21,7 @@ type FormValues = {
   theatreName: string
   websiteUrl: string
   primaryLanguage: TenantLanguage
+  marketCountry: CommercialMarketCountry | ''
   fallbackEmail: string
   fallbackPhone: string
   goals: string[]
@@ -72,6 +74,7 @@ export function OnboardingForm({
     theatreName: '',
     websiteUrl: '',
     primaryLanguage: defaultLanguage,
+    marketCountry: '',
     fallbackEmail: email,
     fallbackPhone: '',
     goals: [],
@@ -126,6 +129,7 @@ export function OnboardingForm({
       <input type="hidden" name="theatre_name" value={values.theatreName} />
       <input type="hidden" name="website_url" value={normalizedWebsiteUrl} />
       <input type="hidden" name="primary_language" value={values.primaryLanguage} />
+      <input type="hidden" name="market_country" value={values.marketCountry} />
       <input type="hidden" name="fallback_email" value={values.fallbackEmail} />
       <input type="hidden" name="fallback_phone" value={values.fallbackPhone} />
       {values.goals.map((goal) => (
@@ -306,6 +310,16 @@ function WorkspaceCompany({
         </label>
 
         <label className="field">
+          {company.country}
+          <select value={values.marketCountry} onChange={(event) => update('marketCountry', event.target.value as CommercialMarketCountry | '')}>
+            <option value="">{company.countryPlaceholder}</option>
+            <option value="ES">{company.countryOptions.ES}</option>
+            <option value="MX">{company.countryOptions.MX}</option>
+            <option value="BR">{company.countryOptions.BR}</option>
+          </select>
+        </label>
+
+        <label className="field">
           {company.publicEmail}
           <input value={values.fallbackEmail} onChange={(event) => update('fallbackEmail', event.target.value)} type="email" placeholder={email || company.publicEmailPlaceholder} />
         </label>
@@ -451,6 +465,7 @@ function isWorkspaceStepValid(step: WorkspaceStep, values: FormValues, websiteUr
   if (step === 1) {
     return (
       values.theatreName.trim().length >= 2
+      && Boolean(values.marketCountry)
       && values.fallbackEmail.trim().length > 3
       && (!values.fallbackPhone.trim() || normalizeInternationalPhoneValue(values.fallbackPhone) !== null)
       && !websiteUrlError

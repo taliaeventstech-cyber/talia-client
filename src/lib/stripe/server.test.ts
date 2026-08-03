@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cancelStripeSubscription, createStripeCustomerPortalSession } from './server'
+import { cancelStripeSubscription, createStripeCustomerPortalSession, createStripeOneTimeCheckoutSession } from './server'
 
 describe('Stripe customer portal sessions', () => {
   afterEach(() => {
@@ -48,6 +48,36 @@ describe('Stripe customer portal sessions', () => {
     const body = new URLSearchParams(String(request.body))
     expect(body.get('customer')).toBe('cus_talia')
     expect(body.has('flow_data[type]')).toBe(false)
+  })
+})
+
+describe('Stripe one-time add-on checkout', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+
+  it('creates a payment session rather than a recurring subscription', async () => {
+    vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_talia')
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: 'cs_topup', url: 'https://checkout.stripe.com/topup' }) })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await createStripeOneTimeCheckoutSession({
+      tenantId: 'tenant_test',
+      accountId: 'account_test',
+      addonKey: 'plus_2000_messages',
+      priceId: 'price_topup_mx',
+      marketCountry: 'MX',
+      currency: 'MXN',
+      successUrl: 'https://app.test/success',
+      cancelUrl: 'https://app.test/cancel',
+    })
+
+    const [, request] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const body = new URLSearchParams(String(request.body))
+    expect(body.get('mode')).toBe('payment')
+    expect(body.get('metadata[checkout_kind]')).toBe('addon_purchase')
+    expect(body.get('metadata[addon_keys]')).toBe('plus_2000_messages')
   })
 })
 

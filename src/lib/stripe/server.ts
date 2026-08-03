@@ -1,4 +1,11 @@
-import { getBillingAddonByPriceId, getBillingPlanByPriceId, type BillingPlanKey } from '@/lib/billing/plans'
+import {
+  getBillingAddonByPriceId,
+  getBillingPlanByPriceId,
+  type BillingAddonKey,
+  type BillingCadence,
+  type BillingPlanKey,
+} from '@/lib/billing/plans'
+import type { CommercialCurrency, CommercialMarketCountry } from '@/lib/billing/market'
 import crypto from 'crypto'
 
 const STRIPE_API_BASE = 'https://api.stripe.com/v1'
@@ -16,6 +23,7 @@ export type StripeCheckoutSession = {
   subscription: string | null
   payment_status?: string
   metadata?: Record<string, string>
+  mode?: 'payment' | 'subscription'
 }
 
 export type StripeSubscription = {
@@ -68,6 +76,9 @@ export async function createStripeCheckoutSession(input: {
   tenantId: string
   accountId: string
   planKey: BillingPlanKey
+  billingCadence: BillingCadence
+  marketCountry: CommercialMarketCountry
+  currency: CommercialCurrency
   priceId: string
   addonKeys?: string[]
   addonPriceIds?: string[]
@@ -87,10 +98,17 @@ export async function createStripeCheckoutSession(input: {
     'metadata[tenant_id]': input.tenantId,
     'metadata[account_id]': input.accountId,
     'metadata[plan_key]': input.planKey,
+    'metadata[checkout_kind]': 'subscription',
+    'metadata[billing_cadence]': input.billingCadence,
+    'metadata[market_country]': input.marketCountry,
+    'metadata[currency]': input.currency,
     'metadata[addon_keys]': input.addonKeys?.join(',') ?? '',
     'subscription_data[metadata][tenant_id]': input.tenantId,
     'subscription_data[metadata][account_id]': input.accountId,
     'subscription_data[metadata][plan_key]': input.planKey,
+    'subscription_data[metadata][billing_cadence]': input.billingCadence,
+    'subscription_data[metadata][market_country]': input.marketCountry,
+    'subscription_data[metadata][currency]': input.currency,
     allow_promotion_codes: true,
   }
 
@@ -110,6 +128,39 @@ export async function createStripeCheckoutSession(input: {
     method: 'POST',
     params,
   })
+}
+
+export async function createStripeOneTimeCheckoutSession(input: {
+  tenantId: string
+  accountId: string
+  addonKey: BillingAddonKey
+  priceId: string
+  marketCountry: CommercialMarketCountry
+  currency: CommercialCurrency
+  customerId?: string
+  customerEmail?: string | null
+  successUrl: string
+  cancelUrl: string
+}) {
+  const params: Record<string, unknown> = {
+    mode: 'payment',
+    success_url: input.successUrl,
+    cancel_url: input.cancelUrl,
+    client_reference_id: input.tenantId,
+    'line_items[0][price]': input.priceId,
+    'line_items[0][quantity]': 1,
+    'metadata[checkout_kind]': 'addon_purchase',
+    'metadata[tenant_id]': input.tenantId,
+    'metadata[account_id]': input.accountId,
+    'metadata[addon_keys]': input.addonKey,
+    'metadata[market_country]': input.marketCountry,
+    'metadata[currency]': input.currency,
+  }
+
+  if (input.customerId) params.customer = input.customerId
+  else if (input.customerEmail) params.customer_email = input.customerEmail
+
+  return stripeRequest<StripeCheckoutSession>('/checkout/sessions', { method: 'POST', params })
 }
 
 export async function retrieveStripeSubscription(subscriptionId: string) {
@@ -163,10 +214,16 @@ export async function updateStripeSubscription(input: {
   planPriceId: string
   addonPriceIds: string[]
   currentSubscription: StripeSubscription
+  billingCadence: BillingCadence
+  marketCountry: CommercialMarketCountry
+  currency: CommercialCurrency
 }) {
   const params: Record<string, unknown> = {
     proration_behavior: 'always_invoice',
     'metadata[plan_key]': input.planKey,
+    'metadata[billing_cadence]': input.billingCadence,
+    'metadata[market_country]': input.marketCountry,
+    'metadata[currency]': input.currency,
   }
   const desiredAddonPrices = new Set(input.addonPriceIds)
   const items = input.currentSubscription.items?.data ?? []

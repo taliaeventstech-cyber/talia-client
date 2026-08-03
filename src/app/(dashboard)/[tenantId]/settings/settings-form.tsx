@@ -123,9 +123,9 @@ type SettingsFormProps = {
   }
   commercialPlan: {
     title: string
-    priceMonthly: number
+    priceLabel: string
     includedLabel: string
-    monthlyLabel: string
+    cadenceLabel: string
   }
   widgetConfig: {
     enabled: boolean
@@ -341,7 +341,7 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
                 <span className="eyebrow">{labels.currentPlan}</span>
                 <div className="chatbot-plan-summary-title">
                   <strong>{commercialPlan.title}</strong>
-                  <span>{commercialPlan.priceMonthly}€ {commercialPlan.monthlyLabel}</span>
+                  <span>{commercialPlan.priceLabel} {commercialPlan.cadenceLabel}</span>
                 </div>
                 <p>{commercialPlan.includedLabel}. {labels.planDescription}</p>
               </div>

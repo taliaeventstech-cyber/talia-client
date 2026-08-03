@@ -93,6 +93,9 @@ Implemented:
 - Main onboarding after confirming the account.
 - Language selector and day/night mode in onboarding.
 - Collection of basic user and entity data.
+- Country selection sets the initial commercial market and the first Àgora
+  interface language: Brazil opens in Brazilian Portuguese, while Spain and
+  Mexico open in Spanish. The user can still change the interface language.
 - Selection of up to 3 purposes/use cases.
 - Creation of the first operational workspace.
 - Subsequent flow toward initial chatbot configuration.
@@ -548,10 +551,13 @@ Implemented:
   billing or confirm cancellation. Scheduled cancellations remain active until
   the paid period ends, and webhook metadata makes that state visible in Agora.
 - Stripe Checkout.
+- Localized EUR, MXN and BRL prices selected from the onboarding market, with
+  monthly and annual Web Agent subscriptions. Annual billing preserves a
+  monthly 1,000-message usage window anchored to the subscription start.
 - Documented Stripe webhook.
 - Add-ons:
   - white label;
-  - +2,000 messages;
+  - +2,000 messages as a non-renewing top-up for the current usage period;
   - premium onboarding.
 
 Pending:

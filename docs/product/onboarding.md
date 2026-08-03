@@ -20,6 +20,13 @@ Own data:
 
 - Legal/business name.
 - Billing email.
+- Initial commercial market selected during onboarding (`ES`, `MX` or `BR`) and
+  its assigned currency (`EUR`, `MXN` or `BRL`). The user-facing onboarding
+  question is simply "What country are you in?"; the billing country is
+  collected and confirmed by Stripe only when payment is required.
+- Initial interface locale: `BR` opens Àgora in Brazilian Portuguese; `ES` and
+  `MX` open it in Spanish. This is only the initial preference and remains
+  changeable from the language selector.
 - Status: prospect, trialing, active, paused, cancelled.
 - Commercial notes.
 

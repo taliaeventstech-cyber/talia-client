@@ -175,6 +175,9 @@ const es = {
       websiteDomainError: 'Introduce un dominio válido, por ejemplo https://www.example.org',
       websiteUrlError: 'Introduce una URL válida, por ejemplo https://www.example.org',
       primaryLanguage: 'Idioma principal',
+      country: '¿En qué país estás?',
+      countryPlaceholder: 'Selecciona un país',
+      countryOptions: { ES: 'España', MX: 'México', BR: 'Brasil' },
       publicEmail: 'Email público',
       publicEmailPlaceholder: 'info@entidad.com',
       publicPhone: 'Teléfono público',
@@ -304,6 +307,7 @@ const es = {
       messages: 'Mensajes totales',
       current: 'Actual',
       empty: 'Todavía no hay periodos de uso disponibles.',
+      error: 'No hemos podido cargar el historial de uso. Inténtalo de nuevo en unos minutos.',
     },
     modules: {
       section: 'Módulos',
@@ -416,10 +420,10 @@ const es = {
   },
   upgrade: {
     eyebrow: '15 días de prueba gratuita · Sin tarjeta · Servidor en Europa · RGPD',
-    title: 'GoTalia · Planes y precios',
+    title: 'Talia · Planes y precios',
     trialExpired: 'Tu prueba ha terminado. Elige un plan para reactivar el Agente Web.',
     trialActive: 'Elige el plan que quieras activar al terminar la prueba.',
-    plansAria: 'Planes GoTalia',
+    plansAria: 'Planes Talia',
     addonsAria: 'Complementos de marca blanca',
     addonsTitle: 'Extras disponibles',
     addonsDescription: 'Puedes activar estos complementos después de contratar un plan base.',
@@ -427,6 +431,10 @@ const es = {
     paidAddons: 'Extras de pago',
     popular: 'Más popular',
     monthly: '/ mes',
+    yearly: '/ año',
+    cadenceMonthly: 'Mensual',
+    cadenceYearly: 'Anual · 2 meses gratis',
+    equivalentMonthly: 'equivale a {price} / mes',
     oneTime: 'pago único',
     checkout: {
       idle: 'Mejorar plan',
@@ -434,6 +442,7 @@ const es = {
       disabled: 'Stripe pendiente',
       error: 'No se pudo abrir Stripe Checkout.',
       ownerOnly: 'Solo el propietario puede gestionar el plan',
+      buy: 'Comprar extra',
     },
     billing: {
       title: 'Gestión de la suscripción',
@@ -481,11 +490,11 @@ const es = {
     addons: {
       white_label: {
         title: 'Complemento Marca Blanca',
-        description: 'Elimina el "Powered by GoTalia".',
+        description: 'Elimina el "Powered by Talia".',
       },
       plus_2000_messages: {
         title: '+2.000 mensajes',
-        description: 'Amplía el límite mensual del chatbot.',
+        description: 'Añade 2.000 mensajes al periodo de consumo en curso. No se renueva.',
       },
       onboarding_premium: {
         title: 'Onboarding Premium',
@@ -1346,6 +1355,9 @@ const ca: Dictionary = {
       websiteDomainError: 'Introdueix un domini vàlid, per exemple https://www.example.org',
       websiteUrlError: 'Introdueix una URL vàlida, per exemple https://www.example.org',
       primaryLanguage: 'Idioma principal',
+      country: 'En quin país ets?',
+      countryPlaceholder: 'Selecciona un país',
+      countryOptions: { ES: 'Espanya', MX: 'Mèxic', BR: 'Brasil' },
       publicEmail: 'Email públic',
       publicEmailPlaceholder: 'info@entitat.com',
       publicPhone: 'Telèfon públic',
@@ -1475,6 +1487,7 @@ const ca: Dictionary = {
       messages: 'Missatges totals',
       current: 'Actual',
       empty: 'Encara no hi ha períodes d’ús disponibles.',
+      error: 'No hem pogut carregar l’historial d’ús. Torna-ho a provar d’aquí a uns minuts.',
     },
     modules: {
       section: 'Mòduls',
@@ -1587,10 +1600,10 @@ const ca: Dictionary = {
   },
   upgrade: {
     eyebrow: '15 dies de prova gratuïta · Sense targeta · Servidor a Europa · RGPD',
-    title: 'GoTalia · Plans i preus',
+    title: 'Talia · Plans i preus',
     trialExpired: 'La teva prova ha acabat. Tria un pla per reactivar l’Agent Web.',
     trialActive: 'Tria el pla que vulguis activar quan acabi la prova.',
-    plansAria: 'Plans GoTalia',
+    plansAria: 'Plans Talia',
     addonsAria: 'Complements de marca blanca',
     addonsTitle: 'Extres disponibles',
     addonsDescription: 'Pots activar aquests complements després de contractar un pla base.',
@@ -1598,6 +1611,10 @@ const ca: Dictionary = {
     paidAddons: 'Extres de pagament',
     popular: 'Més popular',
     monthly: '/ mes',
+    yearly: '/ any',
+    cadenceMonthly: 'Mensual',
+    cadenceYearly: 'Anual · 2 mesos gratis',
+    equivalentMonthly: 'equival a {price} / mes',
     oneTime: 'pagament únic',
     checkout: {
       idle: 'Millorar pla',
@@ -1605,6 +1622,7 @@ const ca: Dictionary = {
       disabled: 'Stripe pendent',
       error: 'No s’ha pogut obrir Stripe Checkout.',
       ownerOnly: 'Només el propietari pot gestionar el pla',
+      buy: 'Comprar extra',
     },
     billing: {
       title: 'Gestió de la subscripció',
@@ -1652,11 +1670,11 @@ const ca: Dictionary = {
     addons: {
       white_label: {
         title: 'Complement Marca Blanca',
-        description: 'Elimina el "Powered by GoTalia".',
+        description: 'Elimina el "Powered by Talia".',
       },
       plus_2000_messages: {
         title: '+2.000 missatges',
-        description: 'Amplia el límit mensual del chatbot.',
+        description: 'Afegeix 2.000 missatges al període de consum actual. No es renova.',
       },
       onboarding_premium: {
         title: 'Onboarding Premium',
@@ -2498,6 +2516,9 @@ const en: Dictionary = {
       websiteDomainError: 'Enter a valid domain, for example https://www.example.org',
       websiteUrlError: 'Enter a valid URL, for example https://www.example.org',
       primaryLanguage: 'Primary language',
+      country: 'Which country are you in?',
+      countryPlaceholder: 'Select a country',
+      countryOptions: { ES: 'Spain', MX: 'Mexico', BR: 'Brazil' },
       publicEmail: 'Public email',
       publicEmailPlaceholder: 'info@organization.org',
       publicPhone: 'Public phone',
@@ -2562,6 +2583,7 @@ const en: Dictionary = {
       messages: 'Total messages',
       current: 'Current',
       empty: 'No usage periods are available yet.',
+      error: 'We could not load the usage history. Please try again in a few minutes.',
     },
     modules: {
       section: 'Modules',
@@ -2675,10 +2697,10 @@ const en: Dictionary = {
   upgrade: {
     ...es.upgrade,
     eyebrow: '15-day free trial · No card · Server in Europe · GDPR',
-    title: 'GoTalia · Plans and pricing',
+    title: 'Talia · Plans and pricing',
     trialExpired: 'Your trial has ended. Choose a plan to reactivate the Web Agent.',
     trialActive: 'Choose the plan you want to activate when the trial ends.',
-    plansAria: 'GoTalia plans',
+    plansAria: 'Talia plans',
     addonsAria: 'White-label add-ons',
     addonsTitle: 'Available extras',
     addonsDescription: 'You can activate these add-ons after subscribing to a base plan.',
@@ -2686,6 +2708,10 @@ const en: Dictionary = {
     paidAddons: 'Paid add-ons',
     popular: 'Most popular',
     monthly: '/ month',
+    yearly: '/ year',
+    cadenceMonthly: 'Monthly',
+    cadenceYearly: 'Annual · 2 months free',
+    equivalentMonthly: 'equivalent to {price} / month',
     oneTime: 'one-time payment',
     checkout: {
       idle: 'Upgrade plan',
@@ -2693,6 +2719,7 @@ const en: Dictionary = {
       disabled: 'Stripe pending',
       error: 'Could not open Stripe Checkout.',
       ownerOnly: 'Only the owner can manage the plan',
+      buy: 'Buy extra',
     },
     billing: {
       title: 'Subscription management',
@@ -2740,11 +2767,11 @@ const en: Dictionary = {
     addons: {
       white_label: {
         title: 'White-label add-on',
-        description: 'Removes the "Powered by GoTalia" label.',
+        description: 'Removes the "Powered by Talia" label.',
       },
       plus_2000_messages: {
         title: '+2,000 messages',
-        description: 'Expands the chatbot monthly limit.',
+        description: 'Adds 2,000 messages to the current usage period. It does not renew.',
       },
       onboarding_premium: {
         title: 'Premium onboarding',
@@ -3599,6 +3626,9 @@ const ptBR: Dictionary = {
       websiteDomainError: 'Insira um domínio válido, por exemplo https://www.example.org',
       websiteUrlError: 'Insira um URL válido, por exemplo https://www.example.org',
       primaryLanguage: 'Idioma principal',
+      country: 'Em que país você está?',
+      countryPlaceholder: 'Selecione um país',
+      countryOptions: { ES: 'Espanha', MX: 'México', BR: 'Brasil' },
       publicEmail: 'E-mail público',
       publicEmailPlaceholder: 'info@organização.org',
       publicPhone: 'Telefone público',
@@ -3663,6 +3693,7 @@ const ptBR: Dictionary = {
       messages: 'Total de mensagens',
       current: 'Atual',
       empty: 'Ainda não há períodos de uso disponíveis.',
+      error: 'Não foi possível carregar o histórico de uso. Tente novamente em alguns minutos.',
     },
     modules: {
       section: 'Módulos',
@@ -3776,10 +3807,10 @@ const ptBR: Dictionary = {
   upgrade: {
     ...en.upgrade,
     eyebrow: 'Teste gratuito de 15 dias · Sem cartão · Servidor na Europa · GDPR',
-    title: 'GoTalia · Planos e preços',
+    title: 'Talia · Planos e preços',
     trialExpired: 'Seu teste terminou. Escolha um plano para reativar o Agente Web.',
     trialActive: 'Escolha o plano que deseja ativar quando o período de avaliação terminar.',
-    plansAria: 'Planos GoTalia',
+    plansAria: 'Planos Talia',
     addonsAria: 'Complementos de marca branca',
     addonsTitle: 'Extras disponíveis',
     addonsDescription: 'Você pode ativar esses complementos após assinar um plano básico.',
@@ -3787,6 +3818,10 @@ const ptBR: Dictionary = {
     paidAddons: 'Complementos pagos',
     popular: 'Mais populares',
     monthly: '/ mês',
+    yearly: '/ ano',
+    cadenceMonthly: 'Mensal',
+    cadenceYearly: 'Anual · 2 meses grátis',
+    equivalentMonthly: 'equivale a {price} / mês',
     oneTime: 'pagamento único',
     checkout: {
       idle: 'Melhorar plano',
@@ -3794,6 +3829,7 @@ const ptBR: Dictionary = {
       disabled: 'Stripe não configurado',
       error: 'Não foi possível abrir o Stripe Checkout.',
       ownerOnly: 'Somente o proprietário pode gerenciar o plano',
+      buy: 'Comprar extra',
     },
     billing: {
       title: 'Gerenciamento de assinaturas',
@@ -3841,11 +3877,11 @@ const ptBR: Dictionary = {
     addons: {
       white_label: {
         title: 'Complemento de marca branca',
-        description: 'Remove o rótulo "Powered by GoTalia".',
+        description: 'Remove o rótulo "Powered by Talia".',
       },
       plus_2000_messages: {
         title: '+2.000 mensagens',
-        description: 'Expande o limite mensal do chatbot.',
+        description: 'Adiciona 2.000 mensagens ao período de uso atual. Não é renovado.',
       },
       onboarding_premium: {
         title: 'Integração premium',

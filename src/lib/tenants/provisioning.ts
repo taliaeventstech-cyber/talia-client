@@ -3,6 +3,7 @@ import { createTrialMetadata } from '@/lib/billing/access'
 import type { Json } from '@/types/database.types'
 import { getDefaultProactiveGreeting } from '@/lib/widget/proactive-greeting'
 import type { TenantLanguage } from '@/lib/tenants/language'
+import { getCommercialCurrency, type CommercialMarketCountry } from '@/lib/billing/market'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -26,6 +27,7 @@ export type CreateTenantInput = {
   fallbackEmail?: string
   fallbackPhone?: string
   primaryLanguage: TenantLanguage
+  marketCountry: CommercialMarketCountry
   onboardingGoals: string[]
   primaryColor?: string
   chatbotInitialMessage?: string
@@ -95,6 +97,8 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
       plan: 'essential',
       status: 'trialing',
       metadata: trialMetadata,
+      market_country_code: input.marketCountry,
+      billing_currency: getCommercialCurrency(input.marketCountry),
     })
     .select('id')
     .single()

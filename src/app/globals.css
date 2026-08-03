@@ -6326,6 +6326,21 @@ textarea {
   gap: 24px;
 }
 
+.billing-cadence-selector {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.billing-cadence-selector button {
+  min-width: 150px;
+}
+
+.pricing-card > small {
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+
 .pricing-card {
   position: relative;
   display: grid;
