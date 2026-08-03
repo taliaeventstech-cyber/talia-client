@@ -1,5 +1,6 @@
 import {
   activateBilling,
+  applyOneTimeAddonPurchase,
   checkoutSessionToActivationInput,
   markSubscriptionCancelled,
   syncSubscriptionStatus,
@@ -40,8 +41,12 @@ export async function POST(request: NextRequest) {
   try {
     const admin = createAdminClient()
 
-    if (event.type === 'checkout.session.completed') {
+    if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
       const session = event.data.object as StripeCheckoutSession
+      if (session.metadata?.checkout_kind === 'addon_purchase') {
+        await applyOneTimeAddonPurchase(admin, session)
+        return NextResponse.json({ received: true })
+      }
       const subscription = session.subscription
         ? await retrieveStripeSubscription(session.subscription)
         : null

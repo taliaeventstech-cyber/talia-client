@@ -26,6 +26,10 @@ Contains:
 - overage prices;
 - hard limit behavior.
 
+Calendar dates remain available for daily aggregates and reporting. Precise
+`billing_period_start_at` and `billing_period_end_at` UTC instants are the
+authority for active-period selection, limits and Stripe renewal boundaries.
+
 ### `tenant_module_entitlements`
 
 Active modules per venue.
@@ -142,6 +146,11 @@ In the client dashboard, show usage subtly:
 - conversations used / included;
 - minutes used / included;
 - warnings when approaching the limit.
+
+Activity timestamps are stored as UTC instants and rendered in the operator's
+browser time zone. Billing-period labels remain based on their authoritative UTC
+boundaries; future schedules tied to a venue's wall-clock time require a
+separate persisted IANA time zone.
 
 Do not show estimated AI cost to the client unless there is an explicit business decision to do so.
 

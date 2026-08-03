@@ -79,6 +79,7 @@ export default async function DashboardLayout({ children, params }: Props) {
               es: dictionary.language.es,
               ca: dictionary.language.ca,
               en: dictionary.language.en,
+              ptBR: dictionary.language.ptBR,
             }}
           />
           <ThemeToggle />

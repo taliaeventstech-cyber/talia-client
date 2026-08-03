@@ -6,14 +6,21 @@ import {
   getStripePriceIdForPlan,
   isPublicBillingPlan,
   type BillingAddon,
+  type BillingCadence,
 } from '@/lib/billing/plans'
+import { getCommercialCurrency, normalizeCommercialMarketCountry } from '@/lib/billing/market'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createStripeCheckoutSession, isStripeConfigured } from '@/lib/stripe/server'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
-    const { tenantId, planKey, addonKeys } = await request.json() as { tenantId?: string; planKey?: string; addonKeys?: string[] }
+    const { tenantId, planKey, addonKeys, billingCadence } = await request.json() as {
+      tenantId?: string
+      planKey?: string
+      addonKeys?: string[]
+      billingCadence?: BillingCadence
+    }
     if (!tenantId) {
       return NextResponse.json({ error: 'tenant_id_required' }, { status: 400 })
     }
@@ -23,23 +30,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'invalid_plan' }, { status: 400 })
     }
 
-    const priceId = getStripePriceIdForPlan(plan)
-    if (!isStripeConfigured() || !priceId) {
-      return NextResponse.json({ error: 'stripe_not_configured' }, { status: 503 })
-    }
+    const cadence: BillingCadence = billingCadence === 'yearly' ? 'yearly' : 'monthly'
     const addons = (addonKeys ?? [])
       .map((addonKey) => getBillingAddon(addonKey))
       .filter((addon): addon is BillingAddon => Boolean(addon))
-    const addonPriceIds = addons
-      .map((addon) => getStripePriceIdForAddon(addon))
-      .filter((addonPriceId): addonPriceId is string => Boolean(addonPriceId))
-
     await requireTenantBillingAccess(tenantId)
 
     const admin = createAdminClient()
     const { data: theatre, error } = await admin
       .from('theatres')
-      .select('account_id, fallback_email, accounts(billing_email, metadata)')
+      .select('account_id, fallback_email, accounts(billing_email, metadata, market_country_code, billing_currency)')
       .eq('id', tenantId)
       .single()
 
@@ -48,6 +48,13 @@ export async function POST(request: NextRequest) {
     }
 
     const account = Array.isArray(theatre.accounts) ? theatre.accounts[0] : theatre.accounts
+    const marketCountry = normalizeCommercialMarketCountry(account?.market_country_code)
+    const currency = getCommercialCurrency(marketCountry)
+    const priceId = getStripePriceIdForPlan(plan, marketCountry, cadence)
+    const addonPriceIds = addons.map((addon) => getStripePriceIdForAddon(addon, marketCountry, cadence))
+    if (!isStripeConfigured() || !priceId || addonPriceIds.some((price) => !price)) {
+      return NextResponse.json({ error: 'stripe_not_configured' }, { status: 503 })
+    }
     const accountMetadata = isPlainObject(account?.metadata) ? account.metadata : {}
     const customerId = typeof accountMetadata.stripe_customer_id === 'string'
       ? accountMetadata.stripe_customer_id
@@ -57,9 +64,12 @@ export async function POST(request: NextRequest) {
       tenantId,
       accountId: theatre.account_id,
       planKey: plan.key,
+      billingCadence: cadence,
+      marketCountry,
+      currency,
       priceId,
       addonKeys: addons.map((addon) => addon.key),
-      addonPriceIds,
+      addonPriceIds: addonPriceIds as string[],
       customerId,
       customerEmail: account?.billing_email ?? theatre.fallback_email,
       successUrl: `${origin}/${tenantId}/upgrade?checkout=success&session_id={CHECKOUT_SESSION_ID}`,

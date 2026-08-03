@@ -274,6 +274,40 @@ describe('TaliaAiChatAgentProvider', () => {
     })
   })
 
+  it('preserves Brazilian Portuguese in the talia-ai language contract', async () => {
+    process.env.TALIA_AI_BASE_URL = 'https://talia-ai.example.test/'
+    process.env.TALIA_AI_INTERNAL_API_KEY = 'secret'
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({
+        ok: true,
+        reply: 'Olá! Como posso ajudar?',
+        provider: 'openai',
+        metadata: { response_language: 'pt-BR' },
+      }),
+    }))
+
+    const result = await new TaliaAiChatAgentProvider().respond({
+      ...runtimeInput,
+      message: 'Quais são os horários?',
+      tenant: {
+        ...runtimeInput.tenant,
+        fallbackLanguage: 'pt-BR',
+      },
+    })
+
+    const [, requestInit] = vi.mocked(fetch).mock.calls[0]
+    expect(JSON.parse(String(requestInit?.body))).toMatchObject({
+      fallback_language: 'pt-BR',
+      language: 'pt-BR',
+    })
+    expect(result).toMatchObject({
+      ok: true,
+      reply: 'Olá! Como posso ajudar?',
+      metadata: { response_language: 'pt-BR' },
+    })
+  })
+
   it('rejects talia-ai responses without the canonical response language', async () => {
     process.env.TALIA_AI_BASE_URL = 'https://talia-ai.example.test/'
     process.env.TALIA_AI_INTERNAL_API_KEY = 'secret'

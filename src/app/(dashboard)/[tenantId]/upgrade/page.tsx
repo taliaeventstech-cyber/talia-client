@@ -1,7 +1,18 @@
 import { requireTenantPermission } from '@/lib/auth/tenant-access'
 import { canManageAccountBilling } from '@/lib/billing/permissions'
-import { BILLING_ADDONS, BILLING_PLANS, isPublicBillingPlan, isStripeConfiguredForAddon, isStripeConfiguredForPlan } from '@/lib/billing/plans'
+import {
+  BILLING_ADDONS,
+  BILLING_PLANS,
+  getBillingAddonPrice,
+  getBillingPlanPrice,
+  isPublicBillingPlan,
+  isStripeConfiguredForAddon,
+  isStripeConfiguredForPlan,
+  type BillingCadence,
+} from '@/lib/billing/plans'
+import { getCommercialCurrency } from '@/lib/billing/market'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
+import { getIntlLocale } from '@/lib/i18n/config'
 import type { BillingAddonKey } from '@/lib/billing/plans'
 import { BillingConfigurator } from './billing-configurator'
 
@@ -17,7 +28,10 @@ export default async function UpgradePage({ params }: Props) {
   const copy = dictionary.upgrade
   const metadata = isPlainObject(access.accountMetadata) ? access.accountMetadata : {}
   const currentAddonKeys = getCurrentAddonKeys(metadata.active_addons)
-  const cancellationDate = getCancellationDate(metadata, locale)
+  const cancellationAt = getCancellationAt(metadata)
+  const marketCountry = access.accountMarketCountry ?? 'ES'
+  const currency = getCommercialCurrency(marketCountry)
+  const currentCadence: BillingCadence = metadata.billing_cadence === 'yearly' ? 'yearly' : 'monthly'
 
   return (
     <main className="page-shell upgrade-shell">
@@ -35,32 +49,44 @@ export default async function UpgradePage({ params }: Props) {
         addons={BILLING_ADDONS.map((addon) => ({
           key: addon.key,
           title: copy.addons[addon.key].title,
-          priceMonthly: addon.priceMonthly,
-          priceOneTime: addon.priceOneTime,
+          monthlyPrice: getBillingAddonPrice(addon, marketCountry, 'monthly')?.amount,
+          yearlyPrice: getBillingAddonPrice(addon, marketCountry, 'yearly')?.amount,
+          oneTimePrice: addon.billingMode === 'one_time' ? getBillingAddonPrice(addon, marketCountry)?.amount : undefined,
           description: copy.addons[addon.key].description,
           billingMode: addon.billingMode,
-          disabled: !isStripeConfiguredForAddon(addon) || (access.billingAccess.isPaid && addon.billingMode === 'one_time'),
+          monthlyConfigured: isStripeConfiguredForAddon(addon, marketCountry, 'monthly'),
+          yearlyConfigured: isStripeConfiguredForAddon(addon, marketCountry, 'yearly'),
+          disabledForPaid: access.billingAccess.isPaid && addon.key === 'onboarding_premium',
         }))}
         checkoutLabels={copy.checkout}
         billingLabels={copy.billing}
-        cancellationDate={cancellationDate}
+        cancellationAt={cancellationAt}
         cancellationScheduled={metadata.stripe_cancel_at_period_end === true}
         canManageBilling={canManageAccountBilling(access)}
         currentAddonKeys={currentAddonKeys}
+        currentCadence={currentCadence}
         currentPlanKey="chatbot_web"
         isPaid={access.billingAccess.isPaid}
+        locale={getIntlLocale(locale)}
+        currency={currency}
         monthlyLabel={copy.monthly}
+        yearlyLabel={copy.yearly}
+        cadenceMonthlyLabel={copy.cadenceMonthly}
+        cadenceYearlyLabel={copy.cadenceYearly}
+        equivalentMonthlyLabel={copy.equivalentMonthly}
         oneTimeLabel={copy.oneTime}
         paidAddonsLabel={copy.paidAddons}
         planDetailsLabel={copy.planDetails}
         plans={BILLING_PLANS.filter((plan) => isPublicBillingPlan(plan.key)).map((plan) => ({
           key: plan.key,
           title: copy.plans[plan.key].title,
-          priceMonthly: plan.priceMonthly,
+          monthlyPrice: getBillingPlanPrice(plan, marketCountry, 'monthly')?.amount,
+          yearlyPrice: getBillingPlanPrice(plan, marketCountry, 'yearly')?.amount,
           includedLabel: copy.plans[plan.key].includedLabel,
           features: copy.plans[plan.key].features,
           highlighted: true,
-          disabled: !isStripeConfiguredForPlan(plan),
+          monthlyConfigured: isStripeConfiguredForPlan(plan, marketCountry, 'monthly'),
+          yearlyConfigured: isStripeConfiguredForPlan(plan, marketCountry, 'yearly'),
         }))}
         popularLabel={copy.popular}
         tenantId={tenantId}
@@ -69,16 +95,13 @@ export default async function UpgradePage({ params }: Props) {
   )
 }
 
-function getCancellationDate(metadata: Record<string, unknown>, locale: 'es' | 'ca' | 'en') {
+function getCancellationAt(metadata: Record<string, unknown>) {
   const value = typeof metadata.stripe_cancel_at === 'number'
     ? metadata.stripe_cancel_at
     : metadata.stripe_current_period_end
   if (typeof value !== 'number' || !Number.isFinite(value)) return null
 
-  return new Intl.DateTimeFormat(
-    locale === 'ca' ? 'ca-ES' : locale === 'en' ? 'en-GB' : 'es-ES',
-    { dateStyle: 'long' },
-  ).format(new Date(value * 1000))
+  return new Date(value * 1000).toISOString()
 }
 
 function getCurrentAddonKeys(value: unknown): BillingAddonKey[] {

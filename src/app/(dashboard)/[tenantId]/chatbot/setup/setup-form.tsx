@@ -5,6 +5,10 @@ import { ArrowLeft, ArrowRight, Bot, Check, Database, Link2, MessageSquare, Pale
 import Link from 'next/link'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import {
+  DEFAULT_PRIVACY_URL,
+  type WidgetComplianceCopy,
+} from '@/lib/widget/compliance'
+import {
   getChatbotOnboardingSourceUrlIssue,
   normalizeChatbotOnboardingSourceUrl,
 } from '@/lib/knowledge/chatbot-onboarding-source'
@@ -43,6 +47,7 @@ const initialState: ChatbotSetupState = {
 
 export function ChatbotSetupForm({
   copy,
+  compliance,
   tenantId,
   skipHref,
   showWebsiteSource,
@@ -50,6 +55,7 @@ export function ChatbotSetupForm({
   initialValues,
 }: {
   copy: ChatbotSetupFormCopy
+  compliance: WidgetComplianceCopy
   tenantId: string
   skipHref?: string | null
   showWebsiteSource: boolean
@@ -67,6 +73,7 @@ export function ChatbotSetupForm({
       : '',
   })
   const [previewOpen, setPreviewOpen] = useState(true)
+  const [privacyPreviewOpen, setPrivacyPreviewOpen] = useState(false)
   const normalizedSourceUrl = useMemo(
     () => normalizeChatbotOnboardingSourceUrl(values.sourceUrl),
     [values.sourceUrl],
@@ -219,20 +226,55 @@ export function ChatbotSetupForm({
           <div className="chatbot-widget-stage">
             <div className={previewOpen ? 'chatbot-widget-panel' : 'chatbot-widget-panel chatbot-widget-panel-closed'}>
               <div className="chatbot-widget-header" style={{ background: values.primaryColor }}>
-                <span>TALIA</span>
+                <span className="chatbot-widget-identity">
+                  <strong>TALIA</strong>
+                  <small>{compliance.aiLabel}</small>
+                </span>
                 <button type="button" aria-label={copy.closePreview} onClick={() => setPreviewOpen(false)}>×</button>
               </div>
               <div className="chatbot-widget-messages">
+                <p className="chatbot-widget-ai-disclosure">{compliance.disclosure}</p>
                 <p className="chatbot-widget-message chatbot-widget-message-assistant">
                   {values.initialMessage || copy.defaultInitialMessage}
                 </p>
-                <p className="chatbot-widget-message chatbot-widget-message-user" style={{ background: values.primaryColor }}>
-                  {copy.previewUserMessage}
-                </p>
+                {privacyPreviewOpen ? (
+                  <>
+                    <p className="chatbot-widget-message chatbot-widget-message-user" style={{ background: values.primaryColor }}>
+                      {compliance.privacyQuestion}
+                    </p>
+                    <div className="chatbot-widget-message chatbot-widget-message-assistant">
+                      <p>{compliance.privacySummary}</p>
+                      <p>
+                        {compliance.privacyMore}{' '}
+                        <a href={DEFAULT_PRIVACY_URL} target="_blank" rel="noreferrer">
+                          {DEFAULT_PRIVACY_URL}
+                        </a>
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <p className="chatbot-widget-message chatbot-widget-message-user" style={{ background: values.primaryColor }}>
+                    {copy.previewUserMessage}
+                  </p>
+                )}
               </div>
-              <div className="chatbot-widget-form">
-                <span>{copy.inputPlaceholder}</span>
-                <button type="button" style={{ background: values.primaryColor }}>{copy.send}</button>
+              <div className="chatbot-widget-bottom">
+                <div className="chatbot-widget-form">
+                  <span>{copy.inputPlaceholder}</span>
+                  <button type="button" style={{ background: values.primaryColor }}>{copy.send}</button>
+                </div>
+                <p className="chatbot-widget-privacy">
+                  <a
+                    href={DEFAULT_PRIVACY_URL}
+                    onClick={(event) => {
+                      event.preventDefault()
+                      setPrivacyPreviewOpen(true)
+                      setPreviewOpen(true)
+                    }}
+                  >
+                    {compliance.privacyLabel}
+                  </a>
+                </p>
               </div>
             </div>
             <button

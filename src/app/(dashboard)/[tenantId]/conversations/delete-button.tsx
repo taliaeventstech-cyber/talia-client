@@ -4,6 +4,7 @@ import { useTransition, useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Trash2 } from 'lucide-react'
 import { deleteConversation } from './actions'
+import type { Dictionary } from '@/lib/i18n/dictionaries'
 
 const SPRING = '600ms cubic-bezier(0.16, 1, 0.3, 1)'
 
@@ -11,9 +12,10 @@ type Props = {
   tenantId: string
   conversationId: string
   variant?: 'icon' | 'button'
+  copy: Dictionary['conversations']['deletion']
 }
 
-export function DeleteConversationButton({ tenantId, conversationId, variant = 'icon' }: Props) {
+export function DeleteConversationButton({ tenantId, conversationId, variant = 'icon', copy }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [confirming, setConfirming] = useState(false)
@@ -75,7 +77,7 @@ export function DeleteConversationButton({ tenantId, conversationId, variant = '
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-secondary)' }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-tertiary)' }}
         >
-          Cancelar
+          {copy.cancel}
         </button>
 
         <button
@@ -98,14 +100,14 @@ export function DeleteConversationButton({ tenantId, conversationId, variant = '
           }}
         >
           <Trash2 size={13} strokeWidth={2} aria-hidden="true" />
-          {isPending ? 'Eliminando...' : 'Confirmar'}
+          {isPending ? copy.deleting : copy.confirm}
         </button>
       </div>
 
       {/* Trash icon — collapses when confirming */}
       <button
         onClick={() => setConfirming(true)}
-        aria-label="Eliminar conversación"
+        aria-label={copy.ariaLabel}
         style={{
           background: 'transparent',
           border: 'none',

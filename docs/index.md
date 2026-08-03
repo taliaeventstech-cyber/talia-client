@@ -43,6 +43,11 @@ This directory holds the curated documentation for product, architecture, requir
 - [`operations/google-cloud-production-oauth.md`](operations/google-cloud-production-oauth.md): Google OAuth verification for Gmail.
 - [`operations/production-email-scheduler-and-casa-evidence.md`](operations/production-email-scheduler-and-casa-evidence.md): production scheduler, sensitive-access boundaries and CASA-038 evidence runbook.
 - [`operations/data-retention.md`](operations/data-retention.md): operational data retention and cleanup policy.
+- [`legal/data-processing-agreement.md`](legal/data-processing-agreement.md): base customer DPA for GDPR, LGPD and LFPDPPP processing roles.
+- [`legal/subprocessors.md`](legal/subprocessors.md): current service-provider and international-processing list.
+- [`legal/regional-notice-mexico-es.md`](legal/regional-notice-mexico-es.md): Mexico chatbot privacy-notice template.
+- [`legal/regional-notice-brazil-pt-br.md`](legal/regional-notice-brazil-pt-br.md): Brazil chatbot privacy-notice template.
+- [`compliance/eu-ai-act.md`](compliance/eu-ai-act.md): operational AI Act classification, controls and release gate.
 - [`operations/disaster-recovery.md`](operations/disaster-recovery.md): backup inventory, recovery targets and restore exercises.
 - [`operations/knowledge-embeddings.md`](operations/knowledge-embeddings.md): operational cron/backfill for embeddings.
 

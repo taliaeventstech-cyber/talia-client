@@ -1,5 +1,6 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
 import type { Json, Tables } from '@/types/database.types'
+import { getBillingPlan } from '@/lib/billing/plans'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -29,6 +30,42 @@ export type UsageTotals = {
   fallbacks: number
   limitExceededEvents: number
   estimatedCostCents: number
+}
+
+export type TenantUsageHistoryEntry = {
+  subscriptionId: string
+  periodStart: string
+  periodEnd: string
+  periodStartAt: string
+  periodEndAt: string
+  plan: string
+  status: string
+  includedChatMessages: number
+  billableChatMessages: number
+  visitorChatMessages: number
+  totalChatMessages: number
+  unansweredChatMessages: number
+  usage: UsageTotals
+  isCurrent: boolean
+}
+
+type UsageHistorySubscription = Pick<
+  Tables<'tenant_subscriptions'>,
+  | 'id'
+  | 'billing_period_start'
+  | 'billing_period_end'
+  | 'billing_period_start_at'
+  | 'billing_period_end_at'
+  | 'plan'
+  | 'status'
+  | 'included_chat_conversations'
+>
+
+export type BillingPeriod = {
+  startDate: string
+  endDate: string
+  startAt: string
+  endAt: string
 }
 
 export type RecordUsageEventInput = {
@@ -110,18 +147,20 @@ export function getCurrentBillingPeriod(referenceDate = new Date()) {
   return {
     startDate: toDateString(start),
     endDate: toDateString(end),
+    startAt: start.toISOString(),
+    endAt: end.toISOString(),
   }
 }
 
 export async function getActiveSubscription(admin: AdminClient, tenantId: string, referenceDate = new Date()) {
-  const date = toDateString(referenceDate)
+  const referenceAt = referenceDate.toISOString()
   const { data: existing, error: existingError } = await admin
     .from('tenant_subscriptions')
     .select('*')
     .eq('theatre_id', tenantId)
-    .lte('billing_period_start', date)
-    .gt('billing_period_end', date)
-    .order('billing_period_start', { ascending: false })
+    .lte('billing_period_start_at', referenceAt)
+    .gt('billing_period_end_at', referenceAt)
+    .order('billing_period_start_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
@@ -135,7 +174,7 @@ export async function getActiveSubscription(admin: AdminClient, tenantId: string
 
   const { data: tenant, error: tenantError } = await admin
     .from('theatres')
-    .select('plan')
+    .select('plan, accounts(status, metadata)')
     .eq('id', tenantId)
     .maybeSingle()
 
@@ -145,7 +184,13 @@ export async function getActiveSubscription(admin: AdminClient, tenantId: string
 
   const plan = normalizePlan(tenant?.plan)
   const defaults = planDefaults[plan]
-  const period = getCurrentBillingPeriod(referenceDate)
+  const account = Array.isArray(tenant?.accounts) ? tenant.accounts[0] : tenant?.accounts
+  const accountMetadata = isPlainObject(account?.metadata) ? account.metadata : {}
+  const annualPeriod = account?.status === 'active' && accountMetadata.billing_cadence === 'yearly'
+    ? getAnnualUsagePeriod(accountMetadata, referenceDate)
+    : null
+  const period = annualPeriod ?? getCurrentBillingPeriod(referenceDate)
+  const commercialPlan = getBillingPlan(typeof accountMetadata.commercial_plan === 'string' ? accountMetadata.commercial_plan : null)
   const { data: created, error: createError } = await admin
     .from('tenant_subscriptions')
     .insert({
@@ -153,14 +198,23 @@ export async function getActiveSubscription(admin: AdminClient, tenantId: string
       plan,
       billing_period_start: period.startDate,
       billing_period_end: period.endDate,
-      included_chat_conversations: defaults.includedChatConversations,
-      included_email_conversations: defaults.includedEmailConversations,
+      billing_period_start_at: period.startAt,
+      billing_period_end_at: period.endAt,
+      included_chat_conversations: commercialPlan?.includedChatConversations ?? defaults.includedChatConversations,
+      included_email_conversations: commercialPlan?.includedEmailConversations ?? defaults.includedEmailConversations,
       included_voice_minutes: defaults.includedVoiceMinutes,
       overage_price_chat_cents: defaults.overagePriceChatCents,
       overage_price_email_cents: defaults.overagePriceEmailCents,
       overage_price_voice_minute_cents: defaults.overagePriceVoiceMinuteCents,
       hard_limit_enabled: true,
       hard_limit_behavior: 'fallback',
+      metadata: annualPeriod ? {
+        billing_cadence: 'yearly',
+        stripe_subscription_id: accountMetadata.stripe_subscription_id ?? null,
+        stripe_current_period_start: accountMetadata.stripe_current_period_start ?? null,
+        stripe_current_period_end: accountMetadata.stripe_current_period_end ?? null,
+        plan_key: commercialPlan?.key ?? null,
+      } : {},
     })
     .select('*')
     .single()
@@ -172,6 +226,39 @@ export async function getActiveSubscription(admin: AdminClient, tenantId: string
   return { ok: true as const, subscription: created }
 }
 
+function getAnnualUsagePeriod(metadata: Record<string, Json | undefined>, referenceDate: Date): BillingPeriod | null {
+  const startSeconds = typeof metadata.stripe_current_period_start === 'number' ? metadata.stripe_current_period_start : null
+  const endSeconds = typeof metadata.stripe_current_period_end === 'number' ? metadata.stripe_current_period_end : null
+  if (!startSeconds || !endSeconds) return null
+  const subscriptionStart = new Date(startSeconds * 1000)
+  const subscriptionEnd = new Date(endSeconds * 1000)
+  if (referenceDate < subscriptionStart || referenceDate >= subscriptionEnd) return null
+
+  let monthIndex = (
+    (referenceDate.getUTCFullYear() - subscriptionStart.getUTCFullYear()) * 12
+    + referenceDate.getUTCMonth() - subscriptionStart.getUTCMonth()
+  )
+  let start = addUtcMonthsClamped(subscriptionStart, monthIndex)
+  if (start > referenceDate) {
+    monthIndex -= 1
+    start = addUtcMonthsClamped(subscriptionStart, monthIndex)
+  }
+  const end = new Date(Math.min(addUtcMonthsClamped(subscriptionStart, monthIndex + 1).getTime(), subscriptionEnd.getTime()))
+  return { startDate: toDateString(start), endDate: toDateString(end), startAt: start.toISOString(), endAt: end.toISOString() }
+}
+
+function addUtcMonthsClamped(date: Date, months: number) {
+  const absoluteMonth = date.getUTCMonth() + months
+  const targetYear = date.getUTCFullYear() + Math.floor(absoluteMonth / 12)
+  const targetMonth = ((absoluteMonth % 12) + 12) % 12
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate()
+  return new Date(Date.UTC(targetYear, targetMonth, Math.min(date.getUTCDate(), lastDay), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds(), date.getUTCMilliseconds()))
+}
+
+function isPlainObject(value: unknown): value is Record<string, Json | undefined> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
 /**
  * Billable chatbot usage follows the Botsonic model: only assistant replies
  * generated by TALIA count against the plan limit. Visitor messages and
@@ -180,7 +267,7 @@ export async function getActiveSubscription(admin: AdminClient, tenantId: string
 export async function getChatbotBillableMessagesForPeriod(
   admin: AdminClient,
   tenantId: string,
-  period = getCurrentBillingPeriod(),
+  period: Pick<BillingPeriod, 'startAt' | 'endAt'> = getCurrentBillingPeriod(),
 ) {
   const { count, error } = await admin
     .from('usage_events')
@@ -189,8 +276,8 @@ export async function getChatbotBillableMessagesForPeriod(
     .eq('channel', 'chatbot')
     .eq('event_type', 'message')
     .eq('metadata->>role', 'assistant')
-    .gte('occurred_at', period.startDate)
-    .lt('occurred_at', period.endDate)
+    .gte('occurred_at', period.startAt)
+    .lt('occurred_at', period.endAt)
 
   if (error) {
     return { ok: false as const, error: error.message }
@@ -202,14 +289,14 @@ export async function getChatbotBillableMessagesForPeriod(
 export async function getTenantUsageForPeriod(
   admin: AdminClient,
   tenantId: string,
-  period = getCurrentBillingPeriod(),
+  period: Pick<BillingPeriod, 'startAt' | 'endAt'> = getCurrentBillingPeriod(),
 ) {
   const { data, error } = await admin
-    .from('tenant_usage_daily')
-    .select('conversations,messages,ai_calls,tool_calls,input_tokens,output_tokens,voice_minutes,resolutions,fallbacks,limit_exceeded_events,estimated_cost_cents')
-    .eq('theatre_id', tenantId)
-    .gte('date', period.startDate)
-    .lt('date', period.endDate)
+    .rpc('get_tenant_usage_totals', {
+      p_theatre_id: tenantId,
+      p_period_start: period.startAt,
+      p_period_end: period.endAt,
+    })
 
   if (error) {
     return { ok: false as const, error: error.message }
@@ -217,8 +304,108 @@ export async function getTenantUsageForPeriod(
 
   return {
     ok: true as const,
-    usage: sumUsageRows(data ?? []),
+    usage: mapUsageTotals(data?.[0]),
   }
+}
+
+export async function getTenantUsageHistory(
+  admin: AdminClient,
+  tenantId: string,
+  options: { limit?: number; referenceDate?: Date } = {},
+) {
+  const limit = Math.min(12, Math.max(1, options.limit ?? 12))
+  const { data: subscriptions, error: subscriptionsError } = await admin
+    .from('tenant_subscriptions')
+    .select('id,billing_period_start,billing_period_end,billing_period_start_at,billing_period_end_at,plan,status,included_chat_conversations')
+    .eq('theatre_id', tenantId)
+    .order('billing_period_start_at', { ascending: false })
+    .limit(limit)
+
+  if (subscriptionsError) {
+    return { ok: false as const, error: subscriptionsError.message }
+  }
+
+  if (!subscriptions?.length) {
+    return { ok: true as const, history: [] as TenantUsageHistoryEntry[] }
+  }
+
+  const [usageResults, billableResults] = await Promise.all([
+    Promise.all(subscriptions.map((subscription) => getTenantUsageForPeriod(admin, tenantId, {
+      startAt: subscription.billing_period_start_at,
+      endAt: subscription.billing_period_end_at,
+    }))),
+    Promise.all(subscriptions.map((subscription) => admin
+      .from('usage_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('theatre_id', tenantId)
+      .eq('channel', 'chatbot')
+      .eq('event_type', 'message')
+      .eq('metadata->>role', 'assistant')
+      .gte('occurred_at', subscription.billing_period_start_at)
+      .lt('occurred_at', subscription.billing_period_end_at))),
+  ])
+
+  const usageError = usageResults.find((result) => !result.ok)
+  if (usageError && !usageError.ok) return usageError
+  const billableError = billableResults.find((result) => result.error)?.error
+  if (billableError) return { ok: false as const, error: billableError.message }
+
+  return {
+    ok: true as const,
+    history: buildTenantUsageHistory({
+      subscriptions,
+      usageBySubscription: Object.fromEntries(
+        subscriptions.map((subscription, index) => [
+          subscription.id,
+          usageResults[index].ok ? usageResults[index].usage : emptyUsageTotals(),
+        ]),
+      ),
+      billableCounts: Object.fromEntries(
+        subscriptions.map((subscription, index) => [subscription.id, billableResults[index].count ?? 0]),
+      ),
+      referenceDate: options.referenceDate,
+    }),
+  }
+}
+
+export function buildTenantUsageHistory({
+  subscriptions,
+  usageBySubscription,
+  billableCounts,
+  referenceDate = new Date(),
+}: {
+  subscriptions: UsageHistorySubscription[]
+  usageBySubscription: Record<string, UsageTotals>
+  billableCounts: Record<string, number>
+  referenceDate?: Date
+}): TenantUsageHistoryEntry[] {
+  const reference = referenceDate.toISOString()
+
+  return subscriptions.map((subscription) => {
+    const isWithinExactPeriod = (value: string) => (
+      value >= subscription.billing_period_start_at && value < subscription.billing_period_end_at
+    )
+    const usage = usageBySubscription[subscription.id] ?? emptyUsageTotals()
+    const billableChatMessages = billableCounts[subscription.id] ?? 0
+    const visitorChatMessages = Math.max(0, usage.messages - billableChatMessages)
+
+    return {
+      subscriptionId: subscription.id,
+      periodStart: subscription.billing_period_start,
+      periodEnd: subscription.billing_period_end,
+      periodStartAt: subscription.billing_period_start_at,
+      periodEndAt: subscription.billing_period_end_at,
+      plan: subscription.plan,
+      status: subscription.status,
+      includedChatMessages: subscription.included_chat_conversations,
+      billableChatMessages,
+      visitorChatMessages,
+      totalChatMessages: usage.messages,
+      unansweredChatMessages: Math.max(0, visitorChatMessages - billableChatMessages),
+      usage,
+      isCurrent: isWithinExactPeriod(reference),
+    }
+  })
 }
 
 export async function checkTenantLimit(admin: AdminClient, input: LimitCheckInput) {
@@ -229,6 +416,8 @@ export async function checkTenantLimit(admin: AdminClient, input: LimitCheckInpu
   const period = {
     startDate: subscription.billing_period_start,
     endDate: subscription.billing_period_end,
+    startAt: subscription.billing_period_start_at,
+    endAt: subscription.billing_period_end_at,
   }
 
   let current: number
@@ -237,7 +426,10 @@ export async function checkTenantLimit(admin: AdminClient, input: LimitCheckInpu
     if (!billableResult.ok) return billableResult
     current = billableResult.count
   } else {
-    const usageResult = await getTenantUsageForPeriod(admin, input.tenantId, period)
+    const usageResult = await getTenantUsageForPeriod(admin, input.tenantId, {
+      startAt: period.startAt,
+      endAt: period.endAt,
+    })
     if (!usageResult.ok) return usageResult
     current = getUsageForChannel(usageResult.usage, input.channel)
   }
@@ -344,7 +536,7 @@ function getUsageForChannel(usage: UsageTotals, channel: LimitCheckInput['channe
   return usage.conversations
 }
 
-function sumUsageRows(rows: Array<{
+function mapUsageTotals(row: {
   conversations: number
   messages: number
   ai_calls: number
@@ -356,20 +548,25 @@ function sumUsageRows(rows: Array<{
   fallbacks: number
   limit_exceeded_events: number
   estimated_cost_cents: number
-}>): UsageTotals {
-  return rows.reduce<UsageTotals>((acc, row) => ({
-    conversations: acc.conversations + row.conversations,
-    messages: acc.messages + row.messages,
-    aiCalls: acc.aiCalls + row.ai_calls,
-    toolCalls: acc.toolCalls + row.tool_calls,
-    inputTokens: acc.inputTokens + row.input_tokens,
-    outputTokens: acc.outputTokens + row.output_tokens,
-    voiceMinutes: acc.voiceMinutes + row.voice_minutes,
-    resolutions: acc.resolutions + row.resolutions,
-    fallbacks: acc.fallbacks + row.fallbacks,
-    limitExceededEvents: acc.limitExceededEvents + row.limit_exceeded_events,
-    estimatedCostCents: acc.estimatedCostCents + row.estimated_cost_cents,
-  }), {
+} | undefined): UsageTotals {
+  if (!row) return emptyUsageTotals()
+  return {
+    conversations: Number(row.conversations),
+    messages: Number(row.messages),
+    aiCalls: Number(row.ai_calls),
+    toolCalls: Number(row.tool_calls),
+    inputTokens: Number(row.input_tokens),
+    outputTokens: Number(row.output_tokens),
+    voiceMinutes: Number(row.voice_minutes),
+    resolutions: Number(row.resolutions),
+    fallbacks: Number(row.fallbacks),
+    limitExceededEvents: Number(row.limit_exceeded_events),
+    estimatedCostCents: Number(row.estimated_cost_cents),
+  }
+}
+
+function emptyUsageTotals(): UsageTotals {
+  return {
     conversations: 0,
     messages: 0,
     aiCalls: 0,
@@ -381,7 +578,7 @@ function sumUsageRows(rows: Array<{
     fallbacks: 0,
     limitExceededEvents: 0,
     estimatedCostCents: 0,
-  })
+  }
 }
 
 function normalizePlan(value: string | null | undefined): keyof typeof planDefaults {

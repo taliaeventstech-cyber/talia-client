@@ -6,11 +6,13 @@ TALIA applies a product-level retention policy for operational data that may con
 
 | Data category | Retention | Enforcement target |
 | --- | ---: | --- |
-| Chatbot conversations and messages | 12 months | `conversations`, cascading `messages` |
-| Conversation topic extracts | 12 months | `conversation_topics` |
+| Chatbot conversations and messages | 90 days after last activity | `conversations`, cascading `messages` |
+| Conversation topic extracts | 90 days | `conversation_topics` |
 | Synced email threads/messages | 90 days | `email_threads`, cascading `email_messages` |
 | Generated email drafts | 90 days | `email_drafts` |
-| Usage events | 12 months | `usage_events` |
+| Usage events | 12 months; chatbot conversation identifiers removed after 90 days | `usage_events` |
+| Measured AI usage | 12 months; chatbot conversation identifiers removed after 90 days | `ai_usage_events` |
+| Daily aggregate usage | 12 months | `tenant_usage_daily` |
 | Audit events | 12 months | `audit_events` |
 | OAuth tokens | Until disconnect/revocation/account deletion | `email_connections.oauth_metadata` |
 | Billing/accounting data | Statutory legal period | Not deleted by retention job |
@@ -20,7 +22,7 @@ TALIA applies a product-level retention policy for operational data that may con
 Migration:
 
 ```text
-supabase/migrations/20260602000000_data_retention.sql
+supabase/migrations/20260802170000_chatbot_content_retention_90_days.sql
 ```
 
 Function:
@@ -94,6 +96,9 @@ Recommended n8n setup:
 ## Notes
 
 - Deleting `conversations` cascades to `messages`.
+- Venue owners and administrators can delete individual chatbot conversations before the automatic 90-day deadline from Àgora.
+- Manual conversation deletion removes the conversation content and its topic extracts, and immediately removes its identifiers from retained usage records. The usage and billing quantities remain, so deletion never resets consumption already recorded for a billing period.
+- After 90 days, session and message identifiers are removed from retained chatbot usage records. Counts, roles, tokens and costs remain available for billing and aggregate reporting.
 - Deleting `email_threads` cascades to `email_messages` and remaining `email_drafts`.
 - Recent drafts prevent their parent email thread from being deleted until the draft is also outside its retention window.
 - Billing, subscriptions, accounts, users, memberships, and invoices are intentionally excluded from this retention job.

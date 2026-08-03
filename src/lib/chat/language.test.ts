@@ -17,7 +17,12 @@ describe('detectChatLanguage', () => {
     expect(detectChatLanguage('Can I bring my dog to the theatre?', 'es')).toBe('en')
   })
 
+  it('detects Brazilian Portuguese visitor questions', () => {
+    expect(detectChatLanguage('Onde posso comprar ingressos e quais são os horários?', 'es')).toBe('pt-BR')
+  })
+
   it('falls back to the tenant language when the message is ambiguous', () => {
     expect(detectChatLanguage('12345', 'ca')).toBe('ca')
+    expect(detectChatLanguage('12345', 'pt-BR')).toBe('pt-BR')
   })
 })

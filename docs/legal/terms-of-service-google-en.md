@@ -1,6 +1,6 @@
 # Terms of Service
 
-Last updated: 2 June 2026
+Last updated: 2 August 2026
 
 ## 1. Introduction
 
@@ -63,7 +63,7 @@ Workspace owners and administrators are responsible for:
 
 ## 6. Free trial
 
-TALIA may offer a free trial period, currently expected to be fourteen days unless otherwise stated.
+TALIA may offer a free trial period of fifteen days unless otherwise stated in the applicable offer.
 
 During the free trial:
 
@@ -121,6 +121,8 @@ If usage exceeds the included limits, we may:
 ## 10. Chatbot and AI-generated content
 
 TALIA uses AI systems to generate chatbot replies, classifications, summaries, draft responses, and operational suggestions.
+
+The chatbot identifies itself as an AI assistant at or before the first interaction. You must not conceal, interfere with, or misrepresent that disclosure. You must configure an accurate privacy-policy URL for the organization responsible for the visitor interaction.
 
 AI-generated content may be inaccurate, incomplete, outdated, or inappropriate for a specific context. You are responsible for reviewing and validating AI outputs before relying on them or presenting them as official information.
 
@@ -202,7 +204,7 @@ Our processing of personal data is described in our Privacy Policy:
 
 https://www.talia.events/privacy
 
-Where required, the parties may enter into a Data Processing Agreement or similar data protection terms.
+When TALIA processes Customer Personal Data on your behalf, the TALIA Data Processing Agreement forms part of these Terms and the applicable order form.
 
 You are responsible for providing notices and obtaining consents required for your users, staff, visitors, customers, or email correspondents when using TALIA.
 

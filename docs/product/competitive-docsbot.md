@@ -70,7 +70,7 @@ Multichannel attention layer for **cultural entities / venues** (not a standalon
 - **Voice** (ElevenLabs/Twilio): paused.
 - Client dashboard **Agora** (es/ca/en) + internal panel **Backstage**.
 - Multi-tenant via RLS (`tenant_id` on every table).
-- Billing with Stripe: 14-day trial, base plans + **+2,000 messages (€25)** add-on.
+- Billing with Stripe: 15-day trial, base plans + **+2,000 messages (€25)** add-on.
 - **Per-plan message limit** (recently implemented): Botsonic model (1 TALIA
   response = 1 message), enforced via **degraded fallback** + notice at 80/100% in Agora.
 
