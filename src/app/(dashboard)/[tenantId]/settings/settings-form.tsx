@@ -27,6 +27,8 @@ type SettingsFormLabels = {
   chatbot: string
   widgetAvailability: string
   widgetAvailabilityHint: string
+  widgetKnowledgeRequired: string
+  widgetKnowledgeLink: string
   widgetEnabled: string
   widgetDisabled: string
   currentPlan: string
@@ -150,6 +152,7 @@ type SettingsFormProps = {
     fallbackMessage: string | null
     fallbackWhatsApp: boolean
   }
+  hasUsableKnowledge: boolean
   labels: SettingsFormLabels
   compliance: WidgetComplianceCopy
   previewLabel: string
@@ -160,6 +163,13 @@ type SettingsFormProps = {
     copiedScript: string
     embedCode: string
     hasScriptAccess: boolean
+    security: {
+      title: string
+      help: string
+      instructions: string
+      copy: string
+      copied: string
+    }
   }
 }
 
@@ -168,10 +178,11 @@ const initialState: SettingsFormState = {
   message: '',
 }
 
-export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, labels, compliance, previewLabel, integration }: SettingsFormProps) {
+export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, hasUsableKnowledge, labels, compliance, previewLabel, integration }: SettingsFormProps) {
   const router = useRouter()
   const [state, formAction, pending] = useActionState(updateTenantSettings.bind(null, tenantId), initialState)
   const [widgetEnabled, setWidgetEnabled] = useState(widgetConfig.enabled)
+  const activationLocked = !hasUsableKnowledge && !widgetConfig.enabled
   const [dirty, setDirty] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
   const changeVersionRef = useRef(0)
@@ -319,12 +330,20 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
             <div>
               <h2>{labels.widgetAvailability}</h2>
               <p className="muted">{labels.widgetAvailabilityHint}</p>
+              {activationLocked ? (
+                <p className="chatbot-availability-requirement" id="chatbot-knowledge-requirement">
+                  {labels.widgetKnowledgeRequired}{' '}
+                  <Link href={`/${tenantId}/knowledge`}>{labels.widgetKnowledgeLink}</Link>
+                </p>
+              ) : null}
             </div>
-            <label className="chatbot-availability-control">
+            <label className="chatbot-availability-control" data-disabled={activationLocked}>
               <input
                 type="checkbox"
                 name="widget_enabled"
                 checked={widgetEnabled}
+                disabled={activationLocked}
+                aria-describedby={activationLocked ? 'chatbot-knowledge-requirement' : undefined}
                 onChange={(event) => setWidgetEnabled(event.target.checked)}
               />
               <span className="chatbot-availability-switch" aria-hidden="true">
@@ -660,6 +679,20 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
                     copiedLabel={integration.copiedScript}
                   />
                   <pre className="ai-output script-code-block">{integration.embedCode}</pre>
+                </div>
+                <div className="widget-installation-security">
+                  <div>
+                    <h3>{integration.security.title}</h3>
+                    <p className="muted">{integration.security.help}</p>
+                  </div>
+                  <div className="script-code-panel">
+                    <CopyScriptButton
+                      value={integration.security.instructions}
+                      label={integration.security.copy}
+                      copiedLabel={integration.security.copied}
+                    />
+                    <pre className="ai-output script-code-block">{integration.security.instructions}</pre>
+                  </div>
                 </div>
               </>
             ) : (

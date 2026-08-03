@@ -8,15 +8,19 @@
     return;
   }
 
+  window.__taliaWidgetTenants = window.__taliaWidgetTenants || {};
+  if (window.__taliaWidgetTenants[tenantId]) return;
+  window.__taliaWidgetTenants[tenantId] = 'loading';
+
   var baseUrl = (script.getAttribute('data-api-base') || new URL(script.src).origin).replace(/\/$/, '');
   var pageUrlOverride = script.getAttribute('data-page-url') || '';
   var siteOriginOverride = script.getAttribute('data-site-origin') || '';
   var sessionKey = 'talia-session-' + tenantId;
   var installedWebCapture = { enabled: false, mode: 'manual' };
-  var sessionId = localStorage.getItem(sessionKey);
+  var sessionId = getStoredValue(sessionKey);
   if (!sessionId) {
     sessionId = createSessionId();
-    localStorage.setItem(sessionKey, sessionId);
+    setStoredValue(sessionKey, sessionId);
   }
 
   installNavigationObserver();
@@ -26,12 +30,31 @@
     .then(function (config) {
       if (config.error) throw new Error(config.error);
       installedWebCapture = getInstalledWebCapturePolicy(config.installedWebCapture);
-      schedulePageContextSync(0);
-      mountWidget(config);
+      mountWidgetWhenReady(config);
     })
     .catch(function (error) {
+      delete window.__taliaWidgetTenants[tenantId];
       console.warn('[TALIA] Could not load widget config', error);
     });
+
+  function mountWidgetWhenReady(config) {
+    function mount() {
+      if (document.getElementById('talia-widget-root')) {
+        window.__taliaWidgetTenants[tenantId] = 'mounted';
+        return;
+      }
+      mountWidget(config);
+      window.__taliaWidgetTenants[tenantId] = 'mounted';
+      schedulePageContextSync(0);
+    }
+
+    if (document.body) {
+      mount();
+      return;
+    }
+
+    document.addEventListener('DOMContentLoaded', mount, { once: true });
+  }
 
   function mountWidget(config) {
     var fallbackLanguage = getWidgetLanguage(config.fallbackLanguage, 'es');
@@ -193,7 +216,7 @@
 
     function restartConversation() {
       sessionId = createSessionId();
-      localStorage.setItem(sessionKey, sessionId);
+      setStoredValue(sessionKey, sessionId);
       conversationHasActivity = false;
       privacyReplyPending = false;
       sessionFeedbackPrompt = null;
@@ -1217,7 +1240,7 @@
     if (getCaptureParams().get('talia_capture') === '1') return;
     var pageUrl = getCurrentPageUrl();
     var key = 'talia-installed-page-' + tenantId + '-' + pageUrl;
-    var lastSeen = Number(localStorage.getItem(key) || '0');
+    var lastSeen = Number(getStoredValue(key) || '0');
     if (Date.now() - lastSeen < 10 * 60 * 1000) return;
 
     var payload = {
@@ -1245,7 +1268,7 @@
       body: JSON.stringify(payload),
     })
       .then(function (response) {
-        if (response.ok) localStorage.setItem(key, String(Date.now()));
+        if (response.ok) setStoredValue(key, String(Date.now()));
         if (!response.ok) {
           response.json()
             .then(function (data) {
@@ -1834,6 +1857,22 @@
 
   function createSessionId() {
     return crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + '-' + Math.random().toString(16).slice(2);
+  }
+
+  function getStoredValue(key) {
+    try {
+      return window.localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+
+  function setStoredValue(key, value) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      // The widget remains usable when storage is disabled by the browser or host page.
+    }
   }
 
   function escapeHtml(value) {

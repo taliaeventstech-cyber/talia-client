@@ -12,6 +12,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { assertTenantAdmin } from '@/lib/tenants/service'
 import { getTenantContentHosts } from '@/lib/widget/domain-allowlist'
+import { normalizeWidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import type { Json } from '@/types/database.types'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -29,6 +30,7 @@ export type ChatbotWebsiteSourceResult =
 const setupSchema = z.object({
   initialMessage: z.string().trim().min(1, 'El mensaje inicial es obligatorio').max(300),
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'El color debe estar en formato hexadecimal'),
+  launcherIcon: z.enum(['talia', 'chat', 'bubble', 'bot']),
   systemPrompt: z.string().trim().max(8000, 'El prompt no puede superar los 8000 caracteres').optional(),
   tone: z.enum(['close', 'formal', 'brief']),
   fallbackBehavior: z.enum(['contact', 'human', 'unknown']),
@@ -116,6 +118,7 @@ export async function saveChatbotWebsiteSource(
     tenantId,
     { ok: false, message: '' } satisfies ManagedWebSourceState,
     formData,
+    'onboarding',
   )
 
   if (created.ok) {
@@ -156,6 +159,7 @@ export async function saveChatbotSetup(
   const parsed = setupSchema.safeParse({
     initialMessage: formData.get('initial_message'),
     primaryColor: formData.get('primary_color'),
+    launcherIcon: normalizeWidgetLauncherIcon(formData.get('launcher_icon')),
     systemPrompt: String(formData.get('system_prompt') ?? '').trim(),
     tone: formData.get('tone') || 'close',
     fallbackBehavior: formData.get('fallback_behavior') || 'contact',
@@ -180,9 +184,11 @@ export async function saveChatbotSetup(
     : {}
   const widgetConfig = {
     ...existingWidget,
+    enabled: typeof existingWidget.enabled === 'boolean' ? existingWidget.enabled : false,
     assistantName: 'TALIA',
     initialMessage: parsed.data.initialMessage,
     primaryColor: parsed.data.primaryColor,
+    launcherIcon: parsed.data.launcherIcon,
     tone: parsed.data.tone,
     fallbackBehavior: parsed.data.fallbackBehavior,
     setupCompleted: true,

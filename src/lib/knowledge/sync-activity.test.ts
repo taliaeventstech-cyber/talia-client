@@ -25,7 +25,7 @@ describe('knowledge sync activity', () => {
       sourceName: 'Web oficial',
       current: null,
       total: null,
-      requiresPolling: false,
+      requiresPolling: true,
     })
   })
 
@@ -45,7 +45,7 @@ describe('knowledge sync activity', () => {
       sourceName: 'Agenda',
       current: 5,
       total: 12,
-      requiresPolling: false,
+      requiresPolling: true,
     })
   })
 

@@ -1,9 +1,11 @@
 'use client'
 
 import { startTransition, useActionState, useMemo, useState, useTransition } from 'react'
-import { ArrowLeft, ArrowRight, Bot, Check, Database, Link2, MessageSquare, Palette } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bot, Check, Database, Link2, MessageCircle, MessageCircleMore, Palette } from 'lucide-react'
+import Image from 'next/image'
 import Link from 'next/link'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
+import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import {
   DEFAULT_PRIVACY_URL,
   type WidgetComplianceCopy,
@@ -25,6 +27,7 @@ type FallbackBehavior = 'contact' | 'human' | 'unknown'
 type InitialValues = {
   initialMessage: string
   primaryColor: string
+  launcherIcon: WidgetLauncherIcon
   tone: Tone
   fallbackBehavior: FallbackBehavior
   sourceUrl: string
@@ -152,6 +155,7 @@ export function ChatbotSetupForm({
       <input type="hidden" name="initial_message" value={values.initialMessage} />
       <input type="hidden" name="system_prompt" value={values.systemPrompt} />
       <input type="hidden" name="primary_color" value={values.primaryColor} />
+      <input type="hidden" name="launcher_icon" value={values.launcherIcon} />
       <input type="hidden" name="tone" value={values.tone} />
       <input type="hidden" name="fallback_behavior" value={values.fallbackBehavior} />
 
@@ -285,7 +289,7 @@ export function ChatbotSetupForm({
               aria-expanded={previewOpen}
               onClick={() => setPreviewOpen((current) => !current)}
             >
-              <MessageSquare size={25} strokeWidth={2.2} />
+              <WidgetLauncherIconGlyph value={values.launcherIcon} size={56} />
             </button>
           </div>
         </aside>
@@ -489,30 +493,30 @@ function WidgetStep({
         <ColorPicker copy={copy} value={values.primaryColor} onChange={(color) => update('primaryColor', color)} />
       </div>
 
-      <section className="chatbot-setup-explainer">
-        <p className="section-label">{widget.fallbackTitle}</p>
-        <p className="muted">{widget.fallbackDescription}</p>
-      </section>
-
-      <div className="chatbot-setup-option-grid">
-        <ChoiceButton
-          active={values.fallbackBehavior === 'contact'}
-          title={widget.fallbackOptions.contact.title}
-          description={widget.fallbackOptions.contact.description}
-          onClick={() => update('fallbackBehavior', 'contact')}
-        />
-        <ChoiceButton
-          active={values.fallbackBehavior === 'human'}
-          title={widget.fallbackOptions.human.title}
-          description={widget.fallbackOptions.human.description}
-          onClick={() => update('fallbackBehavior', 'human')}
-        />
-        <ChoiceButton
-          active={values.fallbackBehavior === 'unknown'}
-          title={widget.fallbackOptions.unknown.title}
-          description={widget.fallbackOptions.unknown.description}
-          onClick={() => update('fallbackBehavior', 'unknown')}
-        />
+      <div className="field">
+        {widget.icon}
+        <div className="chatbot-launcher-icon-options" role="radiogroup" aria-label={widget.icon}>
+          {([
+            ['talia', widget.iconOptions.talia],
+            ['chat', widget.iconOptions.chat],
+            ['bubble', widget.iconOptions.bubble],
+            ['bot', widget.iconOptions.bot],
+          ] satisfies Array<[WidgetLauncherIcon, string]>).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={values.launcherIcon === value}
+              className={values.launcherIcon === value
+                ? 'chatbot-launcher-icon-option chatbot-launcher-icon-option-active'
+                : 'chatbot-launcher-icon-option'}
+              onClick={() => update('launcherIcon', value)}
+            >
+              <WidgetLauncherIconGlyph value={value} size={42} tone="brand" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -579,6 +583,44 @@ function ChoiceButton({
       <strong>{title}</strong>
       <span>{description}</span>
     </button>
+  )
+}
+
+function WidgetLauncherIconGlyph({
+  value,
+  size,
+  tone = 'light',
+}: {
+  value: WidgetLauncherIcon
+  size: number
+  tone?: 'light' | 'brand'
+}) {
+  const iconSize = Math.round(size * 0.5)
+
+  if (value === 'chat') {
+    return <MessageCircle aria-hidden="true" width={iconSize} height={iconSize} strokeWidth={2.2} />
+  }
+  if (value === 'bubble') {
+    return <MessageCircleMore aria-hidden="true" width={iconSize} height={iconSize} strokeWidth={2.2} />
+  }
+  if (value === 'bot') {
+    return <Bot aria-hidden="true" width={iconSize} height={iconSize} strokeWidth={2.2} />
+  }
+
+  return (
+    <Image
+      src="/icon.svg"
+      alt=""
+      aria-hidden="true"
+      width={500}
+      height={500}
+      style={{
+        width: Math.round(size * 0.72),
+        height: Math.round(size * 0.72),
+        objectFit: 'contain',
+        filter: tone === 'light' ? 'brightness(0) invert(1)' : undefined,
+      }}
+    />
   )
 }
 

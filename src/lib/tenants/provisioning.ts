@@ -39,6 +39,7 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
   const now = new Date()
   const slug = await getAvailableSlug(admin, slugify(input.theatreName))
   const widgetConfig = {
+    enabled: false,
     assistantName: 'TALIA',
     initialMessage: input.chatbotInitialMessage || getInitialMessage(input.primaryLanguage, input.entityType),
     primaryColor: input.primaryColor || '#00e5c8',

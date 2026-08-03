@@ -10,8 +10,10 @@ import { getBillingPlan, getBillingPlanPrice, type BillingCadence, type BillingP
 import { getCommercialCurrency } from '@/lib/billing/market'
 import { getIntlLocale } from '@/lib/i18n/config'
 import { normalizeSuggestedQuestions } from '@/lib/widget/suggested-questions'
-import { getWidgetEmbedCode } from '@/lib/widget/embed-code'
+import { getPublicWidgetAppUrl, getWidgetEmbedCode } from '@/lib/widget/embed-code'
 import { getWidgetComplianceCopy, normalizePrivacyUrl } from '@/lib/widget/compliance'
+import { hasUsableTenantKnowledge } from '@/lib/knowledge/availability'
+import { getWidgetInstallationSecurity } from '@/lib/widget/installation-security'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -33,14 +35,19 @@ export default async function SettingsPage({ params }: Props) {
 
   const admin = createAdminClient()
 
-  const { data: theatre } = await admin
-    .from('theatres')
-    .select('name, slug, primary_language, system_prompt, fallback_email, fallback_phone, website_url, widget_config, n8n_webhook_url')
-    .eq('id', tenantId)
-    .single()
+  const [{ data: theatre }, hasUsableKnowledge] = await Promise.all([
+    admin
+      .from('theatres')
+      .select('name, slug, primary_language, system_prompt, fallback_email, fallback_phone, website_url, widget_config, n8n_webhook_url')
+      .eq('id', tenantId)
+      .single(),
+    hasUsableTenantKnowledge(admin, tenantId),
+  ])
 
   const widgetConfig = getWidgetConfig(theatre?.widget_config, theatre?.primary_language)
   const aiSettings = getAiSettings(theatre?.widget_config)
+  const widgetAppUrl = getPublicWidgetAppUrl()
+  const installationSecurity = getWidgetInstallationSecurity(widgetAppUrl)
 
   return (
     <main className="page-shell">
@@ -92,6 +99,7 @@ export default async function SettingsPage({ params }: Props) {
             fallbackMessage: aiSettings.fallbackMessage,
             fallbackWhatsApp: aiSettings.fallbackWhatsApp,
           }}
+          hasUsableKnowledge={hasUsableKnowledge}
           labels={dictionary.settings.form}
           compliance={getWidgetComplianceCopy(theatre.primary_language)}
           previewLabel={dictionary.settings.preview}
@@ -100,8 +108,15 @@ export default async function SettingsPage({ params }: Props) {
             help: dictionary.settings.integrationHelp,
             copyScript: dictionary.settings.copyScript,
             copiedScript: dictionary.settings.copiedScript,
-            embedCode: getWidgetEmbedCode({ tenantId, websiteUrl: theatre.website_url }),
+            embedCode: getWidgetEmbedCode({ appUrl: widgetAppUrl, tenantId, websiteUrl: theatre.website_url }),
             hasScriptAccess,
+            security: {
+              title: dictionary.settings.integrationSecurityTitle,
+              help: dictionary.settings.integrationSecurityHelp,
+              instructions: installationSecurity.cspInstructions,
+              copy: dictionary.settings.copySecurityConfig,
+              copied: dictionary.settings.copiedSecurityConfig,
+            },
           }}
         />
       ) : null}

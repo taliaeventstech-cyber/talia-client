@@ -13,7 +13,13 @@ type LanguageToggleLabels = {
   ptBR: string
 }
 
-export function LanguageToggle({ locale, labels }: { locale: Locale; labels: LanguageToggleLabels }) {
+type LanguageToggleProps = {
+  locale: Locale
+  labels: LanguageToggleLabels
+  menuPlacement?: 'top' | 'bottom'
+}
+
+export function LanguageToggle({ locale, labels, menuPlacement = 'bottom' }: LanguageToggleProps) {
   const [currentLocale, setOptimisticLocale] = useOptimistic(locale)
   const [pending, startTransition] = useTransition()
   const [open, setOpen] = useState(false)
@@ -62,7 +68,7 @@ export function LanguageToggle({ locale, labels }: { locale: Locale; labels: Lan
   const activeOption = options.find((option) => option.locale === currentLocale) ?? options[0]
 
   return (
-    <div className="language-toggle" ref={toggleRef}>
+    <div className={`language-toggle language-toggle-${menuPlacement}`} ref={toggleRef}>
       <button
         className="language-toggle-trigger"
         type="button"

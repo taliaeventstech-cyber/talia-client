@@ -24,11 +24,17 @@ documents and chunks are never deleted by pausing.
 5. Choose a venue whose website and expected content you know well.
 6. Start with one `url` source. Do not begin with a complete-site crawl.
 
-The sync-control migration pauses managed sources that already exist. Newly
-created sources also remain paused until a platform operator activates them in
-Backstage. This guarantees that creating a source in Agora cannot expand the
-canary accidentally. Before starting, confirm every managed source except the
-selected one shows **Sync pausada**.
+The sync-control migration pauses managed sources that already exist. Sources
+created manually in Knowledge also remain paused until a platform operator
+activates them in Backstage. The initial chatbot onboarding is the deliberate
+exception: its verified official-website source is activated and queued
+automatically after the production canary passed. Before a manual canary,
+confirm every source outside that onboarding path except the selected one shows
+**Sync pausada**.
+
+Paused sources do not create an initial queued run. Reactivating them makes
+`next_sync_at` immediately eligible, and the worker creates and claims the
+scheduled run in its next cycle. This keeps “paused” distinct from “queued”.
 
 ## First Canary Run
 

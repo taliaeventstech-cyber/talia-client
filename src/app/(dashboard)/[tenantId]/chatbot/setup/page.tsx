@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { LanguageToggle } from '@/components/language-toggle'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { getWidgetComplianceCopy } from '@/lib/widget/compliance'
+import { normalizeWidgetLauncherIcon, type WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { ChatbotSetupForm, type ChatbotSetupFormCopy } from './setup-form'
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
 type WidgetConfig = {
   initialMessage: string
   primaryColor: string
+  launcherIcon: WidgetLauncherIcon
   tone: 'close' | 'formal' | 'brief'
   fallbackBehavior: 'contact' | 'human' | 'unknown'
 }
@@ -86,6 +88,7 @@ export default async function ChatbotSetupPage({ params }: Props) {
         initialValues={{
           initialMessage: widgetConfig.initialMessage,
           primaryColor: widgetConfig.primaryColor,
+          launcherIcon: widgetConfig.launcherIcon,
           tone: widgetConfig.tone,
           fallbackBehavior: widgetConfig.fallbackBehavior,
           sourceUrl: theatre?.website_url ?? '',
@@ -115,6 +118,7 @@ function getWidgetConfig(value: unknown, defaultInitialMessage: string): WidgetC
     return {
       initialMessage: defaultInitialMessage,
       primaryColor: '#00e5c8',
+      launcherIcon: normalizeWidgetLauncherIcon(undefined),
       tone: 'close',
       fallbackBehavior: 'contact',
     }
@@ -123,6 +127,8 @@ function getWidgetConfig(value: unknown, defaultInitialMessage: string): WidgetC
   const config = value as {
     initialMessage?: unknown
     primaryColor?: unknown
+    launcherIcon?: unknown
+    launcher_icon?: unknown
     tone?: unknown
     fallbackBehavior?: unknown
   }
@@ -132,6 +138,7 @@ function getWidgetConfig(value: unknown, defaultInitialMessage: string): WidgetC
       ? config.initialMessage
       : defaultInitialMessage,
     primaryColor: typeof config.primaryColor === 'string' ? config.primaryColor : '#00e5c8',
+    launcherIcon: normalizeWidgetLauncherIcon(config.launcherIcon ?? config.launcher_icon),
     tone: isTone(config.tone) ? config.tone : 'close',
     fallbackBehavior: isFallbackBehavior(config.fallbackBehavior) ? config.fallbackBehavior : 'contact',
   }

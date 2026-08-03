@@ -1,14 +1,17 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { buildAiCostMonthlyHistory, getAiCostHistoryStartDate } from '@/lib/usage/ai-cost-history'
 import { getCurrentBillingPeriod } from '@/lib/usage/service'
 
 export default async function BackstageAiCostsPage() {
   const admin = createAdminClient()
-  const period = getCurrentBillingPeriod()
+  const now = new Date()
+  const period = getCurrentBillingPeriod(now)
+  const historyStartDate = getAiCostHistoryStartDate(now)
   const [responseUsageResult, componentUsageResult, venuesResult, legacyUsageResult] = await Promise.all([
     admin
       .from('ai_response_usage_daily')
       .select('*')
-      .gte('date', period.startDate)
+      .gte('date', historyStartDate)
       .lt('date', period.endDate),
     admin
       .from('ai_usage_daily')
@@ -24,7 +27,10 @@ export default async function BackstageAiCostsPage() {
       .eq('channel', 'chatbot'),
   ])
 
-  const responseRows = responseUsageResult.data ?? []
+  const historicalResponseRows = responseUsageResult.data ?? []
+  const responseRows = historicalResponseRows.filter((row) => (
+    Boolean(row.date) && row.date! >= period.startDate && row.date! < period.endDate
+  ))
   const componentRows = componentUsageResult.data ?? []
   const venueNames = new Map((venuesResult.data ?? []).map((venue) => [venue.id, venue.name]))
   const totals = responseRows.reduce((total, row) => ({
@@ -44,6 +50,7 @@ export default async function BackstageAiCostsPage() {
   const tenantRows = buildTenantRows(responseRows, venueNames)
   const componentTotals = buildComponentRows(componentRows)
   const modelTotals = buildModelRows(componentRows)
+  const monthlyHistory = buildAiCostMonthlyHistory(historicalResponseRows, now)
 
   return (
     <div className="backstage-page stack">
@@ -51,7 +58,7 @@ export default async function BackstageAiCostsPage() {
         <div>
           <p className="eyebrow">Observabilidad</p>
           <h1>Costes de IA</h1>
-          <p className="muted">Consumo medido por cliente, modelo y componente durante el mes actual.</p>
+          <p className="muted">Consumo medido del mes actual e historial mensual por cliente, modelo y componente.</p>
         </div>
         <span className="status-pill status-pill-muted">Periodo actual</span>
       </header>
@@ -61,6 +68,44 @@ export default async function BackstageAiCostsPage() {
         <Metric label="Proyección mensual" value={formatUsdMicros(projection)} detail="Ritmo del mes actual" />
         <Metric label="Coste por respuesta" value={formatUsdMicros(costPerResponse)} detail={`${formatNumber(totals.responses)} respuestas con IA`} />
         <Metric label="Tokens medidos" value={formatTokens(totals.inputTokens + totals.outputTokens)} detail={`${formatTokens(totals.cachedInputTokens)} de entrada en caché`} />
+      </section>
+
+      <section className="backstage-table-section" aria-labelledby="cost-history-title">
+        <div className="section-title-row">
+          <div>
+            <h2 id="cost-history-title">Historial mensual</h2>
+            <p className="muted">Hasta 12 meses de costes medidos. Los meses sin actividad se muestran a cero.</p>
+          </div>
+        </div>
+        <div className="backstage-table-scroll">
+          <table className="data-table backstage-cost-table">
+            <thead>
+              <tr>
+                <th>Periodo</th>
+                <th>Coste medido</th>
+                <th>Respuestas</th>
+                <th>Peticiones</th>
+                <th>Tokens</th>
+                <th>Coste / respuesta</th>
+              </tr>
+            </thead>
+            <tbody>
+              {monthlyHistory.map((entry) => (
+                <tr key={entry.month}>
+                  <td>
+                    <strong>{formatCostPeriod(entry.periodStart)}</strong>
+                    {entry.isCurrent ? <small><span className="status-pill status-pill-active">Actual</span></small> : null}
+                  </td>
+                  <td><strong>{formatUsdMicros(entry.costUsdMicros)}</strong></td>
+                  <td>{formatNumber(entry.responses)}</td>
+                  <td>{formatNumber(entry.requests)}</td>
+                  <td>{formatTokens(entry.inputTokens + entry.outputTokens)}</td>
+                  <td>{formatUsdMicros(entry.responses ? entry.costUsdMicros / entry.responses : 0)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="backstage-cost-grid">
@@ -241,4 +286,12 @@ function formatNumber(value: number) {
 function formatBreakdownLabel(value: string) {
   const labels: Record<string, string> = { answer_agent: 'Answer Agent', language_agent: 'Language Agent', retrieval_embedding: 'Embedding de búsqueda' }
   return labels[value] ?? value
+}
+
+function formatCostPeriod(periodStart: string) {
+  return new Intl.DateTimeFormat('es-ES', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${periodStart}T00:00:00Z`))
 }

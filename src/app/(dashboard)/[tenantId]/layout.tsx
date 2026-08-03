@@ -74,6 +74,7 @@ export default async function DashboardLayout({ children, params }: Props) {
         <div className="dashboard-sidebar-footer">
           <LanguageToggle
             locale={locale}
+            menuPlacement="top"
             labels={{
               label: dictionary.language.label,
               es: dictionary.language.es,

@@ -25,6 +25,10 @@ import {
   isManagedWebSourceType,
   validateManagedWebSourceInput,
 } from '@/lib/knowledge/managed-web-sources'
+import {
+  shouldAutoEnableManagedWebSource,
+  type ManagedWebSourceCreationMode,
+} from '@/lib/knowledge/managed-web-activation'
 import { getManagedWebQuotaUsage, isManagedWebQuotaError } from '@/lib/knowledge/web-source-quotas'
 import { sendKnowledgeSourceSupportNotification } from '@/lib/support/knowledge-source-notification'
 import { randomUUID } from 'node:crypto'
@@ -37,6 +41,11 @@ import {
   mergeSuggestedQuestionsIntoWidgetConfig,
   parseSuggestedQuestionsFormValue,
 } from '@/lib/widget/suggested-questions'
+import { isChatbotEnabled } from '@/lib/widget/availability'
+import {
+  hasUsableTenantKnowledge,
+  shouldBlockChatbotActivation,
+} from '@/lib/knowledge/availability'
 
 export type SettingsFormState = {
   ok: boolean
@@ -197,6 +206,20 @@ export async function updateTenantSettings(
 
   const { data } = parsed
   const existingWidget = await getExistingWidgetConfig(admin, tenantId)
+  const currentlyEnabled = isChatbotEnabled(existingWidget.enabled)
+  if (!currentlyEnabled && data.widgetEnabled) {
+    const hasUsableKnowledge = await hasUsableTenantKnowledge(admin, tenantId)
+    if (shouldBlockChatbotActivation({
+      currentlyEnabled,
+      requestedEnabled: data.widgetEnabled,
+      hasUsableKnowledge,
+    })) {
+      return {
+        ok: false,
+        message: 'Espera a que haya al menos una fuente de conocimiento lista antes de activar el chatbot.',
+      }
+    }
+  }
   const existingAiSettings = normalizeChatbotAiSettings(existingWidget.chatbotAi ?? existingWidget.chatbot_ai)
   const updated = await updateTenantSettingsRecord(admin, tenantId, {
     systemPrompt: data.systemPrompt,
@@ -333,9 +356,10 @@ export async function createKnowledgeItem(
 export async function createManagedWebKnowledgeSource(
   tenantId: string,
   _previousState: ManagedWebSourceState,
-  formData: FormData
+  formData: FormData,
+  creationMode: ManagedWebSourceCreationMode = 'supervised',
 ): Promise<ManagedWebSourceState> {
-  await requireTenantProductAccess(tenantId, 'manage_knowledge', 'data')
+  const access = await requireTenantProductAccess(tenantId, 'manage_knowledge', 'data')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -382,6 +406,10 @@ export async function createManagedWebKnowledgeSource(
 
   if (!parsed.ok) return { ok: false, message: parsed.error }
 
+  const autoEnable = shouldAutoEnableManagedWebSource({
+    creationMode,
+    chatbotSetupCompleted: access.chatbotSetupCompleted,
+  })
   const now = new Date().toISOString()
   const created = await admin
     .from('knowledge_sources')
@@ -391,7 +419,7 @@ export async function createManagedWebKnowledgeSource(
       name: parsed.data.name,
       source_url: parsed.data.sourceUrl,
       status: 'pending',
-      sync_enabled: false,
+      sync_enabled: autoEnable,
       refresh_interval: parsed.data.refreshInterval,
       next_sync_at: now,
       config: {
@@ -419,22 +447,26 @@ export async function createManagedWebKnowledgeSource(
     }
   }
 
-  const queued = await admin
-    .from('knowledge_sync_runs')
-    .insert({
-      theatre_id: tenantId,
-      source_id: created.data.id,
-      trigger: 'initial',
-      status: 'queued',
-      idempotency_key: `initial:${created.data.id}`,
-    })
+  const queued = autoEnable
+    ? await admin
+      .from('knowledge_sync_runs')
+      .insert({
+        theatre_id: tenantId,
+        source_id: created.data.id,
+        trigger: 'initial',
+        status: 'queued',
+        idempotency_key: `initial:${created.data.id}`,
+      })
+    : null
 
   revalidatePath(`/${tenantId}/knowledge`)
   return {
     ok: true,
-    message: queued.error
-      ? 'Fuente creada y pausada. El equipo de TALIA debe activarla desde Backstage.'
-      : 'Fuente creada. La sincronización inicial queda en espera de activación supervisada.',
+    message: autoEnable
+      ? queued?.error
+        ? 'Fuente creada y activada. El worker programará automáticamente la sincronización inicial.'
+        : 'Fuente creada y activada. La sincronización inicial ya está en cola.'
+      : 'Fuente creada y pausada. El equipo de TALIA debe activarla desde Backstage.',
   }
 }
 

@@ -190,10 +190,9 @@ Current implementation:
 - leaves chunks as `pending` if the embeddings step fails;
 - limits PDF size.
 
-The managed-web persistence and Agora configuration are already in
-`talia-client`. The scheduled discovery/capture worker is intentionally pending
-in `talia-ai`; queued sources remain visible and auditable until that worker is
-deployed.
+The managed-web persistence and Agora configuration live in `talia-client`.
+The scheduled discovery/capture worker is deployed in `talia-ai` as a Fly cron;
+queued sources remain visible and auditable until the worker claims them.
 
 Future implementation:
 

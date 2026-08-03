@@ -123,8 +123,11 @@ Implemented:
 - If the user postpones the wizard, the Web Agent configuration link remains
   visible in Agora and returns to the wizard until the initial setup is complete.
 - Configuration of initial message, tone, first managed web source from the
-  venue URL, color and fallback. The source reuses the Knowledge managed-web
-  flow and remains subject to its rollout controls, quotas and permissions.
+  venue URL, brand color and launcher icon. Fallback behavior remains available
+  in the full Web Agent settings. The source reuses the Knowledge managed-web
+  flow, is activated automatically during initial onboarding, and remains
+  subject to its quotas and permissions. Sources created later in Knowledge
+  retain the per-source Backstage rollout control.
 - Upon completion, the user returns to Agora.
 
 Pending:
@@ -179,9 +182,20 @@ Implemented:
 - Configuration per venue.
 - General active/inactive control in Agora. Disabling it hides the public widget
   and blocks new chat requests without affecting Accessibility or Knowledge.
+- Newly provisioned chatbots remain inactive by default. Agora only allows an
+  inactive chatbot to be activated after at least one active FAQ or one active,
+  embedded knowledge fragment is ready; existing active tenants are not
+  disabled retroactively.
 - Settings save action is shown above the editor, activates only after a change,
   and warns before leaving the page with unsaved changes.
-- Installable widget/script.
+- Installable widget through one asynchronous external script. The same snippet
+  can be pasted in the document head or before the closing body tag, waits for
+  the host DOM, ignores duplicate tenant loads and keeps working when browser
+  storage is unavailable.
+- The installation panel documents the exact CSP allowlist required by the
+  public widget origin. Operations can run `npm run widget:smoke -- --site URL
+  --tenant UUID` before launch to verify the landing response, CSP, widget
+  asset, CORS and public tenant configuration end to end.
 - Initial message and brand color.
 - Configurable proactive greeting that appears beside the launcher after a delay
   without opening the chat panel; selecting it starts the conversation.
@@ -311,8 +325,10 @@ Implemented:
   component against a versioned OpenAI price in fractional USD microdollars.
 - Backstage includes an AI cost view with current-month measured cost,
   projection, cost per response, token/cache totals and breakdowns by venue,
-  model and component. It updates when the view is loaded instead of polling in
-  the background. Legacy heuristic estimates remain visibly separate.
+  model and component. A monthly table preserves up to 12 months of measured
+  cost, responses, requests, tokens and cost per response, including zero-usage
+  gaps. It updates when the view is loaded instead of polling in the background.
+  Legacy heuristic estimates remain visibly separate.
 - Backstage shows RAG health per venue, response traceability, original question, requested/used provider, model, language, retrieval status, low-confidence/fallback warnings, sources, scores, chunks retrieved from `talia-ai`, and internal actions to reprocess PDFs or retry embeddings.
 - Bounded conversational retrieval remains fully traceable through the Next
   gateway: each initial or agent-requested Knowledge query is sanitized and
@@ -468,8 +484,10 @@ Product direction:
 - Keep Knowledge as the common core for chatbot, email, voice and future channels.
 - Expand in the future toward Sources, Guidelines, Workflows and Actions.
 - Recommended evolution: keep moving ingestion/retrieval/AI to `talia-ai` while keeping TALIA's internal contract stable.
-- Key pending item: deploy the managed web worker and complete the controlled
-  single-source canary before expanding to sitemap and bounded full-site sources.
+- The managed web worker is deployed on Fly as a five-minute cron. A production
+  onboarding canary on 2026-08-03 completed a bounded website crawl without
+  failed or blocked pages; continue monitoring operational alerts while usage
+  expands to more venues.
 
 ### Email Agent
 
@@ -607,6 +625,8 @@ Expected use:
 - Review advanced configurations.
 - Diagnose connections.
 - Configure operational parameters that should not be in the end client's hands.
+- The sidebar identifies the active platform profile with its canonical name,
+  email and platform role next to the logout action.
 
 Pending:
 

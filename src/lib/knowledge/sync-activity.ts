@@ -98,7 +98,7 @@ function activity(
   stage: KnowledgeSyncStage,
   current: number | null = null,
   total: number | null = null,
-  requiresPolling = false,
+  requiresPolling = true,
 ): KnowledgeSyncActivity {
   return { stage, sourceName, current, total, requiresPolling }
 }

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "security:audit": "npm audit --audit-level=high",
+    "widget:smoke": "node scripts/check-widget-installation.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "db:migrate": "supabase db push",

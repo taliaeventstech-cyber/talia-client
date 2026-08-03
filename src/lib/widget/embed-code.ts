@@ -1,5 +1,5 @@
 export function getWidgetEmbedCode({
-  appUrl = getPublicAppUrl(),
+  appUrl = getPublicWidgetAppUrl(),
   tenantId,
   websiteUrl,
 }: {
@@ -13,6 +13,7 @@ export function getWidgetEmbedCode({
 
   return `<script
   src="${normalizedAppUrl}/widget.js"
+  async
   crossorigin="anonymous"
   data-tenant="${tenantId}"
   data-api-base="${normalizedAppUrl}"${siteOriginAttribute}
@@ -28,7 +29,7 @@ function getSiteOrigin(value: string | null) {
   }
 }
 
-function getPublicAppUrl() {
+export function getPublicWidgetAppUrl() {
   if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
   return 'http://localhost:3000'
