@@ -141,7 +141,7 @@ describe('retrieveTenantKnowledge', () => {
       admin: {} as Parameters<typeof retrieveTenantKnowledge>[0]['admin'],
       tenantId: '00000000-0000-4000-8000-000000000001',
       query: 'Hola',
-      channel: 'chatbot',
+      channel: 'web',
       language: 'es',
     })
 
@@ -180,7 +180,7 @@ describe('retrieveTenantKnowledge', () => {
       admin: {} as Parameters<typeof retrieveTenantKnowledge>[0]['admin'],
       tenantId: '00000000-0000-4000-8000-000000000001',
       query: 'Puc entrar amb gos?',
-      channel: 'chatbot',
+      channel: 'web',
       language: 'ca',
     })
 

@@ -71,7 +71,7 @@ export default async function BackstageClientsPage({ searchParams }: Props) {
         .in('theatre_id', tenantIds)
         .gte('date', period.startDate)
         .lt('date', period.endDate)
-        .eq('channel', 'chatbot'),
+        .eq('channel', 'web'),
     ])
     : [{ data: [] }, { data: [] }]
 

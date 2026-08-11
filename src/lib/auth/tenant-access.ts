@@ -17,6 +17,7 @@ import {
 import {
   hasTenantPermission,
   isTenantModuleEnabled,
+  normalizeTenantModules,
   type TenantModuleKey,
   type TenantPermission,
   type TenantRole,
@@ -123,7 +124,7 @@ export async function getTenantAccess(tenantId: string): Promise<TenantAccess> {
     userId: user.id,
     userEmail: user.email?.toLowerCase() ?? null,
     role,
-    modules: Object.fromEntries((modules ?? []).map((module) => [module.module_key, module.status])),
+    modules: normalizeTenantModules(modules ?? []),
     source,
     accountStatus,
     accountCreatedAt,

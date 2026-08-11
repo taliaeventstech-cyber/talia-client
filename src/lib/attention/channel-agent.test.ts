@@ -81,7 +81,7 @@ describe('channel agent contracts', () => {
   })
 
   it('maps product channels onto the existing usage dimensions', () => {
-    expect(getAttentionUsageDimensions('web')).toEqual({ moduleKey: 'chatbot', usageChannel: 'chatbot' })
+    expect(getAttentionUsageDimensions('web')).toEqual({ moduleKey: 'web', usageChannel: 'web' })
     expect(getAttentionUsageDimensions('instagram')).toEqual({ moduleKey: 'instagram', usageChannel: 'instagram' })
   })
 })

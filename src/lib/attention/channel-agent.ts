@@ -230,9 +230,7 @@ export function isAttentionChannel(value: unknown): value is AttentionChannel {
 }
 
 export function getAttentionUsageDimensions(channel: AttentionChannel) {
-  return channel === 'web'
-    ? { moduleKey: 'chatbot' as const, usageChannel: 'chatbot' as const }
-    : { moduleKey: channel, usageChannel: channel }
+  return { moduleKey: channel, usageChannel: channel }
 }
 
 function channelContract(input: {

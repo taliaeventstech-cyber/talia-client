@@ -65,7 +65,7 @@ type EmailCanaryStats = {
 }
 
 const editableModules = [
-  { key: 'chatbot', label: 'Chatbot', locked: true },
+  { key: 'web', label: 'Agente Web', locked: true },
   { key: 'data', label: 'Data', locked: true },
   { key: 'voice', label: 'Voz' },
   { key: 'email', label: 'Email' },
@@ -101,7 +101,7 @@ export function EditClientForm({
   const [emailEnabled, setEmailEnabled] = useState(activeModules.has('email'))
   const [selectedModuleKeys, setSelectedModuleKeys] = useState<Set<string>>(() => {
     const selected = new Set(activeModules)
-    selected.add('chatbot')
+    selected.add('web')
     selected.add('data')
     return selected
   })
@@ -300,8 +300,8 @@ export function EditClientForm({
         <HiddenEmailOperationsFields connection={emailConnection} />
       )}
 
-      {selectedModuleKeys.has('chatbot') ? (
-        <SettingsTabPanel id="chatbot" active={activeTab === 'chatbot'}>
+      {selectedModuleKeys.has('web') ? (
+        <SettingsTabPanel id="web" active={activeTab === 'web'}>
           <ChatbotOperationsPanel client={client} />
         </SettingsTabPanel>
       ) : null}
@@ -1300,7 +1300,7 @@ function formatEmailAgentProvider(value: string) {
 }
 
 function getModuleTabDescription(key: EditableModuleKey) {
-  if (key === 'chatbot') return 'Conversaciones web'
+  if (key === 'web') return 'Conversaciones web'
   if (key === 'data') return 'Conocimiento'
   if (key === 'voice') return 'Telefonía operativa'
   if (key === 'email') return 'Buzón y borradores'

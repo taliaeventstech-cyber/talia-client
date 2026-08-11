@@ -345,7 +345,7 @@ export async function deleteConversation(
   tenantId: string,
   conversationId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const access = await requireTenantProductAccess(tenantId, 'delete_conversations', 'chatbot')
+  const access = await requireTenantProductAccess(tenantId, 'delete_conversations', 'web')
 
   const admin = createAdminClient()
 
@@ -382,7 +382,7 @@ export async function deleteConversation(
 
   if (error) return { ok: false, error: error.message }
 
-  const { error: usageAnonymizationError } = await admin.rpc('anonymize_chatbot_usage_identifiers', {
+  const { error: usageAnonymizationError } = await admin.rpc('anonymize_web_usage_identifiers', {
     p_theatre_id: tenantId,
     p_session_id: conversation.session_id,
   })

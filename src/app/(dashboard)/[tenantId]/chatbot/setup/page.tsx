@@ -22,7 +22,7 @@ type WidgetConfig = {
 
 export default async function ChatbotSetupPage({ params }: Props) {
   const { tenantId } = await params
-  const access = await requireTenantProductAccess(tenantId, 'manage_chatbot', 'chatbot')
+  const access = await requireTenantProductAccess(tenantId, 'manage_chatbot', 'web')
 
   const admin = createAdminClient()
   const { data: theatre } = await admin
