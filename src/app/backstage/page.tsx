@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getKnowledgeWebOperationalAlerts } from '@/lib/knowledge/web-source-alerts'
 import { getCurrentBillingPeriod } from '@/lib/usage/service'
 import { KnowledgeWebAlerts } from './knowledge-web-alerts'
+import { WEB_USAGE_CHANNEL_KEYS } from '@/lib/attention/channel-agent'
 
 export default async function BackstageHomePage() {
   const admin = createAdminClient()
@@ -15,7 +16,7 @@ export default async function BackstageHomePage() {
       .select('conversations')
       .gte('date', period.startDate)
       .lt('date', period.endDate)
-      .eq('channel', 'chatbot'),
+      .in('channel', [...WEB_USAGE_CHANNEL_KEYS]),
     admin
       .from('ai_response_usage_daily')
       .select('cost_usd_micros')

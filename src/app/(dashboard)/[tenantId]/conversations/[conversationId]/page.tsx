@@ -29,7 +29,7 @@ export default async function ConversationDetailPage({ params }: Props) {
   const locale = await getLocale()
   const dictionary = await getDictionary(locale)
   const supervisedFaqCopy = dictionary.conversations.supervisedFaq
-  const access = await requireTenantProductAccess(tenantId, 'view_conversations', 'chatbot')
+  const access = await requireTenantProductAccess(tenantId, 'view_conversations', 'web')
 
   const admin = createAdminClient()
 

@@ -35,7 +35,7 @@ export default async function ConversationsPage({ params, searchParams }: Props)
   })
   const locale = await getLocale()
   const dictionary = await getDictionary(locale)
-  const access = await requireTenantProductAccess(tenantId, 'view_conversations', 'chatbot')
+  const access = await requireTenantProductAccess(tenantId, 'view_conversations', 'web')
 
   const admin = createAdminClient()
 

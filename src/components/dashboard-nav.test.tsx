@@ -41,7 +41,7 @@ describe('getChatbotConfigurationHref', () => {
         tenantId="tenant-1"
         labels={labels}
         role="owner"
-        modules={{ chatbot: 'active', data: 'active' }}
+        modules={{ web: 'active', data: 'active' }}
         hasProductAccess
         needsUpgrade={false}
         isTrialExpired={false}

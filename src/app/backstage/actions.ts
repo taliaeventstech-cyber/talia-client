@@ -36,7 +36,7 @@ export type DeleteAccountState = {
   message: string
 }
 
-const moduleKeys = ['chatbot', 'data', 'voice', 'email', 'whatsapp', 'instagram', 'marketing'] as const
+const moduleKeys = ['web', 'data', 'voice', 'email', 'whatsapp', 'instagram', 'marketing'] as const
 const planDefaults = {
   essential: {
     includedChatConversations: 1000,
@@ -72,7 +72,7 @@ const createTenantSchema = z.object({
   websiteUrl: z.string().trim().url('La web debe ser una URL válida.').optional().or(z.literal('')),
   fallbackEmail: z.string().trim().email('El email de contacto no es válido.').optional().or(z.literal('')),
   fallbackPhone: optionalInternationalPhoneSchema,
-  modules: z.array(z.enum(moduleKeys)).default(['chatbot', 'data']),
+  modules: z.array(z.enum(moduleKeys)).default(['web', 'data']),
 })
 
 async function revalidateAccountVenuePaths(
@@ -409,7 +409,7 @@ export async function updateTenantAction(
   const admin = createAdminClient()
   const { data } = parsed
   const selectedModules = new Set(data.modules)
-  selectedModules.add('chatbot')
+  selectedModules.add('web')
   selectedModules.add('data')
 
   const { data: tenantForAccount } = await admin
@@ -549,6 +549,9 @@ async function syncModuleEntitlements(
     .select('module_key, limits')
     .eq('theatre_id', tenantId)
   const currentLimits = new Map((currentEntitlements ?? []).map((entry) => [entry.module_key, entry.limits]))
+  if (!currentLimits.has('web') && currentLimits.has('chatbot')) {
+    currentLimits.set('web', currentLimits.get('chatbot') ?? {})
+  }
   const rows = moduleKeys.map((moduleKey) => ({
     theatre_id: tenantId,
     module_key: moduleKey,
@@ -716,7 +719,7 @@ function parseEmailRuleList(value: string | undefined) {
 }
 
 function getDefaultModuleLimits(moduleKey: (typeof moduleKeys)[number]) {
-  if (moduleKey === 'chatbot') return { monthly_conversations: 1000 }
+  if (moduleKey === 'web') return { monthly_conversations: 1000 }
   if (moduleKey === 'email') return { monthly_conversations: 0 }
   if (moduleKey === 'voice') return { monthly_minutes: 0 }
   if (moduleKey === 'data') {

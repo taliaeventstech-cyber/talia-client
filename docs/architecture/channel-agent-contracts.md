@@ -73,15 +73,16 @@ mailbox addresses, phone numbers, external profile identifiers, and raw provider
 payloads. Channel-specific operational tables may retain the minimum data they
 need under their own access controls.
 
-The existing usage schema uses `chatbot` for the Web channel. The contract maps
-the product name `web` to the existing `chatbot` module/channel values so new
-adapters can use product language without a breaking billing migration.
+The canonical module and usage channel for the website agent is `web`. During
+the staged data migration, application reads include historical `chatbot` rows,
+but new writes and channel-agent contracts use `web`. The compatibility alias is
+removed only after the production rollback window.
 
 ## Permissions and retention
 
 | Concern | Web | Email | Voice | WhatsApp | Instagram |
 | --- | --- | --- | --- | --- | --- |
-| Venue entitlement required | `chatbot` | `email` | `voice` | `whatsapp` | `instagram` |
+| Venue entitlement required | `web` | `email` | `voice` | `whatsapp` | `instagram` |
 | Customer permission | `manage_chatbot` | `manage_email` | `manage_voice` | Channel permission before pilot | Channel permission before pilot |
 | Public/inbound execution | Active widget | Connected mailbox | Active voice deployment | Verified venue number | Eligible connected account |
 | Human supervision | On fallback/correction | Always before sending | On fallback | On fallback/handover | On fallback/handover |

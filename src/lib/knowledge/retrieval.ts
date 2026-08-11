@@ -4,7 +4,7 @@ import { retrieveKnowledgeFromTaliaAi } from './talia-ai-retrieval'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
-export type KnowledgeRetrievalChannel = 'chatbot' | 'email' | 'voice'
+export type KnowledgeRetrievalChannel = 'web' | 'email' | 'voice'
 
 export type KnowledgeRetrievalResult = {
   query: string

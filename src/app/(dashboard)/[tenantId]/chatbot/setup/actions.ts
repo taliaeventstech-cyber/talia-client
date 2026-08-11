@@ -145,7 +145,7 @@ export async function saveChatbotSetup(
   _previousState: ChatbotSetupState,
   formData: FormData
 ): Promise<ChatbotSetupState> {
-  await requireTenantProductAccess(tenantId, 'manage_chatbot', 'chatbot')
+  await requireTenantProductAccess(tenantId, 'manage_chatbot', 'web')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

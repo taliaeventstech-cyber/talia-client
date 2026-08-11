@@ -86,7 +86,7 @@ export function DashboardNav({
 }) {
   const pathname = usePathname()
   const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
-  const chatbotEnabled = isTenantModuleEnabled(modules.chatbot)
+  const chatbotEnabled = isTenantModuleEnabled(modules.web)
   const dataEnabled = isTenantModuleEnabled(modules.data)
   const emailEnabled = isTenantModuleEnabled(modules.email)
   const canViewConversations = hasTenantPermission(role, 'view_conversations')

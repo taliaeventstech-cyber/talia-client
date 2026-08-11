@@ -9,6 +9,8 @@ export const ATTENTION_CHANNELS = [
 export type AttentionChannel = typeof ATTENTION_CHANNELS[number]
 export type ChannelAgentKey = `${AttentionChannel}_agent`
 
+export const WEB_USAGE_CHANNEL_KEYS = ['web', 'chatbot'] as const
+
 export const CHANNEL_AGENT_ACTIONS = [
   'answer_from_knowledge',
   'ask_clarifying_question',
@@ -230,9 +232,7 @@ export function isAttentionChannel(value: unknown): value is AttentionChannel {
 }
 
 export function getAttentionUsageDimensions(channel: AttentionChannel) {
-  return channel === 'web'
-    ? { moduleKey: 'chatbot' as const, usageChannel: 'chatbot' as const }
-    : { moduleKey: channel, usageChannel: channel }
+  return { moduleKey: channel, usageChannel: channel }
 }
 
 function channelContract(input: {

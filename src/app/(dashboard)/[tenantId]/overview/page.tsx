@@ -28,7 +28,7 @@ export default async function OverviewPage({ params }: Props) {
   const access = await requireTenantPermission(tenantId, 'view_overview')
   const hasEmailModule = isTenantModuleEnabled(access.modules.email)
   const hasInstagramModule = isTenantModuleEnabled(access.modules.instagram)
-  const canManageChatbot = isTenantModuleEnabled(access.modules.chatbot)
+  const canManageChatbot = isTenantModuleEnabled(access.modules.web)
     && hasTenantPermission(access.role, 'manage_chatbot')
   const supabase = await createClient()
 

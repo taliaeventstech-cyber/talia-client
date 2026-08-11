@@ -4,10 +4,31 @@ import type { AttentionChannel } from '@/lib/attention/channel-agent'
 export type TenantRole = Database['public']['Enums']['user_role']
 
 export type TenantModuleKey =
-  | 'chatbot'
+  | AttentionChannel
   | 'data'
   | 'marketing'
-  | Exclude<AttentionChannel, 'web'>
+
+export type PersistedTenantModuleKey = TenantModuleKey | 'chatbot'
+
+export function normalizeTenantModuleKey(value: unknown): TenantModuleKey | null {
+  if (value === 'chatbot') return 'web'
+  if (value === 'web' || value === 'email' || value === 'voice' || value === 'whatsapp' || value === 'instagram') {
+    return value
+  }
+  return value === 'data' || value === 'marketing' ? value : null
+}
+
+export function normalizeTenantModules(modules: Array<{ module_key: string; status: string }>) {
+  const normalized: Partial<Record<TenantModuleKey, string>> = {}
+
+  for (const row of modules) {
+    const key = normalizeTenantModuleKey(row.module_key)
+    if (!key || (row.module_key === 'chatbot' && normalized.web)) continue
+    normalized[key] = row.status
+  }
+
+  return normalized
+}
 
 export type TenantPermission =
   | 'view_overview'

@@ -186,8 +186,10 @@ Implemented:
 - The common operational event vocabulary is bounded to received interactions,
   completed responses, fallbacks, handoffs and incidents. It excludes visitor
   content and raw provider identifiers.
-- The product channel name `web` maps to the existing `chatbot` billing and
-  usage dimension without requiring a breaking migration.
+- The canonical Attention channel and module key for the website agent is `web`.
+  During the staged rollout, reads also accept historical `chatbot` billing and
+  entitlement rows while every new application write uses `web`; the commercial
+  plan key `chatbot_web` remains unchanged.
 
 These contracts do not activate paused or planned channels. Entitlements,
 provider verification and rollout controls remain mandatory before a venue can

@@ -1991,6 +1991,16 @@ export type Database = {
           category: string
         }[]
       }
+      anonymize_web_usage_identifiers: {
+        Args: {
+          p_session_id: string
+          p_theatre_id: string
+        }
+        Returns: {
+          affected_rows: number
+          category: string
+        }[]
+      }
       record_widget_installation: {
         Args: {
           p_origin: string
