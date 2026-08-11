@@ -24,6 +24,7 @@ This directory holds the curated documentation for product, architecture, requir
 - [`architecture/accounts-venues-access.md`](architecture/accounts-venues-access.md): accounts, venues, profiles, roles and invitations.
 - [`architecture/usage-billing.md`](architecture/usage-billing.md): usage measurement, limits and billing.
 - [`architecture/ai-agents.md`](architecture/ai-agents.md): shared principles for chatbot, email, voice and future channels.
+- [`architecture/channel-agent-contracts.md`](architecture/channel-agent-contracts.md): executable channel-agent boundaries, event vocabulary, permissions and retention matrix.
 - [`architecture/agent-runtime.md`](architecture/agent-runtime.md): internal runtime contract to decouple n8n/own backend.
 - [`architecture/talia-ai-service.md`](architecture/talia-ai-service.md): spec of the separate `talia-ai` repo for Fly.io.
 - [`architecture/knowledge-ingestion.md`](architecture/knowledge-ingestion.md): ingestion of FAQs, Excel, PDFs, URLs and future retrieval layer.
