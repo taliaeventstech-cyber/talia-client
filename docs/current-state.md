@@ -173,6 +173,30 @@ Pending:
 
 ## Modules
 
+### Attention Channel Foundation
+
+Implemented:
+
+- A versioned channel-agent contract covers Web, Email, Voice, WhatsApp and
+  Instagram. Each channel has its own agent key, delivery mode, fallback modes,
+  allowlisted actions and billing unit.
+- Knowledge remains shared and governed per venue, while conversations,
+  histories and identities remain channel-local. TALIA does not automatically
+  match identities or share conversation context across channels.
+- The common operational event vocabulary is bounded to received interactions,
+  completed responses, fallbacks, handoffs and incidents. It excludes visitor
+  content and raw provider identifiers.
+- The product channel name `web` maps to the existing `chatbot` billing and
+  usage dimension without requiring a breaking migration.
+
+These contracts do not activate paused or planned channels. Entitlements,
+provider verification and rollout controls remain mandatory before a venue can
+use Email, Voice, WhatsApp or Instagram.
+
+Reference:
+
+- `docs/architecture/channel-agent-contracts.md`.
+
 ### Web Chatbot
 
 Status: active.

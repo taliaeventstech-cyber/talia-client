@@ -1,15 +1,13 @@
 import type { Database } from '@/types/database.types'
+import type { AttentionChannel } from '@/lib/attention/channel-agent'
 
 export type TenantRole = Database['public']['Enums']['user_role']
 
 export type TenantModuleKey =
   | 'chatbot'
   | 'data'
-  | 'voice'
-  | 'email'
-  | 'whatsapp'
-  | 'instagram'
   | 'marketing'
+  | Exclude<AttentionChannel, 'web'>
 
 export type TenantPermission =
   | 'view_overview'

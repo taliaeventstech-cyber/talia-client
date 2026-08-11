@@ -1,11 +1,12 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
 import type { Json, Tables } from '@/types/database.types'
+import type { AttentionChannel } from '@/lib/attention/channel-agent'
 import { getBillingPlan } from '@/lib/billing/plans'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
-export type UsageModuleKey = 'chatbot' | 'voice' | 'email' | 'whatsapp' | 'instagram' | 'data' | 'marketing'
-export type UsageChannel = 'chatbot' | 'email' | 'voice' | 'instagram' | 'whatsapp' | 'backstage' | 'system'
+export type UsageModuleKey = 'chatbot' | Exclude<AttentionChannel, 'web'> | 'data' | 'marketing'
+export type UsageChannel = 'chatbot' | Exclude<AttentionChannel, 'web'> | 'backstage' | 'system'
 export type UsageEventType =
   | 'conversation_started'
   | 'message'
