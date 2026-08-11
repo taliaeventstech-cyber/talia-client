@@ -35,13 +35,20 @@ export default async function SettingsPage({ params }: Props) {
 
   const admin = createAdminClient()
 
-  const [{ data: theatre }, hasUsableKnowledge] = await Promise.all([
+  const [{ data: theatre }, hasUsableKnowledge, { data: installation }] = await Promise.all([
     admin
       .from('theatres')
       .select('name, slug, primary_language, system_prompt, fallback_email, fallback_phone, website_url, widget_config, n8n_webhook_url')
       .eq('id', tenantId)
       .single(),
     hasUsableTenantKnowledge(admin, tenantId),
+    admin
+      .from('widget_installations')
+      .select('origin, last_seen_at')
+      .eq('theatre_id', tenantId)
+      .order('last_seen_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
 
   const widgetConfig = getWidgetConfig(theatre?.widget_config, theatre?.primary_language)
@@ -116,6 +123,13 @@ export default async function SettingsPage({ params }: Props) {
               instructions: installationSecurity.cspInstructions,
               copy: dictionary.settings.copySecurityConfig,
               copied: dictionary.settings.copiedSecurityConfig,
+            },
+            assistant: {
+              websiteUrl: theatre.website_url,
+              installation: installation
+                ? { origin: installation.origin, lastSeenAt: installation.last_seen_at }
+                : null,
+              labels: dictionary.settings.installationAssistant,
             },
           }}
         />

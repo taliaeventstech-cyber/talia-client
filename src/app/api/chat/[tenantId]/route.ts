@@ -6,6 +6,7 @@ import { buildRelevantKnowledgeHints, retrieveTenantKnowledge } from '@/lib/know
 import { detectChatLanguage } from '@/lib/chat/language'
 import { summarizeVerifiedChatActions } from '@/lib/chat/agent-actions'
 import { summarizeGroundingValidation } from '@/lib/chat/grounding-validation'
+import { summarizeTemporalQueryTrace } from '@/lib/chat/temporal-query-trace'
 import {
   CHAT_CONVERSATION_RESOLUTION_STATES,
   extractPreviousConversationResolution,
@@ -798,6 +799,9 @@ function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): 
 
   const groundingValidation = summarizeGroundingValidation(metadata.grounding_validation)
   if (groundingValidation) result.grounding_validation = groundingValidation
+
+  const temporalQuery = summarizeTemporalQueryTrace(metadata.temporal_query)
+  if (temporalQuery) result.temporal_query = temporalQuery
 
   const analytics = parseChatAnalytics(metadata.analytics)
   if (analytics) {

@@ -31,6 +31,16 @@ export default async function BackstageClientsPage({ searchParams }: Props) {
     .order('created_at', { ascending: false })
     .range(from, to)
 
+  console.log('[Backstage clients] Accounts fetch result', {
+    page,
+    pageSize,
+    from,
+    to,
+    count: accountsResult.count,
+    data: accountsResult.data,
+    error: accountsResult.error,
+  })
+
   const accounts = accountsResult.data ?? []
   const totalAccounts = accountsResult.count ?? 0
   const pageCount = Math.max(1, Math.ceil(totalAccounts / pageSize))

@@ -196,6 +196,12 @@ Implemented:
   public widget origin. Operations can run `npm run widget:smoke -- --site URL
   --tenant UUID` before launch to verify the landing response, CSP, widget
   asset, CORS and public tenant configuration end to end.
+- Agora also provides platform-specific installation steps for Next.js/Vercel,
+  WordPress, Webflow, Shopify and generic HTML. The public widget records a
+  throttled, domain-validated heartbeat after loading its configuration, so the
+  installation assistant can confirm the origin and last successful detection
+  without fetching customer URLs from the server. Disabled widgets return a
+  normal silent configuration state and still report installation presence.
 - Initial message and brand color.
 - Configurable proactive greeting that appears beside the launcher after a delay
   without opening the chat panel; selecting it starts the conversation.

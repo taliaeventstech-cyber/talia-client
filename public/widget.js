@@ -29,6 +29,11 @@
     .then(function (response) { return response.json(); })
     .then(function (config) {
       if (config.error) throw new Error(config.error);
+      registerWidgetInstallation();
+      if (config.enabled === false) {
+        window.__taliaWidgetTenants[tenantId] = 'disabled';
+        return;
+      }
       installedWebCapture = getInstalledWebCapturePolicy(config.installedWebCapture);
       mountWidgetWhenReady(config);
     })
@@ -36,6 +41,22 @@
       delete window.__taliaWidgetTenants[tenantId];
       console.warn('[TALIA] Could not load widget config', error);
     });
+
+  function registerWidgetInstallation() {
+    var origin = window.location.origin;
+    var key = 'talia-installation-' + tenantId + '-' + origin;
+    var lastSeen = Number(getStoredValue(key) || '0');
+    if (Date.now() - lastSeen < 30 * 60 * 1000) return;
+
+    fetch(baseUrl + '/api/widget/' + tenantId + '/installation', {
+      method: 'POST',
+      keepalive: true,
+    })
+      .then(function (response) {
+        if (response.ok) setStoredValue(key, String(Date.now()));
+      })
+      .catch(function () {});
+  }
 
   function mountWidgetWhenReady(config) {
     function mount() {

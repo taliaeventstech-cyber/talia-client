@@ -1894,6 +1894,35 @@ export type Database = {
           },
         ]
       }
+      widget_installations: {
+        Row: {
+          first_seen_at: string
+          last_seen_at: string
+          origin: string
+          theatre_id: string
+        }
+        Insert: {
+          first_seen_at?: string
+          last_seen_at?: string
+          origin: string
+          theatre_id: string
+        }
+        Update: {
+          first_seen_at?: string
+          last_seen_at?: string
+          origin?: string
+          theatre_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "widget_installations_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       ai_response_usage_daily: {
@@ -1961,6 +1990,13 @@ export type Database = {
           affected_rows: number
           category: string
         }[]
+      }
+      record_widget_installation: {
+        Args: {
+          p_origin: string
+          p_theatre_id: string
+        }
+        Returns: boolean
       }
       consume_security_rate_limit: {
         Args: {

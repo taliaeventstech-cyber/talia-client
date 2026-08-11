@@ -22,6 +22,10 @@ import {
   type SuggestedQuestionTargetType,
 } from '@/lib/widget/suggested-questions'
 import type { WidgetComplianceCopy } from '@/lib/widget/compliance'
+import {
+  WidgetInstallationAssistant,
+  type WidgetInstallationAssistantLabels,
+} from '@/components/widget-installation-assistant'
 
 type SettingsFormLabels = {
   chatbot: string
@@ -169,6 +173,11 @@ type SettingsFormProps = {
       instructions: string
       copy: string
       copied: string
+    }
+    assistant: {
+      websiteUrl: string | null
+      installation: { origin: string; lastSeenAt: string } | null
+      labels: WidgetInstallationAssistantLabels
     }
   }
 }
@@ -680,20 +689,12 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
                   />
                   <pre className="ai-output script-code-block">{integration.embedCode}</pre>
                 </div>
-                <div className="widget-installation-security">
-                  <div>
-                    <h3>{integration.security.title}</h3>
-                    <p className="muted">{integration.security.help}</p>
-                  </div>
-                  <div className="script-code-panel">
-                    <CopyScriptButton
-                      value={integration.security.instructions}
-                      label={integration.security.copy}
-                      copiedLabel={integration.security.copied}
-                    />
-                    <pre className="ai-output script-code-block">{integration.security.instructions}</pre>
-                  </div>
-                </div>
+                <WidgetInstallationAssistant
+                  websiteUrl={integration.assistant.websiteUrl}
+                  installation={integration.assistant.installation}
+                  security={integration.security}
+                  labels={integration.assistant.labels}
+                />
               </>
             ) : (
               <div className="locked-panel">

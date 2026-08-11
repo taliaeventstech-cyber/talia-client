@@ -55,18 +55,24 @@ if (failures.length) {
 console.log('\nWidget instalable: todas las comprobaciones han pasado.')
 
 async function checkFetch(label, url, init) {
-  try {
-    const response = await fetch(url, { ...init, signal: AbortSignal.timeout(10_000) })
-    if (!response.ok) {
-      fail(`${label} responde HTTP ${response.status}`)
-      return null
+  let lastError = null
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const response = await fetch(url, { ...init, signal: AbortSignal.timeout(10_000) })
+      if (response.ok) {
+        pass(`${label} responde HTTP ${response.status}${attempt > 1 ? ` tras ${attempt} intentos` : ''}`)
+        return response
+      }
+      if (response.status < 500 || attempt === 3) {
+        fail(`${label} responde HTTP ${response.status}`)
+        return null
+      }
+    } catch (error) {
+      lastError = error
     }
-    pass(`${label} responde HTTP ${response.status}`)
-    return response
-  } catch (error) {
-    fail(`${label} no responde: ${error instanceof Error ? error.message : String(error)}`)
-    return null
   }
+  fail(`${label} no responde: ${lastError instanceof Error ? lastError.message : String(lastError)}`)
+  return null
 }
 
 function checkCspDirective(csp, directiveName, requiredOrigin, siteOrigin) {

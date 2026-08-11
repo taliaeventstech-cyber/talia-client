@@ -33,7 +33,7 @@ describe('GET /api/widget/[tenantId]', () => {
     })
   })
 
-  it('does not expose configuration for a disabled chatbot', async () => {
+  it('returns a disabled chatbot as a normal silent configuration state', async () => {
     vi.mocked(getPublicWidgetConfig).mockResolvedValue({
       ok: true,
       config: { enabled: false },
@@ -44,7 +44,7 @@ describe('GET /api/widget/[tenantId]', () => {
       { params: Promise.resolve({ tenantId: 'tenant-1' }) }
     )
 
-    expect(response.status).toBe(404)
-    await expect(response.json()).resolves.toEqual({ error: 'Chatbot is disabled' })
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ enabled: false })
   })
 })
