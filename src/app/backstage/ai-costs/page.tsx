@@ -1,7 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { buildAiCostMonthlyHistory, getAiCostHistoryStartDate } from '@/lib/usage/ai-cost-history'
 import { getCurrentBillingPeriod } from '@/lib/usage/service'
-import { WEB_USAGE_CHANNEL_KEYS } from '@/lib/attention/channel-agent'
 
 export default async function BackstageAiCostsPage() {
   const admin = createAdminClient()
@@ -25,7 +24,7 @@ export default async function BackstageAiCostsPage() {
       .select('estimated_cost_cents')
       .gte('date', period.startDate)
       .lt('date', period.endDate)
-      .in('channel', [...WEB_USAGE_CHANNEL_KEYS]),
+      .eq('channel', 'web'),
   ])
 
   const historicalResponseRows = responseUsageResult.data ?? []

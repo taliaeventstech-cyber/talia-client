@@ -549,9 +549,6 @@ async function syncModuleEntitlements(
     .select('module_key, limits')
     .eq('theatre_id', tenantId)
   const currentLimits = new Map((currentEntitlements ?? []).map((entry) => [entry.module_key, entry.limits]))
-  if (!currentLimits.has('web') && currentLimits.has('chatbot')) {
-    currentLimits.set('web', currentLimits.get('chatbot') ?? {})
-  }
   const rows = moduleKeys.map((moduleKey) => ({
     theatre_id: tenantId,
     module_key: moduleKey,

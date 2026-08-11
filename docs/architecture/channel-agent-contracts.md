@@ -73,10 +73,9 @@ mailbox addresses, phone numbers, external profile identifiers, and raw provider
 payloads. Channel-specific operational tables may retain the minimum data they
 need under their own access controls.
 
-The canonical module and usage channel for the website agent is `web`. During
-the staged data migration, application reads include historical `chatbot` rows,
-but new writes and channel-agent contracts use `web`. The compatibility alias is
-removed only after the production rollback window.
+The canonical module and usage channel for the website agent is `web`. New and
+historical module, entitlement, billing and usage records use this value. The
+commercial plan key `chatbot_web` remains a separate product identifier.
 
 ## Permissions and retention
 

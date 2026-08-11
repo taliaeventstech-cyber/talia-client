@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AccountRowActions } from '../account-row-actions'
 import { BackstagePageSizeSelect } from '../backstage-page-size-select'
-import { WEB_USAGE_CHANNEL_KEYS } from '@/lib/attention/channel-agent'
 
 interface Props {
   searchParams?: Promise<{ page?: string | string[]; page_size?: string | string[] }>
@@ -72,7 +71,7 @@ export default async function BackstageClientsPage({ searchParams }: Props) {
         .in('theatre_id', tenantIds)
         .gte('date', period.startDate)
         .lt('date', period.endDate)
-        .in('channel', [...WEB_USAGE_CHANNEL_KEYS]),
+        .eq('channel', 'web'),
     ])
     : [{ data: [] }, { data: [] }]
 

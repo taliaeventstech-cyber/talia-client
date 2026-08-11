@@ -2,10 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { normalizeTenantModuleKey, normalizeTenantModules } from './permissions'
 
 describe('normalizeTenantModuleKey', () => {
-  it('maps the legacy chatbot module to the canonical web module', () => {
-    expect(normalizeTenantModuleKey('chatbot')).toBe('web')
-  })
-
   it('preserves canonical module keys', () => {
     expect(normalizeTenantModuleKey('web')).toBe('web')
     expect(normalizeTenantModuleKey('email')).toBe('email')
@@ -18,17 +14,17 @@ describe('normalizeTenantModuleKey', () => {
 })
 
 describe('normalizeTenantModules', () => {
-  it('exposes legacy Web entitlements through the canonical key', () => {
+  it('exposes canonical Web entitlements', () => {
     expect(normalizeTenantModules([
-      { module_key: 'chatbot', status: 'active' },
+      { module_key: 'web', status: 'active' },
       { module_key: 'data', status: 'active' },
     ])).toEqual({ web: 'active', data: 'active' })
   })
 
-  it('prefers a canonical Web row when both keys exist', () => {
+  it('ignores unknown module rows', () => {
     expect(normalizeTenantModules([
       { module_key: 'web', status: 'disabled' },
-      { module_key: 'chatbot', status: 'active' },
+      { module_key: 'unknown', status: 'active' },
     ])).toEqual({ web: 'disabled' })
   })
 })

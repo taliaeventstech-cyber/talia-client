@@ -9,8 +9,6 @@ export const ATTENTION_CHANNELS = [
 export type AttentionChannel = typeof ATTENTION_CHANNELS[number]
 export type ChannelAgentKey = `${AttentionChannel}_agent`
 
-export const WEB_USAGE_CHANNEL_KEYS = ['web', 'chatbot'] as const
-
 export const CHANNEL_AGENT_ACTIONS = [
   'answer_from_knowledge',
   'ask_clarifying_question',

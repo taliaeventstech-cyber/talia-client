@@ -1,6 +1,6 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
 import type { Json, Tables } from '@/types/database.types'
-import { WEB_USAGE_CHANNEL_KEYS, type AttentionChannel } from '@/lib/attention/channel-agent'
+import type { AttentionChannel } from '@/lib/attention/channel-agent'
 import { getBillingPlan } from '@/lib/billing/plans'
 
 type AdminClient = ReturnType<typeof createAdminClient>
@@ -274,7 +274,7 @@ export async function getChatbotBillableMessagesForPeriod(
     .from('usage_events')
     .select('id', { count: 'exact', head: true })
     .eq('theatre_id', tenantId)
-    .in('channel', [...WEB_USAGE_CHANNEL_KEYS])
+    .eq('channel', 'web')
     .eq('event_type', 'message')
     .eq('metadata->>role', 'assistant')
     .gte('occurred_at', period.startAt)
@@ -339,7 +339,7 @@ export async function getTenantUsageHistory(
       .from('usage_events')
       .select('id', { count: 'exact', head: true })
       .eq('theatre_id', tenantId)
-      .in('channel', [...WEB_USAGE_CHANNEL_KEYS])
+      .eq('channel', 'web')
       .eq('event_type', 'message')
       .eq('metadata->>role', 'assistant')
       .gte('occurred_at', subscription.billing_period_start_at)

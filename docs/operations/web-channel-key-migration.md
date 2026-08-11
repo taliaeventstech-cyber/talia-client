@@ -43,17 +43,43 @@ include legacy and canonical rows, venue access still works for tenants with onl
 a `chatbot` row, and the retention dry run reports
 `web_usage_identifiers_anonymized`.
 
-## Phase 2: cleanup after the rollback window
+## Phase 2: historical cleanup
 
-Do not ship cleanup in the compatibility deployment. Once the production
-version is stable and rollback to a legacy writer is no longer required:
+Migration `20260811120000_finalize_web_attention_channel.sql` performs the final
+cleanup. Apply it only after the compatibility application version is live and
+rollback to a legacy writer is no longer required. It:
 
-1. Merge duplicate `tenant_modules` and `tenant_module_entitlements` rows,
+1. Merges duplicate `tenant_modules` and `tenant_module_entitlements` rows,
    preserving the effective status, configuration, limits and metadata.
-2. Merge colliding `tenant_usage_daily` rows before changing their keys because
-   `(theatre_id, date, module_key, channel)` is unique.
-3. Update historical `usage_events` and remaining module rows from `chatbot` to
+2. Merges colliding `tenant_usage_daily` rows before changing their keys and
+   verifies that every aggregate total remains unchanged.
+3. Updates historical `usage_events` and remaining module rows from `chatbot` to
    `web`.
-4. Remove `chatbot` from database constraints, application dual reads and the
+4. Verifies event count, quantities, tokens and costs before committing.
+5. Removes `chatbot` from database constraints, application dual reads and the
    compatibility retention RPC.
-5. Re-run billing, access and retention checks before closing TAL-60.
+
+After applying it, the following query must return no rows:
+
+```sql
+select 'tenant_modules' as source, module_key as legacy_value
+from public.tenant_modules where module_key = 'chatbot'
+union all
+select 'tenant_module_entitlements', module_key
+from public.tenant_module_entitlements where module_key = 'chatbot'
+union all
+select 'usage_events.module_key', module_key
+from public.usage_events where module_key = 'chatbot'
+union all
+select 'usage_events.channel', channel
+from public.usage_events where channel = 'chatbot'
+union all
+select 'tenant_usage_daily.module_key', module_key
+from public.tenant_usage_daily where module_key = 'chatbot'
+union all
+select 'tenant_usage_daily.channel', channel
+from public.tenant_usage_daily where channel = 'chatbot';
+```
+
+Re-run billing dashboards, venue access and `apply_data_retention(true)` before
+closing TAL-60.

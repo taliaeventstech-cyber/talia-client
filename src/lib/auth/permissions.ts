@@ -1,5 +1,5 @@
 import type { Database } from '@/types/database.types'
-import type { AttentionChannel } from '@/lib/attention/channel-agent'
+import { isAttentionChannel, type AttentionChannel } from '@/lib/attention/channel-agent'
 
 export type TenantRole = Database['public']['Enums']['user_role']
 
@@ -8,13 +8,8 @@ export type TenantModuleKey =
   | 'data'
   | 'marketing'
 
-export type PersistedTenantModuleKey = TenantModuleKey | 'chatbot'
-
 export function normalizeTenantModuleKey(value: unknown): TenantModuleKey | null {
-  if (value === 'chatbot') return 'web'
-  if (value === 'web' || value === 'email' || value === 'voice' || value === 'whatsapp' || value === 'instagram') {
-    return value
-  }
+  if (isAttentionChannel(value)) return value
   return value === 'data' || value === 'marketing' ? value : null
 }
 
@@ -23,7 +18,7 @@ export function normalizeTenantModules(modules: Array<{ module_key: string; stat
 
   for (const row of modules) {
     const key = normalizeTenantModuleKey(row.module_key)
-    if (!key || (row.module_key === 'chatbot' && normalized.web)) continue
+    if (!key) continue
     normalized[key] = row.status
   }
 

@@ -95,7 +95,7 @@ export function EditClientForm({
   const activeModules = new Set(
     modules
       .filter((module) => module.status === 'active' || module.status === 'trial')
-      .map((module) => module.module_key === 'chatbot' ? 'web' : module.module_key)
+      .map((module) => module.module_key)
   )
   const [voiceEnabled, setVoiceEnabled] = useState(activeModules.has('voice'))
   const [emailEnabled, setEmailEnabled] = useState(activeModules.has('email'))

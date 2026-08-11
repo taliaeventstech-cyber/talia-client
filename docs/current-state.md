@@ -187,9 +187,9 @@ Implemented:
   completed responses, fallbacks, handoffs and incidents. It excludes visitor
   content and raw provider identifiers.
 - The canonical Attention channel and module key for the website agent is `web`.
-  During the staged rollout, reads also accept historical `chatbot` billing and
-  entitlement rows while every new application write uses `web`; the commercial
-  plan key `chatbot_web` remains unchanged.
+  Historical billing, usage and entitlement rows are migrated to the same key;
+  the commercial plan key `chatbot_web` remains unchanged because it identifies
+  a product rather than an Attention channel.
 
 These contracts do not activate paused or planned channels. Entitlements,
 provider verification and rollout controls remain mandatory before a venue can

@@ -1981,16 +1981,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      anonymize_chatbot_usage_identifiers: {
-        Args: {
-          p_session_id: string
-          p_theatre_id: string
-        }
-        Returns: {
-          affected_rows: number
-          category: string
-        }[]
-      }
       anonymize_web_usage_identifiers: {
         Args: {
           p_session_id: string
