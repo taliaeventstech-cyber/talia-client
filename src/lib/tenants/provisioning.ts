@@ -273,7 +273,7 @@ function getGoalLabel(goal: string) {
 }
 
 function getInitialModules() {
-  return ['chatbot', 'data']
+  return ['web', 'data']
 }
 
 async function getAvailableSlug(admin: AdminClient, baseSlug: string) {

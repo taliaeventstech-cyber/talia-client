@@ -119,15 +119,15 @@ export async function POST(
   // the limit is checked on every incoming message (not only on new conversations).
   const limit = await checkTenantLimit(admin, {
     tenantId,
-    channel: 'chatbot',
+    channel: 'web',
     projectedQuantity: 1,
   })
 
   if (limit.ok && !limit.allowed) {
     await recordUsageEvent(admin, {
       tenantId,
-      moduleKey: 'chatbot',
-      channel: 'chatbot',
+      moduleKey: 'web',
+      channel: 'web',
       eventType: 'limit_exceeded',
       unit: 'event',
       metadata: {
@@ -171,8 +171,8 @@ export async function POST(
       }),
       recordUsageEvent(admin, {
         tenantId,
-        moduleKey: 'chatbot',
-        channel: 'chatbot',
+        moduleKey: 'web',
+        channel: 'web',
         eventType: 'fallback',
         unit: 'event',
         metadata: {
@@ -219,7 +219,7 @@ export async function POST(
   const knowledge = shouldDelegateKnowledgeToTaliaAi
     ? {
       query: message,
-      channel: 'chatbot' as const,
+      channel: 'web' as const,
       matches: [],
       topMatch: null,
       shouldAnswerDirectly: false,
@@ -228,7 +228,7 @@ export async function POST(
       admin,
       tenantId,
       query: message,
-      channel: 'chatbot',
+      channel: 'web',
       language: legacyVisitorLanguage ?? tenant.config.language,
     })
 
@@ -622,8 +622,8 @@ async function recordChatbotUsage(
     await Promise.all([
       recordUsageEvent(admin, {
         tenantId: input.tenantId,
-        moduleKey: 'chatbot',
-        channel: 'chatbot',
+        moduleKey: 'web',
+        channel: 'web',
         eventType: 'conversation_started',
         unit: 'conversation',
         idempotencyKey: `chatbot:${input.tenantId}:${input.sessionId}:conversation_started`,
@@ -631,8 +631,8 @@ async function recordChatbotUsage(
       }),
       recordUsageEvent(admin, {
         tenantId: input.tenantId,
-        moduleKey: 'chatbot',
-        channel: 'chatbot',
+        moduleKey: 'web',
+        channel: 'web',
         eventType: 'message',
         unit: 'message',
         inputTokens: estimateTokenCount(input.message),
@@ -658,8 +658,8 @@ async function recordChatbotUsage(
 
   await recordUsageEvent(admin, {
     tenantId: input.tenantId,
-    moduleKey: 'chatbot',
-    channel: 'chatbot',
+    moduleKey: 'web',
+    channel: 'web',
     eventType: 'message',
     unit: 'message',
     ...(input.assistantMessageId
@@ -677,8 +677,8 @@ async function recordChatbotUsage(
 
     const aiCall = await recordUsageEvent(admin, {
       tenantId: input.tenantId,
-      moduleKey: 'chatbot',
-      channel: 'chatbot',
+      moduleKey: 'web',
+      channel: 'web',
       eventType: 'ai_call',
       quantity: measuredTotals.requestCount,
       unit: 'call',
@@ -721,8 +721,8 @@ async function recordChatbotUsage(
   const outputTokens = estimateTokenCount(input.message)
   await recordUsageEvent(admin, {
     tenantId: input.tenantId,
-    moduleKey: 'chatbot',
-    channel: 'chatbot',
+    moduleKey: 'web',
+    channel: 'web',
     eventType: 'ai_call',
     unit: 'call',
     inputTokens,

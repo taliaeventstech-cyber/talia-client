@@ -9,7 +9,7 @@ interface Props {
 
 export default async function AccessibilitySettingsPage({ params }: Props) {
   const { tenantId } = await params
-  await requireTenantProductAccess(tenantId, 'manage_chatbot', 'chatbot')
+  await requireTenantProductAccess(tenantId, 'manage_chatbot', 'web')
   const dictionary = await getDictionary(await getLocale())
   const copy = dictionary.accessibilitySettings
   const admin = createAdminClient()

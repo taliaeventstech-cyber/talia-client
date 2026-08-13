@@ -15,7 +15,7 @@ export default async function BackstageHomePage() {
       .select('conversations')
       .gte('date', period.startDate)
       .lt('date', period.endDate)
-      .eq('channel', 'chatbot'),
+      .eq('channel', 'web'),
     admin
       .from('ai_response_usage_daily')
       .select('cost_usd_micros')

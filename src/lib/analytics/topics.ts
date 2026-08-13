@@ -1,9 +1,10 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
 import { getLatestUserMessage } from '@/lib/chat/service'
+import type { AttentionChannel } from '@/lib/attention/channel-agent'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
-export type Channel = 'web' | 'email' | 'voice' | 'whatsapp'
+export type Channel = AttentionChannel
 
 export type SaveTopicInput = {
   tenantId: string

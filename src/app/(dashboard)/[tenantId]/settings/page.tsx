@@ -23,7 +23,7 @@ export default async function SettingsPage({ params }: Props) {
   const { tenantId } = await params
   const locale = await getLocale()
   const dictionary = await getDictionary(locale)
-  const access = await requireTenantProductAccess(tenantId, 'manage_chatbot', 'chatbot')
+  const access = await requireTenantProductAccess(tenantId, 'manage_chatbot', 'web')
   const hasScriptAccess = access.billingAccess.hasProductAccess && access.chatbotSetupCompleted
   const commercialPlanKey = getCommercialPlanKey(
     isPlainObject(access.accountMetadata) ? access.accountMetadata.commercial_plan : undefined

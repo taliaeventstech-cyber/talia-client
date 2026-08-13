@@ -1,11 +1,12 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
 import type { Json, Tables } from '@/types/database.types'
+import type { AttentionChannel } from '@/lib/attention/channel-agent'
 import { getBillingPlan } from '@/lib/billing/plans'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
-export type UsageModuleKey = 'chatbot' | 'voice' | 'email' | 'whatsapp' | 'instagram' | 'data' | 'marketing'
-export type UsageChannel = 'chatbot' | 'email' | 'voice' | 'instagram' | 'whatsapp' | 'backstage' | 'system'
+export type UsageModuleKey = AttentionChannel | 'data' | 'marketing'
+export type UsageChannel = AttentionChannel | 'backstage' | 'system'
 export type UsageEventType =
   | 'conversation_started'
   | 'message'
@@ -85,7 +86,7 @@ export type RecordUsageEventInput = {
 
 export type LimitCheckInput = {
   tenantId: string
-  channel: 'chatbot' | 'email' | 'voice'
+  channel: 'web' | 'email' | 'voice'
   projectedQuantity?: number
 }
 
@@ -273,7 +274,7 @@ export async function getChatbotBillableMessagesForPeriod(
     .from('usage_events')
     .select('id', { count: 'exact', head: true })
     .eq('theatre_id', tenantId)
-    .eq('channel', 'chatbot')
+    .eq('channel', 'web')
     .eq('event_type', 'message')
     .eq('metadata->>role', 'assistant')
     .gte('occurred_at', period.startAt)
@@ -338,7 +339,7 @@ export async function getTenantUsageHistory(
       .from('usage_events')
       .select('id', { count: 'exact', head: true })
       .eq('theatre_id', tenantId)
-      .eq('channel', 'chatbot')
+      .eq('channel', 'web')
       .eq('event_type', 'message')
       .eq('metadata->>role', 'assistant')
       .gte('occurred_at', subscription.billing_period_start_at)
@@ -421,7 +422,7 @@ export async function checkTenantLimit(admin: AdminClient, input: LimitCheckInpu
   }
 
   let current: number
-  if (input.channel === 'chatbot') {
+  if (input.channel === 'web') {
     const billableResult = await getChatbotBillableMessagesForPeriod(admin, input.tenantId, period)
     if (!billableResult.ok) return billableResult
     current = billableResult.count

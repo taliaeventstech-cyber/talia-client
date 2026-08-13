@@ -157,7 +157,7 @@ export async function updateTenantSettings(
   _previousState: SettingsFormState,
   formData: FormData
 ): Promise<SettingsFormState> {
-  await requireTenantProductAccess(tenantId, 'manage_chatbot', 'chatbot')
+  await requireTenantProductAccess(tenantId, 'manage_chatbot', 'web')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

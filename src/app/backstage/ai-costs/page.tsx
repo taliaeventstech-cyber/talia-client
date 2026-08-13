@@ -24,7 +24,7 @@ export default async function BackstageAiCostsPage() {
       .select('estimated_cost_cents')
       .gte('date', period.startDate)
       .lt('date', period.endDate)
-      .eq('channel', 'chatbot'),
+      .eq('channel', 'web'),
   ])
 
   const historicalResponseRows = responseUsageResult.data ?? []

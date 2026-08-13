@@ -179,7 +179,7 @@ Request:
 {
   "tenant_id": "uuid",
   "query": "Is there wheelchair access?",
-  "channel": "chatbot",
+  "channel": "web",
   "limit": 5,
   "language": "es"
 }

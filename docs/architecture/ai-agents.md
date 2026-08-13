@@ -4,6 +4,11 @@
 
 Chatbot, voice, email, WhatsApp, and Instagram must not be separate products. They must be channels on top of the same attention layer.
 
+They are not one universal agent. Each channel has an independent agent,
+conversation history, identity boundary, delivery mode and policy. They share
+venue-governed Knowledge and common operational contracts. See
+[`channel-agent-contracts.md`](channel-agent-contracts.md).
+
 ## Shared Core
 
 The core must be able to answer:
@@ -72,6 +77,10 @@ Rule:
 1. Search for a deterministic answer.
 2. If there is a reliable match, respond with the source.
 3. If there is no answer, fall back to a human.
+
+Conversation content is never promoted to Knowledge automatically. Cross-channel
+identity matching and conversation-context sharing are also disabled: any future
+link between channels requires an explicit product flow and visitor consent.
 
 ## Temporary Provider vs. In-House Backend
 
