@@ -61,27 +61,26 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
   "https://agora.talia.events/api/cron/data-retention?dryRun=false"
 ```
 
-The endpoint also accepts `INTERNAL_API_KEY` through:
+The endpoint accepts only the dedicated `CRON_SECRET` bearer credential. This
+keeps a destructive retention operation isolated from general internal-service
+credentials. The endpoint fails closed in local, preview and production
+environments when no valid cron secret is configured.
 
-- `Authorization: Bearer $INTERNAL_API_KEY`
-- `x-talia-internal-key: $INTERNAL_API_KEY`
+## Production schedule
 
-`CRON_SECRET` and `INTERNAL_API_KEY` must each contain at least 32 random
-characters. The endpoint fails closed in local, preview and production
-environments when no valid secret is configured.
+Vercel Cron invokes the production endpoint daily at **03:00 UTC**:
 
-## Recommended schedule
+```json
+{
+  "path": "/api/cron/data-retention?dryRun=false",
+  "schedule": "0 3 * * *"
+}
+```
 
-Run daily, outside peak hours.
-
-Recommended n8n setup:
-
-1. Schedule Trigger: daily at 03:00 Europe/Madrid.
-2. HTTP Request:
-   - Method: `GET`
-   - URL: `https://agora.talia.events/api/cron/data-retention?dryRun=false`
-   - Header: `Authorization: Bearer {{ CRON_SECRET }}`
-3. Optional notification step if `affectedRows` is unusually high.
+Vercel sends `Authorization: Bearer $CRON_SECRET` automatically. Cron jobs run
+only against production deployments. The schedule becomes active after the
+deployment containing `vercel.json` is promoted to production. No n8n workflow
+is required for the retention policy.
 
 ## Pre-production checklist
 
@@ -90,7 +89,8 @@ Recommended n8n setup:
 - [ ] Review affected row counts.
 - [ ] Run one manual real deletion.
 - [ ] Check dashboard pages still load.
-- [ ] Configure n8n daily schedule.
+- [ ] Confirm the Vercel production deployment registers the daily cron.
+- [ ] Capture one sanitized successful execution from Vercel logs.
 - [ ] Keep retention wording in the public privacy policy aligned with this document.
 
 ## Notes

@@ -54,14 +54,10 @@ async function applyDataRetention(dryRun: boolean) {
 }
 
 export function isAuthorizedRetentionRequest(request: NextRequest) {
-  const internalKey = process.env.INTERNAL_API_KEY
   const cronSecret = process.env.CRON_SECRET
   const bearerToken = getBearerToken(request.headers.get('authorization'))
-  const internalHeader = request.headers.get('x-talia-internal-key')
 
   return matchesServerSecret(bearerToken, cronSecret)
-    || matchesServerSecret(bearerToken, internalKey)
-    || matchesServerSecret(internalHeader, internalKey)
 }
 
 function requiredEnv(key: string) {

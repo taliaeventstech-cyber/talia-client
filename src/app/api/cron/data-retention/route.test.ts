@@ -5,8 +5,6 @@ import { NextRequest } from 'next/server'
 import { isAuthorizedRetentionRequest } from './route'
 
 const CRON_SECRET = 'cron-secret-with-at-least-32-characters'
-const INTERNAL_KEY = 'internal-key-with-at-least-32-characters'
-
 describe('data retention cron authorization', () => {
   afterEach(() => vi.unstubAllEnvs())
 
@@ -15,10 +13,11 @@ describe('data retention cron authorization', () => {
     expect(isAuthorizedRetentionRequest(request({ authorization: `Bearer ${CRON_SECRET}` }))).toBe(true)
   })
 
-  it('accepts the internal key in either supported server-to-server header', () => {
-    vi.stubEnv('INTERNAL_API_KEY', INTERNAL_KEY)
-    expect(isAuthorizedRetentionRequest(request({ authorization: `Bearer ${INTERNAL_KEY}` }))).toBe(true)
-    expect(isAuthorizedRetentionRequest(request({ 'x-talia-internal-key': INTERNAL_KEY }))).toBe(true)
+  it('rejects the internal API key because retention uses a dedicated credential', () => {
+    vi.stubEnv('CRON_SECRET', CRON_SECRET)
+    vi.stubEnv('INTERNAL_API_KEY', 'internal-key-with-at-least-32-characters')
+    expect(isAuthorizedRetentionRequest(request({ authorization: 'Bearer internal-key-with-at-least-32-characters' }))).toBe(false)
+    expect(isAuthorizedRetentionRequest(request({ 'x-talia-internal-key': 'internal-key-with-at-least-32-characters' }))).toBe(false)
   })
 
   it('fails closed without a sufficiently long matching secret', () => {
