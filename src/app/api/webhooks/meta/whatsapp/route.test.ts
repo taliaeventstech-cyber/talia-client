@@ -9,6 +9,9 @@ vi.mock('@/lib/supabase/admin', () => ({
 vi.mock('@/lib/whatsapp/processor', () => ({
   processWhatsappInboundJobs: processJobs,
 }))
+vi.mock('next/server', () => ({
+  after: (callback: () => Promise<void>) => void callback(),
+}))
 
 import { GET, POST } from './route'
 
@@ -64,6 +67,17 @@ describe('Meta WhatsApp webhook route', () => {
       p_phone_number_id: 'phone-1',
       p_provider_message_id: 'message-1',
     }))
+  })
+
+  it('drains bounded backlog when a new message wakes the worker', async () => {
+    process.env.META_APP_SECRET = 'app-secret'
+
+    const response = await POST(signedRequest(validEnvelope(), 'app-secret'))
+
+    expect(response.status).toBe(200)
+    await vi.waitFor(() => {
+      expect(processJobs).toHaveBeenCalledWith(expect.anything(), { limit: 3 })
+    })
   })
 
   it('rejects missing or invalid signatures before parsing the body', async () => {

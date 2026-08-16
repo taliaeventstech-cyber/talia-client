@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       try {
         after(async () => {
           try {
-            const result = await processWhatsappInboundJobs(admin, { limit: Math.min(summary.accepted, 3) })
+            const result = await processWhatsappInboundJobs(admin, { limit: 3 })
             console.info(JSON.stringify({ event: 'whatsapp_webhook_processor_completed', ...result }))
           } catch {
             console.error(JSON.stringify({
