@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import {
+  extractMetaWhatsappInboundMessages,
   parseMetaWebhookEnvelope,
   verifyMetaWebhookChallenge,
   verifyMetaWebhookSignature,
@@ -58,5 +59,94 @@ describe('Meta WhatsApp webhook', () => {
   it('rejects invalid JSON and non-WhatsApp objects', () => {
     expect(parseMetaWebhookEnvelope('{')).toBeNull()
     expect(parseMetaWebhookEnvelope(JSON.stringify({ object: 'page', entry: [] }))).toBeNull()
+  })
+
+  it('extracts bounded text messages and their channel-local identity', () => {
+    const envelope = parseMetaWebhookEnvelope(JSON.stringify({
+      object: 'whatsapp_business_account',
+      entry: [{
+        id: 'waba-1',
+        changes: [{
+          field: 'messages',
+          value: {
+            metadata: { phone_number_id: 'phone-1' },
+            contacts: [{ wa_id: '34123456789', profile: { name: 'Ada' } }],
+            messages: [{
+              id: 'message-1',
+              from: '34123456789',
+              timestamp: '1786723200',
+              type: 'text',
+              text: { body: '  What time does the show start?  ' },
+              context: { id: 'previous-message' },
+            }],
+          },
+        }],
+      }],
+    }))
+
+    expect(envelope).not.toBeNull()
+    expect(extractMetaWhatsappInboundMessages(envelope!)).toEqual([{
+      wabaId: 'waba-1',
+      phoneNumberId: 'phone-1',
+      providerMessageId: 'message-1',
+      senderWaId: '34123456789',
+      profileName: 'Ada',
+      messageType: 'text',
+      bodyText: 'What time does the show start?',
+      providerTimestamp: '2026-08-14T16:00:00.000Z',
+      contextProviderMessageId: 'previous-message',
+      processable: true,
+      metadata: { hasContext: true },
+    }])
+  })
+
+  it('keeps unsupported messages for handoff without retaining their provider payload', () => {
+    const envelope = parseMetaWebhookEnvelope(JSON.stringify({
+      object: 'whatsapp_business_account',
+      entry: [{
+        id: 'waba-1',
+        changes: [{
+          field: 'messages',
+          value: {
+            metadata: { phone_number_id: 'phone-1' },
+            messages: [{
+              id: 'message-2',
+              from: '34123456789',
+              type: 'image',
+              image: { id: 'private-media-id', caption: 'private caption' },
+            }],
+          },
+        }],
+      }],
+    }))
+
+    expect(envelope).not.toBeNull()
+    expect(extractMetaWhatsappInboundMessages(envelope!)).toEqual([expect.objectContaining({
+      providerMessageId: 'message-2',
+      messageType: 'image',
+      bodyText: null,
+      processable: false,
+      metadata: { hasContext: false },
+    })])
+    expect(JSON.stringify(extractMetaWhatsappInboundMessages(envelope!))).not.toContain('private-media-id')
+  })
+
+  it('ignores delivery status notifications that contain no inbound messages', () => {
+    const envelope = parseMetaWebhookEnvelope(JSON.stringify({
+      object: 'whatsapp_business_account',
+      entry: [{
+        id: 'waba-1',
+        changes: [{
+          field: 'messages',
+          value: {
+            metadata: { phone_number_id: 'phone-1' },
+            statuses: [{ id: 'outbound-1', status: 'delivered' }],
+          },
+        }],
+      }],
+    }))
+
+    expect(envelope).not.toBeNull()
+    expect(extractMetaWhatsappInboundMessages(envelope!)).toEqual([])
   })
 })

@@ -3,6 +3,8 @@ import {
   verifyMetaWebhookChallenge,
   verifyMetaWebhookSignature,
 } from '@/lib/whatsapp/meta-webhook'
+import { ingestMetaWhatsappEnvelope } from '@/lib/whatsapp/inbound'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export const runtime = 'nodejs'
 
@@ -42,8 +44,25 @@ export async function POST(request: Request) {
     return Response.json({ error: 'invalid_signature' }, { status: 401 })
   }
 
-  if (!parseMetaWebhookEnvelope(payload)) {
+  const envelope = parseMetaWebhookEnvelope(payload)
+  if (!envelope) {
     return Response.json({ error: 'invalid_whatsapp_webhook' }, { status: 422 })
+  }
+
+  try {
+    const summary = await ingestMetaWhatsappEnvelope(createAdminClient(), envelope)
+    if (summary.unmatched > 0) {
+      console.warn(JSON.stringify({
+        event: 'whatsapp_webhook_unmatched_connection',
+        unmatched_count: summary.unmatched,
+      }))
+    }
+  } catch {
+    console.error(JSON.stringify({
+      event: 'whatsapp_webhook_ingest_failed',
+      error_code: 'durable_ingest_failed',
+    }))
+    return Response.json({ error: 'whatsapp_webhook_ingest_failed' }, { status: 500 })
   }
 
   return Response.json({ received: true })

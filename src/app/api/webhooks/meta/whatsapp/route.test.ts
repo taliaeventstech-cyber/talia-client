@@ -1,5 +1,12 @@
 import { createHmac } from 'node:crypto'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }))
+
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: () => ({ rpc }),
+}))
+
 import { GET, POST } from './route'
 
 const originalVerifyToken = process.env.META_WHATSAPP_WEBHOOK_VERIFY_TOKEN
@@ -8,6 +15,11 @@ const originalAppSecret = process.env.META_APP_SECRET
 afterEach(() => {
   restoreEnvironment('META_WHATSAPP_WEBHOOK_VERIFY_TOKEN', originalVerifyToken)
   restoreEnvironment('META_APP_SECRET', originalAppSecret)
+})
+
+beforeEach(() => {
+  rpc.mockReset()
+  rpc.mockResolvedValue({ data: [{ outcome: 'accepted' }], error: null })
 })
 
 describe('Meta WhatsApp webhook route', () => {
@@ -42,6 +54,11 @@ describe('Meta WhatsApp webhook route', () => {
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ received: true })
+    expect(rpc).toHaveBeenCalledWith('ingest_whatsapp_message', expect.objectContaining({
+      p_waba_id: 'waba-1',
+      p_phone_number_id: 'phone-1',
+      p_provider_message_id: 'message-1',
+    }))
   })
 
   it('rejects missing or invalid signatures before parsing the body', async () => {
@@ -65,6 +82,16 @@ describe('Meta WhatsApp webhook route', () => {
 
     expect(response.status).toBe(422)
     await expect(response.json()).resolves.toEqual({ error: 'invalid_whatsapp_webhook' })
+  })
+
+  it('asks Meta to retry when durable ingestion fails', async () => {
+    process.env.META_APP_SECRET = 'app-secret'
+    rpc.mockResolvedValue({ data: null, error: { message: 'database unavailable' } })
+
+    const response = await POST(signedRequest(validEnvelope(), 'app-secret'))
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: 'whatsapp_webhook_ingest_failed' })
   })
 })
 

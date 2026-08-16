@@ -13,7 +13,8 @@ Current state:
 - Main active module: **Attention**.
 - Most mature channel: **Web chatbot**.
 - Channel in testing: **Gmail email agent**, in supervised drafts mode.
-- Planned or paused channels: Microsoft/Outlook, voice, WhatsApp, Instagram.
+- Channel in development: WhatsApp Cloud API pilot.
+- Planned or paused channels: Microsoft/Outlook, voice and Instagram.
 - Client dashboard: **Agora**, per venue.
 - Internal panel: **Backstage**.
 - Current commercial model: 15-day free trial, upgrade to paid plans and add-ons.
@@ -586,6 +587,37 @@ Context:
 Reference:
 
 - `docs/requirements/voice-agent.md`.
+
+### WhatsApp
+
+Status: native Cloud API pilot in development; not commercially available.
+
+Implemented:
+
+- Meta webhook verification and signed-body validation in the Next.js provider
+  boundary.
+- A real inbound message from Meta's test number reaches the deployed TALIA
+  webhook successfully.
+- Backend-only venue mapping by WABA ID and phone-number ID.
+- Atomic, idempotent persistence of channel-local contacts, conversations and
+  messages, followed by a durable inbound job.
+- Rollout, module and entitlement gates fail closed before agent processing.
+- Unsupported message types enter human handoff without retaining the raw Meta
+  payload.
+- WhatsApp content and channel-local identities use the common 90-day content
+  retention policy.
+
+Pending:
+
+- Provision the Sala Fènix pilot mapping after applying the database migration.
+- Implement the dedicated WhatsApp agent runtime in `talia-ai`.
+- Process durable inbound jobs and send replies through Cloud API.
+- Add delivery/read status reconciliation and the operator handoff surface.
+- Replace the pilot credential with Embedded Signup for tenant-managed WABAs.
+
+Reference:
+
+- `docs/operations/whatsapp-cloud-api-development.md`.
 
 ## Billing and Trial
 

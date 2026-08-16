@@ -2018,6 +2018,20 @@ export type Database = {
         }
         Returns: string | null
       }
+      claim_whatsapp_inbound_jobs: {
+        Args: {
+          p_lease_seconds?: number
+          p_limit?: number
+          p_worker_id: string
+        }
+        Returns: {
+          attempt_count: number
+          connection_id: string
+          job_id: string
+          message_id: string
+          theatre_id: string
+        }[]
+      }
       current_theatre_id: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -2077,6 +2091,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      finish_whatsapp_inbound_job: {
+        Args: {
+          p_error_code?: string
+          p_error_message?: string
+          p_job_id: string
+          p_retry_delay_seconds?: number
+          p_status: string
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
       set_knowledge_web_sync_enabled: {
         Args: {
           p_enabled: boolean
@@ -2098,6 +2123,27 @@ export type Database = {
           p_theatre_id: string
         }
         Returns: undefined
+      }
+      ingest_whatsapp_message: {
+        Args: {
+          p_body_text: string
+          p_context_provider_message_id?: string
+          p_message_type: string
+          p_metadata?: Json
+          p_phone_number_id: string
+          p_processable?: boolean
+          p_profile_name: string
+          p_provider_message_id: string
+          p_provider_timestamp: string
+          p_sender_wa_id: string
+          p_waba_id: string
+        }
+        Returns: {
+          inbound_job_id: string | null
+          inbound_message_id: string | null
+          outcome: string
+          resolved_theatre_id: string | null
+        }[]
       }
       get_tenant_usage_totals: {
         Args: {
