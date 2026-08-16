@@ -124,6 +124,13 @@ The queue deliberately separates receipt from response generation. A later
 worker can retry agent and Cloud API failures without making Meta redeliver the
 visitor's inbound webhook.
 
+Consecutive processable messages in the same venue, connection, contact and
+conversation form one conversational turn. Each new message moves the shared
+deadline to 2.5 seconds after the latest arrival, with an 8-second maximum from
+the first pending message. The messages remain separate durable records, but
+the agent receives their text joined in chronological order and produces one
+reply linked to the latest provider message.
+
 ## Agent worker and outbound safety
 
 `talia-ai` exposes `POST /v1/whatsapp/respond`. It receives bounded history
@@ -133,14 +140,30 @@ the Meta token or calls the provider.
 
 `talia-client` owns the effect boundary:
 
-1. Claim a leased row from `whatsapp_inbound_jobs`.
-2. Load the venue, connection, inbound message and at most six prior messages
-   through a service-role-only RPC.
-3. Persist one outbound row keyed to the inbound message.
-4. Move it from `queued` to `sending` immediately before `POST
+1. Claim one leased conversation anchor from `whatsapp_inbound_jobs` and attach
+   every due sibling job in that conversation to the same worker.
+2. Load the venue, coalesced turn and at most six prior messages through a
+   service-role-only RPC.
+3. Persist one outbound row keyed to the latest inbound message in the turn.
+4. Transactionally verify that no newer inbound message exists, then move the
+   response from `queued` to `sending` immediately before `POST
    /<PHONE_NUMBER_ID>/messages`.
 5. On a confirmed Meta success, replace the pending ID with Meta's `wamid` and
-   complete the inbound message, conversation and job atomically.
+   complete every inbound message and job in the turn atomically.
+
+If a newer message arrives during agent generation, the prepared response is
+marked stale before any Meta side effect. The complete turn is requeued and
+generated again. The webhook wake-up waits for the quiet window and performs a
+bounded follow-up drain for this case; the minute cron remains the durable
+recovery path.
+
+The first automated response in each conversation is prefixed with an explicit
+disclosure that TALIA is the venue's AI virtual assistant. It uses the detected
+response language and falls back to the venue language. The
+`ai_disclosure_sent_at` marker is written only after Meta confirms the send, so
+failed or stale responses do not suppress the required disclosure later.
+This is the channel implementation of the transparency obligation in
+[EU AI Act Article 50](https://eur-lex.europa.eu/eli/reg/2024/1689/oj).
 
 A `429`, `5xx`, `408` or `425` response is a confirmed rejection and may retry
 without invoking the agent again. A timeout, connection failure or malformed
@@ -151,7 +174,7 @@ The webhook uses Next.js `after()` only as a low-latency wake-up. The durable
 recovery path is `GET /api/cron/whatsapp/process`, registered every minute in
 `vercel.json`. For a preview canary it can also be invoked manually:
 
-Each invocation claims at most three jobs and processes them sequentially so
+Each invocation claims at most three conversation anchors and processes them sequentially so
 the combined agent and provider timeouts remain inside the Vercel function
 budget. Subsequent cron invocations drain any remaining backlog.
 
@@ -167,7 +190,8 @@ metadata or issue trackers.
 ## End-to-end canary
 
 1. Deploy the `talia-ai` branch containing `/v1/whatsapp/respond`.
-2. Apply `20260816123000_whatsapp_agent_worker.sql`.
+2. Apply `20260816123000_whatsapp_agent_worker.sql` and
+   `20260816170000_whatsapp_conversation_turns.sql`.
 3. Deploy `talia-client` with the environment variables above.
 4. Send one factual question from the verified recipient to Meta's test number.
 5. Confirm one inbound row, one outbound row, one completed job and one reply on
@@ -176,3 +200,6 @@ metadata or issue trackers.
    automatic reply and a conversation in `handoff`.
 7. Repeat a webhook delivery and confirm that neither the inbound nor outbound
    message is duplicated.
+8. Send three short messages in quick succession. Confirm three inbound rows,
+   one agent call, one outbound row, one reply linked to the third message and
+   an AI disclosure in the first confirmed response only.

@@ -18,7 +18,7 @@ beforeEach(() => {
 })
 
 describe('processWhatsappInboundJobs', () => {
-  it('persists a reply before sending it and completes only after Meta confirms it', async () => {
+  it('coalesces a burst, discloses the AI, and sends one reply linked to the latest message', async () => {
     const admin = createAdmin()
     const requestAgent = vi.fn(async () => agentResponse())
     const sendText = vi.fn(async () => ({ ok: true as const, providerMessageId: 'wamid.outbound' }))
@@ -27,21 +27,87 @@ describe('processWhatsappInboundJobs', () => {
       workerId: 'worker-1', requestAgent, sendText,
     })
 
-    expect(result).toEqual({ claimed: 1, responded: 1, handoffs: 0, retried: 0, failed: 0 })
+    expect(result).toEqual({
+      claimed: 1, responded: 1, handoffs: 0, retried: 0, deferred: 0, failed: 0,
+    })
     expect(admin.calls.map(([name]) => name)).toEqual([
       'claim_whatsapp_inbound_jobs',
       'get_whatsapp_inbound_job_context',
-      'prepare_whatsapp_agent_reply',
-      'mark_whatsapp_agent_send_started',
-      'complete_whatsapp_agent_reply',
+      'prepare_whatsapp_conversation_turn',
+      'start_whatsapp_conversation_turn_send',
+      'complete_whatsapp_conversation_turn',
     ])
+    expect(requestAgent).toHaveBeenCalledWith(expect.objectContaining({
+      messageId: '60000000-0000-4000-8000-000000000003',
+      message: 'Hola, ¿qué tal?\nMe gustaría saber si el teatro\nes accesible, gracias.',
+    }))
     expect(sendText).toHaveBeenCalledWith({
       phoneNumberId: 'phone-1',
       recipientWaId: '34123456789',
-      body: 'Respuesta segura',
-      replyToProviderMessageId: 'wamid.inbound',
+      body: 'Hola, soy TALIA, el asistente virtual con IA de Sala Ejemplo.\n\nRespuesta segura',
+      replyToProviderMessageId: 'wamid.inbound.3',
     })
+    expect(admin.calls).toContainEqual([
+      'prepare_whatsapp_conversation_turn',
+      expect.objectContaining({
+        p_agent_metadata: expect.objectContaining({
+          ai_disclosure_included: true,
+          ai_disclosure_version: 1,
+          turn_message_count: 3,
+        }),
+      }),
+    ])
+    expect(inboundUsageKeys()).toEqual([
+      'whatsapp:60000000-0000-4000-8000-000000000001:inbound',
+      'whatsapp:60000000-0000-4000-8000-000000000002:inbound',
+      'whatsapp:60000000-0000-4000-8000-000000000003:inbound',
+    ])
     expect(recordMeasuredAiUsage).toHaveBeenCalledOnce()
+  })
+
+  it('does not repeat the AI disclosure after it has been confirmed for the conversation', async () => {
+    const admin = createAdmin({ aiDisclosureRequired: false })
+    const sendText = vi.fn(async () => ({ ok: true as const, providerMessageId: 'wamid.outbound' }))
+
+    await processWhatsappInboundJobs(admin.client, {
+      workerId: 'worker-1', requestAgent: async () => agentResponse(), sendText,
+    })
+
+    expect(sendText).toHaveBeenCalledWith(expect.objectContaining({ body: 'Respuesta segura' }))
+    expect(admin.calls).toContainEqual([
+      'prepare_whatsapp_conversation_turn',
+      expect.objectContaining({
+        p_agent_metadata: expect.not.objectContaining({ ai_disclosure_included: true }),
+      }),
+    ])
+  })
+
+  it('localizes the disclosure to the agent response language', async () => {
+    const admin = createAdmin()
+    const sendText = vi.fn(async () => ({ ok: true as const, providerMessageId: 'wamid.outbound' }))
+
+    await processWhatsappInboundJobs(admin.client, {
+      workerId: 'worker-1', requestAgent: async () => agentResponse('ca'), sendText,
+    })
+
+    expect(sendText).toHaveBeenCalledWith(expect.objectContaining({
+      body: "Hola, soc TALIA, l'assistent virtual amb IA de Sala Ejemplo.\n\nRespuesta segura",
+    }))
+  })
+
+  it('defers a generated reply when a newer inbound message makes the turn stale', async () => {
+    const admin = createAdmin({ prepareState: 'stale' })
+    const sendText = vi.fn()
+
+    const result = await processWhatsappInboundJobs(admin.client, {
+      workerId: 'worker-1', requestAgent: async () => agentResponse(), sendText,
+    })
+
+    expect(result).toEqual({
+      claimed: 1, responded: 0, handoffs: 0, retried: 0, deferred: 1, failed: 0,
+    })
+    expect(sendText).not.toHaveBeenCalled()
+    expect(admin.calls.some(([name]) => name === 'start_whatsapp_conversation_turn_send')).toBe(false)
   })
 
   it('does not retry an uncertain provider outcome', async () => {
@@ -57,16 +123,18 @@ describe('processWhatsappInboundJobs', () => {
       }),
     })
 
-    expect(result).toEqual({ claimed: 1, responded: 0, handoffs: 0, retried: 0, failed: 1 })
+    expect(result).toEqual({
+      claimed: 1, responded: 0, handoffs: 0, retried: 0, deferred: 0, failed: 1,
+    })
     expect(admin.calls).toContainEqual([
-      'complete_whatsapp_agent_handoff',
+      'complete_whatsapp_conversation_turn_handoff',
       expect.objectContaining({
         p_reason: 'provider_send_outcome_unknown',
         p_failed: true,
         p_outbound_delivery_status: 'unknown',
       }),
     ])
-    expect(admin.calls.some(([name]) => name === 'retry_whatsapp_agent_reply')).toBe(false)
+    expect(admin.calls.some(([name]) => name === 'retry_whatsapp_conversation_turn')).toBe(false)
   })
 
   it('retries a confirmed transient rejection without running the agent twice', async () => {
@@ -83,33 +151,81 @@ describe('processWhatsappInboundJobs', () => {
       }),
     })
 
-    expect(result).toEqual({ claimed: 1, responded: 0, handoffs: 0, retried: 1, failed: 0 })
+    expect(result).toEqual({
+      claimed: 1, responded: 0, handoffs: 0, retried: 1, deferred: 0, failed: 0,
+    })
     expect(requestAgent).not.toHaveBeenCalled()
     expect(admin.calls).toContainEqual([
-      'retry_whatsapp_agent_reply',
+      'retry_whatsapp_conversation_turn',
       expect.objectContaining({ p_error_code: 'meta_http_503' }),
     ])
   })
 })
 
-function createAdmin(overrides: { outbound?: ReturnType<typeof preparedOutbound> | null } = {}) {
+function createAdmin(overrides: {
+  outbound?: ReturnType<typeof preparedOutbound> | null
+  aiDisclosureRequired?: boolean
+  prepareState?: 'prepared' | 'stale'
+} = {}) {
   const calls: Array<[string, Record<string, unknown>]> = []
-  const context = jobContext(overrides.outbound ?? null)
+  const context = jobContext(
+    overrides.outbound ?? null,
+    overrides.aiDisclosureRequired ?? true,
+  )
   const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
     calls.push([name, args])
     if (name === 'claim_whatsapp_inbound_jobs') {
-      return { data: [{ job_id: context.job.id, message_id: context.message.id, theatre_id: context.tenant.id, connection_id: context.connection.id, attempt_count: 1 }], error: null }
+      return {
+        data: [{
+          job_id: context.job.id,
+          message_id: context.message.id,
+          theatre_id: context.tenant.id,
+          connection_id: context.connection.id,
+          attempt_count: 1,
+        }],
+        error: null,
+      }
     }
     if (name === 'get_whatsapp_inbound_job_context') return { data: context, error: null }
-    if (name === 'prepare_whatsapp_agent_reply') return { data: preparedOutbound(), error: null }
+    if (name === 'prepare_whatsapp_conversation_turn') {
+      if (overrides.prepareState === 'stale') return { data: { state: 'stale' }, error: null }
+      return {
+        data: {
+          state: 'prepared',
+          outbound: preparedOutbound(String(args.p_reply), args.p_agent_metadata as Record<string, unknown>),
+        },
+        error: null,
+      }
+    }
+    if (name === 'start_whatsapp_conversation_turn_send') return { data: 'started', error: null }
+    if (name === 'retry_whatsapp_conversation_turn') return { data: 'retry', error: null }
+    if (name === 'complete_whatsapp_conversation_turn_handoff') return { data: 'handoff', error: null }
     return { data: true, error: null }
   })
   return { client: { rpc } as never, calls }
 }
 
-function jobContext(outbound: ReturnType<typeof preparedOutbound> | null) {
+function jobContext(
+  outbound: ReturnType<typeof preparedOutbound> | null,
+  aiDisclosureRequired: boolean,
+) {
+  const messageIds = [
+    '60000000-0000-4000-8000-000000000001',
+    '60000000-0000-4000-8000-000000000002',
+    '60000000-0000-4000-8000-000000000003',
+  ]
   return {
     job: { id: '10000000-0000-4000-8000-000000000001', attempt_count: 1 },
+    turn: {
+      job_ids: [
+        '11000000-0000-4000-8000-000000000001',
+        '11000000-0000-4000-8000-000000000002',
+        '11000000-0000-4000-8000-000000000003',
+      ],
+      message_ids: messageIds,
+      message_count: 3,
+      ai_disclosure_required: aiDisclosureRequired,
+    },
     connection: {
       id: '20000000-0000-4000-8000-000000000001',
       phone_number_id: 'phone-1',
@@ -127,27 +243,30 @@ function jobContext(outbound: ReturnType<typeof preparedOutbound> | null) {
     contact: { id: '40000000-0000-4000-8000-000000000001', wa_id: '34123456789' },
     conversation: { id: '50000000-0000-4000-8000-000000000001', status: 'pending', metadata: {} },
     message: {
-      id: '60000000-0000-4000-8000-000000000001',
-      provider_message_id: 'wamid.inbound',
-      body_text: '¿A qué hora abrís?',
-      created_at: '2026-08-16T10:00:00Z',
+      id: messageIds[2],
+      provider_message_id: 'wamid.inbound.3',
+      body_text: 'Hola, ¿qué tal?\nMe gustaría saber si el teatro\nes accesible, gracias.',
+      created_at: '2026-08-16T10:00:02Z',
     },
     conversation_context: [],
     outbound,
   }
 }
 
-function preparedOutbound() {
+function preparedOutbound(
+  bodyText = 'Respuesta segura',
+  metadata: Record<string, unknown> = { agent: 'whatsapp_agent' },
+) {
   return {
     id: '70000000-0000-4000-8000-000000000001',
-    body_text: 'Respuesta segura',
-    provider_message_id: 'agent-pending:60000000-0000-4000-8000-000000000001',
+    body_text: bodyText,
+    provider_message_id: 'agent-pending:60000000-0000-4000-8000-000000000003',
     delivery_status: 'queued' as const,
-    metadata: { agent: 'whatsapp_agent' },
+    metadata,
   }
 }
 
-function agentResponse() {
+function agentResponse(responseLanguage = 'es') {
   return {
     ok: true as const,
     result: {
@@ -161,9 +280,16 @@ function agentResponse() {
       sources: [],
       metadata: {
         response_kind: 'answer',
-        response_language: 'es',
+        response_language: responseLanguage,
         resolution: { version: 1, state: 'answered_with_evidence', clarification_attempts: 0 },
       },
     },
   }
+}
+
+function inboundUsageKeys() {
+  return recordUsageEvent.mock.calls
+    .map(([, input]) => input as { idempotencyKey: string; metadata?: { direction?: string } })
+    .filter((input) => input.metadata?.direction === 'inbound')
+    .map((input) => input.idempotencyKey)
 }

@@ -11,6 +11,9 @@ import { after } from 'next/server'
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
+const WHATSAPP_TURN_QUIET_WINDOW_MS = 2_600
+const WHATSAPP_STALE_RECLAIM_LIMIT = 2
+
 export function GET(request: Request) {
   const verifyToken = process.env.META_WHATSAPP_WEBHOOK_VERIFY_TOKEN
   if (!verifyToken) {
@@ -65,7 +68,14 @@ export async function POST(request: Request) {
       try {
         after(async () => {
           try {
-            const result = await processWhatsappInboundJobs(admin, { limit: 3 })
+            await waitForWhatsappTurnQuietWindow()
+            let latest = await processWhatsappInboundJobs(admin, { limit: 3 })
+            let result = latest
+            for (let index = 0; index < WHATSAPP_STALE_RECLAIM_LIMIT && latest.deferred > 0; index += 1) {
+              await waitForWhatsappTurnQuietWindow()
+              latest = await processWhatsappInboundJobs(admin, { limit: 3 })
+              result = mergeProcessorResults(result, latest)
+            }
             console.info(JSON.stringify({ event: 'whatsapp_webhook_processor_completed', ...result }))
           } catch {
             console.error(JSON.stringify({
@@ -90,4 +100,22 @@ export async function POST(request: Request) {
   }
 
   return Response.json({ received: true })
+}
+
+function waitForWhatsappTurnQuietWindow() {
+  return new Promise<void>((resolve) => setTimeout(resolve, WHATSAPP_TURN_QUIET_WINDOW_MS))
+}
+
+function mergeProcessorResults(
+  left: Awaited<ReturnType<typeof processWhatsappInboundJobs>>,
+  right: Awaited<ReturnType<typeof processWhatsappInboundJobs>>,
+) {
+  return {
+    claimed: left.claimed + right.claimed,
+    responded: left.responded + right.responded,
+    handoffs: left.handoffs + right.handoffs,
+    retried: left.retried + right.retried,
+    deferred: left.deferred + right.deferred,
+    failed: left.failed + right.failed,
+  }
 }

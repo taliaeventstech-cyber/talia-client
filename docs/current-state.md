@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: August 2, 2026
+Last updated: August 16, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -612,6 +612,17 @@ Implemented:
 - A durable worker in `talia-client` claims inbound jobs, persists one
   idempotent outbound reply before calling Meta, sends through Cloud API and
   atomically completes the message, conversation and job after confirmation.
+- Consecutive messages from the same WhatsApp conversation are coalesced into
+  one natural-language turn after a 2.5-second quiet window, capped at 8 seconds
+  from the first message. Every inbound message remains individually durable
+  and billable, while the turn produces one agent request and at most one reply.
+- A final transactional freshness check prevents TALIA from sending a generated
+  reply when a newer message has arrived. The stale turn is requeued and
+  regenerated with the new message instead.
+- The first confirmed automated response in a conversation clearly identifies
+  TALIA as an AI virtual assistant in the response language, falling back to the
+  venue language. The disclosure is not repeated on every reply and is only
+  persisted after Meta confirms the send.
 - Confirmed Meta rejections can retry with bounded backoff. Network timeouts or
   invalid success responses are treated as uncertain outcomes and move to
   handoff without automatic resend.
@@ -621,10 +632,14 @@ Implemented:
   `whatsapp` module/channel without phone numbers or message content in their
   operational metadata.
 
+Validated in the current pilot:
+
+- The end-to-end canary with TALIA's test tenant and Meta test number receives,
+  grounds and returns a real WhatsApp response.
+
 Pending:
 
-- Apply the agent-worker migration and deploy both feature branches.
-- Run the end-to-end canary with TALIA's own test tenant and Meta test number.
+- Apply and canary the conversational-turn migration in the preview environment.
 - Add delivery/read status reconciliation and the operator handoff surface.
 - Replace the pilot credential with Embedded Signup for tenant-managed WABAs.
 

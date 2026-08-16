@@ -51,6 +51,8 @@ select is(
   'the enabled connection creates one processable inbound job'
 );
 
+update public.whatsapp_inbound_jobs set available_at = clock_timestamp() - interval '1 second';
+
 create temporary table claimed_whatsapp_job as
 select * from public.claim_whatsapp_inbound_jobs('pg-worker', 1, 120);
 

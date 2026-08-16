@@ -2055,6 +2055,29 @@ export type Database = {
         }
         Returns: boolean
       }
+      complete_whatsapp_conversation_turn: {
+        Args: {
+          p_agent_metadata?: Json
+          p_job_id: string
+          p_outbound_message_id: string
+          p_provider_message_id: string
+          p_resolution?: Json
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      complete_whatsapp_conversation_turn_handoff: {
+        Args: {
+          p_agent_metadata?: Json
+          p_failed?: boolean
+          p_job_id: string
+          p_outbound_delivery_status?: string
+          p_outbound_message_id?: string
+          p_reason: string
+          p_worker_id: string
+        }
+        Returns: string
+      }
       current_theatre_id: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -2149,6 +2172,26 @@ export type Database = {
         }
         Returns: Json
       }
+      prepare_whatsapp_conversation_turn: {
+        Args: {
+          p_agent_metadata?: Json
+          p_job_id: string
+          p_reply: string
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      retry_whatsapp_conversation_turn: {
+        Args: {
+          p_error_code: string
+          p_error_message: string
+          p_job_id: string
+          p_outbound_message_id?: string
+          p_retry_delay_seconds?: number
+          p_worker_id: string
+        }
+        Returns: string
+      }
       retry_whatsapp_agent_reply: {
         Args: {
           p_error_code: string
@@ -2159,6 +2202,14 @@ export type Database = {
           p_worker_id: string
         }
         Returns: boolean
+      }
+      start_whatsapp_conversation_turn_send: {
+        Args: {
+          p_job_id: string
+          p_outbound_message_id: string
+          p_worker_id: string
+        }
+        Returns: string
       }
       set_knowledge_web_sync_enabled: {
         Args: {

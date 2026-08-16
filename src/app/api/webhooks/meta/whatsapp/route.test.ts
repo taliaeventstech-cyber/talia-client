@@ -1,7 +1,11 @@
 import { createHmac } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { rpc, processJobs } = vi.hoisted(() => ({ rpc: vi.fn(), processJobs: vi.fn() }))
+const { rpc, processJobs, afterCallbacks } = vi.hoisted(() => ({
+  rpc: vi.fn(),
+  processJobs: vi.fn(),
+  afterCallbacks: [] as Array<() => Promise<void>>,
+}))
 
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => ({ rpc }),
@@ -10,7 +14,7 @@ vi.mock('@/lib/whatsapp/processor', () => ({
   processWhatsappInboundJobs: processJobs,
 }))
 vi.mock('next/server', () => ({
-  after: (callback: () => Promise<void>) => void callback(),
+  after: (callback: () => Promise<void>) => afterCallbacks.push(callback),
 }))
 
 import { GET, POST } from './route'
@@ -19,6 +23,7 @@ const originalVerifyToken = process.env.META_WHATSAPP_WEBHOOK_VERIFY_TOKEN
 const originalAppSecret = process.env.META_APP_SECRET
 
 afterEach(() => {
+  vi.useRealTimers()
   restoreEnvironment('META_WHATSAPP_WEBHOOK_VERIFY_TOKEN', originalVerifyToken)
   restoreEnvironment('META_APP_SECRET', originalAppSecret)
 })
@@ -26,7 +31,10 @@ afterEach(() => {
 beforeEach(() => {
   rpc.mockReset()
   processJobs.mockReset()
-  processJobs.mockResolvedValue({ claimed: 1, responded: 1, handoffs: 0, retried: 0, failed: 0 })
+  afterCallbacks.length = 0
+  processJobs.mockResolvedValue({
+    claimed: 1, responded: 1, handoffs: 0, retried: 0, deferred: 0, failed: 0,
+  })
   rpc.mockResolvedValue({ data: [{ outcome: 'accepted' }], error: null })
 })
 
@@ -70,14 +78,38 @@ describe('Meta WhatsApp webhook route', () => {
   })
 
   it('drains bounded backlog when a new message wakes the worker', async () => {
+    vi.useFakeTimers()
     process.env.META_APP_SECRET = 'app-secret'
 
     const response = await POST(signedRequest(validEnvelope(), 'app-secret'))
 
     expect(response.status).toBe(200)
-    await vi.waitFor(() => {
-      expect(processJobs).toHaveBeenCalledWith(expect.anything(), { limit: 3 })
-    })
+    expect(afterCallbacks).toHaveLength(1)
+    const wakeup = afterCallbacks[0]()
+    await vi.advanceTimersByTimeAsync(2_600)
+    await wakeup
+    expect(processJobs).toHaveBeenCalledWith(expect.anything(), { limit: 3 })
+    vi.useRealTimers()
+  })
+
+  it('reclaims a turn after a newer message invalidates an in-flight generation', async () => {
+    vi.useFakeTimers()
+    process.env.META_APP_SECRET = 'app-secret'
+    processJobs
+      .mockResolvedValueOnce({
+        claimed: 1, responded: 0, handoffs: 0, retried: 0, deferred: 1, failed: 0,
+      })
+      .mockResolvedValueOnce({
+        claimed: 1, responded: 1, handoffs: 0, retried: 0, deferred: 0, failed: 0,
+      })
+
+    await POST(signedRequest(validEnvelope(), 'app-secret'))
+    const wakeup = afterCallbacks[0]()
+    await vi.advanceTimersByTimeAsync(5_200)
+    await wakeup
+
+    expect(processJobs).toHaveBeenCalledTimes(2)
+    vi.useRealTimers()
   })
 
   it('rejects missing or invalid signatures before parsing the body', async () => {

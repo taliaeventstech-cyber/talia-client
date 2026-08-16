@@ -12,6 +12,12 @@ type AdminClient = ReturnType<typeof createAdminClient>
 
 const jobContextSchema = z.object({
   job: z.object({ id: z.string().uuid(), attempt_count: z.number().int().min(1) }),
+  turn: z.object({
+    job_ids: z.array(z.string().uuid()).min(1),
+    message_ids: z.array(z.string().uuid()).min(1),
+    message_count: z.number().int().min(1),
+    ai_disclosure_required: z.boolean(),
+  }),
   connection: z.object({
     id: z.string().uuid(),
     phone_number_id: z.string().min(1),
@@ -58,8 +64,14 @@ export type WhatsappProcessorSummary = {
   responded: number
   handoffs: number
   retried: number
+  deferred: number
   failed: number
 }
+
+const preparedTurnSchema = z.object({
+  state: z.enum(['prepared', 'stale', 'invalid']),
+  outbound: jobContextSchema.shape.outbound.optional(),
+})
 
 type ProcessorDependencies = {
   requestAgent?: typeof requestWhatsappAgent
@@ -114,6 +126,7 @@ async function processClaimedJob(
       summary.failed += 1
       return
     }
+    input.attemptCount = Math.max(input.attemptCount, context.job.attempt_count)
 
     await recordInboundUsage(admin, context)
     if (context.outbound) {
@@ -130,8 +143,14 @@ async function processClaimedJob(
       permittedActions: getStringArray(settings.permitted_actions),
     })
     if (!policy.enabled || !policy.permittedActions.includes('answer_from_knowledge')) {
-      await completeHandoff(admin, context, input, policy.enabled ? 'answer_action_disabled' : 'agent_disabled', false)
-      summary.handoffs += 1
+      const outcome = await completeHandoff(
+        admin,
+        context,
+        input,
+        policy.enabled ? 'answer_action_disabled' : 'agent_disabled',
+        false,
+      )
+      countHandoffOutcome(summary, outcome, false)
       return
     }
 
@@ -160,41 +179,92 @@ async function processClaimedJob(
     })
 
     if (!agent.ok) {
-      await handleAgentFailure(admin, context, input, agent)
-      if (agent.retryable && input.attemptCount < input.maxAttempts) summary.retried += 1
-      else summary.failed += 1
+      const outcome = await handleAgentFailure(admin, context, input, agent)
+      countFailureOutcome(summary, outcome)
       return
     }
 
     await recordAgentUsage(admin, context, agent.result)
-    const agentMetadata = buildAgentMetadata(agent.result)
+    const agentMetadata = {
+      ...buildAgentMetadata(agent.result),
+      turn_message_count: context.turn.message_count,
+    }
     if (agent.result.action === 'handoff') {
-      await completeHandoff(admin, context, input, 'agent_handoff', false, agentMetadata)
-      await recordHandoffUsage(admin, context, 'agent_handoff')
-      summary.handoffs += 1
+      const outcome = await completeHandoff(admin, context, input, 'agent_handoff', false, agentMetadata)
+      if (outcome === 'handoff') await recordHandoffUsage(admin, context, 'agent_handoff')
+      countHandoffOutcome(summary, outcome, false)
       return
     }
 
     if (!isAgentResponsePermitted(agent.result, policy.permittedActions)) {
-      await completeHandoff(admin, context, input, 'agent_action_not_permitted', false, agentMetadata)
-      await recordHandoffUsage(admin, context, 'agent_action_not_permitted')
-      summary.handoffs += 1
+      const outcome = await completeHandoff(
+        admin,
+        context,
+        input,
+        'agent_action_not_permitted',
+        false,
+        agentMetadata,
+      )
+      if (outcome === 'handoff') await recordHandoffUsage(admin, context, 'agent_action_not_permitted')
+      countHandoffOutcome(summary, outcome, false)
       return
     }
 
-    const outbound = await prepareReply(admin, context, input, agent.result.reply!, agentMetadata)
-    await sendPreparedReply(admin, context, outbound, input, summary, agentMetadata, getResolution(agent.result))
+    const response = buildCustomerResponse(
+      context,
+      agent.result.reply!,
+      getString(agent.result.metadata.response_language),
+    )
+    const finalMetadata = {
+      ...agentMetadata,
+      ...(response.disclosureIncluded ? {
+        ai_disclosure_included: true,
+        ai_disclosure_version: 1,
+      } : {}),
+    }
+    const prepared = await prepareReply(admin, input, response.body, finalMetadata)
+    if (prepared.state === 'stale') {
+      summary.deferred += 1
+      return
+    }
+    if (prepared.state !== 'prepared' || !prepared.outbound) {
+      throw new Error('whatsapp_reply_prepare_invalid_result')
+    }
+    await sendPreparedReply(
+      admin,
+      context,
+      prepared.outbound,
+      input,
+      summary,
+      finalMetadata,
+      getResolution(agent.result),
+    )
   } catch {
-    const { error } = await admin.rpc('finish_whatsapp_inbound_job', {
+    if (input.attemptCount >= input.maxAttempts) {
+      const handoff = await admin.rpc('complete_whatsapp_conversation_turn_handoff', {
+        p_job_id: input.jobId,
+        p_worker_id: input.workerId,
+        p_reason: 'worker_unexpected_error',
+        p_failed: true,
+      })
+      if (!handoff.error && handoff.data === 'stale') summary.deferred += 1
+      else summary.failed += 1
+      return
+    }
+    const retry = await admin.rpc('retry_whatsapp_conversation_turn', {
       p_job_id: input.jobId,
       p_worker_id: input.workerId,
-      p_status: input.attemptCount < input.maxAttempts ? 'retry' : 'failed',
       p_error_code: 'worker_unexpected_error',
       p_error_message: 'WhatsApp worker failed before a provider send was confirmed.',
       p_retry_delay_seconds: retryDelay(input.attemptCount),
     })
-    if (error || input.attemptCount >= input.maxAttempts) summary.failed += 1
-    else summary.retried += 1
+    if (retry.error) {
+      summary.failed += 1
+      return
+    }
+    if (retry.data === 'stale') summary.deferred += 1
+    else if (retry.data === 'retry') summary.retried += 1
+    else summary.failed += 1
   }
 }
 
@@ -219,7 +289,7 @@ async function resumePreparedReply(
   }
 
   if (['sent', 'delivered', 'read'].includes(outbound.delivery_status)) {
-    const completed = await admin.rpc('complete_whatsapp_agent_reply', {
+    const completed = await admin.rpc('complete_whatsapp_conversation_turn', {
       p_job_id: input.jobId,
       p_worker_id: input.workerId,
       p_outbound_message_id: outbound.id,
@@ -232,7 +302,7 @@ async function resumePreparedReply(
     return
   }
 
-  await completeHandoff(
+  const outcome = await completeHandoff(
     admin,
     context,
     input,
@@ -242,8 +312,8 @@ async function resumePreparedReply(
     outbound.id,
     outbound.delivery_status === 'sending' ? 'unknown' : 'failed',
   )
-  await recordHandoffUsage(admin, context, 'provider_send_outcome_unknown')
-  summary.failed += 1
+  if (outcome === 'handoff') await recordHandoffUsage(admin, context, 'provider_send_outcome_unknown')
+  countHandoffOutcome(summary, outcome, true)
 }
 
 async function sendPreparedReply(
@@ -255,12 +325,17 @@ async function sendPreparedReply(
   agentMetadata: Record<string, unknown>,
   resolution?: Record<string, unknown>,
 ) {
-  const started = await admin.rpc('mark_whatsapp_agent_send_started', {
+  const started = await admin.rpc('start_whatsapp_conversation_turn_send', {
     p_job_id: input.jobId,
     p_worker_id: input.workerId,
     p_outbound_message_id: outbound.id,
   })
-  if (started.error || !started.data) throw new Error('whatsapp_send_start_failed')
+  if (started.error) throw new Error('whatsapp_send_start_failed')
+  if (started.data === 'stale') {
+    summary.deferred += 1
+    return
+  }
+  if (started.data !== 'started') throw new Error('whatsapp_send_start_failed')
 
   const sendResult = await input.sendText({
     phoneNumberId: context.connection.phone_number_id,
@@ -270,7 +345,7 @@ async function sendPreparedReply(
   })
 
   if (sendResult.ok) {
-    const completed = await admin.rpc('complete_whatsapp_agent_reply', {
+    const completed = await admin.rpc('complete_whatsapp_conversation_turn', {
       p_job_id: input.jobId,
       p_worker_id: input.workerId,
       p_outbound_message_id: outbound.id,
@@ -301,7 +376,7 @@ async function handleSendFailure(
   result: Exclude<MetaWhatsappSendResult, { ok: true }>,
 ) {
   if (result.outcome === 'transient_rejection' && input.attemptCount < input.maxAttempts) {
-    const retry = await admin.rpc('retry_whatsapp_agent_reply', {
+    const retry = await admin.rpc('retry_whatsapp_conversation_turn', {
       p_job_id: input.jobId,
       p_worker_id: input.workerId,
       p_outbound_message_id: outboundId,
@@ -309,13 +384,15 @@ async function handleSendFailure(
       p_error_message: 'Meta rejected the request with a retryable response.',
       p_retry_delay_seconds: retryDelay(input.attemptCount),
     })
-    if (retry.error || !retry.data) throw new Error('whatsapp_send_retry_failed')
-    summary.retried += 1
+    if (retry.error) throw new Error('whatsapp_send_retry_failed')
+    if (retry.data === 'stale') summary.deferred += 1
+    else if (retry.data === 'retry') summary.retried += 1
+    else throw new Error('whatsapp_send_retry_failed')
     return
   }
 
   const unknown = result.outcome === 'uncertain'
-  await completeHandoff(
+  const outcome = await completeHandoff(
     admin,
     context,
     input,
@@ -325,8 +402,10 @@ async function handleSendFailure(
     outboundId,
     unknown ? 'unknown' : 'failed',
   )
-  await recordHandoffUsage(admin, context, unknown ? 'provider_send_outcome_unknown' : result.errorCode)
-  summary.failed += 1
+  if (outcome === 'handoff') {
+    await recordHandoffUsage(admin, context, unknown ? 'provider_send_outcome_unknown' : result.errorCode)
+  }
+  countHandoffOutcome(summary, outcome, true)
 }
 
 async function handleAgentFailure(
@@ -336,20 +415,22 @@ async function handleAgentFailure(
   result: Exclude<WhatsappAgentClientResult, { ok: true }>,
 ) {
   if (result.retryable && input.attemptCount < input.maxAttempts) {
-    const retry = await admin.rpc('finish_whatsapp_inbound_job', {
+    const retry = await admin.rpc('retry_whatsapp_conversation_turn', {
       p_job_id: input.jobId,
       p_worker_id: input.workerId,
-      p_status: 'retry',
       p_error_code: result.errorCode,
       p_error_message: 'WhatsApp agent request failed before any provider side effect.',
       p_retry_delay_seconds: retryDelay(input.attemptCount),
     })
-    if (retry.error || !retry.data) throw new Error('whatsapp_agent_retry_failed')
-    return
+    if (retry.error || !['retry', 'stale'].includes(retry.data ?? '')) {
+      throw new Error('whatsapp_agent_retry_failed')
+    }
+    return retry.data as 'retry' | 'stale'
   }
 
-  await completeHandoff(admin, context, input, result.errorCode, true)
-  await recordHandoffUsage(admin, context, result.errorCode)
+  const outcome = await completeHandoff(admin, context, input, result.errorCode, true)
+  if (outcome === 'handoff') await recordHandoffUsage(admin, context, result.errorCode)
+  return outcome
 }
 
 async function loadJobContext(admin: AdminClient, jobId: string, workerId: string) {
@@ -364,20 +445,19 @@ async function loadJobContext(admin: AdminClient, jobId: string, workerId: strin
 
 async function prepareReply(
   admin: AdminClient,
-  context: WhatsappJobContext,
   input: Parameters<typeof processClaimedJob>[1],
   reply: string,
   metadata: Record<string, unknown>,
 ) {
-  const { data, error } = await admin.rpc('prepare_whatsapp_agent_reply', {
+  const { data, error } = await admin.rpc('prepare_whatsapp_conversation_turn', {
     p_job_id: input.jobId,
     p_worker_id: input.workerId,
     p_reply: reply,
     p_agent_metadata: metadata as Json,
   })
   if (error) throw new Error('whatsapp_reply_prepare_failed')
-  const parsed = jobContextSchema.shape.outbound.safeParse(data)
-  if (!parsed.success || !parsed.data) throw new Error('whatsapp_reply_prepare_invalid_result')
+  const parsed = preparedTurnSchema.safeParse(data)
+  if (!parsed.success) throw new Error('whatsapp_reply_prepare_invalid_result')
   return parsed.data
 }
 
@@ -391,7 +471,7 @@ async function completeHandoff(
   outboundMessageId?: string,
   outboundDeliveryStatus?: 'failed' | 'unknown',
 ) {
-  const result = await admin.rpc('complete_whatsapp_agent_handoff', {
+  const result = await admin.rpc('complete_whatsapp_conversation_turn_handoff', {
     p_job_id: input.jobId,
     p_worker_id: input.workerId,
     p_reason: reason,
@@ -400,7 +480,10 @@ async function completeHandoff(
     ...(outboundMessageId ? { p_outbound_message_id: outboundMessageId } : {}),
     ...(outboundDeliveryStatus ? { p_outbound_delivery_status: outboundDeliveryStatus } : {}),
   })
-  if (result.error || !result.data) throw new Error('whatsapp_handoff_complete_failed')
+  if (result.error || !['handoff', 'stale'].includes(result.data ?? '')) {
+    throw new Error('whatsapp_handoff_complete_failed')
+  }
+  return result.data as 'handoff' | 'stale'
 }
 
 async function markUnknownOutcome(
@@ -449,19 +532,20 @@ function getPreviousResolution(metadata: Record<string, unknown>) {
 }
 
 async function recordInboundUsage(admin: AdminClient, context: WhatsappJobContext) {
-  await recordUsageEvent(admin, {
+  await Promise.all(context.turn.message_ids.map((messageId) => recordUsageEvent(admin, {
     tenantId: context.tenant.id,
     moduleKey: 'whatsapp',
     channel: 'whatsapp',
     eventType: 'message',
     unit: 'message',
-    idempotencyKey: `whatsapp:${context.message.id}:inbound`,
+    idempotencyKey: `whatsapp:${messageId}:inbound`,
     metadata: {
       direction: 'inbound',
       agent: 'whatsapp_agent',
       attention_event: 'interaction_received',
+      turn_message_count: context.turn.message_count,
     },
-  })
+  })))
 }
 
 async function recordAgentUsage(admin: AdminClient, context: WhatsappJobContext, result: WhatsappAgentResult) {
@@ -527,7 +611,62 @@ async function recordHandoffUsage(admin: AdminClient, context: WhatsappJobContex
 }
 
 function emptySummary(claimed: number): WhatsappProcessorSummary {
-  return { claimed, responded: 0, handoffs: 0, retried: 0, failed: 0 }
+  return { claimed, responded: 0, handoffs: 0, retried: 0, deferred: 0, failed: 0 }
+}
+
+function countHandoffOutcome(
+  summary: WhatsappProcessorSummary,
+  outcome: 'handoff' | 'stale',
+  failed: boolean,
+) {
+  if (outcome === 'stale') summary.deferred += 1
+  else if (failed) summary.failed += 1
+  else summary.handoffs += 1
+}
+
+function countFailureOutcome(
+  summary: WhatsappProcessorSummary,
+  outcome: 'retry' | 'handoff' | 'stale',
+) {
+  if (outcome === 'retry') summary.retried += 1
+  else if (outcome === 'stale') summary.deferred += 1
+  else summary.failed += 1
+}
+
+function buildCustomerResponse(
+  context: WhatsappJobContext,
+  reply: string,
+  responseLanguage: string | null,
+) {
+  if (!context.turn.ai_disclosure_required) {
+    return { body: reply.trim().slice(0, 4096), disclosureIncluded: false }
+  }
+
+  const disclosure = getAiDisclosure(
+    responseLanguage ?? context.tenant.fallback_language,
+    context.tenant.name,
+  )
+  const availableReplyLength = Math.max(0, 4096 - disclosure.length - 2)
+  const trimmedReply = reply.trim().slice(0, availableReplyLength).trimEnd()
+  return {
+    body: trimmedReply ? `${disclosure}\n\n${trimmedReply}` : disclosure,
+    disclosureIncluded: true,
+  }
+}
+
+function getAiDisclosure(language: string, tenantName: string) {
+  const normalized = language.toLowerCase()
+  const safeTenantName = tenantName.trim().slice(0, 200)
+  if (normalized.startsWith('ca')) {
+    return `Hola, soc TALIA, l'assistent virtual amb IA de ${safeTenantName}.`
+  }
+  if (normalized.startsWith('pt')) {
+    return `Olá, sou a TALIA, a assistente virtual com IA de ${safeTenantName}.`
+  }
+  if (normalized.startsWith('en')) {
+    return `Hi, I'm TALIA, ${safeTenantName}'s AI virtual assistant.`
+  }
+  return `Hola, soy TALIA, el asistente virtual con IA de ${safeTenantName}.`
 }
 
 function retryDelay(attemptCount: number) {
