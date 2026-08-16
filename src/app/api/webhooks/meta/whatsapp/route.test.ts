@@ -1,10 +1,13 @@
 import { createHmac } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }))
+const { rpc, processJobs } = vi.hoisted(() => ({ rpc: vi.fn(), processJobs: vi.fn() }))
 
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => ({ rpc }),
+}))
+vi.mock('@/lib/whatsapp/processor', () => ({
+  processWhatsappInboundJobs: processJobs,
 }))
 
 import { GET, POST } from './route'
@@ -19,6 +22,8 @@ afterEach(() => {
 
 beforeEach(() => {
   rpc.mockReset()
+  processJobs.mockReset()
+  processJobs.mockResolvedValue({ claimed: 1, responded: 1, handoffs: 0, retried: 0, failed: 0 })
   rpc.mockResolvedValue({ data: [{ outcome: 'accepted' }], error: null })
 })
 

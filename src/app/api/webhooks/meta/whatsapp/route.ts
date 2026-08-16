@@ -5,8 +5,11 @@ import {
 } from '@/lib/whatsapp/meta-webhook'
 import { ingestMetaWhatsappEnvelope } from '@/lib/whatsapp/inbound'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { processWhatsappInboundJobs } from '@/lib/whatsapp/processor'
+import { after } from 'next/server'
 
 export const runtime = 'nodejs'
+export const maxDuration = 300
 
 export function GET(request: Request) {
   const verifyToken = process.env.META_WHATSAPP_WEBHOOK_VERIFY_TOKEN
@@ -50,12 +53,33 @@ export async function POST(request: Request) {
   }
 
   try {
-    const summary = await ingestMetaWhatsappEnvelope(createAdminClient(), envelope)
+    const admin = createAdminClient()
+    const summary = await ingestMetaWhatsappEnvelope(admin, envelope)
     if (summary.unmatched > 0) {
       console.warn(JSON.stringify({
         event: 'whatsapp_webhook_unmatched_connection',
         unmatched_count: summary.unmatched,
       }))
+    }
+    if (summary.accepted > 0) {
+      try {
+        after(async () => {
+          try {
+            const result = await processWhatsappInboundJobs(admin, { limit: Math.min(summary.accepted, 3) })
+            console.info(JSON.stringify({ event: 'whatsapp_webhook_processor_completed', ...result }))
+          } catch {
+            console.error(JSON.stringify({
+              event: 'whatsapp_webhook_processor_failed',
+              error_code: 'processor_wakeup_failed',
+            }))
+          }
+        })
+      } catch {
+        console.warn(JSON.stringify({
+          event: 'whatsapp_webhook_processor_schedule_failed',
+          error_code: 'processor_wakeup_not_scheduled',
+        }))
+      }
     }
   } catch {
     console.error(JSON.stringify({

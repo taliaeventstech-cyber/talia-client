@@ -2032,6 +2032,29 @@ export type Database = {
           theatre_id: string
         }[]
       }
+      complete_whatsapp_agent_handoff: {
+        Args: {
+          p_agent_metadata?: Json
+          p_failed?: boolean
+          p_job_id: string
+          p_outbound_delivery_status?: string
+          p_outbound_message_id?: string
+          p_reason: string
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      complete_whatsapp_agent_reply: {
+        Args: {
+          p_agent_metadata?: Json
+          p_job_id: string
+          p_outbound_message_id: string
+          p_provider_message_id: string
+          p_resolution?: Json
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
       current_theatre_id: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -2058,6 +2081,13 @@ export type Database = {
           theatre_id: string
           theatre_name: string
         }[]
+      }
+      get_whatsapp_inbound_job_context: {
+        Args: {
+          p_job_id: string
+          p_worker_id: string
+        }
+        Returns: Json
       }
       get_backstage_response_trace_metrics: {
         Args: {
@@ -2098,6 +2128,34 @@ export type Database = {
           p_job_id: string
           p_retry_delay_seconds?: number
           p_status: string
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      mark_whatsapp_agent_send_started: {
+        Args: {
+          p_job_id: string
+          p_outbound_message_id: string
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      prepare_whatsapp_agent_reply: {
+        Args: {
+          p_agent_metadata?: Json
+          p_job_id: string
+          p_reply: string
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      retry_whatsapp_agent_reply: {
+        Args: {
+          p_error_code: string
+          p_error_message: string
+          p_job_id: string
+          p_outbound_message_id: string
+          p_retry_delay_seconds?: number
           p_worker_id: string
         }
         Returns: boolean

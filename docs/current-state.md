@@ -606,12 +606,25 @@ Implemented:
   payload.
 - WhatsApp content and channel-local identities use the common 90-day content
   retention policy.
+- A dedicated `/v1/whatsapp/respond` runtime in `talia-ai` applies WhatsApp
+  policy and retrieval without provider side effects. Its safe default returns
+  a non-sendable human handoff when evidence is insufficient.
+- A durable worker in `talia-client` claims inbound jobs, persists one
+  idempotent outbound reply before calling Meta, sends through Cloud API and
+  atomically completes the message, conversation and job after confirmation.
+- Confirmed Meta rejections can retry with bounded backoff. Network timeouts or
+  invalid success responses are treated as uncertain outcomes and move to
+  handoff without automatic resend.
+- The webhook schedules a best-effort post-response worker wake-up, while a
+  one-minute authenticated Vercel cron recovers durable jobs independently.
+- WhatsApp message, fallback and measured AI usage events use the canonical
+  `whatsapp` module/channel without phone numbers or message content in their
+  operational metadata.
 
 Pending:
 
-- Provision the Sala Fènix pilot mapping after applying the database migration.
-- Implement the dedicated WhatsApp agent runtime in `talia-ai`.
-- Process durable inbound jobs and send replies through Cloud API.
+- Apply the agent-worker migration and deploy both feature branches.
+- Run the end-to-end canary with TALIA's own test tenant and Meta test number.
 - Add delivery/read status reconciliation and the operator handoff surface.
 - Replace the pilot credential with Embedded Signup for tenant-managed WABAs.
 

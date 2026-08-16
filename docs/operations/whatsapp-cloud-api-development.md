@@ -19,11 +19,20 @@ webhooks:
 ```text
 META_WHATSAPP_WEBHOOK_VERIFY_TOKEN=<random environment-specific value>
 META_APP_SECRET=<Meta app secret>
+META_WHATSAPP_ACCESS_TOKEN=<server-only Cloud API token>
+META_WHATSAPP_GRAPH_API_VERSION=v26.0
+TALIA_AI_BASE_URL=<deployed talia-ai origin>
+TALIA_AI_INTERNAL_API_KEY=<shared internal service key>
+CRON_SECRET=<Vercel cron bearer secret>
+INTERNAL_API_KEY=<manual preview wake-up secret>
 ```
 
 Generate the verification token with a cryptographically random value, for
 example `openssl rand -hex 32`. Enter the same value in Meta's webhook setup.
-The verification token is not the App Secret or an access token.
+The verification token is not the App Secret or an access token. The pilot
+access token is used only by the server-side outbound worker. Meta dashboard
+temporary tokens expire and must be replaced by a managed system-user or
+Embedded Signup credential before production.
 
 Never expose either value to the browser, commit them, or paste them into issue
 trackers and screenshots. Meta's temporary Cloud API access token is separate
@@ -60,7 +69,7 @@ insert into public.whatsapp_connections (
   rollout_enabled,
   credential_source
 ) values (
-  '<SALA_FENIX_THEATRE_UUID>',
+  '<TALIA_TEST_THEATRE_UUID>',
   '<TEST_WABA_ID>',
   '<TEST_PHONE_NUMBER_ID>',
   '<TEST_DISPLAY_NUMBER>',
@@ -80,7 +89,7 @@ The venue must also have both WhatsApp activation controls enabled:
 
 ```sql
 insert into public.tenant_modules (theatre_id, module_key, status, enabled_at)
-values ('<SALA_FENIX_THEATRE_UUID>', 'whatsapp', 'active', now())
+values ('<TALIA_TEST_THEATRE_UUID>', 'whatsapp', 'active', now())
 on conflict (theatre_id, module_key) do update
 set status = excluded.status,
     enabled_at = coalesce(public.tenant_modules.enabled_at, excluded.enabled_at),
@@ -88,7 +97,7 @@ set status = excluded.status,
     updated_at = now();
 
 insert into public.tenant_module_entitlements (theatre_id, module_key, enabled)
-values ('<SALA_FENIX_THEATRE_UUID>', 'whatsapp', true)
+values ('<TALIA_TEST_THEATRE_UUID>', 'whatsapp', true)
 on conflict (theatre_id, module_key) do update
 set enabled = excluded.enabled,
     updated_at = now();
@@ -114,3 +123,56 @@ or raw provider payload.
 The queue deliberately separates receipt from response generation. A later
 worker can retry agent and Cloud API failures without making Meta redeliver the
 visitor's inbound webhook.
+
+## Agent worker and outbound safety
+
+`talia-ai` exposes `POST /v1/whatsapp/respond`. It receives bounded history
+from only the same WhatsApp conversation, retrieves venue Knowledge with
+`channel=whatsapp`, and returns either `respond` or `handoff`. It never receives
+the Meta token or calls the provider.
+
+`talia-client` owns the effect boundary:
+
+1. Claim a leased row from `whatsapp_inbound_jobs`.
+2. Load the venue, connection, inbound message and at most six prior messages
+   through a service-role-only RPC.
+3. Persist one outbound row keyed to the inbound message.
+4. Move it from `queued` to `sending` immediately before `POST
+   /<PHONE_NUMBER_ID>/messages`.
+5. On a confirmed Meta success, replace the pending ID with Meta's `wamid` and
+   complete the inbound message, conversation and job atomically.
+
+A `429`, `5xx`, `408` or `425` response is a confirmed rejection and may retry
+without invoking the agent again. A timeout, connection failure or malformed
+success response is ambiguous: the outbound row becomes `unknown`, the
+conversation enters handoff, and TALIA does not resend automatically.
+
+The webhook uses Next.js `after()` only as a low-latency wake-up. The durable
+recovery path is `GET /api/cron/whatsapp/process`, registered every minute in
+`vercel.json`. For a preview canary it can also be invoked manually:
+
+Each invocation claims at most three jobs and processes them sequentially so
+the combined agent and provider timeouts remain inside the Vercel function
+budget. Subsequent cron invocations drain any remaining backlog.
+
+```bash
+curl -X POST \
+  -H "x-internal-api-key: $INTERNAL_API_KEY" \
+  "https://<preview-origin>/api/cron/whatsapp/process?limit=1"
+```
+
+Do not paste either server key or the Meta token into logs, screenshots, SQL
+metadata or issue trackers.
+
+## End-to-end canary
+
+1. Deploy the `talia-ai` branch containing `/v1/whatsapp/respond`.
+2. Apply `20260816123000_whatsapp_agent_worker.sql`.
+3. Deploy `talia-client` with the environment variables above.
+4. Send one factual question from the verified recipient to Meta's test number.
+5. Confirm one inbound row, one outbound row, one completed job and one reply on
+   the handset.
+6. Send one unsupported factual question. With the default policy, confirm no
+   automatic reply and a conversation in `handoff`.
+7. Repeat a webhook delivery and confirm that neither the inbound nor outbound
+   message is duplicated.
