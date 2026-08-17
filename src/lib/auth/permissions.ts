@@ -28,6 +28,7 @@ export function normalizeTenantModules(modules: Array<{ module_key: string; stat
 export type TenantPermission =
   | 'view_overview'
   | 'view_conversations'
+  | 'manage_conversations'
   | 'delete_conversations'
   | 'view_analytics'
   | 'manage_chatbot'
@@ -39,6 +40,7 @@ export type TenantPermission =
 const permissionRoles: Record<TenantPermission, TenantRole[]> = {
   view_overview: ['owner', 'admin', 'operator', 'analyst', 'viewer'],
   view_conversations: ['owner', 'admin', 'operator', 'viewer'],
+  manage_conversations: ['owner', 'admin', 'operator'],
   delete_conversations: ['owner', 'admin'],
   view_analytics: ['owner', 'admin', 'analyst', 'viewer'],
   manage_chatbot: ['owner', 'admin'],

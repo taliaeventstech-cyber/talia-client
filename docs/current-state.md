@@ -636,15 +636,24 @@ Implemented:
 - WhatsApp message, fallback and measured AI usage events use the canonical
   `whatsapp` module/channel without phone numbers or message content in their
   operational metadata.
+- Àgora exposes WhatsApp as a channel inside Conversations. Tenant viewers can
+  inspect the masked handoff queue and transcript; owners, administrators and
+  operators can atomically claim a case, send an audited manual reply and
+  resolve it. Manual sends are persisted before Meta is called, are idempotent,
+  and never retry automatically when the provider outcome is uncertain.
 
 Validated in the current pilot:
 
 - The end-to-end canary with TALIA's test tenant and Meta test number receives,
   grounds and returns a real WhatsApp response.
+- A six-message burst is coalesced into one grounded response, all six inbound
+  jobs complete, and Meta delivery callbacks advance the outbound message to
+  `read` without generating another agent turn.
 
 Pending:
 
-- Add the operator handoff surface.
+- Validate the operator handoff surface with a real low-confidence and a real
+  unsupported-message canary after applying its migration.
 - Replace the pilot credential with Embedded Signup for tenant-managed WABAs.
 
 Reference:

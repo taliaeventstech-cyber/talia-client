@@ -2112,6 +2112,78 @@ export type Database = {
         }
         Returns: Json
       }
+      get_whatsapp_handoff_detail: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      get_whatsapp_handoff_queue: {
+        Args: {
+          p_actor_user_id: string
+          p_limit?: number
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      claim_whatsapp_handoff: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_theatre_id: string
+        }
+        Returns: string
+      }
+      prepare_whatsapp_operator_reply: {
+        Args: {
+          p_actor_user_id: string
+          p_body_text: string
+          p_conversation_id: string
+          p_idempotency_key: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      start_whatsapp_operator_reply_send: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_outbound_message_id: string
+          p_theatre_id: string
+        }
+        Returns: string
+      }
+      complete_whatsapp_operator_reply: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_outbound_message_id: string
+          p_provider_message_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
+      }
+      fail_whatsapp_operator_reply: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_delivery_status: string
+          p_error_code: string
+          p_outbound_message_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
+      }
+      resolve_whatsapp_handoff: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_theatre_id: string
+        }
+        Returns: string
+      }
       get_backstage_response_trace_metrics: {
         Args: {
           p_theatre_id: string

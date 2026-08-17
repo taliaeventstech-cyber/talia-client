@@ -179,6 +179,26 @@ terminal and moves the conversation to operator handoff. TALIA stores provider
 timestamps, a bounded error code and bounded pricing classifications; recipient
 IDs, raw errors and the provider payload are not retained.
 
+## Operator handoff
+
+Àgora exposes the WhatsApp handoff queue at
+`/<TENANT_ID>/conversations/whatsapp`. The queue and transcript are loaded
+through service-role-only, tenant-scoped RPCs. Contact identifiers are masked
+before they reach the page.
+
+- `viewer` can inspect the queue and transcript.
+- `owner`, `admin` and `operator` can claim an unassigned conversation.
+- Only the assigned operator can send a manual reply or resolve the case.
+
+Claim, send and resolution transitions are atomic and recorded in
+`audit_events`. A manual reply is inserted with an operator idempotency key
+before TALIA calls Meta. A confirmed success replaces the pending identifier
+with Meta's `wamid`; a confirmed rejection is marked `failed`; an ambiguous
+network outcome is marked `unknown` and is never resent automatically. The
+conversation remains in handoff after either failure so an operator can inspect
+the result. Resolving closes the current conversation; a later inbound message
+starts a new conversation and returns to the normal automation policy.
+
 The webhook uses Next.js `after()` only as a low-latency wake-up. The durable
 recovery path is `GET /api/cron/whatsapp/process`, registered every minute in
 `vercel.json`. For a preview canary it can also be invoked manually:
@@ -201,7 +221,8 @@ metadata or issue trackers.
 1. Deploy the `talia-ai` branch containing `/v1/whatsapp/respond`.
 2. Apply `20260816123000_whatsapp_agent_worker.sql` and
    `20260816170000_whatsapp_conversation_turns.sql`, followed by
-   `20260817120000_whatsapp_delivery_status_reconciliation.sql`.
+   `20260817120000_whatsapp_delivery_status_reconciliation.sql` and
+   `20260817150000_whatsapp_operator_handoff.sql`.
 3. Deploy `talia-client` with the environment variables above.
 4. Send one factual question from the verified recipient to Meta's test number.
 5. Confirm one inbound row, one outbound row, one completed job and one reply on
@@ -215,3 +236,6 @@ metadata or issue trackers.
    an AI disclosure in the first confirmed response only.
 9. Confirm Meta's status callbacks advance that outbound row from `sent` to
    `delivered` and `read` without creating a second message or waking the agent.
+10. Trigger one handoff, open it in Àgora, claim it, send one manual response
+    and confirm the outbound row, usage event and audit event are each recorded
+    once. Resolve it and confirm it disappears from the pending queue.

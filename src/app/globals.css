@@ -8569,6 +8569,19 @@ textarea {
   box-shadow: 0 1px 3px var(--color-border);
 }
 
+.channel-tab-count {
+  display: inline-grid;
+  min-width: 20px;
+  min-height: 20px;
+  place-items: center;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand) 14%, transparent);
+  color: var(--color-brand);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .channel-tab-empty {
   opacity: 0.45;
 }
@@ -12061,4 +12074,119 @@ textarea {
 
 @keyframes knowledge-realtime-pulse {
   50% { opacity: 0.3; }
+}
+
+.whatsapp-handoff-empty {
+  display: grid;
+  min-height: 180px;
+  place-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.whatsapp-handoff-empty p {
+  margin: 0;
+}
+
+.whatsapp-handoff-table-wrap {
+  overflow-x: auto;
+}
+
+.whatsapp-contact-mask {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+}
+
+.whatsapp-message-preview {
+  max-width: 420px;
+  white-space: normal;
+}
+
+.whatsapp-handoff-open-cell {
+  text-align: right;
+}
+
+.whatsapp-handoff-open-link {
+  display: inline-grid;
+  place-items: center;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.whatsapp-handoff-metadata {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.whatsapp-handoff-metadata dt {
+  color: var(--color-text-tertiary);
+}
+
+.whatsapp-handoff-metadata dd {
+  margin: 0;
+}
+
+.whatsapp-handoff-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  align-items: start;
+  gap: 24px;
+}
+
+.whatsapp-handoff-detail-grid .message-card {
+  width: min(100%, 760px);
+}
+
+.whatsapp-message-body {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.whatsapp-message-body + .status-pill {
+  margin-top: 12px;
+}
+
+.whatsapp-operator-panel {
+  position: sticky;
+  top: 24px;
+  padding: 20px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+.whatsapp-operator-panel > p,
+.whatsapp-operator-panel form,
+.whatsapp-operator-reply-form label {
+  margin: 0;
+}
+
+.whatsapp-operator-reply-form textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+@media (max-width: 900px) {
+  .whatsapp-handoff-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .whatsapp-operator-panel {
+    position: static;
+    grid-row: 1;
+  }
+
+  .whatsapp-handoff-metadata {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .whatsapp-handoff-metadata dd + dt {
+    margin-top: 8px;
+  }
 }
