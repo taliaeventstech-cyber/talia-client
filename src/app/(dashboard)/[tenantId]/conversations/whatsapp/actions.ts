@@ -125,8 +125,8 @@ export async function resolveWhatsappHandoffAction(
 }
 
 function revalidateHandoffPaths(tenantId: string, conversationId: string) {
-  revalidatePath(`/${tenantId}/conversations/whatsapp`)
-  revalidatePath(`/${tenantId}/conversations/whatsapp/${conversationId}`)
+  revalidatePath(`/${tenantId}/whatsapp`)
+  revalidatePath(`/${tenantId}/whatsapp/${conversationId}`)
 }
 
 function success(message: string): WhatsappHandoffActionState {

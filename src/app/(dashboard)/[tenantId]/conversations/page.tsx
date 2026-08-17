@@ -11,7 +11,6 @@ import {
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { getIntlLocale } from '@/lib/i18n/config'
 import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
-import { getWhatsappHandoffCopy } from '@/lib/i18n/whatsapp-handoff-copy'
 import { LocalDateTime } from '@/components/local-date-time'
 import { ChevronLeft, ChevronRight, Eye } from 'lucide-react'
 import Link from 'next/link'
@@ -36,7 +35,6 @@ export default async function ConversationsPage({ params, searchParams }: Props)
   })
   const locale = await getLocale()
   const dictionary = await getDictionary(locale)
-  const whatsappCopy = getWhatsappHandoffCopy(locale)
   const access = await requireTenantProductAccess(tenantId, 'view_conversations', 'web')
 
   const admin = createAdminClient()
@@ -136,27 +134,6 @@ export default async function ConversationsPage({ params, searchParams }: Props)
         <h1>{dictionary.conversations.title}</h1>
         <p className="muted">{dictionary.conversations.count(totalConversations)}</p>
       </header>
-
-      <div className="channel-tabs" role="tablist">
-        <Link
-          aria-selected="true"
-          className="channel-tab channel-tab-active"
-          href={`/${tenantId}/conversations`}
-          role="tab"
-        >
-          {whatsappCopy.tabs.web}
-        </Link>
-        {access.modules.whatsapp === 'active' || access.modules.whatsapp === 'trial' ? (
-          <Link
-            aria-selected="false"
-            className="channel-tab"
-            href={`/${tenantId}/conversations/whatsapp`}
-            role="tab"
-          >
-            {whatsappCopy.tabs.whatsapp}
-          </Link>
-        ) : null}
-      </div>
 
       <aside className="conversation-retention-notice">
         <strong>{dictionary.conversations.retention.title}</strong>

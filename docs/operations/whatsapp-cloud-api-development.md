@@ -181,10 +181,10 @@ IDs, raw errors and the provider payload are not retained.
 
 ## Operator handoff
 
-Àgora exposes the WhatsApp handoff queue at
-`/<TENANT_ID>/conversations/whatsapp`. The queue and transcript are loaded
-through service-role-only, tenant-scoped RPCs. Contact identifiers are masked
-before they reach the page.
+Àgora exposes the WhatsApp conversation history at `/<TENANT_ID>/whatsapp`.
+The history and transcript are loaded through service-role-only, tenant-scoped
+RPCs. Contact identifiers are masked before they reach the page. Conversations
+in `handoff` additionally expose the operator claim, reply and resolve controls.
 
 - `viewer` can inspect the queue and transcript.
 - `owner`, `admin` and `operator` can claim an unassigned conversation.

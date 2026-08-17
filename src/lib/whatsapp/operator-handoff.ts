@@ -24,6 +24,12 @@ const queueSchema = z.object({
   items: z.array(queueItemSchema),
   count: z.number().int().nonnegative(),
 })
+const historySchema = z.object({
+  items: z.array(queueItemSchema.extend({
+    status: z.enum(['open', 'pending', 'handoff', 'resolved', 'blocked']),
+  })),
+  count: z.number().int().nonnegative(),
+})
 
 const messageSchema = z.object({
   id: z.uuid(),
@@ -79,6 +85,22 @@ export async function getWhatsappHandoffQueue(
 
   const parsed = queueSchema.safeParse(result.data)
   if (!parsed.success) throw new Error('whatsapp_handoff_queue_invalid')
+  return parsed.data
+}
+
+export async function getWhatsappConversationHistory(
+  admin: AdminClient,
+  input: { tenantId: string; actorUserId: string; limit?: number },
+) {
+  const result = await admin.rpc('get_whatsapp_conversation_history', {
+    p_theatre_id: input.tenantId,
+    p_actor_user_id: input.actorUserId,
+    p_limit: input.limit ?? 100,
+  })
+  if (result.error) throw new Error(`whatsapp_conversation_history_failed:${result.error.message}`)
+
+  const parsed = historySchema.safeParse(result.data)
+  if (!parsed.success) throw new Error('whatsapp_conversation_history_invalid')
   return parsed.data
 }
 

@@ -8569,19 +8569,6 @@ textarea {
   box-shadow: 0 1px 3px var(--color-border);
 }
 
-.channel-tab-count {
-  display: inline-grid;
-  min-width: 20px;
-  min-height: 20px;
-  place-items: center;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-brand) 14%, transparent);
-  color: var(--color-brand);
-  font-size: 11px;
-  font-weight: 700;
-}
-
 .channel-tab-empty {
   opacity: 0.45;
 }
@@ -12136,6 +12123,10 @@ textarea {
   grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
   align-items: start;
   gap: 24px;
+}
+
+.whatsapp-handoff-detail-grid-single {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .whatsapp-handoff-detail-grid .message-card {

@@ -2120,6 +2120,14 @@ export type Database = {
         }
         Returns: Json
       }
+      get_whatsapp_conversation_history: {
+        Args: {
+          p_actor_user_id: string
+          p_limit?: number
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
       get_whatsapp_handoff_queue: {
         Args: {
           p_actor_user_id: string

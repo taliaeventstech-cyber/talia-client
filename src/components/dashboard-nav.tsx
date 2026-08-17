@@ -3,7 +3,7 @@
 import type { SVGProps } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bot, Database, Inbox, LayoutDashboard, Mail, MessageSquare, Network, SlidersHorizontal, Zap } from 'lucide-react'
+import { Bot, Database, Inbox, LayoutDashboard, Mail, MessageCircle, MessageSquare, Network, SlidersHorizontal, Zap } from 'lucide-react'
 import { FREE_TRIAL_DAYS } from '@/lib/billing/plans'
 import {
   hasTenantPermission,
@@ -44,6 +44,7 @@ type DashboardNavLabels = {
   webChatbot: string
   accessibility: string
   emailAgent: string
+  whatsappAgent: string
   inbox: string
   intelligence: string
   knowledge: string
@@ -89,6 +90,7 @@ export function DashboardNav({
   const chatbotEnabled = isTenantModuleEnabled(modules.web)
   const dataEnabled = isTenantModuleEnabled(modules.data)
   const emailEnabled = isTenantModuleEnabled(modules.email)
+  const whatsappEnabled = isTenantModuleEnabled(modules.whatsapp)
   const canViewConversations = hasTenantPermission(role, 'view_conversations')
   const canViewAnalytics = hasTenantPermission(role, 'view_analytics')
   const canManageChatbot = hasTenantPermission(role, 'manage_chatbot')
@@ -98,7 +100,8 @@ export function DashboardNav({
   const showAccessibility = hasProductAccess && chatbotEnabled && canManageChatbot
   const showKnowledge = hasProductAccess && dataEnabled && canManageKnowledge
   const showEmail = emailAgentPreviewEnabled && hasProductAccess && emailEnabled && canManageEmail
-  const showAttention = showChatbot || showAccessibility || showEmail
+  const showWhatsapp = hasProductAccess && whatsappEnabled && canViewConversations
+  const showAttention = showChatbot || showAccessibility || showEmail || showWhatsapp
   const chatbotConfigurationHref = getChatbotConfigurationHref(tenantId, chatbotSetupCompleted)
   const trialProgress = trialDaysRemaining === null
     ? 0
@@ -222,6 +225,27 @@ export function DashboardNav({
                 >
                   <Network size={14} strokeWidth={2} aria-hidden="true" />
                   {labels.analysis}
+                </Link>
+              </div>
+            </div>
+          ) : null}
+
+          {showWhatsapp ? (
+            <div className="nav-channel">
+              <div className="nav-channel-title">
+                <span className="nav-channel-title-main">
+                  <MessageCircle size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
+                  <span>{labels.whatsappAgent}</span>
+                </span>
+                <span className="nav-channel-status">{labels.active}</span>
+              </div>
+              <div className="nav-subnav">
+                <Link
+                  className={`nav-link nav-link-nested ${active(`/${tenantId}/whatsapp`) ? 'nav-link-active' : ''}`}
+                  href={`/${tenantId}/whatsapp`}
+                >
+                  <MessageSquare size={14} strokeWidth={2} aria-hidden="true" />
+                  {labels.conversations}
                 </Link>
               </div>
             </div>

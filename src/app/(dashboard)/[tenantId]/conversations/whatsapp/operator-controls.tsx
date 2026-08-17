@@ -26,7 +26,7 @@ export function WhatsappOperatorControls({
   canManage: boolean
   isAssignedToCurrentUser: boolean
   isAssigned: boolean
-  copy: WhatsappHandoffCopy
+  copy: WhatsappHandoffCopy['controls']
 }) {
   const [claimState, claimAction, claimPending] = useActionState(
     claimWhatsappHandoffAction.bind(null, tenantId, conversationId, locale),
@@ -53,16 +53,16 @@ export function WhatsappOperatorControls({
   }, [replyState.ok, replyState.resultId])
 
   if (!canManage) {
-    return <aside className="whatsapp-operator-panel muted">{copy.controls.readOnly}</aside>
+    return <aside className="whatsapp-operator-panel muted">{copy.readOnly}</aside>
   }
 
   if (!isAssigned) {
     return (
       <aside className="whatsapp-operator-panel stack">
-        <p className="muted">{copy.controls.claimFirst}</p>
+        <p className="muted">{copy.claimFirst}</p>
         <form action={claimAction}>
           <button className="button-primary" disabled={claimPending} type="submit">
-            {copy.controls.claim}
+            {copy.claim}
           </button>
         </form>
         <ActionMessage state={claimState} />
@@ -71,12 +71,12 @@ export function WhatsappOperatorControls({
   }
 
   if (!isAssignedToCurrentUser) {
-    return <aside className="whatsapp-operator-panel muted">{copy.controls.assignedElsewhere}</aside>
+    return <aside className="whatsapp-operator-panel muted">{copy.assignedElsewhere}</aside>
   }
 
   return (
     <aside className="whatsapp-operator-panel stack">
-      <strong>{copy.controls.claimedByYou}</strong>
+      <strong>{copy.claimedByYou}</strong>
       <form
         ref={replyForm}
         action={replyAction}
@@ -87,23 +87,23 @@ export function WhatsappOperatorControls({
           }
         }}
       >
-        <label htmlFor="whatsapp-operator-reply">{copy.controls.replyLabel}</label>
+        <label htmlFor="whatsapp-operator-reply">{copy.replyLabel}</label>
         <textarea
           id="whatsapp-operator-reply"
           name="body"
           maxLength={4096}
-          placeholder={copy.controls.replyPlaceholder}
+          placeholder={copy.replyPlaceholder}
           required
           rows={5}
         />
         <input ref={idempotencyInput} name="idempotencyKey" type="hidden" />
         <button className="button-primary button-fit" disabled={replyPending} type="submit">
-          {copy.controls.send}
+          {copy.send}
         </button>
       </form>
       <form action={resolveAction}>
         <button className="button-outline" disabled={resolvePending || replyPending} type="submit">
-          {copy.controls.resolve}
+          {copy.resolve}
         </button>
       </form>
       <ActionMessage state={replyState.message ? replyState : resolveState} />

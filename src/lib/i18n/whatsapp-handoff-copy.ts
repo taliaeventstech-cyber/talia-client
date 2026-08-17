@@ -1,18 +1,17 @@
 type WhatsappHandoffCopy = {
-  tabs: { web: string; whatsapp: string }
   queue: {
     eyebrow: string
     title: string
     description: string
-    pending: (count: number) => string
+    count: (count: number) => string
     emptyTitle: string
     emptyDescription: string
     contact: string
     latestMessage: string
-    assignedTo: string
+    status: string
+    statuses: Record<'open' | 'pending' | 'handoff' | 'resolved' | 'blocked', string>
     activity: string
     messages: string
-    unassigned: string
     view: string
   }
   detail: {
@@ -56,19 +55,19 @@ type WhatsappHandoffCopy = {
 
 const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
   es: {
-    tabs: { web: 'Web', whatsapp: 'WhatsApp' },
     queue: {
-      eyebrow: 'Atención · WhatsApp',
-      title: 'Conversaciones que necesitan ayuda',
-      description: 'Casos que TALIA ha derivado a una persona. Reclama una conversación antes de responder.',
-      pending: (count) => `${count} ${count === 1 ? 'caso pendiente' : 'casos pendientes'}`,
-      emptyTitle: 'No hay conversaciones pendientes',
-      emptyDescription: 'Los nuevos handoffs aparecerán aquí automáticamente.',
-      contact: 'Contacto', latestMessage: 'Último mensaje', assignedTo: 'Asignada a',
-      activity: 'Actividad', messages: 'Mensajes', unassigned: 'Sin asignar', view: 'Abrir',
+      eyebrow: 'Agente de WhatsApp',
+      title: 'Historial de conversaciones',
+      description: 'Todas las conversaciones atendidas por TALIA a través de WhatsApp.',
+      count: (count) => `${count} ${count === 1 ? 'conversación' : 'conversaciones'}`,
+      emptyTitle: 'Todavía no hay conversaciones',
+      emptyDescription: 'Las nuevas conversaciones aparecerán aquí automáticamente.',
+      contact: 'Contacto', latestMessage: 'Último mensaje', status: 'Estado',
+      statuses: { open: 'Abierta', pending: 'Pendiente', handoff: 'Necesita atención', resolved: 'Resuelta', blocked: 'Bloqueada' },
+      activity: 'Actividad', messages: 'Mensajes', view: 'Abrir',
     },
     detail: {
-      back: 'Volver a WhatsApp', eyebrow: 'Handoff de WhatsApp', title: 'Conversación',
+      back: 'Volver a WhatsApp', eyebrow: 'Agente de WhatsApp', title: 'Conversación',
       contact: 'Contacto', reason: 'Motivo', assignedTo: 'Asignada a', unassigned: 'Sin asignar',
       user: 'Usuario', talia: 'TALIA', operator: 'Operador', unsupportedMessage: 'Mensaje no textual',
       delivery: { queued: 'En cola', sending: 'Enviando', sent: 'Enviado', delivered: 'Entregado', read: 'Leído', failed: 'Fallido', unknown: 'Estado incierto' },
@@ -90,17 +89,17 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
     },
   },
   ca: {
-    tabs: { web: 'Web', whatsapp: 'WhatsApp' },
     queue: {
-      eyebrow: 'Atenció · WhatsApp', title: 'Converses que necessiten ajuda',
-      description: 'Casos que TALIA ha derivat a una persona. Reclama una conversa abans de respondre.',
-      pending: (count) => `${count} ${count === 1 ? 'cas pendent' : 'casos pendents'}`,
-      emptyTitle: 'No hi ha converses pendents', emptyDescription: 'Els nous handoffs apareixeran aquí automàticament.',
-      contact: 'Contacte', latestMessage: 'Últim missatge', assignedTo: 'Assignada a', activity: 'Activitat',
-      messages: 'Missatges', unassigned: 'Sense assignar', view: 'Obrir',
+      eyebrow: 'Agent de WhatsApp', title: 'Historial de converses',
+      description: 'Totes les converses ateses per TALIA a través de WhatsApp.',
+      count: (count) => `${count} ${count === 1 ? 'conversa' : 'converses'}`,
+      emptyTitle: 'Encara no hi ha converses', emptyDescription: 'Les converses noves apareixeran aquí automàticament.',
+      contact: 'Contacte', latestMessage: 'Últim missatge', status: 'Estat',
+      statuses: { open: 'Oberta', pending: 'Pendent', handoff: 'Necessita atenció', resolved: 'Resolvida', blocked: 'Bloquejada' },
+      activity: 'Activitat', messages: 'Missatges', view: 'Obrir',
     },
     detail: {
-      back: 'Tornar a WhatsApp', eyebrow: 'Handoff de WhatsApp', title: 'Conversa', contact: 'Contacte',
+      back: 'Tornar a WhatsApp', eyebrow: 'Agent de WhatsApp', title: 'Conversa', contact: 'Contacte',
       reason: 'Motiu', assignedTo: 'Assignada a', unassigned: 'Sense assignar', user: 'Usuari', talia: 'TALIA',
       operator: 'Operador', unsupportedMessage: 'Missatge no textual',
       delivery: { queued: 'En cua', sending: 'Enviant', sent: 'Enviat', delivered: 'Lliurat', read: 'Llegit', failed: 'Fallat', unknown: 'Estat incert' },
@@ -120,17 +119,17 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
     },
   },
   en: {
-    tabs: { web: 'Web', whatsapp: 'WhatsApp' },
     queue: {
-      eyebrow: 'Support · WhatsApp', title: 'Conversations needing help',
-      description: 'Cases TALIA has handed over to a person. Claim a conversation before replying.',
-      pending: (count) => `${count} pending ${count === 1 ? 'case' : 'cases'}`,
-      emptyTitle: 'No conversations are pending', emptyDescription: 'New handoffs will appear here automatically.',
-      contact: 'Contact', latestMessage: 'Latest message', assignedTo: 'Assigned to', activity: 'Activity',
-      messages: 'Messages', unassigned: 'Unassigned', view: 'Open',
+      eyebrow: 'WhatsApp agent', title: 'Conversation history',
+      description: 'Every conversation handled by TALIA through WhatsApp.',
+      count: (count) => `${count} ${count === 1 ? 'conversation' : 'conversations'}`,
+      emptyTitle: 'No conversations yet', emptyDescription: 'New conversations will appear here automatically.',
+      contact: 'Contact', latestMessage: 'Latest message', status: 'Status',
+      statuses: { open: 'Open', pending: 'Pending', handoff: 'Needs attention', resolved: 'Resolved', blocked: 'Blocked' },
+      activity: 'Activity', messages: 'Messages', view: 'Open',
     },
     detail: {
-      back: 'Back to WhatsApp', eyebrow: 'WhatsApp handoff', title: 'Conversation', contact: 'Contact', reason: 'Reason',
+      back: 'Back to WhatsApp', eyebrow: 'WhatsApp agent', title: 'Conversation', contact: 'Contact', reason: 'Reason',
       assignedTo: 'Assigned to', unassigned: 'Unassigned', user: 'User', talia: 'TALIA', operator: 'Operator',
       unsupportedMessage: 'Non-text message',
       delivery: { queued: 'Queued', sending: 'Sending', sent: 'Sent', delivered: 'Delivered', read: 'Read', failed: 'Failed', unknown: 'Uncertain status' },
@@ -150,17 +149,17 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
     },
   },
   pt: {
-    tabs: { web: 'Web', whatsapp: 'WhatsApp' },
     queue: {
-      eyebrow: 'Atendimento · WhatsApp', title: 'Conversas que precisam de ajuda',
-      description: 'Casos que a TALIA encaminhou para uma pessoa. Assuma uma conversa antes de responder.',
-      pending: (count) => `${count} ${count === 1 ? 'caso pendente' : 'casos pendentes'}`,
-      emptyTitle: 'Não há conversas pendentes', emptyDescription: 'Novos handoffs aparecerão aqui automaticamente.',
-      contact: 'Contato', latestMessage: 'Última mensagem', assignedTo: 'Atribuída a', activity: 'Atividade',
-      messages: 'Mensagens', unassigned: 'Não atribuída', view: 'Abrir',
+      eyebrow: 'Agente de WhatsApp', title: 'Histórico de conversas',
+      description: 'Todas as conversas atendidas pela TALIA através do WhatsApp.',
+      count: (count) => `${count} ${count === 1 ? 'conversa' : 'conversas'}`,
+      emptyTitle: 'Ainda não há conversas', emptyDescription: 'As novas conversas aparecerão aqui automaticamente.',
+      contact: 'Contato', latestMessage: 'Última mensagem', status: 'Estado',
+      statuses: { open: 'Aberta', pending: 'Pendente', handoff: 'Precisa de atenção', resolved: 'Resolvida', blocked: 'Bloqueada' },
+      activity: 'Atividade', messages: 'Mensagens', view: 'Abrir',
     },
     detail: {
-      back: 'Voltar ao WhatsApp', eyebrow: 'Handoff do WhatsApp', title: 'Conversa', contact: 'Contato', reason: 'Motivo',
+      back: 'Voltar ao WhatsApp', eyebrow: 'Agente de WhatsApp', title: 'Conversa', contact: 'Contato', reason: 'Motivo',
       assignedTo: 'Atribuída a', unassigned: 'Não atribuída', user: 'Usuário', talia: 'TALIA', operator: 'Operador',
       unsupportedMessage: 'Mensagem sem texto',
       delivery: { queued: 'Na fila', sending: 'Enviando', sent: 'Enviada', delivered: 'Entregue', read: 'Lida', failed: 'Falhou', unknown: 'Status incerto' },
@@ -184,6 +183,10 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
 export function getWhatsappHandoffCopy(locale: string) {
   const language = locale.toLowerCase().split('-')[0]
   return copies[language === 'ca' || language === 'en' || language === 'pt' ? language : 'es']
+}
+
+export function getWhatsappOperatorControlsCopy(locale: string) {
+  return getWhatsappHandoffCopy(locale).controls
 }
 
 export type { WhatsappHandoffCopy }

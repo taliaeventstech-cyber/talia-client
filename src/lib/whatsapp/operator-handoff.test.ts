@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  getWhatsappConversationHistory,
   getWhatsappHandoffDetail,
   getWhatsappHandoffQueue,
   sendWhatsappOperatorReply,
@@ -12,6 +13,38 @@ function createRpcAdmin(responses: Array<{ data: unknown; error: { message: stri
 }
 
 describe('WhatsApp operator handoff', () => {
+  it('parses conversations from every WhatsApp status into the history', async () => {
+    const admin = createRpcAdmin([{
+      data: {
+        count: 1,
+        items: [{
+          id: 'b1000000-0000-4000-8000-000000000001',
+          status: 'resolved',
+          contact_name: 'Alex',
+          contact_masked: '•••• 6789',
+          last_message_at: '2026-08-17T12:00:00Z',
+          created_at: '2026-08-17T11:00:00Z',
+          handoff_reason: null,
+          assigned_profile_id: null,
+          assigned_name: null,
+          assigned_email: null,
+          message_count: 3,
+          latest_message: 'Gracias',
+          latest_direction: 'inbound',
+        }],
+      },
+      error: null,
+    }])
+
+    const history = await getWhatsappConversationHistory(admin as never, {
+      tenantId: 'b2000000-0000-0000-0000-000000000001',
+      actorUserId: 'b3000000-0000-0000-0000-000000000001',
+    })
+
+    expect(history.items[0].status).toBe('resolved')
+    expect(admin.rpc).toHaveBeenCalledWith('get_whatsapp_conversation_history', expect.any(Object))
+  })
+
   it('parses a masked tenant queue without requiring raw contact identifiers', async () => {
     const admin = createRpcAdmin([{
       data: {

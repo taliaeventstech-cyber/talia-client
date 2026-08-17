@@ -2,11 +2,15 @@ create extension if not exists pgtap with schema extensions;
 
 begin;
 
-select plan(27);
+select plan(31);
 
 select ok(
   not has_function_privilege('authenticated', 'public.get_whatsapp_handoff_queue(uuid,uuid,integer)', 'execute'),
   'authenticated cannot read the private WhatsApp handoff queue'
+);
+select ok(
+  not has_function_privilege('authenticated', 'public.get_whatsapp_conversation_history(uuid,uuid,integer)', 'execute'),
+  'authenticated cannot read the private WhatsApp conversation history'
 );
 select ok(
   not has_function_privilege('authenticated', 'public.prepare_whatsapp_operator_reply(uuid,uuid,uuid,text,uuid)', 'execute'),
@@ -99,6 +103,53 @@ insert into public.whatsapp_messages (
   'a7000000-0000-0000-0000-000000000001',
   'a6000000-0000-0000-0000-000000000001',
   'wamid.operator.inbound', 'inbound', 'text', 'Necesito hablar con una persona', 'handoff'
+);
+
+insert into public.whatsapp_conversations (
+  id, theatre_id, connection_id, contact_id, status, last_message_at, metadata
+) values (
+  'a7000000-0000-0000-0000-000000000002',
+  'a3000000-0000-0000-0000-000000000001',
+  'a5000000-0000-0000-0000-000000000001',
+  'a6000000-0000-0000-0000-000000000001',
+  'resolved', '2026-08-17T13:00:00Z', '{}'::jsonb
+);
+
+insert into public.whatsapp_messages (
+  id, theatre_id, connection_id, conversation_id, contact_id,
+  provider_message_id, direction, message_type, body_text, processing_status
+) values (
+  'a8000000-0000-0000-0000-000000000002',
+  'a3000000-0000-0000-0000-000000000001',
+  'a5000000-0000-0000-0000-000000000001',
+  'a7000000-0000-0000-0000-000000000002',
+  'a6000000-0000-0000-0000-000000000001',
+  'wamid.history.resolved', 'outbound', 'text', 'Conversación anterior resuelta', 'responded'
+);
+
+select is(
+  public.get_whatsapp_conversation_history(
+    'a3000000-0000-0000-0000-000000000001',
+    'a1000000-0000-0000-0000-000000000001', 100
+  ) #>> '{count}',
+  '2',
+  'conversation history includes handoffs and completed conversations'
+);
+select is(
+  public.get_whatsapp_conversation_history(
+    'a3000000-0000-0000-0000-000000000001',
+    'a1000000-0000-0000-0000-000000000001', 100
+  ) #>> '{items,0,status}',
+  'resolved',
+  'conversation history is ordered by latest activity'
+);
+select is(
+  public.get_whatsapp_conversation_history(
+    'a3000000-0000-0000-0000-000000000001',
+    'a1000000-0000-0000-0000-000000000001', 100
+  ) #>> '{items,0,latest_message}',
+  'Conversación anterior resuelta',
+  'conversation history exposes the latest message preview'
 );
 
 select is(
