@@ -2254,6 +2254,22 @@ export type Database = {
           resolved_theatre_id: string | null
         }[]
       }
+      reconcile_whatsapp_delivery_status: {
+        Args: {
+          p_delivery_status: string
+          p_error_code?: string
+          p_metadata?: Json
+          p_phone_number_id: string
+          p_provider_message_id: string
+          p_provider_timestamp: string
+          p_waba_id: string
+        }
+        Returns: {
+          outcome: string
+          outbound_message_id: string | null
+          resolved_theatre_id: string | null
+        }[]
+      }
       get_tenant_usage_totals: {
         Args: {
           p_period_end: string

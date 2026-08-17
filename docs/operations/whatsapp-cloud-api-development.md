@@ -171,6 +171,14 @@ without invoking the agent again. A timeout, connection failure or malformed
 success response is ambiguous: the outbound row becomes `unknown`, the
 conversation enters handoff, and TALIA does not resend automatically.
 
+Signed Meta status callbacks reconcile outbound messages through a
+service-role-only RPC. The supported states are `sent`, `delivered`, `read` and
+`failed`. Successful states only advance, repeated callbacks are idempotent and
+out-of-order callbacks cannot regress a message. A confirmed `failed` state is
+terminal and moves the conversation to operator handoff. TALIA stores provider
+timestamps, a bounded error code and bounded pricing classifications; recipient
+IDs, raw errors and the provider payload are not retained.
+
 The webhook uses Next.js `after()` only as a low-latency wake-up. The durable
 recovery path is `GET /api/cron/whatsapp/process`, registered every minute in
 `vercel.json`. For a preview canary it can also be invoked manually:
@@ -192,7 +200,8 @@ metadata or issue trackers.
 
 1. Deploy the `talia-ai` branch containing `/v1/whatsapp/respond`.
 2. Apply `20260816123000_whatsapp_agent_worker.sql` and
-   `20260816170000_whatsapp_conversation_turns.sql`.
+   `20260816170000_whatsapp_conversation_turns.sql`, followed by
+   `20260817120000_whatsapp_delivery_status_reconciliation.sql`.
 3. Deploy `talia-client` with the environment variables above.
 4. Send one factual question from the verified recipient to Meta's test number.
 5. Confirm one inbound row, one outbound row, one completed job and one reply on
@@ -204,3 +213,5 @@ metadata or issue trackers.
 8. Send three short messages in quick succession. Confirm three inbound rows,
    one agent call, one outbound row, one reply linked to the third message and
    an AI disclosure in the first confirmed response only.
+9. Confirm Meta's status callbacks advance that outbound row from `sent` to
+   `delivered` and `read` without creating a second message or waking the agent.

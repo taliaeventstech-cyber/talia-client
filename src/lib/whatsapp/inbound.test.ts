@@ -21,6 +21,10 @@ describe('WhatsApp inbound ingestion', () => {
       disabled: 0,
       handoffs: 0,
       unmatched: 0,
+      deliveryReceived: 0,
+      deliveryUpdated: 0,
+      deliveryIgnored: 0,
+      deliveryUnmatched: 0,
     })
     expect(rpc).toHaveBeenNthCalledWith(1, 'ingest_whatsapp_message', expect.objectContaining({
       p_waba_id: 'waba-1',
@@ -31,11 +35,16 @@ describe('WhatsApp inbound ingestion', () => {
     }))
   })
 
-  it('returns an empty summary for delivery updates', async () => {
+  it('reconciles delivery updates through the tenant-scoped RPC', async () => {
     const rpc = vi.fn()
+      .mockResolvedValueOnce({ data: [{ outcome: 'updated' }], error: null })
+      .mockResolvedValueOnce({ data: [{ outcome: 'stale' }], error: null })
     const envelope = parseEnvelope({
       metadata: { phone_number_id: 'phone-1' },
-      statuses: [{ id: 'outbound-1', status: 'read' }],
+      statuses: [
+        { id: 'outbound-1', status: 'read', timestamp: '1786723200' },
+        { id: 'outbound-2', status: 'sent', timestamp: '1786723199' },
+      ],
     })
 
     await expect(ingestMetaWhatsappEnvelope({ rpc } as unknown as AdminClient, envelope))
@@ -46,8 +55,20 @@ describe('WhatsApp inbound ingestion', () => {
         disabled: 0,
         handoffs: 0,
         unmatched: 0,
+        deliveryReceived: 2,
+        deliveryUpdated: 1,
+        deliveryIgnored: 1,
+        deliveryUnmatched: 0,
       })
-    expect(rpc).not.toHaveBeenCalled()
+    expect(rpc).toHaveBeenNthCalledWith(1, 'reconcile_whatsapp_delivery_status', {
+      p_waba_id: 'waba-1',
+      p_phone_number_id: 'phone-1',
+      p_provider_message_id: 'outbound-1',
+      p_delivery_status: 'read',
+      p_provider_timestamp: '2026-08-14T16:00:00.000Z',
+      p_error_code: '',
+      p_metadata: {},
+    })
   })
 
   it('fails the webhook attempt when durable ingestion fails', async () => {

@@ -77,6 +77,23 @@ describe('Meta WhatsApp webhook route', () => {
     }))
   })
 
+  it('reconciles delivery notifications without waking the inbound worker', async () => {
+    process.env.META_APP_SECRET = 'app-secret'
+    rpc.mockResolvedValue({ data: [{ outcome: 'updated' }], error: null })
+    const payload = deliveryEnvelope()
+
+    const response = await POST(signedRequest(payload, 'app-secret'))
+
+    expect(response.status).toBe(200)
+    expect(rpc).toHaveBeenCalledWith('reconcile_whatsapp_delivery_status', expect.objectContaining({
+      p_waba_id: 'waba-1',
+      p_phone_number_id: 'phone-1',
+      p_provider_message_id: 'wamid.outbound.1',
+      p_delivery_status: 'delivered',
+    }))
+    expect(afterCallbacks).toHaveLength(0)
+  })
+
   it('drains bounded backlog when a new message wakes the worker', async () => {
     vi.useFakeTimers()
     process.env.META_APP_SECRET = 'app-secret'
@@ -157,6 +174,27 @@ function validEnvelope() {
           messaging_product: 'whatsapp',
           metadata: { phone_number_id: 'phone-1' },
           messages: [{ id: 'message-1', from: '34123456789', type: 'text' }],
+        },
+      }],
+    }],
+  })
+}
+
+function deliveryEnvelope() {
+  return JSON.stringify({
+    object: 'whatsapp_business_account',
+    entry: [{
+      id: 'waba-1',
+      changes: [{
+        field: 'messages',
+        value: {
+          messaging_product: 'whatsapp',
+          metadata: { phone_number_id: 'phone-1' },
+          statuses: [{
+            id: 'wamid.outbound.1',
+            status: 'delivered',
+            timestamp: '1786723200',
+          }],
         },
       }],
     }],

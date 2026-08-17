@@ -64,6 +64,12 @@ export async function POST(request: Request) {
         unmatched_count: summary.unmatched,
       }))
     }
+    if (summary.deliveryUnmatched > 0) {
+      console.warn(JSON.stringify({
+        event: 'whatsapp_webhook_unmatched_delivery_status',
+        unmatched_count: summary.deliveryUnmatched,
+      }))
+    }
     if (summary.accepted > 0) {
       try {
         after(async () => {

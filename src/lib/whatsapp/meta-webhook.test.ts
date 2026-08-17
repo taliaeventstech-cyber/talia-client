@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import {
+  extractMetaWhatsappDeliveryStatuses,
   extractMetaWhatsappInboundMessages,
   parseMetaWebhookEnvelope,
   verifyMetaWebhookChallenge,
@@ -131,7 +132,7 @@ describe('Meta WhatsApp webhook', () => {
     expect(JSON.stringify(extractMetaWhatsappInboundMessages(envelope!))).not.toContain('private-media-id')
   })
 
-  it('ignores delivery status notifications that contain no inbound messages', () => {
+  it('extracts bounded delivery status data without retaining recipient or error text', () => {
     const envelope = parseMetaWebhookEnvelope(JSON.stringify({
       object: 'whatsapp_business_account',
       entry: [{
@@ -140,7 +141,23 @@ describe('Meta WhatsApp webhook', () => {
           field: 'messages',
           value: {
             metadata: { phone_number_id: 'phone-1' },
-            statuses: [{ id: 'outbound-1', status: 'delivered' }],
+            statuses: [{
+              id: 'outbound-1',
+              status: 'delivered',
+              timestamp: '1786723200',
+              recipient_id: '34123456789',
+              conversation: { id: 'private-conversation-id', origin: { type: 'service' } },
+              pricing: {
+                billable: false,
+                pricing_model: 'PMP',
+                category: 'service',
+                type: 'free_customer_service',
+              },
+            }, {
+              id: 'outbound-2',
+              status: 'failed',
+              errors: [{ code: 131026, title: 'Message undeliverable', message: 'Private detail' }],
+            }],
           },
         }],
       }],
@@ -148,5 +165,32 @@ describe('Meta WhatsApp webhook', () => {
 
     expect(envelope).not.toBeNull()
     expect(extractMetaWhatsappInboundMessages(envelope!)).toEqual([])
+    expect(extractMetaWhatsappDeliveryStatuses(envelope!)).toEqual([{
+      wabaId: 'waba-1',
+      phoneNumberId: 'phone-1',
+      providerMessageId: 'outbound-1',
+      status: 'delivered',
+      providerTimestamp: '2026-08-14T16:00:00.000Z',
+      errorCode: null,
+      metadata: {
+        billable: false,
+        conversationOriginType: 'service',
+        pricingCategory: 'service',
+        pricingModel: 'PMP',
+        pricingType: 'free_customer_service',
+      },
+    }, {
+      wabaId: 'waba-1',
+      phoneNumberId: 'phone-1',
+      providerMessageId: 'outbound-2',
+      status: 'failed',
+      providerTimestamp: null,
+      errorCode: '131026',
+      metadata: {},
+    }])
+    const extracted = JSON.stringify(extractMetaWhatsappDeliveryStatuses(envelope!))
+    expect(extracted).not.toContain('34123456789')
+    expect(extracted).not.toContain('private-conversation-id')
+    expect(extracted).not.toContain('Private detail')
   })
 })

@@ -627,6 +627,10 @@ Implemented:
 - Confirmed Meta rejections can retry with bounded backoff. Network timeouts or
   invalid success responses are treated as uncertain outcomes and move to
   handoff without automatic resend.
+- Signed Meta status webhooks reconcile outbound `sent`, `delivered`, `read` and
+  `failed` states idempotently without allowing out-of-order callbacks to move a
+  message backwards. Confirmed delivery failures enter operator handoff. Only
+  bounded error codes and pricing classifications are retained.
 - The webhook schedules a best-effort post-response worker wake-up, while a
   one-minute authenticated Vercel cron recovers durable jobs independently.
 - WhatsApp message, fallback and measured AI usage events use the canonical
@@ -640,8 +644,7 @@ Validated in the current pilot:
 
 Pending:
 
-- Apply and canary the conversational-turn migration in the preview environment.
-- Add delivery/read status reconciliation and the operator handoff surface.
+- Add the operator handoff surface.
 - Replace the pilot credential with Embedded Signup for tenant-managed WABAs.
 
 Reference:
