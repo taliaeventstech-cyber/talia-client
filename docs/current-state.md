@@ -620,9 +620,10 @@ Implemented:
   reply when a newer message has arrived. The stale turn is requeued and
   regenerated with the new message instead.
 - The first confirmed automated response in a conversation clearly identifies
-  TALIA as an AI virtual assistant in the response language, falling back to the
-  venue language. The disclosure is not repeated on every reply and is only
-  persisted after Meta confirms the send.
+  Talía as an AI agent for the venue in the response language, falling back to
+  the venue language. A duplicate leading greeting is removed from the generated
+  answer before the disclosure is prepended. The disclosure is not repeated and
+  is only persisted after Meta confirms the send.
 - Confirmed Meta rejections can retry with bounded backoff. Network timeouts or
   invalid success responses are treated as uncertain outcomes and move to
   handoff without automatic resend.

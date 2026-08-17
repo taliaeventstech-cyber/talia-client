@@ -44,7 +44,7 @@ describe('processWhatsappInboundJobs', () => {
     expect(sendText).toHaveBeenCalledWith({
       phoneNumberId: 'phone-1',
       recipientWaId: '34123456789',
-      body: 'Hola, soy TALIA, el asistente virtual con IA de Sala Ejemplo.\n\nRespuesta segura',
+      body: '¡Hola! Soy Talía, un agente de IA para Sala Ejemplo.\n\nRespuesta segura',
       replyToProviderMessageId: 'wamid.inbound.3',
     })
     expect(admin.calls).toContainEqual([
@@ -91,7 +91,22 @@ describe('processWhatsappInboundJobs', () => {
     })
 
     expect(sendText).toHaveBeenCalledWith(expect.objectContaining({
-      body: "Hola, soc TALIA, l'assistent virtual amb IA de Sala Ejemplo.\n\nRespuesta segura",
+      body: "Hola! Soc Talía, un agent d'IA per a Sala Ejemplo.\n\nRespuesta segura",
+    }))
+  })
+
+  it('removes a duplicate leading greeting when adding the AI disclosure', async () => {
+    const admin = createAdmin()
+    const sendText = vi.fn(async () => ({ ok: true as const, providerMessageId: 'wamid.outbound' }))
+
+    await processWhatsappInboundJobs(admin.client, {
+      workerId: 'worker-1',
+      requestAgent: async () => agentResponse('es', '¡Hola! Sí, el teatro es accesible.'),
+      sendText,
+    })
+
+    expect(sendText).toHaveBeenCalledWith(expect.objectContaining({
+      body: '¡Hola! Soy Talía, un agente de IA para Sala Ejemplo.\n\nSí, el teatro es accesible.',
     }))
   })
 
@@ -266,13 +281,13 @@ function preparedOutbound(
   }
 }
 
-function agentResponse(responseLanguage = 'es') {
+function agentResponse(responseLanguage = 'es', reply = 'Respuesta segura') {
   return {
     ok: true as const,
     result: {
       ok: true as const,
       action: 'respond' as const,
-      reply: 'Respuesta segura',
+      reply,
       provider: 'talia-ai',
       model: 'gpt-test',
       usage_components: [],

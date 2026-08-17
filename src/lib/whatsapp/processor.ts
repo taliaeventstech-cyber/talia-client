@@ -646,27 +646,35 @@ function buildCustomerResponse(
     responseLanguage ?? context.tenant.fallback_language,
     context.tenant.name,
   )
+  const replyWithoutGreeting = stripLeadingGreeting(reply)
   const availableReplyLength = Math.max(0, 4096 - disclosure.length - 2)
-  const trimmedReply = reply.trim().slice(0, availableReplyLength).trimEnd()
+  const trimmedReply = replyWithoutGreeting.slice(0, availableReplyLength).trimEnd()
   return {
     body: trimmedReply ? `${disclosure}\n\n${trimmedReply}` : disclosure,
     disclosureIncluded: true,
   }
 }
 
+function stripLeadingGreeting(reply: string) {
+  return reply.trim().replace(
+    /^(?:¡\s*)?(?:hola|hello|hi|hey|olá|oi)(?=\s|[!,.:—-]|$)(?:\s*[!,.:—-]+)?\s*/iu,
+    '',
+  )
+}
+
 function getAiDisclosure(language: string, tenantName: string) {
   const normalized = language.toLowerCase()
   const safeTenantName = tenantName.trim().slice(0, 200)
   if (normalized.startsWith('ca')) {
-    return `Hola, soc TALIA, l'assistent virtual amb IA de ${safeTenantName}.`
+    return `Hola! Soc Talía, un agent d'IA per a ${safeTenantName}.`
   }
   if (normalized.startsWith('pt')) {
-    return `Olá, sou a TALIA, a assistente virtual com IA de ${safeTenantName}.`
+    return `Olá! Sou a Talía, uma agente de IA para ${safeTenantName}.`
   }
   if (normalized.startsWith('en')) {
-    return `Hi, I'm TALIA, ${safeTenantName}'s AI virtual assistant.`
+    return `Hi! I'm Talía, an AI agent for ${safeTenantName}.`
   }
-  return `Hola, soy TALIA, el asistente virtual con IA de ${safeTenantName}.`
+  return `¡Hola! Soy Talía, un agente de IA para ${safeTenantName}.`
 }
 
 function retryDelay(attemptCount: number) {

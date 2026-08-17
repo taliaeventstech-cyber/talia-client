@@ -158,8 +158,9 @@ bounded follow-up drain for this case; the minute cron remains the durable
 recovery path.
 
 The first automated response in each conversation is prefixed with an explicit
-disclosure that TALIA is the venue's AI virtual assistant. It uses the detected
-response language and falls back to the venue language. The
+disclosure that Talía is an AI agent for the venue. It uses the detected response
+language and falls back to the venue language. A duplicate leading greeting in
+the generated answer is removed before prefixing the disclosure. The
 `ai_disclosure_sent_at` marker is written only after Meta confirms the send, so
 failed or stale responses do not suppress the required disclosure later.
 This is the channel implementation of the transparency obligation in
