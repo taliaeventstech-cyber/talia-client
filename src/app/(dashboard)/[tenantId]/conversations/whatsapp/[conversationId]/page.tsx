@@ -108,9 +108,6 @@ export default async function WhatsappHandoffDetailPage({ params }: Props) {
 
               {needsAttention ? (
                 <div className="whatsapp-message-attention">
-                  <span className="conversation-feedback-pill conversation-feedback-improvement">
-                    {copy.navigator.attention}
-                  </span>
                   <WhatsappOperatorControls
                     canManage={canManage}
                     conversationId={conversationId}

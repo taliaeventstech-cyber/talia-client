@@ -86,7 +86,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
       next: 'Siguiente mensaje pendiente', attention: 'Necesita atención',
     },
     controls: {
-      reply: 'Responder por WhatsApp', assignedElsewhere: 'Asignada a otra persona',
+      reply: 'Contestar de forma manual', assignedElsewhere: 'Asignada a otra persona',
       replyLabel: 'Respuesta por WhatsApp', replyPlaceholder: 'Escribe tu respuesta…',
       send: 'Enviar', ignore: 'Ignorar', readOnly: 'Tienes acceso de solo lectura.',
     },
@@ -122,7 +122,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
       next: 'Missatge pendent següent', attention: 'Necessita atenció',
     },
     controls: {
-      reply: 'Respondre per WhatsApp', assignedElsewhere: 'Assignada a una altra persona',
+      reply: 'Respondre manualment', assignedElsewhere: 'Assignada a una altra persona',
       replyLabel: 'Resposta per WhatsApp', replyPlaceholder: 'Escriu la teva resposta…',
       send: 'Enviar', ignore: 'Ignorar', readOnly: 'Tens accés només de lectura.',
     },
@@ -158,7 +158,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
       next: 'Next pending message', attention: 'Needs attention',
     },
     controls: {
-      reply: 'Reply on WhatsApp', assignedElsewhere: 'Assigned to someone else',
+      reply: 'Reply manually', assignedElsewhere: 'Assigned to someone else',
       replyLabel: 'WhatsApp reply', replyPlaceholder: 'Write your reply…',
       send: 'Send', ignore: 'Ignore', readOnly: 'You have read-only access.',
     },
@@ -194,7 +194,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
       next: 'Próxima mensagem pendente', attention: 'Precisa de atenção',
     },
     controls: {
-      reply: 'Responder pelo WhatsApp', assignedElsewhere: 'Atribuída a outra pessoa',
+      reply: 'Responder manualmente', assignedElsewhere: 'Atribuída a outra pessoa',
       replyLabel: 'Resposta pelo WhatsApp', replyPlaceholder: 'Escreva sua resposta…',
       send: 'Enviar', ignore: 'Ignorar', readOnly: 'Você tem acesso somente para leitura.',
     },

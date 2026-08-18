@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useEffect, useRef } from 'react'
+import { useActionState, useEffect, useRef, useState } from 'react'
 import type { WhatsappHandoffCopy } from '@/lib/i18n/whatsapp-handoff-copy'
 import type { WhatsappHandoffActionState } from './actions'
 import {
@@ -42,6 +42,7 @@ export function WhatsappOperatorControls({
   )
   const replyForm = useRef<HTMLFormElement>(null)
   const idempotencyInput = useRef<HTMLInputElement>(null)
+  const [isComposing, setIsComposing] = useState(false)
 
   useEffect(() => {
     if (idempotencyInput.current) idempotencyInput.current.value = crypto.randomUUID()
@@ -60,17 +61,30 @@ export function WhatsappOperatorControls({
     return <aside className="whatsapp-operator-panel muted">{copy.assignedElsewhere}</aside>
   }
 
-  const showReplyForm = isAssignedToCurrentUser || claimState.ok
+  const showReplyForm = isComposing || claimState.ok
 
   if (!showReplyForm) {
     return (
       <aside className="whatsapp-operator-panel stack">
         <div className="whatsapp-operator-actions">
-          <form action={claimAction}>
-            <button className="button-primary" disabled={claimPending || ignorePending} type="submit">
+          {isAssignedToCurrentUser ? (
+            <button
+              aria-controls="whatsapp-operator-reply"
+              aria-expanded="false"
+              className="button-primary"
+              disabled={ignorePending}
+              onClick={() => setIsComposing(true)}
+              type="button"
+            >
               {copy.reply}
             </button>
-          </form>
+          ) : (
+            <form action={claimAction}>
+              <button className="button-primary" disabled={claimPending || ignorePending} type="submit">
+                {copy.reply}
+              </button>
+            </form>
+          )}
           <form action={ignoreAction}>
             <button className="button-outline" disabled={claimPending || ignorePending} type="submit">
               {copy.ignore}

@@ -12137,10 +12137,6 @@ textarea {
   border-top: 0.5px solid color-mix(in srgb, var(--color-border) 76%, transparent);
 }
 
-.whatsapp-message-attention > .conversation-feedback-pill {
-  width: fit-content;
-}
-
 .whatsapp-message-attention .whatsapp-operator-panel {
   position: static;
   width: 100%;
