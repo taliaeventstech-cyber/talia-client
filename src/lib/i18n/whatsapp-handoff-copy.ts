@@ -38,15 +38,13 @@ type WhatsappHandoffCopy = {
     attention: string
   }
   controls: {
-    claim: string
-    claimedByYou: string
+    reply: string
     assignedElsewhere: string
     replyLabel: string
     replyPlaceholder: string
     send: string
-    resolve: string
+    ignore: string
     readOnly: string
-    claimFirst: string
   }
   action: {
     claimed: string
@@ -56,7 +54,8 @@ type WhatsappHandoffCopy = {
     sent: string
     sendFailed: string
     uncertain: string
-    resolved: string
+    sendInProgress: string
+    ignored: string
     invalidReply: string
     forbidden: string
   }
@@ -87,18 +86,17 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
       next: 'Siguiente mensaje pendiente', attention: 'Necesita atención',
     },
     controls: {
-      claim: 'Reclamar conversación', claimedByYou: 'La tienes asignada',
-      assignedElsewhere: 'Asignada a otra persona', replyLabel: 'Respuesta',
-      replyPlaceholder: 'Escribe una respuesta humana…', send: 'Enviar por WhatsApp',
-      resolve: 'Resolver conversación', readOnly: 'Tienes acceso de solo lectura.',
-      claimFirst: 'Reclama la conversación para poder responder.',
+      reply: 'Responder por WhatsApp', assignedElsewhere: 'Asignada a otra persona',
+      replyLabel: 'Respuesta por WhatsApp', replyPlaceholder: 'Escribe tu respuesta…',
+      send: 'Enviar', ignore: 'Ignorar', readOnly: 'Tienes acceso de solo lectura.',
     },
     action: {
       claimed: 'Conversación asignada.', alreadyClaimed: 'Ya tienes asignada esta conversación.',
       alreadyAssigned: 'Otra persona ya ha reclamado esta conversación.', unavailable: 'La conversación ya no está disponible.',
       sent: 'Respuesta enviada.', sendFailed: 'Meta rechazó el envío. El caso sigue abierto.',
       uncertain: 'No se pudo confirmar el resultado del envío. No se reenviará automáticamente.',
-      resolved: 'Conversación resuelta.', invalidReply: 'Escribe una respuesta de entre 1 y 4096 caracteres.',
+      sendInProgress: 'Hay una respuesta enviándose. Espera a que termine antes de ignorar el mensaje.',
+      ignored: 'Mensaje ignorado.', invalidReply: 'Escribe una respuesta de entre 1 y 4096 caracteres.',
       forbidden: 'No tienes permisos para realizar esta acción.',
     },
   },
@@ -124,16 +122,17 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
       next: 'Missatge pendent següent', attention: 'Necessita atenció',
     },
     controls: {
-      claim: 'Reclamar conversa', claimedByYou: 'La tens assignada', assignedElsewhere: 'Assignada a una altra persona',
-      replyLabel: 'Resposta', replyPlaceholder: 'Escriu una resposta humana…', send: 'Enviar per WhatsApp',
-      resolve: 'Resoldre conversa', readOnly: 'Tens accés només de lectura.', claimFirst: 'Reclama la conversa per poder respondre.',
+      reply: 'Respondre per WhatsApp', assignedElsewhere: 'Assignada a una altra persona',
+      replyLabel: 'Resposta per WhatsApp', replyPlaceholder: 'Escriu la teva resposta…',
+      send: 'Enviar', ignore: 'Ignorar', readOnly: 'Tens accés només de lectura.',
     },
     action: {
       claimed: 'Conversa assignada.', alreadyClaimed: 'Ja tens assignada aquesta conversa.',
       alreadyAssigned: 'Una altra persona ja ha reclamat aquesta conversa.', unavailable: 'La conversa ja no està disponible.',
       sent: 'Resposta enviada.', sendFailed: "Meta ha rebutjat l'enviament. El cas continua obert.",
       uncertain: "No s'ha pogut confirmar el resultat de l'enviament. No es reenviarà automàticament.",
-      resolved: 'Conversa resolta.', invalidReply: 'Escriu una resposta entre 1 i 4096 caràcters.',
+      sendInProgress: 'Hi ha una resposta en procés d’enviament. Espera que acabi abans d’ignorar el missatge.',
+      ignored: 'Missatge ignorat.', invalidReply: 'Escriu una resposta entre 1 i 4096 caràcters.',
       forbidden: 'No tens permisos per fer aquesta acció.',
     },
   },
@@ -159,16 +158,17 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
       next: 'Next pending message', attention: 'Needs attention',
     },
     controls: {
-      claim: 'Claim conversation', claimedByYou: 'Assigned to you', assignedElsewhere: 'Assigned to someone else',
-      replyLabel: 'Reply', replyPlaceholder: 'Write a human reply…', send: 'Send on WhatsApp',
-      resolve: 'Resolve conversation', readOnly: 'You have read-only access.', claimFirst: 'Claim the conversation to reply.',
+      reply: 'Reply on WhatsApp', assignedElsewhere: 'Assigned to someone else',
+      replyLabel: 'WhatsApp reply', replyPlaceholder: 'Write your reply…',
+      send: 'Send', ignore: 'Ignore', readOnly: 'You have read-only access.',
     },
     action: {
       claimed: 'Conversation assigned.', alreadyClaimed: 'This conversation is already assigned to you.',
       alreadyAssigned: 'Someone else has already claimed this conversation.', unavailable: 'The conversation is no longer available.',
       sent: 'Reply sent.', sendFailed: 'Meta rejected the send. The case remains open.',
       uncertain: 'The send outcome could not be confirmed. It will not be retried automatically.',
-      resolved: 'Conversation resolved.', invalidReply: 'Write a reply between 1 and 4096 characters.',
+      sendInProgress: 'A reply is being sent. Wait for it to finish before ignoring the message.',
+      ignored: 'Message ignored.', invalidReply: 'Write a reply between 1 and 4096 characters.',
       forbidden: 'You do not have permission to perform this action.',
     },
   },
@@ -194,16 +194,17 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
       next: 'Próxima mensagem pendente', attention: 'Precisa de atenção',
     },
     controls: {
-      claim: 'Assumir conversa', claimedByYou: 'Atribuída a você', assignedElsewhere: 'Atribuída a outra pessoa',
-      replyLabel: 'Resposta', replyPlaceholder: 'Escreva uma resposta humana…', send: 'Enviar pelo WhatsApp',
-      resolve: 'Resolver conversa', readOnly: 'Você tem acesso somente para leitura.', claimFirst: 'Assuma a conversa para responder.',
+      reply: 'Responder pelo WhatsApp', assignedElsewhere: 'Atribuída a outra pessoa',
+      replyLabel: 'Resposta pelo WhatsApp', replyPlaceholder: 'Escreva sua resposta…',
+      send: 'Enviar', ignore: 'Ignorar', readOnly: 'Você tem acesso somente para leitura.',
     },
     action: {
       claimed: 'Conversa atribuída.', alreadyClaimed: 'Esta conversa já está atribuída a você.',
       alreadyAssigned: 'Outra pessoa já assumiu esta conversa.', unavailable: 'A conversa não está mais disponível.',
       sent: 'Resposta enviada.', sendFailed: 'A Meta rejeitou o envio. O caso continua aberto.',
       uncertain: 'Não foi possível confirmar o resultado do envio. Ele não será repetido automaticamente.',
-      resolved: 'Conversa resolvida.', invalidReply: 'Escreva uma resposta entre 1 e 4096 caracteres.',
+      sendInProgress: 'Uma resposta está sendo enviada. Aguarde a conclusão antes de ignorar a mensagem.',
+      ignored: 'Mensagem ignorada.', invalidReply: 'Escreva uma resposta entre 1 e 4096 caracteres.',
       forbidden: 'Você não tem permissão para realizar esta ação.',
     },
   },

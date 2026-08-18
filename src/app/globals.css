@@ -12167,6 +12167,13 @@ textarea {
   resize: vertical;
 }
 
+.whatsapp-operator-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
 @media (max-width: 900px) {
   .whatsapp-operator-panel {
     position: static;

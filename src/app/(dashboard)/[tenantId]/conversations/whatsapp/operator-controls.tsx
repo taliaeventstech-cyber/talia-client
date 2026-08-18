@@ -5,7 +5,7 @@ import type { WhatsappHandoffCopy } from '@/lib/i18n/whatsapp-handoff-copy'
 import type { WhatsappHandoffActionState } from './actions'
 import {
   claimWhatsappHandoffAction,
-  resolveWhatsappHandoffAction,
+  ignoreWhatsappHandoffAction,
   sendWhatsappOperatorReplyAction,
 } from './actions'
 
@@ -36,8 +36,8 @@ export function WhatsappOperatorControls({
     sendWhatsappOperatorReplyAction.bind(null, tenantId, conversationId, locale),
     initialState,
   )
-  const [resolveState, resolveAction, resolvePending] = useActionState(
-    resolveWhatsappHandoffAction.bind(null, tenantId, conversationId, locale),
+  const [ignoreState, ignoreAction, ignorePending] = useActionState(
+    ignoreWhatsappHandoffAction.bind(null, tenantId, conversationId, locale),
     initialState,
   )
   const replyForm = useRef<HTMLFormElement>(null)
@@ -56,27 +56,34 @@ export function WhatsappOperatorControls({
     return <aside className="whatsapp-operator-panel muted">{copy.readOnly}</aside>
   }
 
-  if (!isAssigned) {
+  if (isAssigned && !isAssignedToCurrentUser) {
+    return <aside className="whatsapp-operator-panel muted">{copy.assignedElsewhere}</aside>
+  }
+
+  const showReplyForm = isAssignedToCurrentUser || claimState.ok
+
+  if (!showReplyForm) {
     return (
       <aside className="whatsapp-operator-panel stack">
-        <p className="muted">{copy.claimFirst}</p>
-        <form action={claimAction}>
-          <button className="button-primary" disabled={claimPending} type="submit">
-            {copy.claim}
-          </button>
-        </form>
-        <ActionMessage state={claimState} />
+        <div className="whatsapp-operator-actions">
+          <form action={claimAction}>
+            <button className="button-primary" disabled={claimPending || ignorePending} type="submit">
+              {copy.reply}
+            </button>
+          </form>
+          <form action={ignoreAction}>
+            <button className="button-outline" disabled={claimPending || ignorePending} type="submit">
+              {copy.ignore}
+            </button>
+          </form>
+        </div>
+        <ActionMessage state={claimState.message ? claimState : ignoreState} hideSuccess />
       </aside>
     )
   }
 
-  if (!isAssignedToCurrentUser) {
-    return <aside className="whatsapp-operator-panel muted">{copy.assignedElsewhere}</aside>
-  }
-
   return (
     <aside className="whatsapp-operator-panel stack">
-      <strong>{copy.claimedByYou}</strong>
       <form
         ref={replyForm}
         action={replyAction}
@@ -87,7 +94,7 @@ export function WhatsappOperatorControls({
           }
         }}
       >
-        <label htmlFor="whatsapp-operator-reply">{copy.replyLabel}</label>
+        <label className="sr-only" htmlFor="whatsapp-operator-reply">{copy.replyLabel}</label>
         <textarea
           id="whatsapp-operator-reply"
           name="body"
@@ -97,22 +104,23 @@ export function WhatsappOperatorControls({
           rows={5}
         />
         <input ref={idempotencyInput} name="idempotencyKey" type="hidden" />
-        <button className="button-primary button-fit" disabled={replyPending} type="submit">
-          {copy.send}
-        </button>
+        <div className="whatsapp-operator-actions">
+          <button className="button-primary button-fit" disabled={replyPending || ignorePending} type="submit">
+            {copy.send}
+          </button>
+          <button className="button-outline" disabled={replyPending || ignorePending} form="whatsapp-ignore-form" type="submit">
+            {copy.ignore}
+          </button>
+        </div>
       </form>
-      <form action={resolveAction}>
-        <button className="button-outline" disabled={resolvePending || replyPending} type="submit">
-          {copy.resolve}
-        </button>
-      </form>
-      <ActionMessage state={replyState.message ? replyState : resolveState} />
+      <form action={ignoreAction} id="whatsapp-ignore-form" />
+      <ActionMessage state={replyState.message ? replyState : ignoreState} />
     </aside>
   )
 }
 
-function ActionMessage({ state }: { state: WhatsappHandoffActionState }) {
-  if (!state.message) return null
+function ActionMessage({ state, hideSuccess = false }: { state: WhatsappHandoffActionState; hideSuccess?: boolean }) {
+  if (!state.message || (hideSuccess && state.ok)) return null
   return (
     <p className={state.ok ? 'form-success' : 'form-error'} role="status">
       {state.message}

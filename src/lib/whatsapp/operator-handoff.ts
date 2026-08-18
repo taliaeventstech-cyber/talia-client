@@ -134,16 +134,16 @@ export async function claimWhatsappHandoff(
   return result.data
 }
 
-export async function resolveWhatsappHandoff(
+export async function ignoreWhatsappHandoff(
   admin: AdminClient,
   input: { tenantId: string; conversationId: string; actorUserId: string },
 ) {
-  const result = await admin.rpc('resolve_whatsapp_handoff', {
+  const result = await admin.rpc('ignore_whatsapp_handoff', {
     p_theatre_id: input.tenantId,
     p_conversation_id: input.conversationId,
     p_actor_user_id: input.actorUserId,
   })
-  if (result.error) throw new Error(`whatsapp_handoff_resolve_failed:${result.error.message}`)
+  if (result.error) throw new Error(`whatsapp_handoff_ignore_failed:${result.error.message}`)
   return result.data
 }
 

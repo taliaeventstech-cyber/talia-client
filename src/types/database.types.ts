@@ -2192,6 +2192,14 @@ export type Database = {
         }
         Returns: string
       }
+      ignore_whatsapp_handoff: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_theatre_id: string
+        }
+        Returns: string
+      }
       get_backstage_response_trace_metrics: {
         Args: {
           p_theatre_id: string

@@ -640,10 +640,12 @@ Implemented:
   conversation history. Tenant viewers can inspect masked conversation lists
   and transcripts. A reusable in-conversation navigator jumps directly to the
   message that triggered the current human handoff, where the operator controls
-  are shown inline. Owners, administrators and operators can atomically claim a
-  handoff, send an audited manual reply and resolve it. Manual sends are
-  persisted before Meta is called, are idempotent, and never retry automatically
-  when the provider outcome is uncertain.
+  are shown inline. Owners, administrators and operators can reply or ignore:
+  opening the reply composer atomically claims the handoff, a confirmed manual
+  send resolves it automatically, and ignoring resolves it without sending.
+  Both decisions are audited. Manual sends are persisted before Meta is called,
+  are idempotent, and never retry automatically when the provider outcome is
+  uncertain.
 
 Validated in the current pilot:
 

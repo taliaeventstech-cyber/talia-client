@@ -5,7 +5,7 @@ import { getWhatsappHandoffCopy } from '@/lib/i18n/whatsapp-handoff-copy'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   claimWhatsappHandoff,
-  resolveWhatsappHandoff,
+  ignoreWhatsappHandoff,
   sendWhatsappOperatorReply,
 } from '@/lib/whatsapp/operator-handoff'
 import { revalidatePath } from 'next/cache'
@@ -93,7 +93,7 @@ export async function sendWhatsappOperatorReplyAction(
   }
 }
 
-export async function resolveWhatsappHandoffAction(
+export async function ignoreWhatsappHandoffAction(
   tenantId: string,
   conversationId: string,
   locale: string,
@@ -109,17 +109,18 @@ export async function resolveWhatsappHandoffAction(
 
   const access = await requireTenantProductAccess(tenantId, 'manage_conversations', 'whatsapp')
   try {
-    const outcome = await resolveWhatsappHandoff(createAdminClient(), {
+    const outcome = await ignoreWhatsappHandoff(createAdminClient(), {
       tenantId,
       conversationId,
       actorUserId: access.userId,
     })
     revalidateHandoffPaths(tenantId, conversationId)
-    return outcome === 'resolved'
-      ? success(copy.resolved)
-      : { ok: false, message: copy.unavailable }
+    if (outcome === 'ignored') return success(copy.ignored)
+    if (outcome === 'already_assigned') return { ok: false, message: copy.alreadyAssigned }
+    if (outcome === 'send_in_progress') return { ok: false, message: copy.sendInProgress }
+    return { ok: false, message: copy.unavailable }
   } catch (error) {
-    console.error('[whatsapp-handoff] resolve failed', { tenantId, conversationId, error })
+    console.error('[whatsapp-handoff] ignore failed', { tenantId, conversationId, error })
     return { ok: false, message: copy.unavailable }
   }
 }

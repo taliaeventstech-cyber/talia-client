@@ -3,6 +3,7 @@ import {
   getWhatsappConversationHistory,
   getWhatsappHandoffDetail,
   getWhatsappHandoffQueue,
+  ignoreWhatsappHandoff,
   sendWhatsappOperatorReply,
 } from './operator-handoff'
 
@@ -84,6 +85,21 @@ describe('WhatsApp operator handoff', () => {
       conversationId: 'b1000000-0000-4000-8000-000000000001',
       actorUserId: 'b3000000-0000-0000-0000-000000000001',
     })).resolves.toBeNull()
+  })
+
+  it('ignores an active handoff through the audited resolution RPC', async () => {
+    const admin = createRpcAdmin([{ data: 'ignored', error: null }])
+
+    await expect(ignoreWhatsappHandoff(admin as never, {
+      tenantId: 'b2000000-0000-0000-0000-000000000001',
+      conversationId: 'b1000000-0000-4000-8000-000000000001',
+      actorUserId: 'b3000000-0000-0000-0000-000000000001',
+    })).resolves.toBe('ignored')
+    expect(admin.rpc).toHaveBeenCalledWith('ignore_whatsapp_handoff', {
+      p_theatre_id: 'b2000000-0000-0000-0000-000000000001',
+      p_conversation_id: 'b1000000-0000-4000-8000-000000000001',
+      p_actor_user_id: 'b3000000-0000-0000-0000-000000000001',
+    })
   })
 
   it('persists, starts and confirms one operator reply before recording usage', async () => {
