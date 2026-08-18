@@ -1,4 +1,16 @@
 type WhatsappHandoffCopy = {
+  attention: {
+    eyebrow: string
+    title: string
+    description: string
+    count: (count: number) => string
+    emptyTitle: string
+    emptyDescription: string
+    assignedTo: string
+    unassigned: string
+    reason: string
+    open: string
+  }
   queue: {
     eyebrow: string
     title: string
@@ -55,6 +67,15 @@ type WhatsappHandoffCopy = {
 
 const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
   es: {
+    attention: {
+      eyebrow: 'Agente de WhatsApp',
+      title: 'Necesitan atención',
+      description: 'Conversaciones que TALIA ha derivado al equipo y esperan atención humana.',
+      count: (count) => `${count} ${count === 1 ? 'conversación pendiente' : 'conversaciones pendientes'}`,
+      emptyTitle: 'Todo está atendido',
+      emptyDescription: 'No hay conversaciones de WhatsApp esperando atención humana.',
+      assignedTo: 'Asignada a', unassigned: 'Sin asignar', reason: 'Motivo', open: 'Atender',
+    },
     queue: {
       eyebrow: 'Agente de WhatsApp',
       title: 'Historial de conversaciones',
@@ -89,6 +110,13 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
     },
   },
   ca: {
+    attention: {
+      eyebrow: 'Agent de WhatsApp', title: 'Necessiten atenció',
+      description: "Converses que TALIA ha derivat a l'equip i esperen atenció humana.",
+      count: (count) => `${count} ${count === 1 ? 'conversa pendent' : 'converses pendents'}`,
+      emptyTitle: 'Tot està atès', emptyDescription: 'No hi ha converses de WhatsApp esperant atenció humana.',
+      assignedTo: 'Assignada a', unassigned: 'Sense assignar', reason: 'Motiu', open: 'Atendre',
+    },
     queue: {
       eyebrow: 'Agent de WhatsApp', title: 'Historial de converses',
       description: 'Totes les converses ateses per TALIA a través de WhatsApp.',
@@ -119,6 +147,13 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
     },
   },
   en: {
+    attention: {
+      eyebrow: 'WhatsApp agent', title: 'Needs attention',
+      description: 'Conversations that TALIA has handed off to the team and are waiting for human attention.',
+      count: (count) => `${count} ${count === 1 ? 'pending conversation' : 'pending conversations'}`,
+      emptyTitle: 'Everything is covered', emptyDescription: 'No WhatsApp conversations are waiting for human attention.',
+      assignedTo: 'Assigned to', unassigned: 'Unassigned', reason: 'Reason', open: 'Handle',
+    },
     queue: {
       eyebrow: 'WhatsApp agent', title: 'Conversation history',
       description: 'Every conversation handled by TALIA through WhatsApp.',
@@ -149,6 +184,13 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
     },
   },
   pt: {
+    attention: {
+      eyebrow: 'Agente de WhatsApp', title: 'Precisam de atenção',
+      description: 'Conversas que a TALIA encaminhou para a equipe e aguardam atendimento humano.',
+      count: (count) => `${count} ${count === 1 ? 'conversa pendente' : 'conversas pendentes'}`,
+      emptyTitle: 'Tudo está atendido', emptyDescription: 'Não há conversas do WhatsApp aguardando atendimento humano.',
+      assignedTo: 'Atribuída a', unassigned: 'Não atribuída', reason: 'Motivo', open: 'Atender',
+    },
     queue: {
       eyebrow: 'Agente de WhatsApp', title: 'Histórico de conversas',
       description: 'Todas as conversas atendidas pela TALIA através do WhatsApp.',

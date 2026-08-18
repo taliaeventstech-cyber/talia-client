@@ -3,7 +3,7 @@
 import type { SVGProps } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bot, Database, Inbox, LayoutDashboard, Mail, MessageCircle, MessageSquare, Network, SlidersHorizontal, Zap } from 'lucide-react'
+import { Bot, CircleAlert, Database, Inbox, LayoutDashboard, Mail, MessageCircle, MessageSquare, Network, SlidersHorizontal, Zap } from 'lucide-react'
 import { FREE_TRIAL_DAYS } from '@/lib/billing/plans'
 import {
   hasTenantPermission,
@@ -45,6 +45,7 @@ type DashboardNavLabels = {
   accessibility: string
   emailAgent: string
   whatsappAgent: string
+  needsAttention: string
   inbox: string
   intelligence: string
   knowledge: string
@@ -103,6 +104,10 @@ export function DashboardNav({
   const showWhatsapp = hasProductAccess && whatsappEnabled && canViewConversations
   const showAttention = showChatbot || showAccessibility || showEmail || showWhatsapp
   const chatbotConfigurationHref = getChatbotConfigurationHref(tenantId, chatbotSetupCompleted)
+  const whatsappHref = `/${tenantId}/whatsapp`
+  const whatsappAttentionHref = `${whatsappHref}/attention`
+  const whatsappConversationsActive = pathname === whatsappHref
+    || (pathname.startsWith(`${whatsappHref}/`) && !pathname.startsWith(`${whatsappAttentionHref}/`) && pathname !== whatsappAttentionHref)
   const trialProgress = trialDaysRemaining === null
     ? 0
     : Math.max(0, Math.min(100, Math.round((trialDaysRemaining / FREE_TRIAL_DAYS) * 100)))
@@ -241,11 +246,18 @@ export function DashboardNav({
               </div>
               <div className="nav-subnav">
                 <Link
-                  className={`nav-link nav-link-nested ${active(`/${tenantId}/whatsapp`) ? 'nav-link-active' : ''}`}
-                  href={`/${tenantId}/whatsapp`}
+                  className={`nav-link nav-link-nested ${whatsappConversationsActive ? 'nav-link-active' : ''}`}
+                  href={whatsappHref}
                 >
                   <MessageSquare size={14} strokeWidth={2} aria-hidden="true" />
                   {labels.conversations}
+                </Link>
+                <Link
+                  className={`nav-link nav-link-nested ${active(whatsappAttentionHref) ? 'nav-link-active' : ''}`}
+                  href={whatsappAttentionHref}
+                >
+                  <CircleAlert size={14} strokeWidth={2} aria-hidden="true" />
+                  {labels.needsAttention}
                 </Link>
               </div>
             </div>

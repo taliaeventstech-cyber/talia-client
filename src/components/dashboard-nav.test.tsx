@@ -14,6 +14,7 @@ const labels = {
   accessibility: 'Accessibility',
   emailAgent: 'Email agent',
   whatsappAgent: 'WhatsApp agent',
+  needsAttention: 'Needs attention',
   inbox: 'Inbox',
   intelligence: 'Intelligence',
   knowledge: 'Knowledge',
@@ -74,6 +75,8 @@ describe('getChatbotConfigurationHref', () => {
 
     expect(html).toContain('WhatsApp agent')
     expect(html).toContain('href="/tenant-1/whatsapp"')
+    expect(html).toContain('href="/tenant-1/whatsapp/attention"')
+    expect(html).toContain('Needs attention')
     expect(html).not.toContain('Web Agent')
   })
 })

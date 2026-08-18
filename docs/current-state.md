@@ -636,12 +636,14 @@ Implemented:
 - WhatsApp message, fallback and measured AI usage events use the canonical
   `whatsapp` module/channel without phone numbers or message content in their
   operational metadata.
-- Àgora exposes WhatsApp as an independent attention agent with its own
-  conversation history. Tenant viewers can inspect masked conversation lists
-  and transcripts; owners, administrators and operators can atomically claim a
-  handoff, send an audited manual reply and
-  resolve it. Manual sends are persisted before Meta is called, are idempotent,
-  and never retry automatically when the provider outcome is uncertain.
+- Àgora exposes WhatsApp as an independent attention agent with separate
+  conversation-history and needs-attention navigation. The operational queue
+  selects pending handoffs in place and shows the transcript together with the
+  controls to claim, reply and resolve. Tenant viewers can inspect masked
+  conversation lists and transcripts; owners, administrators and operators can
+  atomically claim a handoff, send an audited manual reply and resolve it.
+  Manual sends are persisted before Meta is called, are idempotent, and never
+  retry automatically when the provider outcome is uncertain.
 
 Validated in the current pilot:
 
