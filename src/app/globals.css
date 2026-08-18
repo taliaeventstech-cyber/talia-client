@@ -10222,7 +10222,8 @@ textarea {
 }
 
 .message-card[id^="response-"],
-.message-card[id^="question-"] {
+.message-card[id^="question-"],
+.message-card[data-attention-target] {
   scroll-margin-top: 154px;
   transition:
     border-color 220ms ease,
@@ -10231,7 +10232,8 @@ textarea {
     transform 220ms ease;
 }
 
-.message-card[id^="response-"]:target {
+.message-card[id^="response-"]:target,
+.message-card[data-attention-target]:target {
   border-color: color-mix(in srgb, var(--color-brand) 70%, var(--color-border));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 13%, transparent);
 }
@@ -12079,68 +12081,6 @@ textarea {
   overflow-x: auto;
 }
 
-.whatsapp-attention-workspace {
-  display: grid;
-  grid-template-columns: minmax(250px, 320px) minmax(0, 1fr);
-  align-items: start;
-  gap: 24px;
-}
-
-.whatsapp-attention-queue {
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-}
-
-.whatsapp-attention-item {
-  display: grid;
-  gap: 10px;
-  padding: 14px;
-  color: var(--color-text-secondary);
-  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
-}
-
-.whatsapp-attention-item:hover {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface-2);
-  transform: translateY(-1px);
-}
-
-.whatsapp-attention-item-active {
-  border-color: color-mix(in srgb, var(--color-brand) 48%, var(--color-border));
-  background: color-mix(in srgb, var(--color-brand) 7%, var(--color-surface));
-}
-
-.whatsapp-attention-item-header,
-.whatsapp-attention-item-meta,
-.whatsapp-attention-item-meta > span {
-  display: flex;
-  align-items: center;
-}
-
-.whatsapp-attention-item-header {
-  justify-content: space-between;
-  gap: 12px;
-  color: var(--color-text-primary);
-}
-
-.whatsapp-attention-item-meta {
-  justify-content: space-between;
-  gap: 12px;
-  color: var(--color-text-tertiary);
-  font-size: 11px;
-}
-
-.whatsapp-attention-item-meta > span {
-  gap: 5px;
-  min-width: 0;
-}
-
-.whatsapp-attention-conversation,
-.whatsapp-conversation-thread {
-  min-width: 0;
-}
-
 .whatsapp-contact-mask {
   display: block;
   margin-top: 4px;
@@ -12180,21 +12120,6 @@ textarea {
   margin: 0;
 }
 
-.whatsapp-handoff-detail-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
-  align-items: start;
-  gap: 24px;
-}
-
-.whatsapp-handoff-detail-grid-single {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.whatsapp-handoff-detail-grid .message-card {
-  width: min(100%, 760px);
-}
-
 .whatsapp-message-body {
   margin: 0;
   white-space: pre-wrap;
@@ -12202,6 +12127,24 @@ textarea {
 
 .whatsapp-message-body + .status-pill {
   margin-top: 12px;
+}
+
+.whatsapp-message-attention {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 0.5px solid color-mix(in srgb, var(--color-border) 76%, transparent);
+}
+
+.whatsapp-message-attention > .conversation-feedback-pill {
+  width: fit-content;
+}
+
+.whatsapp-message-attention .whatsapp-operator-panel {
+  position: static;
+  width: 100%;
+  max-width: 620px;
 }
 
 .whatsapp-operator-panel {
@@ -12225,14 +12168,6 @@ textarea {
 }
 
 @media (max-width: 900px) {
-  .whatsapp-attention-workspace {
-    grid-template-columns: 1fr;
-  }
-
-  .whatsapp-handoff-detail-grid {
-    grid-template-columns: 1fr;
-  }
-
   .whatsapp-operator-panel {
     position: static;
     grid-row: 1;
