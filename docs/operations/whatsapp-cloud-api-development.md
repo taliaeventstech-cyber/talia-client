@@ -19,7 +19,9 @@ webhooks:
 ```text
 META_WHATSAPP_WEBHOOK_VERIFY_TOKEN=<random environment-specific value>
 META_APP_SECRET=<Meta app secret>
-META_WHATSAPP_ACCESS_TOKEN=<server-only Cloud API token>
+NEXT_PUBLIC_META_APP_ID=<Meta app ID>
+NEXT_PUBLIC_META_WHATSAPP_CONFIG_ID=<Embedded Signup v4 configuration ID>
+WHATSAPP_TOKEN_ENCRYPTION_KEY=<dedicated random secret, at least 32 characters>
 META_WHATSAPP_GRAPH_API_VERSION=v26.0
 TALIA_AI_BASE_URL=<deployed talia-ai origin>
 TALIA_AI_INTERNAL_API_KEY=<shared internal service key>
@@ -29,10 +31,18 @@ INTERNAL_API_KEY=<manual preview wake-up secret>
 
 Generate the verification token with a cryptographically random value, for
 example `openssl rand -hex 32`. Enter the same value in Meta's webhook setup.
-The verification token is not the App Secret or an access token. The pilot
-access token is used only by the server-side outbound worker. Meta dashboard
-temporary tokens expire and must be replaced by a managed system-user or
-Embedded Signup credential before production.
+The verification token is not the App Secret or an access token.
+`NEXT_PUBLIC_META_APP_ID` and `NEXT_PUBLIC_META_WHATSAPP_CONFIG_ID` identify the
+public browser configuration and are not credentials. `META_APP_SECRET` and
+`WHATSAPP_TOKEN_ENCRYPTION_KEY` remain server-only. Generate the encryption key
+independently from every other application secret, for example with
+`openssl rand -hex 32`, and configure the same value on every instance that may
+send WhatsApp traffic.
+
+`META_WHATSAPP_ACCESS_TOKEN` is now an optional compatibility credential for the
+original TALIA pilot connection only. Embedded Signup connections keep their own
+business token encrypted per venue and the outbound worker resolves the token by
+venue and phone-number ID. Do not reuse the pilot token for tenant connections.
 
 Never expose either value to the browser, commit them, or paste them into issue
 trackers and screenshots. Meta's temporary Cloud API access token is separate
@@ -51,6 +61,43 @@ and is not required by this inbound webhook boundary.
 Meta signs POST bodies in `X-Hub-Signature-256` using the app secret. TALIA
 validates that signature against the unmodified request body before parsing
 JSON.
+
+## Meta Embedded Signup v4
+
+TALIA uses Embedded Signup v4 through Facebook Login for Business. Do not build
+new work on Embedded Signup v2: Meta deprecates that version on October 15,
+2026.
+
+In the Meta app:
+
+1. Create a Login for Business configuration from the WhatsApp Embedded Signup
+   template with a 60-day business token.
+2. Request only `whatsapp_business_management` and
+   `whatsapp_business_messaging`.
+3. Add every TALIA HTTPS development, preview and production origin to Allowed
+   Domains and Valid OAuth Redirect URIs. Keep Strict Mode and HTTPS enabled.
+4. Subscribe the WhatsApp webhook product to `messages` and `account_update`.
+5. Complete Business Verification, App Review and Access Verification before
+   onboarding customers who are not app-role users.
+
+Àgora exposes the flow at `/<TENANT_ID>/whatsapp/settings` to venue owners and
+administrators. The browser receives a one-use authorization code and the
+selected business/WABA/phone IDs. It immediately sends them to a Server Action;
+the code is never persisted and Meta gives it a 30-second lifetime. The server:
+
+1. exchanges the code using the App Secret;
+2. verifies that the selected phone belongs to the selected WABA;
+3. persists the business token and generated two-step PIN in an AES-256-GCM
+   envelope before any provider side effect;
+4. subscribes the TALIA app to the WABA;
+5. registers the phone; and
+6. marks the connection active and auditable.
+
+If provider registration fails after token exchange, the encrypted credential is
+retained with an error state instead of being written to logs or returned to the
+browser. The customer must add a payment method in WhatsApp Manager before
+business-initiated messages can be sent. Credential expiry is visible in Àgora;
+renewal/disconnection automation remains a production follow-up.
 
 ## Pilot venue mapping
 

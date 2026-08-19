@@ -127,7 +127,11 @@ describe('WhatsApp operator handoff', () => {
       actorUserId: 'b3000000-0000-0000-0000-000000000001',
       body: 'Respuesta humana',
       idempotencyKey: 'b5000000-0000-0000-0000-000000000001',
-    }, { send, recordUsage: recordUsage as never })
+    }, {
+      send,
+      recordUsage: recordUsage as never,
+      resolveAccessToken: async () => 'tenant-token',
+    })
 
     expect(result).toEqual({ outcome: 'sent', outboundMessageId: 'b4000000-0000-4000-8000-000000000001' })
     expect(send).toHaveBeenCalledOnce()
@@ -169,7 +173,7 @@ describe('WhatsApp operator handoff', () => {
       actorUserId: 'b3000000-0000-0000-0000-000000000001',
       body: 'Respuesta humana',
       idempotencyKey: 'b5000000-0000-0000-0000-000000000001',
-    }, { send })
+    }, { send, resolveAccessToken: async () => 'tenant-token' })
 
     expect(result).toEqual({
       outcome: 'uncertain',
@@ -179,6 +183,47 @@ describe('WhatsApp operator handoff', () => {
     expect(send).toHaveBeenCalledOnce()
     expect(admin.rpc).toHaveBeenNthCalledWith(3, 'fail_whatsapp_operator_reply', expect.objectContaining({
       p_delivery_status: 'unknown',
+    }))
+  })
+
+  it('fails closed before Meta when the tenant credential cannot be resolved', async () => {
+    const admin = createRpcAdmin([
+      {
+        data: {
+          state: 'prepared',
+          outbound_message_id: 'b4000000-0000-4000-8000-000000000001',
+          phone_number_id: 'phone-id',
+          recipient_wa_id: '34123456789',
+          reply_to_provider_message_id: 'wamid.inbound',
+          body_text: 'Respuesta humana',
+        },
+        error: null,
+      },
+      { data: 'started', error: null },
+      { data: true, error: null },
+    ])
+    const send = vi.fn()
+
+    const result = await sendWhatsappOperatorReply(admin as never, {
+      tenantId: 'b2000000-0000-0000-0000-000000000001',
+      conversationId: 'b1000000-0000-4000-8000-000000000001',
+      actorUserId: 'b3000000-0000-0000-0000-000000000001',
+      body: 'Respuesta humana',
+      idempotencyKey: 'b5000000-0000-0000-0000-000000000001',
+    }, {
+      send,
+      resolveAccessToken: async () => { throw new Error('credential unavailable') },
+    })
+
+    expect(result).toEqual({
+      outcome: 'failed',
+      outboundMessageId: 'b4000000-0000-4000-8000-000000000001',
+      errorCode: 'whatsapp_connection_credentials_unavailable',
+    })
+    expect(send).not.toHaveBeenCalled()
+    expect(admin.rpc).toHaveBeenNthCalledWith(3, 'fail_whatsapp_operator_reply', expect.objectContaining({
+      p_delivery_status: 'failed',
+      p_error_code: 'whatsapp_connection_credentials_unavailable',
     }))
   })
 })

@@ -5,6 +5,7 @@ import { recordMeasuredAiUsage } from '@/lib/usage/ai-cost'
 import { recordUsageEvent } from '@/lib/usage/service'
 import type { Json } from '@/types/database.types'
 import { z } from 'zod'
+import { getWhatsappConnectionAccessToken } from './credentials'
 import { sendMetaWhatsappText, type MetaWhatsappSendResult } from './meta-client'
 import { requestWhatsappAgent, type WhatsappAgentClientResult, type WhatsappAgentResult } from './talia-ai'
 
@@ -80,6 +81,7 @@ type ProcessorDependencies = {
   limit?: number
   leaseSeconds?: number
   maxAttempts?: number
+  resolveAccessToken?: typeof getWhatsappConnectionAccessToken
 }
 
 export async function processWhatsappInboundJobs(
@@ -102,6 +104,7 @@ export async function processWhatsappInboundJobs(
       attemptCount: job.attempt_count,
       requestAgent: dependencies.requestAgent ?? requestWhatsappAgent,
       sendText: dependencies.sendText ?? sendMetaWhatsappText,
+      resolveAccessToken: dependencies.resolveAccessToken ?? getWhatsappConnectionAccessToken,
       maxAttempts: dependencies.maxAttempts ?? 3,
     }, summary)
   }
@@ -116,6 +119,7 @@ async function processClaimedJob(
     attemptCount: number
     requestAgent: typeof requestWhatsappAgent
     sendText: typeof sendMetaWhatsappText
+    resolveAccessToken: typeof getWhatsappConnectionAccessToken
     maxAttempts: number
   },
   summary: WhatsappProcessorSummary,
@@ -325,6 +329,10 @@ async function sendPreparedReply(
   agentMetadata: Record<string, unknown>,
   resolution?: Record<string, unknown>,
 ) {
+  const accessToken = await input.resolveAccessToken(admin, {
+    tenantId: context.tenant.id,
+    phoneNumberId: context.connection.phone_number_id,
+  })
   const started = await admin.rpc('start_whatsapp_conversation_turn_send', {
     p_job_id: input.jobId,
     p_worker_id: input.workerId,
@@ -342,7 +350,7 @@ async function sendPreparedReply(
     recipientWaId: context.contact.wa_id,
     body: outbound.body_text,
     replyToProviderMessageId: context.message.provider_message_id,
-  })
+  }, { accessToken })
 
   if (sendResult.ok) {
     const completed = await admin.rpc('complete_whatsapp_conversation_turn', {

@@ -96,6 +96,7 @@ export function DashboardNav({
   const canManageChatbot = hasTenantPermission(role, 'manage_chatbot')
   const canManageKnowledge = hasTenantPermission(role, 'manage_knowledge')
   const canManageEmail = hasTenantPermission(role, 'manage_email')
+  const canManageWhatsapp = hasTenantPermission(role, 'manage_whatsapp')
   const showChatbot = hasProductAccess && chatbotEnabled && (canManageChatbot || canViewConversations || (dataEnabled && canViewAnalytics))
   const showAccessibility = hasProductAccess && chatbotEnabled && canManageChatbot
   const showKnowledge = hasProductAccess && dataEnabled && canManageKnowledge
@@ -241,12 +242,21 @@ export function DashboardNav({
               </div>
               <div className="nav-subnav">
                 <Link
-                  className={`nav-link nav-link-nested ${active(`/${tenantId}/whatsapp`) ? 'nav-link-active' : ''}`}
+                  className={`nav-link nav-link-nested ${isWhatsappConversationPath(pathname, tenantId) ? 'nav-link-active' : ''}`}
                   href={`/${tenantId}/whatsapp`}
                 >
                   <MessageSquare size={14} strokeWidth={2} aria-hidden="true" />
                   {labels.conversations}
                 </Link>
+                {canManageWhatsapp ? (
+                  <Link
+                    className={`nav-link nav-link-nested ${active(`/${tenantId}/whatsapp/settings`) ? 'nav-link-active' : ''}`}
+                    href={`/${tenantId}/whatsapp/settings`}
+                  >
+                    <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
+                    {labels.settings}
+                  </Link>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -289,4 +299,9 @@ export function DashboardNav({
       ) : null}
     </nav>
   )
+}
+
+function isWhatsappConversationPath(pathname: string, tenantId: string) {
+  const root = `/${tenantId}/whatsapp`
+  return pathname === root || (pathname.startsWith(`${root}/`) && pathname !== `${root}/settings`)
 }

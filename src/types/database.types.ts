@@ -2105,6 +2105,35 @@ export type Database = {
           theatre_name: string
         }[]
       }
+      get_whatsapp_connection_credentials: {
+        Args: {
+          p_phone_number_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      get_whatsapp_connection_summary: {
+        Args: {
+          p_actor_user_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      save_whatsapp_embedded_connection: {
+        Args: {
+          p_actor_user_id: string
+          p_business_id: string
+          p_credential_metadata: Json
+          p_display_phone_number: string | null
+          p_error_code?: string | null
+          p_phone_number_id: string
+          p_status: string
+          p_theatre_id: string
+          p_verified_name: string | null
+          p_waba_id: string
+        }
+        Returns: string
+      }
       get_whatsapp_inbound_job_context: {
         Args: {
           p_job_id: string

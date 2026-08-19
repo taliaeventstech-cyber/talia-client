@@ -12170,6 +12170,27 @@ textarea {
   gap: 10px;
 }
 
+.whatsapp-connection-card {
+  max-width: 760px;
+}
+
+.whatsapp-connection-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.whatsapp-connection-action {
+  align-items: flex-start;
+  padding-top: 8px;
+}
+
+.whatsapp-connection-action p,
+.whatsapp-connection-permissions {
+  margin: 0;
+}
+
 @media (max-width: 900px) {
   .whatsapp-operator-panel {
     position: static;

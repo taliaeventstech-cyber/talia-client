@@ -16,7 +16,13 @@ export function buildContentSecurityPolicy(options: {
 }) {
   const supabaseOrigin = getOrigin(options.supabaseUrl)
   const splineOrigin = getOrigin(options.splineSceneUrl)
-  const connectSources = ["'self'", supabaseOrigin, splineOrigin]
+  const connectSources = [
+    "'self'",
+    supabaseOrigin,
+    splineOrigin,
+    'https://www.facebook.com',
+    'https://graph.facebook.com',
+  ]
     .filter((value): value is string => Boolean(value))
 
   if (supabaseOrigin?.startsWith('https://')) {
@@ -25,7 +31,7 @@ export function buildContentSecurityPolicy(options: {
 
   const scriptSources = options.nonce
     ? ["'self'", `'nonce-${options.nonce}'`, "'strict-dynamic'"]
-    : ["'self'", "'unsafe-inline'"]
+    : ["'self'", "'unsafe-inline'", 'https://connect.facebook.net']
   if (options.isDevelopment) scriptSources.push("'unsafe-eval'")
 
   return [
@@ -35,7 +41,7 @@ export function buildContentSecurityPolicy(options: {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     `connect-src ${connectSources.join(' ')}`,
-    "frame-src 'self' https://www.google.com https://maps.google.com",
+    "frame-src 'self' https://www.google.com https://maps.google.com https://www.facebook.com https://web.facebook.com",
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
