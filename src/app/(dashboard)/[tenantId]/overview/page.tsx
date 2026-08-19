@@ -11,7 +11,7 @@ import { getWidgetEmbedCode } from '@/lib/widget/embed-code'
 import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
 import { CopyScriptButton } from '@/components/copy-script-button'
 import { LocalDateTime } from '@/components/local-date-time'
-import { Bot, CheckCircle2, Code2, Database, Mail, MessagesSquare, Plus } from 'lucide-react'
+import { Bot, CheckCircle2, Code2, Database, Mail, MessageCircle, MessagesSquare, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
@@ -27,6 +27,7 @@ export default async function OverviewPage({ params }: Props) {
   const copy = dictionary.overview
   const access = await requireTenantPermission(tenantId, 'view_overview')
   const hasEmailModule = isTenantModuleEnabled(access.modules.email)
+  const hasWhatsappModule = isTenantModuleEnabled(access.modules.whatsapp)
   const hasInstagramModule = isTenantModuleEnabled(access.modules.instagram)
   const canManageChatbot = isTenantModuleEnabled(access.modules.web)
     && hasTenantPermission(access.role, 'manage_chatbot')
@@ -274,6 +275,17 @@ export default async function OverviewPage({ params }: Props) {
                 <span><strong>{emailWaitingHuman ?? 0}</strong>Revisión</span>
               </div>
             </ModuleStatusCard>
+          ) : null}
+          {hasWhatsappModule ? (
+            <ModuleStatusCard
+              href={`/${tenantId}/whatsapp`}
+              icon={<MessageCircle size={22} />}
+              label="WhatsApp"
+              title={copy.modules.whatsapp}
+              status={dictionary.common.active}
+              tone="active"
+              description={copy.modules.whatsappReady}
+            />
           ) : null}
           {hasInstagramModule ? (
             <ModuleStatusCard

@@ -10222,7 +10222,8 @@ textarea {
 }
 
 .message-card[id^="response-"],
-.message-card[id^="question-"] {
+.message-card[id^="question-"],
+.message-card[data-attention-target] {
   scroll-margin-top: 154px;
   transition:
     border-color 220ms ease,
@@ -10231,7 +10232,8 @@ textarea {
     transform 220ms ease;
 }
 
-.message-card[id^="response-"]:target {
+.message-card[id^="response-"]:target,
+.message-card[data-attention-target]:target {
   border-color: color-mix(in srgb, var(--color-brand) 70%, var(--color-border));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 13%, transparent);
 }
@@ -12061,4 +12063,125 @@ textarea {
 
 @keyframes knowledge-realtime-pulse {
   50% { opacity: 0.3; }
+}
+
+.whatsapp-handoff-empty {
+  display: grid;
+  min-height: 180px;
+  place-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.whatsapp-handoff-empty p {
+  margin: 0;
+}
+
+.whatsapp-handoff-table-wrap {
+  overflow-x: auto;
+}
+
+.whatsapp-contact-mask {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+}
+
+.whatsapp-message-preview {
+  max-width: 420px;
+  white-space: normal;
+}
+
+.whatsapp-handoff-open-cell {
+  text-align: right;
+}
+
+.whatsapp-handoff-open-link {
+  display: inline-grid;
+  place-items: center;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.whatsapp-handoff-metadata {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.whatsapp-handoff-metadata dt {
+  color: var(--color-text-tertiary);
+}
+
+.whatsapp-handoff-metadata dd {
+  margin: 0;
+}
+
+.whatsapp-message-body {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.whatsapp-message-body + .status-pill {
+  margin-top: 12px;
+}
+
+.whatsapp-message-attention {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 0.5px solid color-mix(in srgb, var(--color-border) 76%, transparent);
+}
+
+.whatsapp-message-attention .whatsapp-operator-panel {
+  position: static;
+  width: 100%;
+  max-width: 620px;
+}
+
+.whatsapp-operator-panel {
+  position: sticky;
+  top: 24px;
+  padding: 20px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+.whatsapp-operator-panel > p,
+.whatsapp-operator-panel form,
+.whatsapp-operator-reply-form label {
+  margin: 0;
+}
+
+.whatsapp-operator-reply-form textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.whatsapp-operator-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .whatsapp-operator-panel {
+    position: static;
+    grid-row: 1;
+  }
+
+  .whatsapp-handoff-metadata {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .whatsapp-handoff-metadata dd + dt {
+    margin-top: 8px;
+  }
 }

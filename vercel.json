@@ -6,6 +6,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/cron/whatsapp/process",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/data-retention?dryRun=false",
       "schedule": "0 3 * * *"
     }
