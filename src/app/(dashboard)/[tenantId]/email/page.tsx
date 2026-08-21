@@ -1,4 +1,5 @@
 import { requireEmailAgentPreviewProductAccess } from '@/lib/email/legacy-access'
+import { EMAIL_DRAFT_WITH_THREAD_SELECT } from '@/lib/email/message-query'
 import { getDictionary, getLocale, type Dictionary } from '@/lib/i18n/dictionaries'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { QueryToastNotice } from '@/components/ui/query-toast-notice'
@@ -96,23 +97,7 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
       .eq('theatre_id', tenantId),
     admin
       .from('email_drafts')
-      .select(`
-        id,
-        status,
-        provider_draft_id,
-        generated_subject,
-        generated_body_text,
-        error_message,
-        created_at,
-        updated_at,
-        email_threads(
-          subject,
-          sender_email,
-          topic,
-          priority,
-          status
-        )
-      `)
+      .select(EMAIL_DRAFT_WITH_THREAD_SELECT)
       .eq('theatre_id', tenantId)
       .order('updated_at', { ascending: false })
       .limit(8),
