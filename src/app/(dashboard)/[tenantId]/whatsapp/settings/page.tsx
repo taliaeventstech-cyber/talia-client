@@ -20,10 +20,11 @@ export default async function WhatsappSettingsPage({ params }: Props) {
     tenantId,
     actorUserId: access.userId,
   })
+  const presentation = getConnectionPresentation(connection, copy)
 
   return (
     <main className="page-shell">
-      <header className="page-header">
+      <header className="page-header whatsapp-settings-header">
         <p className="section-label">{copy.eyebrow}</p>
         <h1>{copy.title}</h1>
         <p className="muted">{copy.description}</p>
@@ -33,9 +34,11 @@ export default async function WhatsappSettingsPage({ params }: Props) {
         <div className="whatsapp-connection-heading">
           <strong>{copy.status}</strong>
           <span className={`status-pill ${getConnectionStatusClass(connection?.status)}`}>
-            {getConnectionStatusLabel(connection, copy)}
+            {presentation.label}
           </span>
         </div>
+
+        <p className="muted whatsapp-connection-state-description">{presentation.description}</p>
 
         {connection ? (
           <dl className="whatsapp-handoff-metadata">
@@ -61,6 +64,7 @@ export default async function WhatsappSettingsPage({ params }: Props) {
             copy={copy}
             graphApiVersion={normalizeGraphApiVersion(process.env.META_WHATSAPP_GRAPH_API_VERSION)}
             replacingPilot={connection?.credential_source === 'environment'}
+            retryingConnection={Boolean(connection && connection.status !== 'connected')}
             tenantId={tenantId}
           />
         ) : null}
@@ -70,15 +74,27 @@ export default async function WhatsappSettingsPage({ params }: Props) {
   )
 }
 
-function getConnectionStatusLabel(
+function getConnectionPresentation(
   connection: Awaited<ReturnType<typeof getWhatsappConnectionSummary>>,
   copy: ReturnType<typeof getWhatsappConnectionCopy>,
 ) {
-  if (!connection) return copy.disconnected
-  if (connection.credential_source === 'environment' && connection.status === 'connected') return copy.pilot
-  if (connection.status === 'connected') return copy.connected
-  if (connection.status === 'error') return copy.error
-  return copy.pending
+  if (!connection) return { label: copy.disconnected, description: copy.disconnectedDescription }
+  if (connection.credential_source === 'environment' && connection.status === 'connected') {
+    return { label: copy.pilot, description: copy.pilotDescription }
+  }
+  if (connection.status === 'connected') {
+    return { label: copy.connected, description: copy.connectedDescription }
+  }
+  if (connection.status === 'error') {
+    return { label: copy.error, description: copy.errorDescription }
+  }
+  if (connection.status === 'revoked') {
+    return { label: copy.revoked, description: copy.revokedDescription }
+  }
+  if (connection.status === 'disabled') {
+    return { label: copy.disabled, description: copy.disabledDescription }
+  }
+  return { label: copy.pending, description: copy.pendingDescription }
 }
 
 function getConnectionStatusClass(status: string | undefined) {

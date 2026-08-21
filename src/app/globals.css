@@ -12174,6 +12174,12 @@ textarea {
   max-width: 760px;
 }
 
+.whatsapp-settings-header {
+  display: grid;
+  gap: 8px;
+  max-width: 760px;
+}
+
 .whatsapp-connection-heading {
   display: flex;
   align-items: center;
@@ -12184,6 +12190,12 @@ textarea {
 .whatsapp-connection-action {
   align-items: flex-start;
   padding-top: 8px;
+}
+
+.whatsapp-connection-state-description {
+  max-width: 620px;
+  margin: 0;
+  line-height: 1.55;
 }
 
 .whatsapp-connection-action p,
