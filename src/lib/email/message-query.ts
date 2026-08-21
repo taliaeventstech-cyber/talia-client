@@ -1,0 +1,20 @@
+export const EMAIL_MESSAGE_WITH_THREAD_SELECT = `
+  id,
+  theatre_id,
+  connection_id,
+  thread_id,
+  provider_message_id,
+  from_email,
+  from_name,
+  body_text,
+  body_html,
+  metadata,
+  received_at,
+  email_threads!email_messages_thread_id_fkey!inner(
+    id,
+    subject,
+    sender_email,
+    sender_name,
+    metadata
+  )
+`

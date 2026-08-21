@@ -17,6 +17,7 @@ import { getFreshMicrosoftAccessToken } from './microsoft-tokens'
 import { createOutlookDraft } from './outlook'
 import { getEmailAgentSettings } from './settings'
 import { TaliaAiEmailClassifierProvider, TaliaAiEmailDrafterProvider } from './talia-ai'
+import { EMAIL_MESSAGE_WITH_THREAD_SELECT } from './message-query'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -42,26 +43,7 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
   }
   const messageQuery = admin
     .from('email_messages')
-    .select(`
-      id,
-      theatre_id,
-      connection_id,
-      thread_id,
-      provider_message_id,
-      from_email,
-      from_name,
-      body_text,
-      body_html,
-      metadata,
-      received_at,
-      email_threads!inner(
-        id,
-        subject,
-        sender_email,
-        sender_name,
-        metadata
-      )
-    `)
+    .select(EMAIL_MESSAGE_WITH_THREAD_SELECT)
     .eq('theatre_id', input.tenantId)
     .eq('connection_id', connection.id)
     .eq('direction', 'inbound')
