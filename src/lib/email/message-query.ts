@@ -18,3 +18,21 @@ export const EMAIL_MESSAGE_WITH_THREAD_SELECT = `
     metadata
   )
 `
+
+export const EMAIL_DRAFT_WITH_THREAD_SELECT = `
+  id,
+  status,
+  provider_draft_id,
+  generated_subject,
+  generated_body_text,
+  error_message,
+  created_at,
+  updated_at,
+  email_threads!email_drafts_thread_id_fkey(
+    subject,
+    sender_email,
+    topic,
+    priority,
+    status
+  )
+`
