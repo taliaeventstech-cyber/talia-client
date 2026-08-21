@@ -36,6 +36,7 @@ interface Props {
     email_selected_processed?: string
     email_selected_ignored?: string
     email_selected_failed?: string
+    email_selected_failure_codes?: string
     email_deleted?: string
     email_delete_error?: string
     email_draft_deleted?: string
@@ -157,6 +158,7 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
     processed: query.email_selected_processed,
     ignored: query.email_selected_ignored,
     failed: query.email_selected_failed,
+    failureCodes: query.email_selected_failure_codes,
   })
   const syncSuccessMessage = getSyncSuccessMessage(copy, query.email_synced, query.email_auto_processed)
   const deleteSuccessMessage = getDeleteSuccessMessage(copy, query.email_deleted)
@@ -652,7 +654,7 @@ function getProcessSuccessMessage(copy: EmailCopy, action?: string) {
   return null
 }
 
-function getSelectedProcessMessage(copy: EmailCopy, input: { processed?: string; ignored?: string; failed?: string }) {
+function getSelectedProcessMessage(copy: EmailCopy, input: { processed?: string; ignored?: string; failed?: string; failureCodes?: string }) {
   if (input.processed === undefined && input.ignored === undefined && input.failed === undefined) return null
   const processed = Number(input.processed ?? 0)
   const ignored = Number(input.ignored ?? 0)
@@ -661,9 +663,23 @@ function getSelectedProcessMessage(copy: EmailCopy, input: { processed?: string;
 
   if (processed > 0) parts.push(copy.toasts.processedPart(processed))
   if (ignored > 0) parts.push(copy.toasts.ignoredPart(ignored))
-  if (failed > 0) parts.push(copy.toasts.failedPart(failed))
+  if (failed > 0) {
+    const reason = getSelectedProcessFailureReason(copy, input.failureCodes)
+    parts.push(reason ? `${copy.toasts.failedPart(failed)}: ${reason}` : copy.toasts.failedPart(failed))
+  }
 
   return parts.length ? copy.toasts.processCompleted(parts.join(', ')) : copy.toasts.noEmailProcessed
+}
+
+function getSelectedProcessFailureReason(copy: EmailCopy, value?: string) {
+  const code = value?.split(',')[0]
+  if (code === 'mailbox_not_connected') return copy.toasts.failureReasons.mailboxNotConnected
+  if (code === 'inbound_message_not_found') return copy.toasts.failureReasons.inboundMessageNotFound
+  if (code === 'message_without_readable_content') return copy.toasts.failureReasons.messageWithoutReadableContent
+  if (code === 'talia_ai_unavailable') return copy.toasts.failureReasons.taliaAiUnavailable
+  if (code === 'provider_draft_failed') return copy.toasts.failureReasons.providerDraftFailed
+  if (code === 'processing_failed') return copy.toasts.failureReasons.processingFailed
+  return null
 }
 
 function getSyncSuccessMessage(copy: EmailCopy, imported?: string, autoProcessed?: string) {

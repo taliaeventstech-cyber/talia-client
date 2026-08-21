@@ -3,6 +3,7 @@
 import { requireEmailAgentPreviewProductAccess } from '@/lib/email/legacy-access'
 import { syncAndMaybeProcessEmail } from '@/lib/email/automation'
 import { processEmailMessage } from '@/lib/email/service'
+import { getEmailProcessingFailureCode } from '@/lib/email/processing-failure'
 import { deleteGmailDraft } from '@/lib/email/gmail'
 import { getFreshGoogleAccessToken } from '@/lib/email/google-tokens'
 import { decryptOAuthTokens, revokeGoogleOAuthToken } from '@/lib/email/google-oauth'
@@ -49,19 +50,32 @@ export async function processSelectedEmailThreadsAction(tenantId: string, formDa
   let processed = 0
   let ignored = 0
   let failed = 0
+  const failureCodes = new Set<string>()
 
   for (const thread of threads) {
     const result = await processEmailMessage(admin, { tenantId, threadId: thread.id })
     if (!result.ok) {
       failed += 1
+      failureCodes.add(getEmailProcessingFailureCode(result.error))
       continue
     }
     if (result.action === 'ignored') ignored += 1
     else processed += 1
   }
 
+  if (failureCodes.size > 0) {
+    console.warn(JSON.stringify({
+      event: 'email_processing_failed',
+      failed_count: failed,
+      failure_codes: [...failureCodes],
+    }))
+  }
+
   revalidatePath(`/${tenantId}/email`)
-  redirect(`/${tenantId}/email?email_selected_processed=${processed}&email_selected_ignored=${ignored}&email_selected_failed=${failed}`)
+  const failureQuery = failureCodes.size
+    ? `&email_selected_failure_codes=${encodeURIComponent([...failureCodes].join(','))}`
+    : ''
+  redirect(`/${tenantId}/email?email_selected_processed=${processed}&email_selected_ignored=${ignored}&email_selected_failed=${failed}${failureQuery}`)
 }
 
 export async function deleteSelectedEmailThreadsAction(tenantId: string, formData: FormData) {

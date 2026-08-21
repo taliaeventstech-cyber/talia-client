@@ -9,6 +9,7 @@ import type { Json } from '@/types/database.types'
 import type { EmailAgentClassification, EmailAgentClassifierProvider, EmailAgentDrafterProvider } from './agent-provider'
 import { getEmailAgentPhaseTrace, getEmailAgentProviderTrace } from './agent-trace'
 import { applyEmailClassificationSafeguards } from './classification-safeguards'
+import { getProcessableEmailText } from './body-content'
 import { classifyEmailMessage } from './classifier'
 import { createGmailDraft } from './gmail'
 import { getFreshGoogleAccessToken } from './google-tokens'
@@ -50,6 +51,7 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
       from_email,
       from_name,
       body_text,
+      body_html,
       metadata,
       received_at,
       email_threads!inner(
@@ -80,15 +82,24 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
     }
   }
 
-  const bodyText = message.body_text?.trim()
-  if (!bodyText) {
-    return { ok: false as const, error: 'Inbound email has no text body to process' }
-  }
-
   const thread = Array.isArray(message.email_threads)
     ? message.email_threads[0]
     : message.email_threads
   const currentThreadMetadata = getJsonRecord((thread as { metadata?: Json | null } | null)?.metadata)
+  const bodyText = getProcessableEmailText(message.body_text, message.body_html)
+  if (!bodyText) {
+    await markEmailThreadProcessingError(admin, {
+      threadId: message.thread_id,
+      metadata: currentThreadMetadata,
+      status: 'escalated',
+      phase: 'message_content_missing',
+      errorKey: 'email_agent_error',
+      error: 'Email message has no readable text content',
+    })
+
+    return { ok: false as const, error: 'Inbound email has no text body to process' }
+  }
+
   const rulesClassification = classifyEmailMessage({
     subject: thread?.subject ?? null,
     senderEmail: message.from_email ?? thread?.sender_email ?? null,
