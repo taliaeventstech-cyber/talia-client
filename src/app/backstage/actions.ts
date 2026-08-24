@@ -9,6 +9,7 @@ import {
   normalizeChatbotAiSettings,
 } from '@/lib/chatbot/ai-settings'
 import { emailAgentSettingsToMetadata, normalizeEmailAgentSettings } from '@/lib/email/settings'
+import { revokeEmailConnectionsBeforeAccountDeletion } from '@/lib/email/revocation'
 import { DEFAULT_MANAGED_WEB_QUOTA_LIMITS } from '@/lib/knowledge/web-source-quotas'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getActiveSubscription } from '@/lib/usage/service'
@@ -193,6 +194,55 @@ export async function deleteAccountAction(
       return {
         ok: false,
         message: 'No se pudo verificar la suscripción de Stripe. No se ha eliminado la cuenta.',
+      }
+    }
+  }
+
+  const { data: accountVenues, error: accountVenuesError } = await admin
+    .from('theatres')
+    .select('id')
+    .eq('account_id', account.id)
+  if (accountVenuesError) {
+    return { ok: false, message: 'No se pudieron comprobar las conexiones OAuth de la cuenta.' }
+  }
+
+  const venueIds = (accountVenues ?? []).map((venue) => venue.id)
+  if (venueIds.length) {
+    const { data: emailConnections, error: emailConnectionsError } = await admin
+      .from('email_connections')
+      .select('id, provider, status, oauth_metadata')
+      .in('theatre_id', venueIds)
+
+    if (emailConnectionsError) {
+      return { ok: false, message: 'No se pudieron comprobar las conexiones OAuth de la cuenta.' }
+    }
+
+    const disconnectedAt = new Date().toISOString()
+    const revocationResult = await revokeEmailConnectionsBeforeAccountDeletion(
+      emailConnections ?? [],
+      async (connectionId) => {
+        const { error: revokeUpdateError } = await admin
+          .from('email_connections')
+          .update({
+            status: 'revoked',
+            oauth_metadata: {
+              disconnected_at: disconnectedAt,
+              reason: 'account_deletion',
+            },
+            sync_cursor: null,
+            last_synced_at: null,
+            error_message: null,
+          })
+          .eq('id', connectionId)
+
+        if (revokeUpdateError) throw revokeUpdateError
+      },
+    )
+
+    if (!revocationResult.ok) {
+      return {
+        ok: false,
+        message: 'No se pudo revocar de forma segura una conexión OAuth. La cuenta no se ha eliminado.',
       }
     }
   }

@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { isAuthorizedRetentionRequest } from './route'
+import { GET, isAuthorizedRetentionRequest } from './route'
 
 const CRON_SECRET = 'cron-secret-with-at-least-32-characters'
 describe('data retention cron authorization', () => {
@@ -25,6 +25,15 @@ describe('data retention cron authorization', () => {
     vi.stubEnv('INTERNAL_API_KEY', 'too-short')
     expect(isAuthorizedRetentionRequest(request())).toBe(false)
     expect(isAuthorizedRetentionRequest(request({ 'x-talia-internal-key': 'too-short' }))).toBe(false)
+  })
+
+  it('prevents caching of unauthorized responses', async () => {
+    vi.stubEnv('CRON_SECRET', CRON_SECRET)
+
+    const response = await GET(request())
+
+    expect(response.status).toBe(401)
+    expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
   })
 })
 
