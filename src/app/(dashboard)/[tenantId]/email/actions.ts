@@ -3,12 +3,12 @@
 import { requireEmailAgentPreviewProductAccess } from '@/lib/email/legacy-access'
 import { syncAndMaybeProcessEmail } from '@/lib/email/automation'
 import { processEmailMessage } from '@/lib/email/service'
+import { getEmailProcessingFailureCode } from '@/lib/email/processing-failure'
 import { deleteGmailDraft } from '@/lib/email/gmail'
 import { getFreshGoogleAccessToken } from '@/lib/email/google-tokens'
-import { decryptOAuthTokens, revokeGoogleOAuthToken } from '@/lib/email/google-oauth'
+import { revokeEmailConnectionToken } from '@/lib/email/revocation'
 import { getFreshMicrosoftAccessToken } from '@/lib/email/microsoft-tokens'
 import { deleteOutlookDraft } from '@/lib/email/outlook'
-import { logSafeEmailError } from '@/lib/email/safe-error'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/types/database.types'
 import { revalidatePath } from 'next/cache'
@@ -49,19 +49,32 @@ export async function processSelectedEmailThreadsAction(tenantId: string, formDa
   let processed = 0
   let ignored = 0
   let failed = 0
+  const failureCodes = new Set<string>()
 
   for (const thread of threads) {
     const result = await processEmailMessage(admin, { tenantId, threadId: thread.id })
     if (!result.ok) {
       failed += 1
+      failureCodes.add(getEmailProcessingFailureCode(result.error))
       continue
     }
     if (result.action === 'ignored') ignored += 1
     else processed += 1
   }
 
+  if (failureCodes.size > 0) {
+    console.warn(JSON.stringify({
+      event: 'email_processing_failed',
+      failed_count: failed,
+      failure_codes: [...failureCodes],
+    }))
+  }
+
   revalidatePath(`/${tenantId}/email`)
-  redirect(`/${tenantId}/email?email_selected_processed=${processed}&email_selected_ignored=${ignored}&email_selected_failed=${failed}`)
+  const failureQuery = failureCodes.size
+    ? `&email_selected_failure_codes=${encodeURIComponent([...failureCodes].join(','))}`
+    : ''
+  redirect(`/${tenantId}/email?email_selected_processed=${processed}&email_selected_ignored=${ignored}&email_selected_failed=${failed}${failureQuery}`)
 }
 
 export async function deleteSelectedEmailThreadsAction(tenantId: string, formData: FormData) {
@@ -247,7 +260,7 @@ export async function disconnectGoogleEmailAction(tenantId: string) {
     redirect(`/${tenantId}/email?email_error=no_connection`)
   }
 
-  const revokeError = await revokeConnectionToken(connection.provider, connection.oauth_metadata)
+  const revokeError = await revokeEmailConnectionToken(connection.provider, connection.oauth_metadata)
 
   const { error: updateError } = await admin
     .from('email_connections')
@@ -300,26 +313,6 @@ async function deleteProviderDraft(
   }
 
   await deleteGmailDraft(accessToken, draftId)
-}
-
-async function revokeConnectionToken(provider: string, oauthMetadata: unknown) {
-  try {
-    if (provider === 'microsoft') return null
-
-    const metadata = oauthMetadata && typeof oauthMetadata === 'object'
-      ? oauthMetadata as Record<string, unknown>
-      : {}
-    const tokens = decryptOAuthTokens(metadata.encrypted_tokens)
-    const tokenToRevoke = tokens.refresh_token ?? tokens.access_token
-
-    if (!tokenToRevoke) return 'revocable_token_not_found'
-
-    await revokeGoogleOAuthToken(tokenToRevoke)
-    return null
-  } catch (error) {
-    logSafeEmailError('email_disconnect_revocation_failed', error, 'token_revocation_failed')
-    return 'token_revocation_failed'
-  }
 }
 
 function getSelectedThreadIds(formData: FormData) {

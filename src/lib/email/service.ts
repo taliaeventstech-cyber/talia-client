@@ -9,6 +9,7 @@ import type { Json } from '@/types/database.types'
 import type { EmailAgentClassification, EmailAgentClassifierProvider, EmailAgentDrafterProvider } from './agent-provider'
 import { getEmailAgentPhaseTrace, getEmailAgentProviderTrace } from './agent-trace'
 import { applyEmailClassificationSafeguards } from './classification-safeguards'
+import { getProcessableEmailText } from './body-content'
 import { classifyEmailMessage } from './classifier'
 import { createGmailDraft } from './gmail'
 import { getFreshGoogleAccessToken } from './google-tokens'
@@ -16,6 +17,7 @@ import { getFreshMicrosoftAccessToken } from './microsoft-tokens'
 import { createOutlookDraft } from './outlook'
 import { getEmailAgentSettings } from './settings'
 import { TaliaAiEmailClassifierProvider, TaliaAiEmailDrafterProvider } from './talia-ai'
+import { EMAIL_MESSAGE_WITH_THREAD_SELECT } from './message-query'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -41,25 +43,7 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
   }
   const messageQuery = admin
     .from('email_messages')
-    .select(`
-      id,
-      theatre_id,
-      connection_id,
-      thread_id,
-      provider_message_id,
-      from_email,
-      from_name,
-      body_text,
-      metadata,
-      received_at,
-      email_threads!inner(
-        id,
-        subject,
-        sender_email,
-        sender_name,
-        metadata
-      )
-    `)
+    .select(EMAIL_MESSAGE_WITH_THREAD_SELECT)
     .eq('theatre_id', input.tenantId)
     .eq('connection_id', connection.id)
     .eq('direction', 'inbound')
@@ -80,15 +64,24 @@ export async function processEmailMessage(admin: AdminClient, input: ProcessEmai
     }
   }
 
-  const bodyText = message.body_text?.trim()
-  if (!bodyText) {
-    return { ok: false as const, error: 'Inbound email has no text body to process' }
-  }
-
   const thread = Array.isArray(message.email_threads)
     ? message.email_threads[0]
     : message.email_threads
   const currentThreadMetadata = getJsonRecord((thread as { metadata?: Json | null } | null)?.metadata)
+  const bodyText = getProcessableEmailText(message.body_text, message.body_html)
+  if (!bodyText) {
+    await markEmailThreadProcessingError(admin, {
+      threadId: message.thread_id,
+      metadata: currentThreadMetadata,
+      status: 'escalated',
+      phase: 'message_content_missing',
+      errorKey: 'email_agent_error',
+      error: 'Email message has no readable text content',
+    })
+
+    return { ok: false as const, error: 'Inbound email has no text body to process' }
+  }
+
   const rulesClassification = classifyEmailMessage({
     subject: thread?.subject ?? null,
     senderEmail: message.from_email ?? thread?.sender_email ?? null,

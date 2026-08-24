@@ -7,9 +7,16 @@ type RetentionResult = {
   affected_rows: number
 }
 
+const RETENTION_RESPONSE_HEADERS = {
+  'Cache-Control': 'no-store, max-age=0',
+}
+
 export async function GET(request: NextRequest) {
   if (!isAuthorizedRetentionRequest(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401, headers: RETENTION_RESPONSE_HEADERS },
+    )
   }
 
   const dryRun = request.nextUrl.searchParams.get('dryRun') !== 'false'
@@ -17,17 +24,20 @@ export async function GET(request: NextRequest) {
   try {
     const results = await applyDataRetention(dryRun)
 
-    return NextResponse.json({
-      ok: true,
-      dryRun,
-      affectedRows: results.reduce((total, result) => total + Number(result.affected_rows ?? 0), 0),
-      results,
-    })
+    return NextResponse.json(
+      {
+        ok: true,
+        dryRun,
+        affectedRows: results.reduce((total, result) => total + Number(result.affected_rows ?? 0), 0),
+        results,
+      },
+      { headers: RETENTION_RESPONSE_HEADERS },
+    )
   } catch {
     console.error(JSON.stringify({ event: 'data_retention_failed', error_code: 'retention_rpc_failed' }))
     return NextResponse.json(
       { error: 'data_retention_failed' },
-      { status: 500 },
+      { status: 500, headers: RETENTION_RESPONSE_HEADERS },
     )
   }
 }
@@ -54,14 +64,10 @@ async function applyDataRetention(dryRun: boolean) {
 }
 
 export function isAuthorizedRetentionRequest(request: NextRequest) {
-  const internalKey = process.env.INTERNAL_API_KEY
   const cronSecret = process.env.CRON_SECRET
   const bearerToken = getBearerToken(request.headers.get('authorization'))
-  const internalHeader = request.headers.get('x-talia-internal-key')
 
   return matchesServerSecret(bearerToken, cronSecret)
-    || matchesServerSecret(bearerToken, internalKey)
-    || matchesServerSecret(internalHeader, internalKey)
 }
 
 function requiredEnv(key: string) {
