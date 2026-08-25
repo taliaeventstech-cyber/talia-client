@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getUserVenueAccess } from '@/lib/auth/user-venues'
 import { recordPlatformSupportAccess } from '@/lib/platform/support-access'
+import { requirePlatformMfa } from '@/lib/platform/auth'
 import { getCurrentBillingPeriod } from '@/lib/usage/service'
 import { ArrowLeft, Building2, LayoutDashboard, MessagesSquare } from 'lucide-react'
 import Link from 'next/link'
@@ -19,12 +20,17 @@ export default async function AccountDashboardPage({ params }: Props) {
   if (!user) redirect('/login')
 
   const admin = createAdminClient()
-  const [{ data: platformAdmin }, accessibleVenues, { data: account }, { data: accountTheatres }] = await Promise.all([
-    admin
-      .from('platform_admins')
-      .select('role')
-      .eq('user_id', user.id)
-      .maybeSingle(),
+  const { data: platformAdmin } = await admin
+    .from('platform_admins')
+    .select('role')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (platformAdmin) {
+    await requirePlatformMfa(`/accounts/${accountId}`)
+  }
+
+  const [accessibleVenues, { data: account }, { data: accountTheatres }] = await Promise.all([
     getUserVenueAccess(admin, user.id),
     admin
       .from('accounts')

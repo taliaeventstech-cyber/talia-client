@@ -64,6 +64,10 @@ Implemented:
 - Email confirmation before entering the product.
 - Intermediate "account confirmed" screen before starting onboarding.
 - Login with language selector.
+- Backstage access requires TOTP multi-factor authentication for every platform
+  owner, administrator and support account. Server-side authorization requires an
+  `aal2` Supabase Auth session both in Backstage and when platform privileges are
+  used to access a customer workspace.
 - Strengthened password policy.
 - Toggle to show/hide password.
 - Security baseline documented in `docs/security/auth-phase-1.md`.
@@ -74,7 +78,8 @@ Implemented:
 
 Pending:
 
-- Enterprise MFA/SSO.
+- Enterprise SSO and advanced organization-level MFA policies beyond the
+  mandatory TOTP baseline for TALIA platform administrators.
 - Advanced team policies.
 - Edge/WAF rate limiting as an additional layer before broad public launch.
 
