@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next'
 import { buildContentSecurityPolicy } from './src/lib/security/content-security-policy'
+import { PRIVATE_NO_STORE_HEADERS } from './src/lib/security/cache-control'
 
 const isProduction = process.env.NODE_ENV === 'production'
 const contentSecurityPolicy = buildContentSecurityPolicy({
@@ -44,6 +45,10 @@ const nextConfig: NextConfig = {
       {
         source: '/(.*)',
         headers: securityHeaders,
+      },
+      {
+        source: '/auth/:path*',
+        headers: [...PRIVATE_NO_STORE_HEADERS],
       },
       {
         source: '/:widget(widget|accessibility-widget).js',

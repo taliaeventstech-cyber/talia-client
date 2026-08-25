@@ -1,6 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 import { buildContentSecurityPolicy } from '@/lib/security/content-security-policy'
+import { applyPrivateNoStoreHeaders, isAuthenticationPath } from '@/lib/security/cache-control'
 
 export async function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
@@ -16,6 +17,9 @@ export async function proxy(request: NextRequest) {
 
   const response = await updateSession(request, requestHeaders)
   response.headers.set('Content-Security-Policy', contentSecurityPolicy)
+  if (isAuthenticationPath(request.nextUrl.pathname)) {
+    applyPrivateNoStoreHeaders(response.headers)
+  }
   return response
 }
 
