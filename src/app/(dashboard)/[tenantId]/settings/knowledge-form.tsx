@@ -385,7 +385,7 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
   return (
     <>
       {activeTab === 'installed' && syncActivity ? (
-        <KnowledgeSyncRealtime tenantId={tenantId} activity={syncActivity} labels={realtimeLabels} />
+        <KnowledgeSyncRealtime activity={syncActivity} labels={realtimeLabels} />
       ) : null}
       {activeTab === 'files' ? (
         <>

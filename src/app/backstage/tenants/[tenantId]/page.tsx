@@ -815,7 +815,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
           </div>
           <div className="section-heading-actions">
             {knowledgeSyncActivity ? (
-              <KnowledgeSyncRealtime tenantId={tenantId} activity={knowledgeSyncActivity} />
+              <KnowledgeSyncRealtime activity={knowledgeSyncActivity} />
             ) : null}
             <KnowledgeSourceTypeFilter options={knowledgeSourceTypeOptions} value={sourceTypeFilter ?? 'all'} />
           </div>
