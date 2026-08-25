@@ -4,6 +4,7 @@ import { getBillingAccess, type BillingAccess } from '@/lib/billing/access'
 import { canManageAccountBilling } from '@/lib/billing/permissions'
 import { isChatbotSetupCompleted } from '@/lib/chatbot/setup-status'
 import { recordPlatformSupportAccess } from '@/lib/platform/support-access'
+import { requirePlatformMfa } from '@/lib/platform/auth'
 import type { Json } from '@/types/database.types'
 import type { CommercialCurrency, CommercialMarketCountry } from '@/lib/billing/market'
 import { redirect } from 'next/navigation'
@@ -47,7 +48,17 @@ export async function getTenantAccess(tenantId: string): Promise<TenantAccess> {
   if (!user) redirect('/login')
 
   const admin = createAdminClient()
-  const [{ data: profile }, { data: modules }, { data: platformAdmin }, { data: tenantAccount }] = await Promise.all([
+  const { data: platformAdmin } = await admin
+    .from('platform_admins')
+    .select('role')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (platformAdmin) {
+    await requirePlatformMfa(`/${tenantId}/overview`)
+  }
+
+  const [{ data: profile }, { data: modules }, { data: tenantAccount }] = await Promise.all([
     admin
       .from('profiles')
       .select('id')
@@ -57,11 +68,6 @@ export async function getTenantAccess(tenantId: string): Promise<TenantAccess> {
       .from('tenant_modules')
       .select('module_key, status')
       .eq('theatre_id', tenantId),
-    admin
-      .from('platform_admins')
-      .select('role')
-      .eq('user_id', user.id)
-      .maybeSingle(),
     admin
       .from('theatres')
       .select('account_id, system_prompt, widget_config, accounts(status, created_at, metadata, market_country_code, billing_currency)')

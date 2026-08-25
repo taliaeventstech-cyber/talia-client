@@ -175,6 +175,85 @@ textarea {
   padding: 32px;
 }
 
+.backstage-mfa-card {
+  max-width: 560px;
+}
+
+.backstage-mfa-card h1 {
+  margin: 8px 0 0;
+  font-size: 28px;
+}
+
+.backstage-mfa-eyebrow {
+  color: var(--color-brand);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.backstage-mfa-description {
+  margin: 12px 0 0;
+  line-height: 1.55;
+}
+
+.backstage-mfa-account {
+  margin: 8px 0 22px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.backstage-mfa-enrollment {
+  display: grid;
+  grid-template-columns: 208px 1fr;
+  align-items: center;
+  gap: 22px;
+  margin-top: 22px;
+}
+
+.backstage-mfa-qr {
+  width: 208px;
+  height: 208px;
+  overflow: hidden;
+  border: 8px solid #ffffff;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.backstage-mfa-qr img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.backstage-mfa-secret {
+  margin-top: 14px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.backstage-mfa-secret code {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-top: 8px;
+  padding: 10px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface-2);
+  color: var(--color-text-primary);
+}
+
+.backstage-mfa-verify-form,
+.backstage-mfa-logout {
+  margin-top: 22px;
+}
+
+@media (max-width: 620px) {
+  .backstage-mfa-enrollment {
+    grid-template-columns: 1fr;
+  }
+}
+
 .auth-marketing-shell {
   position: relative;
   isolation: isolate;

@@ -2,8 +2,12 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { normalizePlatformPermissions } from './permissions'
+import {
+  getPlatformMfaRedirect,
+  isPlatformMfaSatisfied,
+} from './mfa'
 
-export async function requirePlatformAdmin() {
+async function getPlatformAdminContext() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -19,8 +23,36 @@ export async function requirePlatformAdmin() {
   if (!platformAdmin) redirect('/login')
 
   return {
-    user,
-    role: platformAdmin.role,
-    permissions: normalizePlatformPermissions(platformAdmin.permissions),
+    supabase,
+    access: {
+      user,
+      role: platformAdmin.role,
+      permissions: normalizePlatformPermissions(platformAdmin.permissions),
+    },
   }
+}
+
+export async function requirePlatformAdminIdentity() {
+  const { access } = await getPlatformAdminContext()
+  return access
+}
+
+export async function requirePlatformMfa(nextPath = '/backstage') {
+  const supabase = await createClient()
+  const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+
+  if (error || !isPlatformMfaSatisfied(data.currentLevel)) {
+    redirect(getPlatformMfaRedirect(nextPath))
+  }
+}
+
+export async function requirePlatformAdmin() {
+  const { supabase, access } = await getPlatformAdminContext()
+  const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+
+  if (error || !isPlatformMfaSatisfied(data.currentLevel)) {
+    redirect(getPlatformMfaRedirect())
+  }
+
+  return access
 }
