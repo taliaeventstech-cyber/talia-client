@@ -17,9 +17,6 @@ export type MfaVerificationState = {
   error?: string
 }
 
-export const initialMfaEnrollmentState: MfaEnrollmentState = {}
-export const initialMfaVerificationState: MfaVerificationState = {}
-
 export async function startMfaEnrollment(
   previousState: MfaEnrollmentState,
 ): Promise<MfaEnrollmentState> {

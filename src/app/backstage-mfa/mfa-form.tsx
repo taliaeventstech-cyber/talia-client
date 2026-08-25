@@ -3,11 +3,13 @@
 import Image from 'next/image'
 import { useActionState } from 'react'
 import {
-  initialMfaEnrollmentState,
-  initialMfaVerificationState,
   startMfaEnrollment,
   verifyMfaChallenge,
 } from './actions'
+import type { MfaEnrollmentState, MfaVerificationState } from './actions'
+
+const initialMfaEnrollmentState: MfaEnrollmentState = {}
+const initialMfaVerificationState: MfaVerificationState = {}
 
 type Props = {
   email: string
