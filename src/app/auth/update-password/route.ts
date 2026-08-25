@@ -30,17 +30,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'session_expired' }, { status: 401 })
   }
 
-  const { error } = await supabase.auth.updateUser({ password: parsed.data.password })
-  if (error) {
+  const { error: updateError } = await supabase.auth.updateUser({ password: parsed.data.password })
+  if (updateError) {
     if (process.env.NODE_ENV !== 'production') {
-      console.warn('[auth-update-password]', error.message)
+      console.warn('[auth-update-password]', updateError.message)
     }
 
-    const isSamePassword = error.message.toLowerCase().includes('should be different')
+    const isSamePassword = updateError.message.toLowerCase().includes('should be different')
     return NextResponse.json(
       { error: isSamePassword ? 'same_password' : 'update_failed' },
       { status: 400 }
     )
+  }
+
+  // A password reset must not leave refreshable sessions active on other
+  // devices. Keep only this recovery session so the user can finish the flow.
+  const { error: signOutError } = await supabase.auth.signOut({ scope: 'others' })
+  if (signOutError) {
+    console.error('[auth-update-password-session-invalidation]', {
+      userId: user.id,
+      message: signOutError.message,
+    })
+    return NextResponse.json({ error: 'session_invalidation_failed' }, { status: 500 })
   }
 
   const admin = createAdminClient()
