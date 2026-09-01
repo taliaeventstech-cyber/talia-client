@@ -119,6 +119,34 @@ describe('processWhatsappInboundJobs', () => {
     }), { accessToken: 'tenant-token' })
   })
 
+  it('does not duplicate an AI disclosure already returned by the agent', async () => {
+    const admin = createAdmin()
+    const sendText = vi.fn(async () => ({ ok: true as const, providerMessageId: 'wamid.outbound' }))
+
+    await processWhatsappInboundJobs(admin.client, {
+      workerId: 'worker-1',
+      requestAgent: async () => agentResponse(
+        'es',
+        'Sí. Soy Talía, un agente de IA para Sala Ejemplo. ¿En qué puedo ayudarte?',
+      ),
+      sendText,
+      resolveAccessToken,
+    })
+
+    expect(sendText).toHaveBeenCalledWith(expect.objectContaining({
+      body: 'Sí. Soy Talía, un agente de IA para Sala Ejemplo. ¿En qué puedo ayudarte?',
+    }), { accessToken: 'tenant-token' })
+    expect(admin.calls).toContainEqual([
+      'prepare_whatsapp_conversation_turn',
+      expect.objectContaining({
+        p_agent_metadata: expect.objectContaining({
+          ai_disclosure_included: true,
+          ai_disclosure_version: 1,
+        }),
+      }),
+    ])
+  })
+
   it('defers a generated reply when a newer inbound message makes the turn stale', async () => {
     const admin = createAdmin({ prepareState: 'stale' })
     const sendText = vi.fn()

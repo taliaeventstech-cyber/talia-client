@@ -646,8 +646,13 @@ function buildCustomerResponse(
   reply: string,
   responseLanguage: string | null,
 ) {
+  const normalizedReply = reply.trim().slice(0, 4096)
   if (!context.turn.ai_disclosure_required) {
-    return { body: reply.trim().slice(0, 4096), disclosureIncluded: false }
+    return { body: normalizedReply, disclosureIncluded: false }
+  }
+
+  if (containsAiDisclosure(normalizedReply)) {
+    return { body: normalizedReply, disclosureIncluded: true }
   }
 
   const disclosure = getAiDisclosure(
@@ -661,6 +666,20 @@ function buildCustomerResponse(
     body: trimmedReply ? `${disclosure}\n\n${trimmedReply}` : disclosure,
     disclosureIncluded: true,
   }
+}
+
+function containsAiDisclosure(reply: string) {
+  const normalized = reply
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  const identifiesTalia = /\b(?:soy|soc|sou(?: a)?|i am|i m|je suis)\s+(?:la\s+)?talia\b/u.test(normalized)
+  const identifiesAi = /\b(?:ia|ai|inteligencia artificial|intelligencia artificial|intelligence artificielle|asistente virtual|assistent virtual|assistente virtual|virtual assistant)\b/u.test(normalized)
+  return identifiesTalia && identifiesAi
 }
 
 function stripLeadingGreeting(reply: string) {
