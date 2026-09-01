@@ -12174,7 +12174,8 @@ textarea {
   max-width: 760px;
 }
 
-.whatsapp-settings-header {
+.whatsapp-settings-header,
+.whatsapp-conversations-header {
   display: grid;
   gap: 8px;
   max-width: 760px;
