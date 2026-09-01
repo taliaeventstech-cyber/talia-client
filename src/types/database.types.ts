@@ -2112,12 +2112,30 @@ export type Database = {
         }
         Returns: Json
       }
+      get_whatsapp_connection_disconnect_context: {
+        Args: {
+          p_actor_user_id: string
+          p_connection_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
       get_whatsapp_connection_summary: {
         Args: {
           p_actor_user_id: string
           p_theatre_id: string
         }
         Returns: Json
+      }
+      disconnect_whatsapp_connection: {
+        Args: {
+          p_actor_user_id: string
+          p_connection_id: string
+          p_provider_error_code?: string | null
+          p_provider_unsubscribed?: boolean
+          p_theatre_id: string
+        }
+        Returns: string
       }
       save_whatsapp_embedded_connection: {
         Args: {

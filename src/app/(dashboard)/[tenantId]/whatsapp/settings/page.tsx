@@ -6,6 +6,7 @@ import { getWhatsappConnectionCopy } from '@/lib/i18n/whatsapp-connection-copy'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getWhatsappConnectionSummary } from '@/lib/whatsapp/connection-service'
 import { WhatsappEmbeddedSignupButton } from './embedded-signup-button'
+import { DisconnectWhatsappConnectionButton } from './disconnect-connection-button'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -65,6 +66,13 @@ export default async function WhatsappSettingsPage({ params }: Props) {
             graphApiVersion={normalizeGraphApiVersion(process.env.META_WHATSAPP_GRAPH_API_VERSION)}
             replacingPilot={connection?.credential_source === 'environment'}
             retryingConnection={Boolean(connection && connection.status !== 'connected')}
+            tenantId={tenantId}
+          />
+        ) : null}
+        {connection?.status === 'connected' && connection.credential_source === 'encrypted' ? (
+          <DisconnectWhatsappConnectionButton
+            connectionId={connection.id}
+            copy={copy}
             tenantId={tenantId}
           />
         ) : null}

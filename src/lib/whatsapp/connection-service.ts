@@ -2,13 +2,17 @@ import crypto from 'node:crypto'
 import type { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/types/database.types'
 import { z } from 'zod'
-import { buildWhatsappCredentialMetadata } from './credentials'
+import {
+  buildWhatsappCredentialMetadata,
+  decryptWhatsappCredentials,
+} from './credentials'
 import {
   exchangeMetaEmbeddedSignupCode,
   getMetaWhatsappPhone,
   MetaEmbeddedSignupError,
   registerMetaWhatsappPhone,
   subscribeMetaWhatsappApp,
+  unsubscribeMetaWhatsappApp,
 } from './embedded-signup'
 
 type AdminClient = ReturnType<typeof createAdminClient>
@@ -41,6 +45,18 @@ type CompletionDependencies = {
   registerPhone?: typeof registerMetaWhatsappPhone
   now?: () => number
   createPin?: () => string
+}
+
+const disconnectContextSchema = z.object({
+  id: z.uuid(),
+  waba_id: z.string().min(1),
+  credential_metadata: z.record(z.string(), z.unknown()),
+  can_unsubscribe_provider: z.boolean(),
+})
+
+type DisconnectDependencies = {
+  unsubscribeApp?: typeof unsubscribeMetaWhatsappApp
+  decryptCredentials?: typeof decryptWhatsappCredentials
 }
 
 export async function getWhatsappConnectionSummary(
@@ -138,6 +154,52 @@ export async function completeWhatsappEmbeddedSignup(
       // Preserve the provider failure; do not replace it with a persistence error.
     }
     throw error
+  }
+}
+
+export async function disconnectWhatsappConnection(
+  admin: AdminClient,
+  input: { tenantId: string; actorUserId: string; connectionId: string },
+  dependencies: DisconnectDependencies = {},
+) {
+  const { data, error } = await admin.rpc('get_whatsapp_connection_disconnect_context', {
+    p_theatre_id: input.tenantId,
+    p_actor_user_id: input.actorUserId,
+    p_connection_id: input.connectionId,
+  })
+  if (error) throw new Error('whatsapp_connection_disconnect_context_failed')
+  if (data === null) return { disconnected: false, providerWarning: false }
+
+  const context = disconnectContextSchema.parse(data)
+  const unsubscribeApp = dependencies.unsubscribeApp ?? unsubscribeMetaWhatsappApp
+  const decryptCredentials = dependencies.decryptCredentials ?? decryptWhatsappCredentials
+  let providerUnsubscribed = false
+  let providerErrorCode: string | null = null
+
+  if (context.can_unsubscribe_provider) {
+    try {
+      const credentials = decryptCredentials(context.credential_metadata.encrypted_credentials)
+      await unsubscribeApp({ wabaId: context.waba_id, accessToken: credentials.accessToken })
+      providerUnsubscribed = true
+    } catch (providerError) {
+      providerErrorCode = providerError instanceof MetaEmbeddedSignupError
+        ? providerError.code
+        : 'meta_waba_unsubscription_unavailable'
+    }
+  }
+
+  const result = await admin.rpc('disconnect_whatsapp_connection', {
+    p_theatre_id: input.tenantId,
+    p_actor_user_id: input.actorUserId,
+    p_connection_id: context.id,
+    p_provider_unsubscribed: providerUnsubscribed,
+    p_provider_error_code: providerErrorCode,
+  })
+  if (result.error || !result.data) throw new Error('whatsapp_connection_disconnect_failed')
+
+  return {
+    disconnected: true,
+    providerWarning: providerErrorCode !== null,
   }
 }
 

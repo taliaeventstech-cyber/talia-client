@@ -31,6 +31,13 @@ export type WhatsappConnectionCopy = {
   sdkError: string
   setupMissing: string
   providerError: string
+  disconnect: string
+  disconnectConfirmation: string
+  confirmDisconnect: string
+  cancelDisconnect: string
+  disconnecting: string
+  disconnectError: string
+  disconnectProviderWarning: string
   permissions: string
 }
 
@@ -53,6 +60,11 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappConnectionCopy> = {
     success: 'WhatsApp se ha conectado correctamente.', cancelled: 'Has cancelado la conexión.',
     sdkError: 'No se ha podido abrir Meta. Inténtalo de nuevo.', setupMissing: 'Falta completar la configuración de Meta en este entorno.',
     providerError: 'Meta no ha podido completar la conexión. Revisa la cuenta e inténtalo de nuevo.',
+    disconnect: 'Desconectar WhatsApp',
+    disconnectConfirmation: 'TALIA dejará de recibir y responder mensajes de este número. El historial de conversaciones se conservará.',
+    confirmDisconnect: 'Sí, desconectar', cancelDisconnect: 'Cancelar', disconnecting: 'Desconectando…',
+    disconnectError: 'No se ha podido desconectar WhatsApp. Inténtalo de nuevo.',
+    disconnectProviderWarning: 'WhatsApp se ha desconectado de TALIA, pero Meta no ha confirmado la baja del webhook.',
     permissions: 'Solo propietarios y administradores del espacio pueden gestionar esta conexión.',
   },
   ca: {
@@ -73,6 +85,11 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappConnectionCopy> = {
     success: 'WhatsApp s’ha connectat correctament.', cancelled: 'Has cancel·lat la connexió.',
     sdkError: 'No s’ha pogut obrir Meta. Torna-ho a provar.', setupMissing: 'Falta completar la configuració de Meta en aquest entorn.',
     providerError: 'Meta no ha pogut completar la connexió. Revisa el compte i torna-ho a provar.',
+    disconnect: 'Desconnectar WhatsApp',
+    disconnectConfirmation: 'TALIA deixarà de rebre i respondre missatges d’aquest número. L’historial de converses es conservarà.',
+    confirmDisconnect: 'Sí, desconnectar', cancelDisconnect: 'Cancel·lar', disconnecting: 'Desconnectant…',
+    disconnectError: 'No s’ha pogut desconnectar WhatsApp. Torna-ho a provar.',
+    disconnectProviderWarning: 'WhatsApp s’ha desconnectat de TALIA, però Meta no ha confirmat la baixa del webhook.',
     permissions: 'Només els propietaris i administradors de l’espai poden gestionar aquesta connexió.',
   },
   en: {
@@ -93,6 +110,11 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappConnectionCopy> = {
     success: 'WhatsApp was connected successfully.', cancelled: 'You cancelled the connection.',
     sdkError: 'Meta could not be opened. Try again.', setupMissing: 'Meta configuration is incomplete in this environment.',
     providerError: 'Meta could not complete the connection. Review the account and try again.',
+    disconnect: 'Disconnect WhatsApp',
+    disconnectConfirmation: 'TALIA will stop receiving and replying to messages from this number. Conversation history will be preserved.',
+    confirmDisconnect: 'Yes, disconnect', cancelDisconnect: 'Cancel', disconnecting: 'Disconnecting…',
+    disconnectError: 'WhatsApp could not be disconnected. Try again.',
+    disconnectProviderWarning: 'WhatsApp was disconnected from TALIA, but Meta did not confirm webhook removal.',
     permissions: 'Only venue owners and administrators can manage this connection.',
   },
   pt: {
@@ -113,6 +135,11 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappConnectionCopy> = {
     success: 'O WhatsApp foi conectado com sucesso.', cancelled: 'Você cancelou a conexão.',
     sdkError: 'Não foi possível abrir a Meta. Tente novamente.', setupMissing: 'Falta concluir a configuração da Meta neste ambiente.',
     providerError: 'A Meta não conseguiu concluir a conexão. Revise a conta e tente novamente.',
+    disconnect: 'Desconectar WhatsApp',
+    disconnectConfirmation: 'A TALIA deixará de receber e responder mensagens deste número. O histórico de conversas será mantido.',
+    confirmDisconnect: 'Sim, desconectar', cancelDisconnect: 'Cancelar', disconnecting: 'Desconectando…',
+    disconnectError: 'Não foi possível desconectar o WhatsApp. Tente novamente.',
+    disconnectProviderWarning: 'O WhatsApp foi desconectado da TALIA, mas a Meta não confirmou a remoção do webhook.',
     permissions: 'Somente proprietários e administradores do espaço podem gerenciar esta conexão.',
   },
 }

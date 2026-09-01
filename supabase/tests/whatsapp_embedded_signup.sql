@@ -2,7 +2,7 @@ create extension if not exists pgtap with schema extensions;
 
 begin;
 
-select plan(13);
+select plan(23);
 
 select ok(
   not has_function_privilege('authenticated', 'public.get_whatsapp_connection_summary(uuid,uuid)', 'execute'),
@@ -15,6 +15,14 @@ select ok(
 select ok(
   not has_function_privilege('authenticated', 'public.get_whatsapp_connection_credentials(uuid,text)', 'execute'),
   'authenticated cannot retrieve encrypted WhatsApp credentials'
+);
+select ok(
+  not has_function_privilege('authenticated', 'public.get_whatsapp_connection_disconnect_context(uuid,uuid,uuid)', 'execute'),
+  'authenticated cannot retrieve backend disconnect credentials'
+);
+select ok(
+  not has_function_privilege('authenticated', 'public.disconnect_whatsapp_connection(uuid,uuid,uuid,boolean,text)', 'execute'),
+  'authenticated cannot disconnect WhatsApp directly'
 );
 
 insert into auth.users (
@@ -110,6 +118,78 @@ select ok(
     'd1000000-0000-0000-0000-000000000001'
   ) ? 'credential_metadata'),
   'the browser summary never includes credential metadata'
+);
+
+select lives_ok(
+  $$
+    select public.get_whatsapp_connection_disconnect_context(
+      'd3000000-0000-0000-0000-000000000001',
+      'd1000000-0000-0000-0000-000000000001',
+      (select id from public.whatsapp_connections where phone_number_id = 'phone-embedded')
+    )
+  $$,
+  'an owner can load the backend disconnect context'
+);
+
+select lives_ok(
+  $$
+    select public.disconnect_whatsapp_connection(
+      'd3000000-0000-0000-0000-000000000001',
+      'd1000000-0000-0000-0000-000000000001',
+      (select id from public.whatsapp_connections where phone_number_id = 'phone-embedded'),
+      true,
+      null
+    )
+  $$,
+  'an owner can disconnect the Embedded Signup connection'
+);
+
+select is(
+  (select status from public.whatsapp_connections where phone_number_id = 'phone-embedded'),
+  'disabled',
+  'disconnecting disables the connection'
+);
+select is(
+  (select rollout_enabled from public.whatsapp_connections where phone_number_id = 'phone-embedded'),
+  false,
+  'disconnecting disables provider routing'
+);
+select is(
+  (select credential_metadata from public.whatsapp_connections where phone_number_id = 'phone-embedded'),
+  '{}'::jsonb,
+  'disconnecting removes the stored credential envelope'
+);
+select is(
+  (select count(*) from public.whatsapp_connections where phone_number_id = 'phone-embedded'),
+  1::bigint,
+  'disconnecting preserves the connection record and its history relationships'
+);
+select is(
+  (
+    select action
+    from public.audit_events
+    where target_id = (select id from public.whatsapp_connections where phone_number_id = 'phone-embedded')
+      and action = 'whatsapp.connection_disconnected'
+    order by created_at desc
+    limit 1
+  ),
+  'whatsapp.connection_disconnected',
+  'disconnecting records an audit event'
+);
+
+select throws_ok(
+  $$
+    select public.disconnect_whatsapp_connection(
+      'd3000000-0000-0000-0000-000000000001',
+      'd1000000-0000-0000-0000-000000000002',
+      (select id from public.whatsapp_connections where phone_number_id = 'phone-embedded'),
+      false,
+      null
+    )
+  $$,
+  'P0001',
+  'whatsapp_connection_admin_access_denied',
+  'an operator cannot disconnect the venue WhatsApp connection'
 );
 
 select lives_ok(

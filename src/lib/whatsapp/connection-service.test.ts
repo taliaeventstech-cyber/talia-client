@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { completeWhatsappEmbeddedSignup } from './connection-service'
+import { completeWhatsappEmbeddedSignup, disconnectWhatsappConnection } from './connection-service'
 import { MetaEmbeddedSignupError } from './embedded-signup'
 
 afterEach(() => {
@@ -60,5 +60,83 @@ describe('WhatsApp Embedded Signup completion', () => {
     })).rejects.toThrow('meta_phone_registration_http_400')
 
     expect(statuses).toEqual(['draft', 'error'])
+  })
+})
+
+describe('WhatsApp connection disconnection', () => {
+  const input = {
+    tenantId: '10000000-0000-4000-8000-000000000001',
+    actorUserId: '20000000-0000-4000-8000-000000000001',
+    connectionId: '50000000-0000-4000-8000-000000000001',
+  }
+
+  it('unsubscribes Meta before clearing the local credentials', async () => {
+    const calls: string[] = []
+    const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
+      calls.push(name)
+      if (name === 'get_whatsapp_connection_disconnect_context') {
+        return {
+          data: {
+            id: input.connectionId,
+            waba_id: 'waba-1',
+            credential_metadata: { encrypted_credentials: { ciphertext: 'encrypted' } },
+            can_unsubscribe_provider: true,
+          },
+          error: null,
+        }
+      }
+      expect(args).toMatchObject({
+        p_connection_id: input.connectionId,
+        p_provider_unsubscribed: true,
+        p_provider_error_code: null,
+      })
+      return { data: input.connectionId, error: null }
+    })
+
+    const result = await disconnectWhatsappConnection({ rpc } as never, input, {
+      decryptCredentials: () => ({ accessToken: 'business-token', twoStepPin: '472901' }),
+      unsubscribeApp: async ({ wabaId, accessToken }) => {
+        calls.push('unsubscribe')
+        expect({ wabaId, accessToken }).toEqual({ wabaId: 'waba-1', accessToken: 'business-token' })
+      },
+    })
+
+    expect(calls).toEqual([
+      'get_whatsapp_connection_disconnect_context',
+      'unsubscribe',
+      'disconnect_whatsapp_connection',
+    ])
+    expect(result).toEqual({ disconnected: true, providerWarning: false })
+  })
+
+  it('still disconnects locally when Meta cannot remove the subscription', async () => {
+    const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
+      if (name === 'get_whatsapp_connection_disconnect_context') {
+        return {
+          data: {
+            id: input.connectionId,
+            waba_id: 'waba-1',
+            credential_metadata: { encrypted_credentials: { ciphertext: 'encrypted' } },
+            can_unsubscribe_provider: true,
+          },
+          error: null,
+        }
+      }
+      expect(args).toMatchObject({
+        p_provider_unsubscribed: false,
+        p_provider_error_code: 'meta_waba_unsubscription_http_403',
+      })
+      return { data: input.connectionId, error: null }
+    })
+
+    const result = await disconnectWhatsappConnection({ rpc } as never, input, {
+      decryptCredentials: () => ({ accessToken: 'business-token', twoStepPin: '472901' }),
+      unsubscribeApp: async () => {
+        throw new MetaEmbeddedSignupError('meta_waba_unsubscription_http_403', 403)
+      },
+    })
+
+    expect(result).toEqual({ disconnected: true, providerWarning: true })
+    expect(rpc).toHaveBeenLastCalledWith('disconnect_whatsapp_connection', expect.any(Object))
   })
 })

@@ -81,6 +81,22 @@ export async function subscribeMetaWhatsappApp(
   await parseResponse(response, z.object({ success: z.literal(true) }), 'meta_waba_subscription')
 }
 
+export async function unsubscribeMetaWhatsappApp(
+  input: { wabaId: string; accessToken: string },
+  options: { fetcher?: typeof fetch; timeoutMs?: number } = {},
+) {
+  const response = await request(
+    graphUrl(`/${encodeURIComponent(input.wabaId)}/subscribed_apps`),
+    {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${input.accessToken}` },
+      signal: AbortSignal.timeout(options.timeoutMs ?? 10_000),
+    },
+    options.fetcher,
+  )
+  await parseResponse(response, z.object({ success: z.literal(true) }), 'meta_waba_unsubscription')
+}
+
 export async function registerMetaWhatsappPhone(
   input: { phoneNumberId: string; accessToken: string; twoStepPin: string },
   options: { fetcher?: typeof fetch; timeoutMs?: number } = {},

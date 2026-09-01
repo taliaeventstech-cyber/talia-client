@@ -12203,6 +12203,33 @@ textarea {
   margin: 0;
 }
 
+.whatsapp-disconnect-action {
+  align-items: flex-start;
+  padding-top: 8px;
+}
+
+.whatsapp-disconnect-confirmation {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-width: 620px;
+  padding: 16px;
+  border: 0.5px solid color-mix(in srgb, var(--color-error) 35%, var(--color-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-error) 5%, var(--color-surface));
+}
+
+.whatsapp-disconnect-confirmation p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.whatsapp-disconnect-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 @media (max-width: 900px) {
   .whatsapp-operator-panel {
     position: static;
