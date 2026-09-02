@@ -45,6 +45,7 @@ const messageSchema = z.object({
 const detailSchema = z.object({
   id: z.uuid(),
   status: z.enum(['open', 'pending', 'handoff', 'resolved', 'blocked']),
+  operator_mode: z.boolean(),
   contact_name: z.string(),
   contact_masked: z.string(),
   handoff_reason: nullableString,
@@ -146,6 +147,32 @@ export async function ignoreWhatsappHandoff(
   })
   if (result.error) throw new Error(`whatsapp_handoff_ignore_failed:${result.error.message}`)
   return result.data
+}
+
+export async function takeOverWhatsappConversation(
+  admin: AdminClient,
+  input: { tenantId: string; conversationId: string; actorUserId: string },
+) {
+  const result = await callWhatsappRpc(admin, 'take_over_whatsapp_conversation', {
+    p_theatre_id: input.tenantId,
+    p_conversation_id: input.conversationId,
+    p_actor_user_id: input.actorUserId,
+  })
+  if (result.error) throw new Error(`whatsapp_conversation_takeover_failed:${result.error.message}`)
+  return typeof result.data === 'string' ? result.data : 'unavailable'
+}
+
+export async function releaseWhatsappConversation(
+  admin: AdminClient,
+  input: { tenantId: string; conversationId: string; actorUserId: string },
+) {
+  const result = await callWhatsappRpc(admin, 'release_whatsapp_conversation', {
+    p_theatre_id: input.tenantId,
+    p_conversation_id: input.conversationId,
+    p_actor_user_id: input.actorUserId,
+  })
+  if (result.error) throw new Error(`whatsapp_conversation_release_failed:${result.error.message}`)
+  return typeof result.data === 'string' ? result.data : 'unavailable'
 }
 
 export type SendWhatsappOperatorReplyResult =
@@ -310,4 +337,12 @@ function getState(value: unknown) {
   return typeof (value as { state?: unknown }).state === 'string'
     ? (value as { state: string }).state
     : null
+}
+
+function callWhatsappRpc(admin: AdminClient, name: string, args: Record<string, unknown>) {
+  const rpc = admin.rpc as unknown as (
+    functionName: string,
+    parameters: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message: string } | null }>
+  return rpc(name, args)
 }

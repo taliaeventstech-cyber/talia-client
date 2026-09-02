@@ -646,6 +646,19 @@ Implemented:
   Both decisions are audited. Manual sends are persisted before Meta is called,
   are idempotent, and never retry automatically when the provider outcome is
   uncertain.
+- Owners, administrators and operators can also take over any active WhatsApp
+  conversation before an error or handoff occurs. While manual mode is active,
+  new inbound messages remain durable but automatic replies are suppressed;
+  the assigned operator can send multiple replies and explicitly return the
+  conversation to TALIA. Takeover and release are tenant-scoped and audited.
+- Owners and administrators can review any successfully sent TALIA answer in a
+  WhatsApp transcript, edit the grouped inbound question and official answer,
+  and publish it as an active manual FAQ. The FAQ is linked to the originating
+  WhatsApp message, reindexed immediately and remains governed through the
+  shared venue Knowledge surface.
+- WhatsApp treats the latest inbound message as authoritative for response
+  language; the venue language is only a fallback when the message language
+  cannot be established.
 - Venue owners and administrators have a dedicated WhatsApp connection surface
   in Àgora. It uses Meta Embedded Signup v4, exchanges the 30-second browser code
   server-to-server, validates the selected WABA/phone pair and stores the

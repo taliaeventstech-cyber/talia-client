@@ -4,7 +4,9 @@ import {
   getWhatsappHandoffDetail,
   getWhatsappHandoffQueue,
   ignoreWhatsappHandoff,
+  releaseWhatsappConversation,
   sendWhatsappOperatorReply,
+  takeOverWhatsappConversation,
 } from './operator-handoff'
 
 function createRpcAdmin(responses: Array<{ data: unknown; error: { message: string } | null }>) {
@@ -96,6 +98,36 @@ describe('WhatsApp operator handoff', () => {
       actorUserId: 'b3000000-0000-0000-0000-000000000001',
     })).resolves.toBe('ignored')
     expect(admin.rpc).toHaveBeenCalledWith('ignore_whatsapp_handoff', {
+      p_theatre_id: 'b2000000-0000-0000-0000-000000000001',
+      p_conversation_id: 'b1000000-0000-4000-8000-000000000001',
+      p_actor_user_id: 'b3000000-0000-0000-0000-000000000001',
+    })
+  })
+
+  it('takes over an active conversation through the tenant-scoped RPC', async () => {
+    const admin = createRpcAdmin([{ data: 'taken_over', error: null }])
+
+    await expect(takeOverWhatsappConversation(admin as never, {
+      tenantId: 'b2000000-0000-0000-0000-000000000001',
+      conversationId: 'b1000000-0000-4000-8000-000000000001',
+      actorUserId: 'b3000000-0000-0000-0000-000000000001',
+    })).resolves.toBe('taken_over')
+    expect(admin.rpc).toHaveBeenCalledWith('take_over_whatsapp_conversation', {
+      p_theatre_id: 'b2000000-0000-0000-0000-000000000001',
+      p_conversation_id: 'b1000000-0000-4000-8000-000000000001',
+      p_actor_user_id: 'b3000000-0000-0000-0000-000000000001',
+    })
+  })
+
+  it('returns a manual conversation to TALIA through the tenant-scoped RPC', async () => {
+    const admin = createRpcAdmin([{ data: 'released', error: null }])
+
+    await expect(releaseWhatsappConversation(admin as never, {
+      tenantId: 'b2000000-0000-0000-0000-000000000001',
+      conversationId: 'b1000000-0000-4000-8000-000000000001',
+      actorUserId: 'b3000000-0000-0000-0000-000000000001',
+    })).resolves.toBe('released')
+    expect(admin.rpc).toHaveBeenCalledWith('release_whatsapp_conversation', {
       p_theatre_id: 'b2000000-0000-0000-0000-000000000001',
       p_conversation_id: 'b1000000-0000-4000-8000-000000000001',
       p_actor_user_id: 'b3000000-0000-0000-0000-000000000001',
