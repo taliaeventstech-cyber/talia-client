@@ -39,6 +39,13 @@ type WhatsappHandoffCopy = {
   }
   controls: {
     reply: string
+    takeOver: string
+    takingOver: string
+    returnToTalia: string
+    returningToTalia: string
+    manualTitle: string
+    manualAvailable: string
+    manualActive: string
     assignedElsewhere: string
     replyLabel: string
     replyPlaceholder: string
@@ -58,6 +65,10 @@ type WhatsappHandoffCopy = {
     ignored: string
     invalidReply: string
     forbidden: string
+    takenOver: string
+    alreadyTakenOver: string
+    takeoverSendInProgress: string
+    released: string
   }
 }
 
@@ -87,6 +98,11 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
     },
     controls: {
       reply: 'Contestar de forma manual', assignedElsewhere: 'Asignada a otra persona',
+      takeOver: 'Tomar la conversación', takingOver: 'Tomando la conversación…',
+      returnToTalia: 'Devolver a TALIA', returningToTalia: 'Devolviendo a TALIA…',
+      manualTitle: 'Control de la conversación',
+      manualAvailable: 'TALIA responde automáticamente. Puedes tomar el control en cualquier momento.',
+      manualActive: 'Modo manual activo. TALIA no responderá hasta que le devuelvas la conversación.',
       replyLabel: 'Respuesta por WhatsApp', replyPlaceholder: 'Escribe tu respuesta…',
       send: 'Enviar', ignore: 'Ignorar', readOnly: 'Tienes acceso de solo lectura.',
     },
@@ -98,6 +114,10 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
       sendInProgress: 'Hay una respuesta enviándose. Espera a que termine antes de ignorar el mensaje.',
       ignored: 'Mensaje ignorado.', invalidReply: 'Escribe una respuesta de entre 1 y 4096 caracteres.',
       forbidden: 'No tienes permisos para realizar esta acción.',
+      takenOver: 'Has tomado el control. TALIA ha pausado sus respuestas.',
+      alreadyTakenOver: 'Ya tienes el control de esta conversación.',
+      takeoverSendInProgress: 'TALIA está terminando una respuesta. Espera un momento antes de tomar el control.',
+      released: 'Conversación devuelta a TALIA.',
     },
   },
   ca: {
@@ -123,6 +143,11 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
     },
     controls: {
       reply: 'Respondre manualment', assignedElsewhere: 'Assignada a una altra persona',
+      takeOver: 'Prendre la conversa', takingOver: 'Prenent la conversa…',
+      returnToTalia: 'Retornar a TALIA', returningToTalia: 'Retornant a TALIA…',
+      manualTitle: 'Control de la conversa',
+      manualAvailable: 'TALIA respon automàticament. Pots prendre el control en qualsevol moment.',
+      manualActive: 'Mode manual actiu. TALIA no respondrà fins que li retornis la conversa.',
       replyLabel: 'Resposta per WhatsApp', replyPlaceholder: 'Escriu la teva resposta…',
       send: 'Enviar', ignore: 'Ignorar', readOnly: 'Tens accés només de lectura.',
     },
@@ -134,6 +159,10 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
       sendInProgress: 'Hi ha una resposta en procés d’enviament. Espera que acabi abans d’ignorar el missatge.',
       ignored: 'Missatge ignorat.', invalidReply: 'Escriu una resposta entre 1 i 4096 caràcters.',
       forbidden: 'No tens permisos per fer aquesta acció.',
+      takenOver: 'Has pres el control. TALIA ha pausat les respostes.',
+      alreadyTakenOver: 'Ja tens el control d’aquesta conversa.',
+      takeoverSendInProgress: 'TALIA està acabant una resposta. Espera un moment abans de prendre el control.',
+      released: 'Conversa retornada a TALIA.',
     },
   },
   en: {
@@ -159,6 +188,11 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
     },
     controls: {
       reply: 'Reply manually', assignedElsewhere: 'Assigned to someone else',
+      takeOver: 'Take over conversation', takingOver: 'Taking over…',
+      returnToTalia: 'Return to TALIA', returningToTalia: 'Returning to TALIA…',
+      manualTitle: 'Conversation control',
+      manualAvailable: 'TALIA is replying automatically. You can take over at any time.',
+      manualActive: 'Manual mode is active. TALIA will not reply until you return the conversation.',
       replyLabel: 'WhatsApp reply', replyPlaceholder: 'Write your reply…',
       send: 'Send', ignore: 'Ignore', readOnly: 'You have read-only access.',
     },
@@ -170,6 +204,10 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
       sendInProgress: 'A reply is being sent. Wait for it to finish before ignoring the message.',
       ignored: 'Message ignored.', invalidReply: 'Write a reply between 1 and 4096 characters.',
       forbidden: 'You do not have permission to perform this action.',
+      takenOver: 'You are in control. TALIA has paused its replies.',
+      alreadyTakenOver: 'You already control this conversation.',
+      takeoverSendInProgress: 'TALIA is finishing a reply. Wait a moment before taking control.',
+      released: 'Conversation returned to TALIA.',
     },
   },
   pt: {
@@ -195,6 +233,11 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
     },
     controls: {
       reply: 'Responder manualmente', assignedElsewhere: 'Atribuída a outra pessoa',
+      takeOver: 'Assumir a conversa', takingOver: 'Assumindo a conversa…',
+      returnToTalia: 'Devolver à TALIA', returningToTalia: 'Devolvendo à TALIA…',
+      manualTitle: 'Controle da conversa',
+      manualAvailable: 'A TALIA responde automaticamente. Você pode assumir o controle a qualquer momento.',
+      manualActive: 'Modo manual ativo. A TALIA não responderá até que você devolva a conversa.',
       replyLabel: 'Resposta pelo WhatsApp', replyPlaceholder: 'Escreva sua resposta…',
       send: 'Enviar', ignore: 'Ignorar', readOnly: 'Você tem acesso somente para leitura.',
     },
@@ -206,6 +249,10 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappHandoffCopy> = {
       sendInProgress: 'Uma resposta está sendo enviada. Aguarde a conclusão antes de ignorar a mensagem.',
       ignored: 'Mensagem ignorada.', invalidReply: 'Escreva uma resposta entre 1 e 4096 caracteres.',
       forbidden: 'Você não tem permissão para realizar esta ação.',
+      takenOver: 'Você assumiu o controle. A TALIA pausou as respostas.',
+      alreadyTakenOver: 'Você já controla esta conversa.',
+      takeoverSendInProgress: 'A TALIA está concluindo uma resposta. Aguarde um momento antes de assumir o controle.',
+      released: 'Conversa devolvida à TALIA.',
     },
   },
 }

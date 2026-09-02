@@ -1,12 +1,15 @@
 'use client'
 
 import { useActionState, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import type { WhatsappHandoffCopy } from '@/lib/i18n/whatsapp-handoff-copy'
 import type { WhatsappHandoffActionState } from './actions'
 import {
   claimWhatsappHandoffAction,
   ignoreWhatsappHandoffAction,
+  releaseWhatsappConversationAction,
   sendWhatsappOperatorReplyAction,
+  takeOverWhatsappConversationAction,
 } from './actions'
 
 const initialState: WhatsappHandoffActionState = { ok: false, message: '' }
@@ -19,6 +22,7 @@ export function WhatsappOperatorControls({
   isAssignedToCurrentUser,
   isAssigned,
   copy,
+  variant = 'handoff',
 }: {
   tenantId: string
   conversationId: string
@@ -27,7 +31,9 @@ export function WhatsappOperatorControls({
   isAssignedToCurrentUser: boolean
   isAssigned: boolean
   copy: WhatsappHandoffCopy['controls']
+  variant?: 'handoff' | 'manual-available' | 'manual-active'
 }) {
+  const router = useRouter()
   const [claimState, claimAction, claimPending] = useActionState(
     claimWhatsappHandoffAction.bind(null, tenantId, conversationId, locale),
     initialState,
@@ -38,6 +44,14 @@ export function WhatsappOperatorControls({
   )
   const [ignoreState, ignoreAction, ignorePending] = useActionState(
     ignoreWhatsappHandoffAction.bind(null, tenantId, conversationId, locale),
+    initialState,
+  )
+  const [takeoverState, takeoverAction, takeoverPending] = useActionState(
+    takeOverWhatsappConversationAction.bind(null, tenantId, conversationId, locale),
+    initialState,
+  )
+  const [releaseState, releaseAction, releasePending] = useActionState(
+    releaseWhatsappConversationAction.bind(null, tenantId, conversationId, locale),
     initialState,
   )
   const replyForm = useRef<HTMLFormElement>(null)
@@ -51,7 +65,12 @@ export function WhatsappOperatorControls({
     if (!replyState.ok || !replyState.resultId) return
     replyForm.current?.reset()
     if (idempotencyInput.current) idempotencyInput.current.value = ''
-  }, [replyState.ok, replyState.resultId])
+    router.refresh()
+  }, [replyState.ok, replyState.resultId, router])
+  useEffect(() => {
+    if (!takeoverState.ok && !releaseState.ok) return
+    router.refresh()
+  }, [releaseState.ok, router, takeoverState.ok])
 
   if (!canManage) {
     return <aside className="whatsapp-operator-panel muted">{copy.readOnly}</aside>
@@ -61,7 +80,21 @@ export function WhatsappOperatorControls({
     return <aside className="whatsapp-operator-panel muted">{copy.assignedElsewhere}</aside>
   }
 
-  const showReplyForm = isComposing || claimState.ok
+  if (variant === 'manual-available') {
+    return (
+      <aside className="whatsapp-operator-panel stack">
+        <p>{copy.manualAvailable}</p>
+        <form action={takeoverAction}>
+          <button className="button-primary button-fit" disabled={takeoverPending} type="submit">
+            {takeoverPending ? copy.takingOver : copy.takeOver}
+          </button>
+        </form>
+        <ActionMessage state={takeoverState} />
+      </aside>
+    )
+  }
+
+  const showReplyForm = variant === 'manual-active' ? isComposing : isComposing || claimState.ok
 
   if (!showReplyForm) {
     return (
@@ -85,13 +118,24 @@ export function WhatsappOperatorControls({
               </button>
             </form>
           )}
-          <form action={ignoreAction}>
-            <button className="button-outline" disabled={claimPending || ignorePending} type="submit">
-              {copy.ignore}
-            </button>
-          </form>
+          {variant === 'manual-active' ? (
+            <form action={releaseAction}>
+              <button className="button-outline" disabled={releasePending} type="submit">
+                {releasePending ? copy.returningToTalia : copy.returnToTalia}
+              </button>
+            </form>
+          ) : (
+            <form action={ignoreAction}>
+              <button className="button-outline" disabled={claimPending || ignorePending} type="submit">
+                {copy.ignore}
+              </button>
+            </form>
+          )}
         </div>
-        <ActionMessage state={claimState.message ? claimState : ignoreState} hideSuccess />
+        <ActionMessage
+          state={claimState.message ? claimState : releaseState.message ? releaseState : ignoreState}
+          hideSuccess={variant !== 'manual-active'}
+        />
       </aside>
     )
   }
@@ -122,13 +166,20 @@ export function WhatsappOperatorControls({
           <button className="button-primary button-fit" disabled={replyPending || ignorePending} type="submit">
             {copy.send}
           </button>
-          <button className="button-outline" disabled={replyPending || ignorePending} form="whatsapp-ignore-form" type="submit">
-            {copy.ignore}
-          </button>
+          {variant === 'manual-active' ? (
+            <button className="button-outline" disabled={replyPending || releasePending} form="whatsapp-release-form" type="submit">
+              {releasePending ? copy.returningToTalia : copy.returnToTalia}
+            </button>
+          ) : (
+            <button className="button-outline" disabled={replyPending || ignorePending} form="whatsapp-ignore-form" type="submit">
+              {copy.ignore}
+            </button>
+          )}
         </div>
       </form>
       <form action={ignoreAction} id="whatsapp-ignore-form" />
-      <ActionMessage state={replyState.message ? replyState : ignoreState} />
+      <form action={releaseAction} id="whatsapp-release-form" />
+      <ActionMessage state={replyState.message ? replyState : releaseState.message ? releaseState : ignoreState} />
     </aside>
   )
 }

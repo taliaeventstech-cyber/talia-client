@@ -10,6 +10,8 @@ vi.mock('@/lib/usage/ai-cost', () => ({ recordMeasuredAiUsage }))
 
 import { processWhatsappInboundJobs } from './processor'
 
+const resolveAccessToken = async () => 'tenant-token'
+
 beforeEach(() => {
   recordUsageEvent.mockReset()
   recordMeasuredAiUsage.mockReset()
@@ -24,7 +26,7 @@ describe('processWhatsappInboundJobs', () => {
     const sendText = vi.fn(async () => ({ ok: true as const, providerMessageId: 'wamid.outbound' }))
 
     const result = await processWhatsappInboundJobs(admin.client, {
-      workerId: 'worker-1', requestAgent, sendText,
+      workerId: 'worker-1', requestAgent, sendText, resolveAccessToken,
     })
 
     expect(result).toEqual({
@@ -41,12 +43,15 @@ describe('processWhatsappInboundJobs', () => {
       messageId: '60000000-0000-4000-8000-000000000003',
       message: 'Hola, ¿qué tal?\nMe gustaría saber si el teatro\nes accesible, gracias.',
     }))
-    expect(sendText).toHaveBeenCalledWith({
-      phoneNumberId: 'phone-1',
-      recipientWaId: '34123456789',
-      body: '¡Hola! Soy Talía, un agente de IA para Sala Ejemplo.\n\nRespuesta segura',
-      replyToProviderMessageId: 'wamid.inbound.3',
-    })
+    expect(sendText).toHaveBeenCalledWith(
+      {
+        phoneNumberId: 'phone-1',
+        recipientWaId: '34123456789',
+        body: '¡Hola! Soy Talía, un agente de IA para Sala Ejemplo.\n\nRespuesta segura',
+        replyToProviderMessageId: 'wamid.inbound.3',
+      },
+      { accessToken: 'tenant-token' },
+    )
     expect(admin.calls).toContainEqual([
       'prepare_whatsapp_conversation_turn',
       expect.objectContaining({
@@ -70,10 +75,13 @@ describe('processWhatsappInboundJobs', () => {
     const sendText = vi.fn(async () => ({ ok: true as const, providerMessageId: 'wamid.outbound' }))
 
     await processWhatsappInboundJobs(admin.client, {
-      workerId: 'worker-1', requestAgent: async () => agentResponse(), sendText,
+      workerId: 'worker-1', requestAgent: async () => agentResponse(), sendText, resolveAccessToken,
     })
 
-    expect(sendText).toHaveBeenCalledWith(expect.objectContaining({ body: 'Respuesta segura' }))
+    expect(sendText).toHaveBeenCalledWith(
+      expect.objectContaining({ body: 'Respuesta segura' }),
+      { accessToken: 'tenant-token' },
+    )
     expect(admin.calls).toContainEqual([
       'prepare_whatsapp_conversation_turn',
       expect.objectContaining({
@@ -87,12 +95,12 @@ describe('processWhatsappInboundJobs', () => {
     const sendText = vi.fn(async () => ({ ok: true as const, providerMessageId: 'wamid.outbound' }))
 
     await processWhatsappInboundJobs(admin.client, {
-      workerId: 'worker-1', requestAgent: async () => agentResponse('ca'), sendText,
+      workerId: 'worker-1', requestAgent: async () => agentResponse('ca'), sendText, resolveAccessToken,
     })
 
     expect(sendText).toHaveBeenCalledWith(expect.objectContaining({
       body: "Hola! Soc Talía, un agent d'IA per a Sala Ejemplo.\n\nRespuesta segura",
-    }))
+    }), { accessToken: 'tenant-token' })
   })
 
   it('removes a duplicate leading greeting when adding the AI disclosure', async () => {
@@ -103,11 +111,40 @@ describe('processWhatsappInboundJobs', () => {
       workerId: 'worker-1',
       requestAgent: async () => agentResponse('es', '¡Hola! Sí, el teatro es accesible.'),
       sendText,
+      resolveAccessToken,
     })
 
     expect(sendText).toHaveBeenCalledWith(expect.objectContaining({
       body: '¡Hola! Soy Talía, un agente de IA para Sala Ejemplo.\n\nSí, el teatro es accesible.',
-    }))
+    }), { accessToken: 'tenant-token' })
+  })
+
+  it('does not duplicate an AI disclosure already returned by the agent', async () => {
+    const admin = createAdmin()
+    const sendText = vi.fn(async () => ({ ok: true as const, providerMessageId: 'wamid.outbound' }))
+
+    await processWhatsappInboundJobs(admin.client, {
+      workerId: 'worker-1',
+      requestAgent: async () => agentResponse(
+        'es',
+        'Sí. Soy Talía, un agente de IA para Sala Ejemplo. ¿En qué puedo ayudarte?',
+      ),
+      sendText,
+      resolveAccessToken,
+    })
+
+    expect(sendText).toHaveBeenCalledWith(expect.objectContaining({
+      body: 'Sí. Soy Talía, un agente de IA para Sala Ejemplo. ¿En qué puedo ayudarte?',
+    }), { accessToken: 'tenant-token' })
+    expect(admin.calls).toContainEqual([
+      'prepare_whatsapp_conversation_turn',
+      expect.objectContaining({
+        p_agent_metadata: expect.objectContaining({
+          ai_disclosure_included: true,
+          ai_disclosure_version: 1,
+        }),
+      }),
+    ])
   })
 
   it('defers a generated reply when a newer inbound message makes the turn stale', async () => {
@@ -115,7 +152,7 @@ describe('processWhatsappInboundJobs', () => {
     const sendText = vi.fn()
 
     const result = await processWhatsappInboundJobs(admin.client, {
-      workerId: 'worker-1', requestAgent: async () => agentResponse(), sendText,
+      workerId: 'worker-1', requestAgent: async () => agentResponse(), sendText, resolveAccessToken,
     })
 
     expect(result).toEqual({
@@ -136,6 +173,7 @@ describe('processWhatsappInboundJobs', () => {
         status: null,
         errorCode: 'meta_network_outcome_unknown',
       }),
+      resolveAccessToken,
     })
 
     expect(result).toEqual({
@@ -164,6 +202,7 @@ describe('processWhatsappInboundJobs', () => {
         status: 503,
         errorCode: 'meta_http_503',
       }),
+      resolveAccessToken,
     })
 
     expect(result).toEqual({
@@ -173,6 +212,26 @@ describe('processWhatsappInboundJobs', () => {
     expect(admin.calls).toContainEqual([
       'retry_whatsapp_conversation_turn',
       expect.objectContaining({ p_error_code: 'meta_http_503' }),
+    ])
+  })
+
+  it('retries without starting a provider send when the tenant credential is unavailable', async () => {
+    const admin = createAdmin()
+
+    const result = await processWhatsappInboundJobs(admin.client, {
+      workerId: 'worker-1',
+      requestAgent: async () => agentResponse(),
+      sendText: vi.fn(),
+      resolveAccessToken: async () => { throw new Error('credential unavailable') },
+    })
+
+    expect(result).toEqual({
+      claimed: 1, responded: 0, handoffs: 0, retried: 1, deferred: 0, failed: 0,
+    })
+    expect(admin.calls.some(([name]) => name === 'start_whatsapp_conversation_turn_send')).toBe(false)
+    expect(admin.calls).toContainEqual([
+      'retry_whatsapp_conversation_turn',
+      expect.objectContaining({ p_error_code: 'worker_unexpected_error' }),
     ])
   })
 })

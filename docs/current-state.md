@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: August 16, 2026
+Last updated: August 19, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -13,7 +13,7 @@ Current state:
 - Main active module: **Attention**.
 - Most mature channel: **Web chatbot**.
 - Channel in testing: **Gmail email agent**, in supervised drafts mode.
-- Channel in development: WhatsApp Cloud API pilot.
+- Channel in development: validated WhatsApp Cloud API pilot and tenant Embedded Signup.
 - Planned or paused channels: Microsoft/Outlook, voice and Instagram.
 - Client dashboard: **Agora**, per venue.
 - Internal panel: **Backstage**.
@@ -646,6 +646,26 @@ Implemented:
   Both decisions are audited. Manual sends are persisted before Meta is called,
   are idempotent, and never retry automatically when the provider outcome is
   uncertain.
+- Owners, administrators and operators can also take over any active WhatsApp
+  conversation before an error or handoff occurs. While manual mode is active,
+  new inbound messages remain durable but automatic replies are suppressed;
+  the assigned operator can send multiple replies and explicitly return the
+  conversation to TALIA. Takeover and release are tenant-scoped and audited.
+- Owners and administrators can review any successfully sent TALIA answer in a
+  WhatsApp transcript, edit the grouped inbound question and official answer,
+  and publish it as an active manual FAQ. The FAQ is linked to the originating
+  WhatsApp message, reindexed immediately and remains governed through the
+  shared venue Knowledge surface.
+- WhatsApp treats the latest inbound message as authoritative for response
+  language; the venue language is only a fallback when the message language
+  cannot be established.
+- Venue owners and administrators have a dedicated WhatsApp connection surface
+  in Àgora. It uses Meta Embedded Signup v4, exchanges the 30-second browser code
+  server-to-server, validates the selected WABA/phone pair and stores the
+  business token plus generated two-step PIN in a per-connection AES-256-GCM
+  envelope. Outbound automated and manual sends resolve the credential by venue
+  and phone-number ID; the original environment token remains only as a
+  backwards-compatible pilot source.
 
 Validated in the current pilot:
 
@@ -654,12 +674,18 @@ Validated in the current pilot:
 - A six-message burst is coalesced into one grounded response, all six inbound
   jobs complete, and Meta delivery callbacks advance the outbound message to
   `read` without generating another agent turn.
+- Real low-confidence/manual-reply and unsupported-message/ignore handoffs have
+  been completed from Àgora against Meta. Both cases resolve correctly and are
+  reflected in Supabase.
 
 Pending:
 
-- Validate the operator handoff surface with a real low-confidence and a real
-  unsupported-message canary after applying its migration.
-- Replace the pilot credential with Embedded Signup for tenant-managed WABAs.
+- Configure the production Login for Business configuration, allowed domains
+  and App Review/Access Verification gates in Meta.
+- Run the first non-TALIA tenant onboarding canary through Embedded Signup and
+  retain evidence of inbound, automated outbound and operator handoff.
+- Add managed credential renewal, revocation and disconnect flows before broad
+  commercial availability.
 
 Reference:
 

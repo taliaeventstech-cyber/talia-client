@@ -1,5 +1,6 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
 import { recordUsageEvent } from '@/lib/usage/service'
+import { getWhatsappConnectionAccessToken } from './credentials'
 import { sendMetaWhatsappText, type MetaWhatsappSendResult } from './meta-client'
 import { z } from 'zod'
 
@@ -44,6 +45,7 @@ const messageSchema = z.object({
 const detailSchema = z.object({
   id: z.uuid(),
   status: z.enum(['open', 'pending', 'handoff', 'resolved', 'blocked']),
+  operator_mode: z.boolean(),
   contact_name: z.string(),
   contact_masked: z.string(),
   handoff_reason: nullableString,
@@ -147,6 +149,32 @@ export async function ignoreWhatsappHandoff(
   return result.data
 }
 
+export async function takeOverWhatsappConversation(
+  admin: AdminClient,
+  input: { tenantId: string; conversationId: string; actorUserId: string },
+) {
+  const result = await callWhatsappRpc(admin, 'take_over_whatsapp_conversation', {
+    p_theatre_id: input.tenantId,
+    p_conversation_id: input.conversationId,
+    p_actor_user_id: input.actorUserId,
+  })
+  if (result.error) throw new Error(`whatsapp_conversation_takeover_failed:${result.error.message}`)
+  return typeof result.data === 'string' ? result.data : 'unavailable'
+}
+
+export async function releaseWhatsappConversation(
+  admin: AdminClient,
+  input: { tenantId: string; conversationId: string; actorUserId: string },
+) {
+  const result = await callWhatsappRpc(admin, 'release_whatsapp_conversation', {
+    p_theatre_id: input.tenantId,
+    p_conversation_id: input.conversationId,
+    p_actor_user_id: input.actorUserId,
+  })
+  if (result.error) throw new Error(`whatsapp_conversation_release_failed:${result.error.message}`)
+  return typeof result.data === 'string' ? result.data : 'unavailable'
+}
+
 export type SendWhatsappOperatorReplyResult =
   | { outcome: 'sent'; outboundMessageId: string }
   | { outcome: 'already_sent'; outboundMessageId: string }
@@ -165,6 +193,7 @@ export async function sendWhatsappOperatorReply(
   options: {
     send?: typeof sendMetaWhatsappText
     recordUsage?: typeof recordUsageEvent
+    resolveAccessToken?: typeof getWhatsappConnectionAccessToken
   } = {},
 ): Promise<SendWhatsappOperatorReplyResult> {
   const preparedResult = await admin.rpc('prepare_whatsapp_operator_reply', {
@@ -209,12 +238,32 @@ export async function sendWhatsappOperatorReply(
     return { outcome: 'uncertain', outboundMessageId: prepared.outbound_message_id, errorCode: `send_${start.data}` }
   }
 
+  let accessToken: string
+  try {
+    accessToken = await (options.resolveAccessToken ?? getWhatsappConnectionAccessToken)(admin, {
+      tenantId: input.tenantId,
+      phoneNumberId: prepared.phone_number_id,
+    })
+  } catch {
+    return finalizeOperatorReply(
+      admin,
+      input,
+      prepared.outbound_message_id,
+      {
+        ok: false,
+        outcome: 'definitive_rejection',
+        status: null,
+        errorCode: 'whatsapp_connection_credentials_unavailable',
+      },
+      options.recordUsage ?? recordUsageEvent,
+    )
+  }
   const providerResult = await (options.send ?? sendMetaWhatsappText)({
     phoneNumberId: prepared.phone_number_id,
     recipientWaId: prepared.recipient_wa_id,
     body: prepared.body_text,
     replyToProviderMessageId: prepared.reply_to_provider_message_id,
-  })
+  }, { accessToken })
   return finalizeOperatorReply(
     admin,
     input,
@@ -288,4 +337,12 @@ function getState(value: unknown) {
   return typeof (value as { state?: unknown }).state === 'string'
     ? (value as { state: string }).state
     : null
+}
+
+function callWhatsappRpc(admin: AdminClient, name: string, args: Record<string, unknown>) {
+  const rpc = admin.rpc as unknown as (
+    functionName: string,
+    parameters: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message: string } | null }>
+  return rpc(name, args)
 }

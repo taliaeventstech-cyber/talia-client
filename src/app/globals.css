@@ -12170,6 +12170,67 @@ textarea {
   gap: 10px;
 }
 
+.whatsapp-connection-card {
+  max-width: 760px;
+}
+
+.whatsapp-settings-header,
+.whatsapp-conversations-header {
+  display: grid;
+  gap: 8px;
+  max-width: 760px;
+}
+
+.whatsapp-connection-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.whatsapp-connection-action {
+  align-items: flex-start;
+  padding-top: 8px;
+}
+
+.whatsapp-connection-state-description {
+  max-width: 620px;
+  margin: 0;
+  line-height: 1.55;
+}
+
+.whatsapp-connection-action p,
+.whatsapp-connection-permissions {
+  margin: 0;
+}
+
+.whatsapp-disconnect-action {
+  align-items: flex-start;
+  padding-top: 8px;
+}
+
+.whatsapp-disconnect-confirmation {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-width: 620px;
+  padding: 16px;
+  border: 0.5px solid color-mix(in srgb, var(--color-error) 35%, var(--color-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-error) 5%, var(--color-surface));
+}
+
+.whatsapp-disconnect-confirmation p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.whatsapp-disconnect-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 @media (max-width: 900px) {
   .whatsapp-operator-panel {
     position: static;

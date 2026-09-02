@@ -24,7 +24,7 @@ export default async function WhatsappConversationHistoryPage({ params }: Props)
 
   return (
     <main className="page-shell">
-      <header className="page-header">
+      <header className="page-header whatsapp-conversations-header">
         <p className="section-label">{copy.queue.eyebrow}</p>
         <h1>{copy.queue.title}</h1>
         <p className="muted">{copy.queue.description}</p>
