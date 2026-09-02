@@ -11,6 +11,8 @@ const phoneNumbersResponseSchema = z.object({
     id: z.string().min(1),
     display_phone_number: z.string().nullable().optional(),
     verified_name: z.string().nullable().optional(),
+    code_verification_status: z.string().optional(),
+    status: z.string().optional(),
   })),
 })
 
@@ -52,7 +54,10 @@ export async function getMetaWhatsappPhone(
   options: { fetcher?: typeof fetch; timeoutMs?: number } = {},
 ): Promise<MetaWhatsappPhone> {
   const url = graphUrl(`/${encodeURIComponent(input.wabaId)}/phone_numbers`)
-  url.searchParams.set('fields', 'id,display_phone_number,verified_name')
+  url.searchParams.set(
+    'fields',
+    'id,display_phone_number,verified_name,code_verification_status,status',
+  )
   url.searchParams.set('limit', '100')
   const response = await request(url, {
     method: 'GET',

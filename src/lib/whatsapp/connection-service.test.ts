@@ -61,6 +61,82 @@ describe('WhatsApp Embedded Signup completion', () => {
 
     expect(statuses).toEqual(['draft', 'error'])
   })
+
+  it('treats the connection as successful when Meta confirms the phone connected after registration failed', async () => {
+    vi.stubEnv('WHATSAPP_TOKEN_ENCRYPTION_KEY', 'w'.repeat(32))
+    const statuses: string[] = []
+    const rpc = vi.fn(async (_name: string, args: Record<string, unknown>) => {
+      statuses.push(String(args.p_status))
+      return { data: '50000000-0000-4000-8000-000000000001', error: null }
+    })
+    const getPhone = vi.fn()
+      .mockResolvedValueOnce({
+        id: 'phone-1',
+        display_phone_number: '+1 555-336-9296',
+        verified_name: 'Boostbox',
+        status: 'PENDING',
+      })
+      .mockResolvedValueOnce({
+        id: 'phone-1',
+        display_phone_number: '+1 555-336-9296',
+        verified_name: 'Boostbox',
+        status: 'CONNECTED',
+      })
+
+    const result = await completeWhatsappEmbeddedSignup({ rpc } as never, {
+      tenantId: '10000000-0000-4000-8000-000000000001',
+      actorUserId: '20000000-0000-4000-8000-000000000001',
+      code: 'single-use-code',
+      businessId: 'business-1',
+      wabaId: 'waba-1',
+      phoneNumberId: 'phone-1',
+    }, {
+      exchangeCode: async () => ({ access_token: 'business-token' }),
+      getPhone,
+      subscribeApp: async () => undefined,
+      registerPhone: async () => {
+        throw new MetaEmbeddedSignupError('meta_phone_registration_http_400', 400)
+      },
+      createPin: () => '472901',
+    })
+
+    expect(getPhone).toHaveBeenCalledTimes(2)
+    expect(statuses).toEqual(['draft', 'connected'])
+    expect(result.displayPhoneNumber).toBe('+1 555-336-9296')
+  })
+
+  it('does not register a phone that Embedded Signup already connected', async () => {
+    vi.stubEnv('WHATSAPP_TOKEN_ENCRYPTION_KEY', 'w'.repeat(32))
+    const statuses: string[] = []
+    const rpc = vi.fn(async (_name: string, args: Record<string, unknown>) => {
+      statuses.push(String(args.p_status))
+      return { data: '50000000-0000-4000-8000-000000000001', error: null }
+    })
+    const registerPhone = vi.fn()
+
+    await completeWhatsappEmbeddedSignup({ rpc } as never, {
+      tenantId: '10000000-0000-4000-8000-000000000001',
+      actorUserId: '20000000-0000-4000-8000-000000000001',
+      code: 'single-use-code',
+      businessId: 'business-1',
+      wabaId: 'waba-1',
+      phoneNumberId: 'phone-1',
+    }, {
+      exchangeCode: async () => ({ access_token: 'business-token' }),
+      getPhone: async () => ({
+        id: 'phone-1',
+        display_phone_number: '+1 555-336-9296',
+        verified_name: 'Boostbox',
+        status: 'CONNECTED',
+      }),
+      subscribeApp: async () => undefined,
+      registerPhone,
+      createPin: () => '472901',
+    })
+
+    expect(registerPhone).not.toHaveBeenCalled()
+    expect(statuses).toEqual(['draft', 'connected'])
+  })
 })
 
 describe('WhatsApp connection disconnection', () => {

@@ -2,7 +2,7 @@ create extension if not exists pgtap with schema extensions;
 
 begin;
 
-select plan(23);
+select plan(28);
 
 select ok(
   not has_function_privilege('authenticated', 'public.get_whatsapp_connection_summary(uuid,uuid)', 'execute'),
@@ -118,6 +118,48 @@ select ok(
     'd1000000-0000-0000-0000-000000000001'
   ) ? 'credential_metadata'),
   'the browser summary never includes credential metadata'
+);
+
+select lives_ok(
+  $$
+    select public.save_whatsapp_embedded_connection(
+      'd3000000-0000-0000-0000-000000000001',
+      'd1000000-0000-0000-0000-000000000001',
+      'business-embedded', 'waba-embedded', 'phone-embedded',
+      '+34 600 000 000', 'Embedded Venue',
+      '{"encrypted_credentials":{"alg":"aes-256-gcm","iv":"iv","tag":"tag","ciphertext":"cipher"}}'::jsonb,
+      'error', 'meta_phone_registration_http_400'
+    )
+  $$,
+  'a provider failure can update an existing connection'
+);
+select is(
+  (select metadata ->> 'connected_at' from public.whatsapp_connections where phone_number_id = 'phone-embedded'),
+  null,
+  'an error state clears a stale connection timestamp'
+);
+select is(
+  (select metadata ->> 'last_error_code' from public.whatsapp_connections where phone_number_id = 'phone-embedded'),
+  'meta_phone_registration_http_400',
+  'an error state records its provider error'
+);
+select lives_ok(
+  $$
+    select public.save_whatsapp_embedded_connection(
+      'd3000000-0000-0000-0000-000000000001',
+      'd1000000-0000-0000-0000-000000000001',
+      'business-embedded', 'waba-embedded', 'phone-embedded',
+      '+34 600 000 000', 'Embedded Venue',
+      '{"encrypted_credentials":{"alg":"aes-256-gcm","iv":"iv","tag":"tag","ciphertext":"cipher"}}'::jsonb,
+      'connected', null
+    )
+  $$,
+  'a reconciled provider connection can return to connected'
+);
+select is(
+  (select metadata ->> 'last_error_code' from public.whatsapp_connections where phone_number_id = 'phone-embedded'),
+  null,
+  'a connected state clears a stale provider error'
 );
 
 select lives_ok(

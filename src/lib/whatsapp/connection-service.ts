@@ -102,7 +102,7 @@ export async function completeWhatsappEmbeddedSignup(
     tokenType: token.token_type,
     expiresAt,
   })
-  const phone = await getPhone({
+  let phone = await getPhone({
     wabaId: parsed.wabaId,
     phoneNumberId: parsed.phoneNumberId,
     accessToken: token.access_token,
@@ -120,11 +120,27 @@ export async function completeWhatsappEmbeddedSignup(
 
   try {
     await subscribeApp({ wabaId: parsed.wabaId, accessToken: token.access_token })
-    await registerPhone({
-      phoneNumberId: parsed.phoneNumberId,
-      accessToken: token.access_token,
-      twoStepPin,
-    })
+    if (!isMetaWhatsappPhoneConnected(phone)) {
+      try {
+        await registerPhone({
+          phoneNumberId: parsed.phoneNumberId,
+          accessToken: token.access_token,
+          twoStepPin,
+        })
+      } catch (registrationError) {
+        try {
+          const reconciledPhone = await getPhone({
+            wabaId: parsed.wabaId,
+            phoneNumberId: parsed.phoneNumberId,
+            accessToken: token.access_token,
+          })
+          if (!isMetaWhatsappPhoneConnected(reconciledPhone)) throw registrationError
+          phone = reconciledPhone
+        } catch {
+          throw registrationError
+        }
+      }
+    }
     const connectionId = await saveConnection(admin, {
       ...parsed,
       tenantId: input.tenantId,
@@ -155,6 +171,10 @@ export async function completeWhatsappEmbeddedSignup(
     }
     throw error
   }
+}
+
+function isMetaWhatsappPhoneConnected(phone: { status?: string }) {
+  return phone.status?.toUpperCase() === 'CONNECTED'
 }
 
 export async function disconnectWhatsappConnection(
