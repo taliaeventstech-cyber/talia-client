@@ -8,6 +8,202 @@ import { revalidatePath } from 'next/cache'
 import { isManagedWebSourceType } from '@/lib/knowledge/managed-web-sources'
 import { deleteKnowledgeSourceData } from '@/lib/knowledge/source-deletion'
 import { randomUUID } from 'node:crypto'
+import { z } from 'zod'
+import { consumeRateLimit } from '@/lib/auth/security'
+import { analyzeDiagnosticWithTaliaAi } from '@/lib/diagnostics/talia-ai'
+import { buildResponseDiagnosticArtifact } from '@/lib/diagnostics/artifacts'
+import { buildKnowledgeSourceDebugPayload } from '@/lib/knowledge/source-debug'
+import type { DiagnosticAnalysis, DiagnosticArtifactType } from '@/lib/diagnostics/report'
+import { recordDiagnosticUsage } from '@/lib/diagnostics/usage'
+
+const diagnosticActionSchema = z.object({
+  tenantId: z.string().uuid(),
+  artifactType: z.enum(['response_trace', 'knowledge_source']),
+  artifactId: z.string().uuid(),
+})
+
+export type BackstageDiagnosticActionResult =
+  | { ok: true; analysis: DiagnosticAnalysis }
+  | { ok: false; message: string }
+
+export async function analyzeBackstageDiagnostic(
+  tenantId: string,
+  artifactType: DiagnosticArtifactType,
+  artifactId: string,
+): Promise<BackstageDiagnosticActionResult> {
+  const platformAccess = await requirePlatformAdmin()
+  const parsed = diagnosticActionSchema.safeParse({ tenantId, artifactType, artifactId })
+  if (!parsed.success) return { ok: false, message: 'La referencia del diagnóstico no es válida.' }
+
+  const limited = await consumeRateLimit([
+    { key: `backstage-diagnostics-user:${platformAccess.user.id}`, limit: 30, windowMs: 60 * 60 * 1_000 },
+    { key: `backstage-diagnostics-artifact:${platformAccess.user.id}:${artifactId}`, limit: 5, windowMs: 5 * 60 * 1_000 },
+  ])
+  if (limited) {
+    return {
+      ok: false,
+      message: limited.unavailable
+        ? 'El control de uso no está disponible. El análisis se ha detenido de forma segura.'
+        : `Has alcanzado el límite temporal de diagnósticos. Reinténtalo en ${limited.retryAfterSeconds} segundos.`,
+    }
+  }
+
+  const admin = createAdminClient()
+  const { data: venue, error: venueError } = await admin
+    .from('theatres')
+    .select('id, account_id, name')
+    .eq('id', tenantId)
+    .maybeSingle()
+  if (venueError || !venue) return { ok: false, message: 'No se pudo comprobar el venue del diagnóstico.' }
+
+  const artifact = artifactType === 'response_trace'
+    ? await loadResponseDiagnosticArtifact(admin, tenantId, artifactId)
+    : await loadKnowledgeSourceDiagnosticArtifact(admin, tenantId, artifactId)
+  if (!artifact.ok) return artifact
+
+  const diagnosticRunId = randomUUID()
+  const result = await analyzeDiagnosticWithTaliaAi({
+    tenantId,
+    artifactType,
+    artifactId,
+    artifact: artifact.value,
+  })
+  if (!result.ok) return { ok: false, message: result.error }
+
+  await recordDiagnosticUsage(admin, {
+    tenantId,
+    artifactType,
+    artifactId,
+    diagnosticRunId,
+    analysis: result.analysis,
+  })
+
+  const { error: auditError } = await admin.from('audit_events').insert({
+    account_id: venue.account_id,
+    theatre_id: tenantId,
+    actor_user_id: platformAccess.user.id,
+    action: 'backstage.ai_diagnostic_generated',
+    target_type: artifactType,
+    target_id: artifactId,
+    metadata: {
+      schema_version: result.analysis.report.schema_version,
+      classification: result.analysis.report.classification,
+      confidence: result.analysis.report.confidence,
+      provider: result.analysis.provider,
+      model: result.analysis.model,
+    },
+  })
+  if (auditError) {
+    console.error('[backstage-diagnostics] failed to record audit event', {
+      tenantId,
+      artifactType,
+      artifactId,
+      code: auditError.code,
+    })
+  }
+
+  return { ok: true, analysis: result.analysis }
+}
+
+async function loadResponseDiagnosticArtifact(
+  admin: ReturnType<typeof createAdminClient>,
+  tenantId: string,
+  messageId: string,
+): Promise<{ ok: true; value: Record<string, unknown> } | { ok: false; message: string }> {
+  const { data: message, error } = await admin
+    .from('messages')
+    .select('id, conversation_id, content, created_at, metadata')
+    .eq('id', messageId)
+    .eq('theatre_id', tenantId)
+    .eq('role', 'assistant')
+    .maybeSingle()
+  if (error) return { ok: false, message: 'No se pudo cargar la traza de respuesta.' }
+  if (!message) return { ok: false, message: 'La respuesta ya no existe o no pertenece a este venue.' }
+
+  const { data: conversation } = await admin
+    .from('conversations')
+    .select('metadata')
+    .eq('id', message.conversation_id)
+    .eq('theatre_id', tenantId)
+    .maybeSingle()
+
+  return {
+    ok: true,
+    value: buildResponseDiagnosticArtifact({
+      content: message.content,
+      createdAt: message.created_at,
+      metadata: message.metadata,
+      conversationMetadata: conversation?.metadata,
+    }),
+  }
+}
+
+async function loadKnowledgeSourceDiagnosticArtifact(
+  admin: ReturnType<typeof createAdminClient>,
+  tenantId: string,
+  sourceId: string,
+): Promise<{ ok: true; value: Record<string, unknown> } | { ok: false; message: string }> {
+  const [sourceResult, runResult, chunksResult, documentsResult] = await Promise.all([
+    admin
+      .from('knowledge_sources')
+      .select('id, type, name, status, sync_enabled, source_url, refresh_interval, next_sync_at, last_synced_at, last_error')
+      .eq('id', sourceId)
+      .eq('theatre_id', tenantId)
+      .maybeSingle(),
+    admin
+      .from('knowledge_sync_runs')
+      .select('status, discovered_count, checked_count, changed_count, unchanged_count, failed_count, blocked_count, error_code, error_details, metadata, created_at, finished_at')
+      .eq('source_id', sourceId)
+      .eq('theatre_id', tenantId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    admin
+      .from('knowledge_chunks')
+      .select('embedding_status, active')
+      .eq('source_id', sourceId)
+      .eq('theatre_id', tenantId),
+    admin
+      .from('knowledge_documents')
+      .select('id', { count: 'exact', head: true })
+      .eq('source_id', sourceId)
+      .eq('theatre_id', tenantId)
+      .neq('status', 'removed'),
+  ])
+  const { data: source, error } = sourceResult
+  const { data: run, error: runError } = runResult
+  const { data: chunks, error: chunksError } = chunksResult
+  if (error || runError || chunksError || documentsResult.error) {
+    return { ok: false, message: 'No se pudo cargar el diagnóstico completo de la fuente.' }
+  }
+  if (!source) return { ok: false, message: 'La fuente ya no existe o no pertenece a este venue.' }
+
+  const activeChunks = (chunks ?? []).filter((chunk) => chunk.active)
+  const embeddingCounts = {
+    ready: activeChunks.filter((chunk) => chunk.embedding_status === 'ready').length,
+    pending: activeChunks.filter((chunk) => chunk.embedding_status === 'pending').length,
+    processing: activeChunks.filter((chunk) => chunk.embedding_status === 'processing').length,
+    error: activeChunks.filter((chunk) => chunk.embedding_status === 'error').length,
+  }
+  const payload = buildKnowledgeSourceDebugPayload({
+    id: source.id,
+    type: source.type,
+    name: source.name,
+    status: source.status,
+    syncEnabled: source.sync_enabled,
+    sourceUrl: source.source_url,
+    refreshInterval: source.refresh_interval,
+    nextSyncAt: source.next_sync_at,
+    lastSyncedAt: source.last_synced_at,
+    lastError: source.last_error,
+    documentCount: documentsResult.count ?? 0,
+    chunkCount: activeChunks.length,
+    embeddingCounts,
+    latestSyncRun: run ?? null,
+  })
+
+  return { ok: true, value: payload }
+}
 
 export async function reprocessBackstageKnowledgeSource(
   tenantId: string,

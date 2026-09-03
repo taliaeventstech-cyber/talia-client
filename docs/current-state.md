@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: August 19, 2026
+Last updated: September 3, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -386,6 +386,16 @@ Implemented:
   the question, answer, provider, language decision, retrieval sources/chunks,
   feedback and persisted trace metadata for support and debugging without
   screenshots.
+- Backstage can request an on-demand AI diagnostic for a persisted response
+  trace or a Knowledge source with processing errors. The browser submits only
+  the tenant and artifact identifiers; the authenticated server reloads and
+  sanitizes the evidence, rate-limits the operator, and calls the internal
+  `talia-ai` diagnostic endpoint server-to-server. Reports distinguish probable
+  causes from proven root causes, expose confidence, evidence, recommended
+  checks and limitations, can be downloaded as versioned JSON, and never run a
+  repair automatically. Successful generations record an audit event without
+  persisting the report body, and their measured model usage is attributed to
+  the venue as a Backstage diagnostic component.
 
 Pending:
 
@@ -393,6 +403,9 @@ Pending:
 - Consolidate knowledge as the primary source ahead of free-form prompts.
 - Improve integrated preview/test.
 - Validate `/v1/chat/respond` and its analytics contract under production load.
+- Persist bounded gateway/service incidents that fail before an assistant
+  message exists, so the same Backstage diagnostic flow can cover hard HTTP
+  failures as well as persisted fallbacks and response-quality incidents.
 
 Reference:
 
