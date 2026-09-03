@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: August 2, 2026
+Last updated: September 3, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -13,7 +13,8 @@ Current state:
 - Main active module: **Attention**.
 - Most mature channel: **Web chatbot**.
 - Channel in testing: **Gmail email agent**, in supervised drafts mode.
-- Planned or paused channels: Microsoft/Outlook, voice, WhatsApp, Instagram.
+- Channel in development: validated WhatsApp Cloud API pilot and tenant Embedded Signup.
+- Planned or paused channels: Microsoft/Outlook, voice and Instagram.
 - Client dashboard: **Agora**, per venue.
 - Internal panel: **Backstage**.
 - Current commercial model: 15-day free trial, upgrade to paid plans and add-ons.
@@ -390,6 +391,16 @@ Implemented:
   the question, answer, provider, language decision, retrieval sources/chunks,
   feedback and persisted trace metadata for support and debugging without
   screenshots.
+- Backstage can request an on-demand AI diagnostic for a persisted response
+  trace or a Knowledge source with processing errors. The browser submits only
+  the tenant and artifact identifiers; the authenticated server reloads and
+  sanitizes the evidence, rate-limits the operator, and calls the internal
+  `talia-ai` diagnostic endpoint server-to-server. Reports distinguish probable
+  causes from proven root causes, expose confidence, evidence, recommended
+  checks and limitations, can be downloaded as versioned JSON, and never run a
+  repair automatically. Successful generations record an audit event without
+  persisting the report body, and their measured model usage is attributed to
+  the venue as a Backstage diagnostic component.
 
 Pending:
 
@@ -397,6 +408,9 @@ Pending:
 - Consolidate knowledge as the primary source ahead of free-form prompts.
 - Improve integrated preview/test.
 - Validate `/v1/chat/respond` and its analytics contract under production load.
+- Persist bounded gateway/service incidents that fail before an assistant
+  message exists, so the same Backstage diagnostic flow can cover hard HTTP
+  failures as well as persisted fallbacks and response-quality incidents.
 
 Reference:
 
@@ -591,6 +605,109 @@ Context:
 Reference:
 
 - `docs/requirements/voice-agent.md`.
+
+### WhatsApp
+
+Status: native Cloud API pilot in development; not commercially available.
+
+Implemented:
+
+- Meta webhook verification and signed-body validation in the Next.js provider
+  boundary.
+- A real inbound message from Meta's test number reaches the deployed TALIA
+  webhook successfully.
+- Backend-only venue mapping by WABA ID and phone-number ID.
+- Atomic, idempotent persistence of channel-local contacts, conversations and
+  messages, followed by a durable inbound job.
+- Rollout, module and entitlement gates fail closed before agent processing.
+- Unsupported message types enter human handoff without retaining the raw Meta
+  payload.
+- WhatsApp content and channel-local identities use the common 90-day content
+  retention policy.
+- A dedicated `/v1/whatsapp/respond` runtime in `talia-ai` applies WhatsApp
+  policy and retrieval without provider side effects. Its safe default returns
+  a non-sendable human handoff when evidence is insufficient.
+- A durable worker in `talia-client` claims inbound jobs, persists one
+  idempotent outbound reply before calling Meta, sends through Cloud API and
+  atomically completes the message, conversation and job after confirmation.
+- Consecutive messages from the same WhatsApp conversation are coalesced into
+  one natural-language turn after a 2.5-second quiet window, capped at 8 seconds
+  from the first message. Every inbound message remains individually durable
+  and billable, while the turn produces one agent request and at most one reply.
+- A final transactional freshness check prevents TALIA from sending a generated
+  reply when a newer message has arrived. The stale turn is requeued and
+  regenerated with the new message instead.
+- The first confirmed automated response in a conversation clearly identifies
+  Talía as an AI agent for the venue in the response language, falling back to
+  the venue language. A duplicate leading greeting is removed from the generated
+  answer before the disclosure is prepended. The disclosure is not repeated and
+  is only persisted after Meta confirms the send.
+- Confirmed Meta rejections can retry with bounded backoff. Network timeouts or
+  invalid success responses are treated as uncertain outcomes and move to
+  handoff without automatic resend.
+- Signed Meta status webhooks reconcile outbound `sent`, `delivered`, `read` and
+  `failed` states idempotently without allowing out-of-order callbacks to move a
+  message backwards. Confirmed delivery failures enter operator handoff. Only
+  bounded error codes and pricing classifications are retained.
+- The webhook schedules a best-effort post-response worker wake-up, while a
+  one-minute authenticated Vercel cron recovers durable jobs independently.
+- WhatsApp message, fallback and measured AI usage events use the canonical
+  `whatsapp` module/channel without phone numbers or message content in their
+  operational metadata.
+- Àgora exposes WhatsApp as an independent attention agent with its own
+  conversation history. Tenant viewers can inspect masked conversation lists
+  and transcripts. A reusable in-conversation navigator jumps directly to the
+  message that triggered the current human handoff, where the operator controls
+  are shown inline. Owners, administrators and operators can reply or ignore:
+  opening the reply composer atomically claims the handoff, a confirmed manual
+  send resolves it automatically, and ignoring resolves it without sending.
+  Both decisions are audited. Manual sends are persisted before Meta is called,
+  are idempotent, and never retry automatically when the provider outcome is
+  uncertain.
+- Owners, administrators and operators can also take over any active WhatsApp
+  conversation before an error or handoff occurs. While manual mode is active,
+  new inbound messages remain durable but automatic replies are suppressed;
+  the assigned operator can send multiple replies and explicitly return the
+  conversation to TALIA. Takeover and release are tenant-scoped and audited.
+- Owners and administrators can review any successfully sent TALIA answer in a
+  WhatsApp transcript, edit the grouped inbound question and official answer,
+  and publish it as an active manual FAQ. The FAQ is linked to the originating
+  WhatsApp message, reindexed immediately and remains governed through the
+  shared venue Knowledge surface.
+- WhatsApp treats the latest inbound message as authoritative for response
+  language; the venue language is only a fallback when the message language
+  cannot be established.
+- Venue owners and administrators have a dedicated WhatsApp connection surface
+  in Àgora. It uses Meta Embedded Signup v4, exchanges the 30-second browser code
+  server-to-server, validates the selected WABA/phone pair and stores the
+  business token plus generated two-step PIN in a per-connection AES-256-GCM
+  envelope. Outbound automated and manual sends resolve the credential by venue
+  and phone-number ID; the original environment token remains only as a
+  backwards-compatible pilot source.
+
+Validated in the current pilot:
+
+- The end-to-end canary with TALIA's test tenant and Meta test number receives,
+  grounds and returns a real WhatsApp response.
+- A six-message burst is coalesced into one grounded response, all six inbound
+  jobs complete, and Meta delivery callbacks advance the outbound message to
+  `read` without generating another agent turn.
+- Real low-confidence/manual-reply and unsupported-message/ignore handoffs have
+  been completed from Àgora against Meta. Both cases resolve correctly and are
+  reflected in Supabase.
+
+Pending:
+
+- Configure the production Login for Business configuration, allowed domains
+  and App Review/Access Verification gates in Meta.
+- Run the first non-TALIA tenant onboarding canary through Embedded Signup and
+  retain evidence of inbound, automated outbound and operator handoff.
+- Add managed credential renewal, revocation and disconnect flows before broad
+  commercial availability.
+
+Reference:
+
+- `docs/operations/whatsapp-cloud-api-development.md`.
 
 ## Billing and Trial
 

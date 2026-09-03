@@ -2018,6 +2018,66 @@ export type Database = {
         }
         Returns: string | null
       }
+      claim_whatsapp_inbound_jobs: {
+        Args: {
+          p_lease_seconds?: number
+          p_limit?: number
+          p_worker_id: string
+        }
+        Returns: {
+          attempt_count: number
+          connection_id: string
+          job_id: string
+          message_id: string
+          theatre_id: string
+        }[]
+      }
+      complete_whatsapp_agent_handoff: {
+        Args: {
+          p_agent_metadata?: Json
+          p_failed?: boolean
+          p_job_id: string
+          p_outbound_delivery_status?: string
+          p_outbound_message_id?: string
+          p_reason: string
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      complete_whatsapp_agent_reply: {
+        Args: {
+          p_agent_metadata?: Json
+          p_job_id: string
+          p_outbound_message_id: string
+          p_provider_message_id: string
+          p_resolution?: Json
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      complete_whatsapp_conversation_turn: {
+        Args: {
+          p_agent_metadata?: Json
+          p_job_id: string
+          p_outbound_message_id: string
+          p_provider_message_id: string
+          p_resolution?: Json
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      complete_whatsapp_conversation_turn_handoff: {
+        Args: {
+          p_agent_metadata?: Json
+          p_failed?: boolean
+          p_job_id: string
+          p_outbound_delivery_status?: string
+          p_outbound_message_id?: string
+          p_reason: string
+          p_worker_id: string
+        }
+        Returns: string
+      }
       current_theatre_id: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -2044,6 +2104,148 @@ export type Database = {
           theatre_id: string
           theatre_name: string
         }[]
+      }
+      get_whatsapp_connection_credentials: {
+        Args: {
+          p_phone_number_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      get_whatsapp_connection_disconnect_context: {
+        Args: {
+          p_actor_user_id: string
+          p_connection_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      get_whatsapp_connection_summary: {
+        Args: {
+          p_actor_user_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      disconnect_whatsapp_connection: {
+        Args: {
+          p_actor_user_id: string
+          p_connection_id: string
+          p_provider_error_code?: string | null
+          p_provider_unsubscribed?: boolean
+          p_theatre_id: string
+        }
+        Returns: string
+      }
+      save_whatsapp_embedded_connection: {
+        Args: {
+          p_actor_user_id: string
+          p_business_id: string
+          p_credential_metadata: Json
+          p_display_phone_number: string | null
+          p_error_code?: string | null
+          p_phone_number_id: string
+          p_status: string
+          p_theatre_id: string
+          p_verified_name: string | null
+          p_waba_id: string
+        }
+        Returns: string
+      }
+      get_whatsapp_inbound_job_context: {
+        Args: {
+          p_job_id: string
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      get_whatsapp_handoff_detail: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      get_whatsapp_conversation_history: {
+        Args: {
+          p_actor_user_id: string
+          p_limit?: number
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      get_whatsapp_handoff_queue: {
+        Args: {
+          p_actor_user_id: string
+          p_limit?: number
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      claim_whatsapp_handoff: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_theatre_id: string
+        }
+        Returns: string
+      }
+      prepare_whatsapp_operator_reply: {
+        Args: {
+          p_actor_user_id: string
+          p_body_text: string
+          p_conversation_id: string
+          p_idempotency_key: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      start_whatsapp_operator_reply_send: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_outbound_message_id: string
+          p_theatre_id: string
+        }
+        Returns: string
+      }
+      complete_whatsapp_operator_reply: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_outbound_message_id: string
+          p_provider_message_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
+      }
+      fail_whatsapp_operator_reply: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_delivery_status: string
+          p_error_code: string
+          p_outbound_message_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
+      }
+      resolve_whatsapp_handoff: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_theatre_id: string
+        }
+        Returns: string
+      }
+      ignore_whatsapp_handoff: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_theatre_id: string
+        }
+        Returns: string
       }
       get_backstage_response_trace_metrics: {
         Args: {
@@ -2077,6 +2279,73 @@ export type Database = {
         }
         Returns: boolean
       }
+      finish_whatsapp_inbound_job: {
+        Args: {
+          p_error_code?: string
+          p_error_message?: string
+          p_job_id: string
+          p_retry_delay_seconds?: number
+          p_status: string
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      mark_whatsapp_agent_send_started: {
+        Args: {
+          p_job_id: string
+          p_outbound_message_id: string
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      prepare_whatsapp_agent_reply: {
+        Args: {
+          p_agent_metadata?: Json
+          p_job_id: string
+          p_reply: string
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      prepare_whatsapp_conversation_turn: {
+        Args: {
+          p_agent_metadata?: Json
+          p_job_id: string
+          p_reply: string
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      retry_whatsapp_conversation_turn: {
+        Args: {
+          p_error_code: string
+          p_error_message: string
+          p_job_id: string
+          p_outbound_message_id?: string
+          p_retry_delay_seconds?: number
+          p_worker_id: string
+        }
+        Returns: string
+      }
+      retry_whatsapp_agent_reply: {
+        Args: {
+          p_error_code: string
+          p_error_message: string
+          p_job_id: string
+          p_outbound_message_id: string
+          p_retry_delay_seconds?: number
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      start_whatsapp_conversation_turn_send: {
+        Args: {
+          p_job_id: string
+          p_outbound_message_id: string
+          p_worker_id: string
+        }
+        Returns: string
+      }
       set_knowledge_web_sync_enabled: {
         Args: {
           p_enabled: boolean
@@ -2098,6 +2367,43 @@ export type Database = {
           p_theatre_id: string
         }
         Returns: undefined
+      }
+      ingest_whatsapp_message: {
+        Args: {
+          p_body_text: string
+          p_context_provider_message_id?: string
+          p_message_type: string
+          p_metadata?: Json
+          p_phone_number_id: string
+          p_processable?: boolean
+          p_profile_name: string
+          p_provider_message_id: string
+          p_provider_timestamp: string
+          p_sender_wa_id: string
+          p_waba_id: string
+        }
+        Returns: {
+          inbound_job_id: string | null
+          inbound_message_id: string | null
+          outcome: string
+          resolved_theatre_id: string | null
+        }[]
+      }
+      reconcile_whatsapp_delivery_status: {
+        Args: {
+          p_delivery_status: string
+          p_error_code?: string
+          p_metadata?: Json
+          p_phone_number_id: string
+          p_provider_message_id: string
+          p_provider_timestamp: string
+          p_waba_id: string
+        }
+        Returns: {
+          outcome: string
+          outbound_message_id: string | null
+          resolved_theatre_id: string | null
+        }[]
       }
       get_tenant_usage_totals: {
         Args: {

@@ -3,7 +3,7 @@
 import type { SVGProps } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bot, Database, Inbox, LayoutDashboard, Mail, MessageSquare, Network, SlidersHorizontal, Zap } from 'lucide-react'
+import { Bot, Database, Inbox, LayoutDashboard, Mail, MessageCircle, MessageSquare, Network, SlidersHorizontal, Zap } from 'lucide-react'
 import { FREE_TRIAL_DAYS } from '@/lib/billing/plans'
 import {
   hasTenantPermission,
@@ -44,6 +44,7 @@ type DashboardNavLabels = {
   webChatbot: string
   accessibility: string
   emailAgent: string
+  whatsappAgent: string
   inbox: string
   intelligence: string
   knowledge: string
@@ -89,16 +90,19 @@ export function DashboardNav({
   const chatbotEnabled = isTenantModuleEnabled(modules.web)
   const dataEnabled = isTenantModuleEnabled(modules.data)
   const emailEnabled = isTenantModuleEnabled(modules.email)
+  const whatsappEnabled = isTenantModuleEnabled(modules.whatsapp)
   const canViewConversations = hasTenantPermission(role, 'view_conversations')
   const canViewAnalytics = hasTenantPermission(role, 'view_analytics')
   const canManageChatbot = hasTenantPermission(role, 'manage_chatbot')
   const canManageKnowledge = hasTenantPermission(role, 'manage_knowledge')
   const canManageEmail = hasTenantPermission(role, 'manage_email')
+  const canManageWhatsapp = hasTenantPermission(role, 'manage_whatsapp')
   const showChatbot = hasProductAccess && chatbotEnabled && (canManageChatbot || canViewConversations || (dataEnabled && canViewAnalytics))
   const showAccessibility = hasProductAccess && chatbotEnabled && canManageChatbot
   const showKnowledge = hasProductAccess && dataEnabled && canManageKnowledge
   const showEmail = emailAgentPreviewEnabled && hasProductAccess && emailEnabled && canManageEmail
-  const showAttention = showChatbot || showAccessibility || showEmail
+  const showWhatsapp = hasProductAccess && whatsappEnabled && canViewConversations
+  const showAttention = showChatbot || showAccessibility || showEmail || showWhatsapp
   const chatbotConfigurationHref = getChatbotConfigurationHref(tenantId, chatbotSetupCompleted)
   const trialProgress = trialDaysRemaining === null
     ? 0
@@ -227,6 +231,36 @@ export function DashboardNav({
             </div>
           ) : null}
 
+          {showWhatsapp ? (
+            <div className="nav-channel">
+              <div className="nav-channel-title">
+                <span className="nav-channel-title-main">
+                  <MessageCircle size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
+                  <span>{labels.whatsappAgent}</span>
+                </span>
+                <span className="nav-channel-status">{labels.active}</span>
+              </div>
+              <div className="nav-subnav">
+                <Link
+                  className={`nav-link nav-link-nested ${isWhatsappConversationPath(pathname, tenantId) ? 'nav-link-active' : ''}`}
+                  href={`/${tenantId}/whatsapp`}
+                >
+                  <MessageSquare size={14} strokeWidth={2} aria-hidden="true" />
+                  {labels.conversations}
+                </Link>
+                {canManageWhatsapp ? (
+                  <Link
+                    className={`nav-link nav-link-nested ${active(`/${tenantId}/whatsapp/settings`) ? 'nav-link-active' : ''}`}
+                    href={`/${tenantId}/whatsapp/settings`}
+                  >
+                    <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
+                    {labels.settings}
+                  </Link>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
         </div>
       ) : null}
 
@@ -265,4 +299,9 @@ export function DashboardNav({
       ) : null}
     </nav>
   )
+}
+
+function isWhatsappConversationPath(pathname: string, tenantId: string) {
+  const root = `/${tenantId}/whatsapp`
+  return pathname === root || (pathname.startsWith(`${root}/`) && pathname !== `${root}/settings`)
 }

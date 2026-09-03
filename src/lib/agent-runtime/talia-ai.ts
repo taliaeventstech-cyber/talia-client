@@ -180,6 +180,7 @@ function parseUsageComponents(value: unknown): ChatAiUsageComponent[] {
     const model = item.model
     if (
       component !== 'answer_agent'
+      && component !== 'grounding_review_agent'
       && component !== 'language_agent'
       && component !== 'retrieval_embedding'
     ) return []

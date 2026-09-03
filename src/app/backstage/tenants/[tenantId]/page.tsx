@@ -25,6 +25,7 @@ import { getBackstageResponseTraceMetrics } from '@/lib/knowledge/backstage-resp
 import { summarizeRetrievalTrace, type RetrievalTraceAttempt } from '@/lib/chat/retrieval-trace'
 import { hasKnowledgeSourceDebugData, type DebuggableSource } from '@/lib/knowledge/source-debug'
 import { BackstageKnowledgeSourceDebugDownloadButton } from './knowledge-source-debug-download-button'
+import { BackstageAiDiagnosticPanel } from './ai-diagnostic-panel'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -719,6 +720,11 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                             trace={traceExport}
                           />
                         </div>
+                        <BackstageAiDiagnosticPanel
+                          tenantId={tenantId}
+                          artifactType="response_trace"
+                          artifactId={message.id}
+                        />
                         <details className="rag-trace-details traceability-details">
                           <summary>Ver respuesta y detalle RAG</summary>
                           <div className="rag-trace-detail-body">
@@ -957,7 +963,14 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                       </p>
                     ) : null}
                     {hasKnowledgeSourceDebugData(debugSource) ? (
-                      <BackstageKnowledgeSourceErrorDetails source={debugSource} />
+                      <>
+                        <BackstageKnowledgeSourceErrorDetails source={debugSource} />
+                        <BackstageAiDiagnosticPanel
+                          tenantId={tenantId}
+                          artifactType="knowledge_source"
+                          artifactId={source.id}
+                        />
+                      </>
                     ) : null}
                     {chunkStatsAvailable && stats.total > 0 ? (
                       <div className="knowledge-embedding-stats" aria-label="Estado de embeddings">

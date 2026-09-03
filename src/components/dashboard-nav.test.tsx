@@ -13,6 +13,7 @@ const labels = {
   webChatbot: 'Web Agent',
   accessibility: 'Accessibility',
   emailAgent: 'Email agent',
+  whatsappAgent: 'WhatsApp agent',
   inbox: 'Inbox',
   intelligence: 'Intelligence',
   knowledge: 'Knowledge',
@@ -53,5 +54,26 @@ describe('getChatbotConfigurationHref', () => {
 
     expect(html).toContain('href="/tenant-1/chatbot/setup"')
     expect(html).toContain('Configuration')
+  })
+
+  it('shows WhatsApp as an independent attention agent when its module is active', () => {
+    const html = renderToStaticMarkup(
+      <DashboardNav
+        tenantId="tenant-1"
+        labels={labels}
+        role="operator"
+        modules={{ whatsapp: 'active' }}
+        hasProductAccess
+        needsUpgrade={false}
+        isTrialExpired={false}
+        trialDaysRemaining={null}
+        chatbotSetupCompleted={false}
+        emailAgentPreviewEnabled={false}
+      />,
+    )
+
+    expect(html).toContain('WhatsApp agent')
+    expect(html).toContain('href="/tenant-1/whatsapp"')
+    expect(html).not.toContain('Web Agent')
   })
 })

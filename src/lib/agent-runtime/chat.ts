@@ -37,7 +37,7 @@ export type ChatAgentPendingClarification = {
 }
 
 export type ChatAiUsageComponent = {
-  component: 'answer_agent' | 'language_agent' | 'retrieval_embedding'
+  component: 'answer_agent' | 'diagnostic_agent' | 'grounding_review_agent' | 'language_agent' | 'retrieval_embedding'
   provider: string
   model: string
   request_count: number

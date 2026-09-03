@@ -9678,6 +9678,155 @@ textarea {
   color: var(--color-brand);
 }
 
+.backstage-ai-diagnostic {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.backstage-ai-diagnostic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.backstage-ai-diagnostic-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--color-brand) 42%, var(--color-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-brand) 11%, transparent);
+  color: var(--color-brand);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 10px;
+}
+
+.backstage-ai-diagnostic-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-brand) 17%, transparent);
+}
+
+.backstage-ai-diagnostic-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.backstage-ai-diagnostic-error {
+  margin: 0;
+  border: 0.5px solid color-mix(in srgb, #ef4444 36%, var(--color-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, #ef4444 7%, transparent);
+  color: #ef4444;
+  font-size: 12px;
+  padding: 9px 11px;
+}
+
+.backstage-ai-diagnostic-report {
+  display: grid;
+  gap: 13px;
+  border: 0.5px solid color-mix(in srgb, var(--color-brand) 30%, var(--color-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-brand) 5%, var(--color-surface));
+  padding: 14px;
+}
+
+.backstage-ai-diagnostic-report p,
+.backstage-ai-diagnostic-report ul,
+.backstage-ai-diagnostic-report ol {
+  margin: 0;
+}
+
+.backstage-ai-diagnostic-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.backstage-ai-diagnostic-heading > div > span,
+.backstage-ai-diagnostic-section h5 {
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.backstage-ai-diagnostic-heading h4 {
+  margin: 3px 0 0;
+  font-size: 15px;
+}
+
+.backstage-ai-confidence {
+  flex-shrink: 0;
+  border: 0.5px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 8px;
+}
+
+.backstage-ai-confidence-high {
+  border-color: color-mix(in srgb, var(--color-success) 38%, var(--color-border));
+  color: var(--color-success);
+}
+
+.backstage-ai-confidence-medium {
+  border-color: color-mix(in srgb, var(--color-warning) 42%, var(--color-border));
+  color: var(--color-warning);
+}
+
+.backstage-ai-diagnostic-section {
+  display: grid;
+  gap: 7px;
+}
+
+.backstage-ai-diagnostic-section h5 {
+  margin: 0;
+}
+
+.backstage-ai-diagnostic-section ul,
+.backstage-ai-diagnostic-section ol,
+.backstage-ai-diagnostic-limitations ul {
+  display: grid;
+  gap: 8px;
+  padding-left: 20px;
+}
+
+.backstage-ai-diagnostic-section li strong,
+.backstage-ai-diagnostic-section li span {
+  display: block;
+}
+
+.backstage-ai-diagnostic-section li span {
+  margin-top: 2px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.backstage-ai-diagnostic-limitations summary {
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.backstage-ai-diagnostic-limitations ul {
+  margin: 8px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.backstage-ai-diagnostic-report > small {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+}
+
 @media (max-width: 720px) {
   .traceability-export-row {
     align-items: flex-start;
@@ -9687,6 +9836,17 @@ textarea {
   .trace-download-button {
     width: 100%;
     justify-content: center;
+  }
+
+  .backstage-ai-diagnostic-actions,
+  .backstage-ai-diagnostic-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .backstage-ai-diagnostic-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .knowledge-file-item {
@@ -10301,7 +10461,8 @@ textarea {
 }
 
 .message-card[id^="response-"],
-.message-card[id^="question-"] {
+.message-card[id^="question-"],
+.message-card[data-attention-target] {
   scroll-margin-top: 154px;
   transition:
     border-color 220ms ease,
@@ -10310,7 +10471,8 @@ textarea {
     transform 220ms ease;
 }
 
-.message-card[id^="response-"]:target {
+.message-card[id^="response-"]:target,
+.message-card[data-attention-target]:target {
   border-color: color-mix(in srgb, var(--color-brand) 70%, var(--color-border));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 13%, transparent);
 }
@@ -12140,4 +12302,186 @@ textarea {
 
 @keyframes knowledge-realtime-pulse {
   50% { opacity: 0.3; }
+}
+
+.whatsapp-handoff-empty {
+  display: grid;
+  min-height: 180px;
+  place-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.whatsapp-handoff-empty p {
+  margin: 0;
+}
+
+.whatsapp-handoff-table-wrap {
+  overflow-x: auto;
+}
+
+.whatsapp-contact-mask {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+}
+
+.whatsapp-message-preview {
+  max-width: 420px;
+  white-space: normal;
+}
+
+.whatsapp-handoff-open-cell {
+  text-align: right;
+}
+
+.whatsapp-handoff-open-link {
+  display: inline-grid;
+  place-items: center;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.whatsapp-handoff-metadata {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.whatsapp-handoff-metadata dt {
+  color: var(--color-text-tertiary);
+}
+
+.whatsapp-handoff-metadata dd {
+  margin: 0;
+}
+
+.whatsapp-message-body {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.whatsapp-message-body + .status-pill {
+  margin-top: 12px;
+}
+
+.whatsapp-message-attention {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 0.5px solid color-mix(in srgb, var(--color-border) 76%, transparent);
+}
+
+.whatsapp-message-attention .whatsapp-operator-panel {
+  position: static;
+  width: 100%;
+  max-width: 620px;
+}
+
+.whatsapp-operator-panel {
+  position: sticky;
+  top: 24px;
+  padding: 20px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+.whatsapp-operator-panel > p,
+.whatsapp-operator-panel form,
+.whatsapp-operator-reply-form label {
+  margin: 0;
+}
+
+.whatsapp-operator-reply-form textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.whatsapp-operator-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.whatsapp-connection-card {
+  max-width: 760px;
+}
+
+.whatsapp-settings-header,
+.whatsapp-conversations-header {
+  display: grid;
+  gap: 8px;
+  max-width: 760px;
+}
+
+.whatsapp-connection-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.whatsapp-connection-action {
+  align-items: flex-start;
+  padding-top: 8px;
+}
+
+.whatsapp-connection-state-description {
+  max-width: 620px;
+  margin: 0;
+  line-height: 1.55;
+}
+
+.whatsapp-connection-action p,
+.whatsapp-connection-permissions {
+  margin: 0;
+}
+
+.whatsapp-disconnect-action {
+  align-items: flex-start;
+  padding-top: 8px;
+}
+
+.whatsapp-disconnect-confirmation {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-width: 620px;
+  padding: 16px;
+  border: 0.5px solid color-mix(in srgb, var(--color-error) 35%, var(--color-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-error) 5%, var(--color-surface));
+}
+
+.whatsapp-disconnect-confirmation p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.whatsapp-disconnect-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .whatsapp-operator-panel {
+    position: static;
+    grid-row: 1;
+  }
+
+  .whatsapp-handoff-metadata {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .whatsapp-handoff-metadata dd + dt {
+    margin-top: 8px;
+  }
 }
