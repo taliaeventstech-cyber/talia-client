@@ -392,7 +392,8 @@ Implemented:
   feedback and persisted trace metadata for support and debugging without
   screenshots.
 - Backstage can request an on-demand AI diagnostic for a persisted response
-  trace or a Knowledge source with processing errors. The browser submits only
+  trace that is unrated or rated negatively, or for a Knowledge source with
+  processing errors. Positively rated responses do not expose the action. The browser submits only
   the tenant and artifact identifiers; the authenticated server reloads and
   sanitizes the evidence, rate-limits the operator, and calls the internal
   `talia-ai` diagnostic endpoint server-to-server. Reports distinguish probable
@@ -401,6 +402,16 @@ Implemented:
   repair automatically. Successful generations record an audit event without
   persisting the report body, and their measured model usage is attributed to
   the venue as a Backstage diagnostic component.
+- Response diagnostics run a fresh, bounded hybrid Knowledge search from the
+  original visitor question before generating the report. The diagnostic agent
+  compares up to 12 tenant-scoped results with the answer and original trace,
+  identifies contradictory values and scope mismatches, and cites the source
+  IDs behind each observation. Generic FAQs, section headings and source
+  language are not treated as evidence for an attribute of a named event when
+  a subject-specific source says otherwise. Backstage shows the investigation
+  query, number of evidences reviewed and competing values directly in the
+  report. Retrieval-embedding and diagnostic-agent usage remain measured as
+  separate AI components.
 
 Pending:
 

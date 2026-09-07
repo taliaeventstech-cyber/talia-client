@@ -99,6 +99,41 @@ export function BackstageAiDiagnosticReport({ analysis }: { analysis: Diagnostic
       </div>
       <p>{analysis.report.summary}</p>
 
+      <div className="backstage-ai-knowledge-review">
+        <span>Revisión de Knowledge</span>
+        <strong>{getKnowledgeReviewLabel(analysis.report.knowledge_review)}</strong>
+        {analysis.report.knowledge_review.query ? (
+          <small>Consulta: {analysis.report.knowledge_review.query}</small>
+        ) : null}
+      </div>
+
+      {analysis.report.discrepancies.length ? (
+        <div className="backstage-ai-diagnostic-section">
+          <h5>Discrepancias de conocimiento</h5>
+          <div className="backstage-ai-discrepancies">
+            {analysis.report.discrepancies.map((discrepancy, index) => (
+              <article key={`${discrepancy.subject}-${discrepancy.attribute}-${index}`}>
+                <div>
+                  <strong>{discrepancy.subject}</strong>
+                  <span>{discrepancy.attribute} · {getAssessmentLabel(discrepancy.assessment)}</span>
+                </div>
+                <p>{discrepancy.explanation}</p>
+                <ul>
+                  {discrepancy.values.map((value, valueIndex) => (
+                    <li key={`${value.value}-${valueIndex}`}>
+                      <strong>{value.value}</strong>
+                      <span>
+                        {getSpecificityLabel(value.specificity)} · fuentes {value.source_ids.join(', ')}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {analysis.report.findings.length ? (
         <div className="backstage-ai-diagnostic-section">
           <h5>Evidencias</h5>
@@ -146,6 +181,7 @@ export function BackstageAiDiagnosticReport({ analysis }: { analysis: Diagnostic
 function getClassificationLabel(classification: DiagnosticAnalysis['report']['classification']) {
   const labels = {
     knowledge_gap: 'Falta de conocimiento',
+    knowledge_conflict: 'Conflicto en Knowledge',
     retrieval_failure: 'Fallo de recuperación',
     grounding_rejection: 'Rechazo de grounding',
     configuration: 'Configuración',
@@ -156,6 +192,25 @@ function getClassificationLabel(classification: DiagnosticAnalysis['report']['cl
     insufficient_evidence: 'Evidencia insuficiente',
   }
   return labels[classification]
+}
+
+function getKnowledgeReviewLabel(review: DiagnosticAnalysis['report']['knowledge_review']) {
+  if (review.status === 'completed') return `${review.sources_reviewed} evidencias revisadas`
+  if (review.status === 'unavailable') return 'Búsqueda no disponible'
+  return 'Sin consulta aplicable'
+}
+
+function getAssessmentLabel(assessment: DiagnosticAnalysis['report']['discrepancies'][number]['assessment']) {
+  if (assessment === 'conflict') return 'contradicción'
+  if (assessment === 'scope_mismatch') return 'desajuste de alcance'
+  if (assessment === 'resolved') return 'resuelta por evidencia específica'
+  return 'ambigua'
+}
+
+function getSpecificityLabel(specificity: DiagnosticAnalysis['report']['discrepancies'][number]['values'][number]['specificity']) {
+  if (specificity === 'subject_specific') return 'evidencia específica'
+  if (specificity === 'general') return 'evidencia genérica'
+  return 'alcance indeterminado'
 }
 
 function getConfidenceLabel(confidence: DiagnosticAnalysis['report']['confidence']) {

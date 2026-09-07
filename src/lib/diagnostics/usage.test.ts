@@ -5,11 +5,28 @@ const analysis = {
   provider: 'openai',
   model: 'gpt-test',
   usage: {
+    request_count: 2,
+    input_tokens: 28,
+    cached_input_tokens: 5,
+    output_tokens: 10,
+  },
+  usageComponents: [{
+    component: 'diagnostic_agent' as const,
+    provider: 'openai',
+    model: 'gpt-test',
     request_count: 1,
     input_tokens: 20,
     cached_input_tokens: 5,
     output_tokens: 10,
-  },
+  }, {
+    component: 'retrieval_embedding' as const,
+    provider: 'openai',
+    model: 'text-embedding-test',
+    request_count: 1,
+    input_tokens: 8,
+    cached_input_tokens: 0,
+    output_tokens: 0,
+  }],
   report: {
     schema_version: 'talia.diagnostic_report.v1' as const,
     generated_at: '2026-09-03T10:00:00.000Z',
@@ -19,6 +36,13 @@ const analysis = {
     classification: 'knowledge_gap' as const,
     confidence: 'high' as const,
     findings: [],
+    knowledge_review: {
+      status: 'completed' as const,
+      query: '¿En qué idioma es L’Estanquera del Raval?',
+      sources_reviewed: 2,
+      source_ids: ['generic-language-faq', 'event-page'],
+    },
+    discrepancies: [],
     recommended_actions: [],
     limitations: [],
   },
@@ -44,7 +68,7 @@ describe('recordDiagnosticUsage', () => {
     expect(recordUsageEvent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       channel: 'backstage',
       eventType: 'ai_call',
-      inputTokens: 20,
+      inputTokens: 28,
       outputTokens: 10,
       idempotencyKey: 'backstage-diagnostic:diagnostic-run-1:ai_call',
     }))
@@ -58,6 +82,14 @@ describe('recordDiagnosticUsage', () => {
         input_tokens: 20,
         cached_input_tokens: 5,
         output_tokens: 10,
+      }, {
+        component: 'retrieval_embedding',
+        provider: 'openai',
+        model: 'text-embedding-test',
+        request_count: 1,
+        input_tokens: 8,
+        cached_input_tokens: 0,
+        output_tokens: 0,
       }],
     }))
   })

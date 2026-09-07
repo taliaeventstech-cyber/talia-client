@@ -12,6 +12,13 @@ const report = {
   classification: 'knowledge_gap',
   confidence: 'high',
   findings: [],
+  knowledge_review: {
+    status: 'completed',
+    query: '¿En qué idioma es L’Estanquera del Raval?',
+    sources_reviewed: 2,
+    source_ids: ['generic-language-faq', 'event-page'],
+  },
+  discrepancies: [],
   recommended_actions: [],
   limitations: [],
 }
@@ -22,6 +29,16 @@ const usage = {
   cached_input_tokens: 5,
   output_tokens: 10,
 }
+
+const usageComponents = [{
+  component: 'diagnostic_agent',
+  provider: 'openai',
+  model: 'gpt-test',
+  request_count: 1,
+  input_tokens: 20,
+  cached_input_tokens: 5,
+  output_tokens: 10,
+}]
 
 describe('analyzeDiagnosticWithTaliaAi', () => {
   afterEach(() => {
@@ -40,6 +57,7 @@ describe('analyzeDiagnosticWithTaliaAi', () => {
       provider: 'openai',
       model: 'gpt-test',
       usage,
+      usage_components: usageComponents,
     }), { status: 200 })))
 
     const result = await analyzeDiagnosticWithTaliaAi({
@@ -51,7 +69,12 @@ describe('analyzeDiagnosticWithTaliaAi', () => {
 
     expect(result).toMatchObject({
       ok: true,
-      analysis: { report: { classification: 'knowledge_gap' }, model: 'gpt-test', usage },
+      analysis: {
+        report: { classification: 'knowledge_gap' },
+        model: 'gpt-test',
+        usage,
+        usageComponents,
+      },
     })
     expect(fetch).toHaveBeenCalledWith(
       'https://talia-ai.example.test/v1/diagnostics/analyze',
@@ -72,6 +95,7 @@ describe('analyzeDiagnosticWithTaliaAi', () => {
       provider: 'openai',
       model: 'gpt-test',
       usage,
+      usage_components: usageComponents,
     }), { status: 200 })))
 
     await expect(analyzeDiagnosticWithTaliaAi({
