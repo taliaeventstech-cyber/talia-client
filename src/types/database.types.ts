@@ -2262,6 +2262,15 @@ export type Database = {
           without_sources: number
         }[]
       }
+      get_backstage_response_traces: {
+        Args: {
+          p_channel?: string | null
+          p_limit?: number
+          p_offset?: number
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
       finish_email_sync_run: {
         Args: {
           p_checked_count?: number

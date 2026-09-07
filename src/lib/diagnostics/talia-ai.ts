@@ -1,9 +1,11 @@
 import {
   diagnosticReportSchema,
+  diagnosticUsageComponentSchema,
   diagnosticUsageSchema,
   type DiagnosticAnalysis,
   type DiagnosticArtifactType,
 } from './report'
+import { z } from 'zod'
 
 const DIAGNOSTIC_REQUEST_TIMEOUT_MS = 100_000
 
@@ -51,13 +53,34 @@ export async function analyzeDiagnosticWithTaliaAi(
     const provider = getRecord(body)?.provider
     const model = getRecord(body)?.model
     const usage = diagnosticUsageSchema.safeParse(getRecord(body)?.usage)
-    if (!report.success || typeof provider !== 'string' || typeof model !== 'string' || !usage.success) {
+    const rawUsageComponents = getRecord(body)?.usage_components
+    const usageComponents = rawUsageComponents === undefined
+      ? null
+      : z.array(diagnosticUsageComponentSchema).safeParse(rawUsageComponents)
+    if (
+      !report.success
+      || typeof provider !== 'string'
+      || typeof model !== 'string'
+      || !usage.success
+      || (usageComponents !== null && !usageComponents.success)
+    ) {
       return { ok: false, error: 'TALIA AI devolvió un diagnóstico con un formato no válido.' }
     }
 
     return {
       ok: true,
-      analysis: { report: report.data, provider, model, usage: usage.data },
+      analysis: {
+        report: report.data,
+        provider,
+        model,
+        usage: usage.data,
+        usageComponents: usageComponents?.data ?? [{
+          component: 'diagnostic_agent',
+          provider,
+          model,
+          ...usage.data,
+        }],
+      },
     }
   } catch (error) {
     const timedOut = error instanceof Error && error.name === 'TimeoutError'

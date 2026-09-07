@@ -41,7 +41,7 @@ export async function recordDiagnosticUsage(
       artifact_type: input.artifactType,
       artifact_id: input.artifactId,
       accuracy: 'measured',
-      component_count: 1,
+      component_count: input.analysis.usageComponents.length,
     },
   })
 
@@ -60,12 +60,7 @@ export async function recordDiagnosticUsage(
     sessionId: `backstage-diagnostic:${input.artifactId}`,
     usageEventId: event.eventId,
     idempotencyPrefix: `backstage-diagnostic:${input.diagnosticRunId}:component`,
-    components: [{
-      component: 'diagnostic_agent',
-      provider: input.analysis.provider,
-      model: input.analysis.model,
-      ...usage,
-    }],
+    components: input.analysis.usageComponents,
     metadata: {
       channel: 'backstage',
       artifact_type: input.artifactType,
