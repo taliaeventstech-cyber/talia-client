@@ -508,13 +508,20 @@ async function markUnknownOutcome(
 
 function buildAgentMetadata(result: WhatsappAgentResult) {
   return {
+    ...result.metadata,
     agent: 'whatsapp_agent',
     provider: result.provider,
     model: result.model,
     response_kind: getString(result.metadata.response_kind),
     response_language: getString(result.metadata.response_language),
     resolution: getResolution(result) ?? null,
-    source_ids: result.sources.map((source) => source.id).slice(0, 10),
+    source_ids: result.sources.map((source) => source.source_id ?? source.id).slice(0, 10),
+    agent_sources: result.sources.slice(0, 10).map((source) => ({
+      id: source.id,
+      source_id: source.source_id,
+      source_type: source.source_type,
+      score: source.score,
+    })),
     usage_summary: result.usage_summary,
   }
 }

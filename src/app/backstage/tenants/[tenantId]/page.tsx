@@ -21,11 +21,16 @@ import { buildResponseTraceExport, buildResponseTraceFilename } from '@/lib/know
 import { ResponseTraceDownloadButton } from './response-trace-download-button'
 import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
 import { buildBackstageKnowledgeHealth, loadBackstageKnowledgeChunks, loadBackstageKnowledgeHealth } from '@/lib/knowledge/backstage-knowledge-health'
-import { getBackstageResponseTraceMetrics } from '@/lib/knowledge/backstage-response-trace-metrics'
 import { summarizeRetrievalTrace, type RetrievalTraceAttempt } from '@/lib/chat/retrieval-trace'
 import { hasKnowledgeSourceDebugData, type DebuggableSource } from '@/lib/knowledge/source-debug'
 import { BackstageKnowledgeSourceDebugDownloadButton } from './knowledge-source-debug-download-button'
 import { BackstageAiDiagnosticPanel } from './ai-diagnostic-panel'
+import { shouldOfferResponseDiagnostic } from '@/lib/diagnostics/report'
+import {
+  backstageResponseTraceChannels,
+  getBackstageResponseTraces,
+  type BackstageResponseTraceChannel,
+} from '@/lib/attention/backstage-response-traces'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -33,6 +38,7 @@ interface Props {
     tab?: string
     page?: string
     page_size?: string
+    trace_channel?: string
     source_page?: string
     source_page_size?: string
     source_type?: string
@@ -50,6 +56,8 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
   const activeTab = normalizeVenueTab(query?.tab)
   const tracePageSize = normalizeTracePageSize(query?.page_size)
   const tracePage = normalizePositiveInteger(query?.page, 1)
+  const traceChannelFilter = normalizeTraceChannel(query?.trace_channel)
+  const traceQueryChannel = activeTab === 'traceability' ? traceChannelFilter : null
   const traceFrom = (tracePage - 1) * tracePageSize
   const sourcePageSize = normalizeKnowledgeSourcePageSize(query?.source_page_size)
   const sourcePage = normalizePositiveInteger(query?.source_page, 1)
@@ -57,7 +65,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
   const sourceStatusFilter = normalizeKnowledgeSourceStatusFilter(query?.source_status)
   const sourceFrom = (sourcePage - 1) * sourcePageSize
   const admin = createAdminClient()
-  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, traceMessagesResult, positiveFeedbackCountResult, negativeFeedbackCountResult, traceMetrics, knowledgeSourcesResult, knowledgeSourceSummaries, knowledgeHealthResult, activeKnowledgeSyncResult, managedWebQuota, webAlerts, { data: knowledgeSupportRequests }] = await Promise.all([
+  const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, traceResult, knowledgeSourcesResult, knowledgeSourceSummaries, knowledgeHealthResult, activeKnowledgeSyncResult, managedWebQuota, webAlerts, { data: knowledgeSupportRequests }] = await Promise.all([
     admin
       .from('theatres')
       .select('id, account_id, name, slug, entity_type, primary_language, plan, website_url, fallback_email, fallback_phone, n8n_webhook_url, system_prompt, widget_config, voice_phone_number, voice_phone_provider, voice_phone_mode, voice_public_phone_number, voice_forwarding_notes, voice_operational_status')
@@ -80,26 +88,12 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
       .order('updated_at', { ascending: false })
       .limit(25),
     getActiveSubscription(admin, tenantId),
-    admin
-      .from('messages')
-      .select('id, conversation_id, content, created_at, metadata', { count: 'exact' })
-      .eq('theatre_id', tenantId)
-      .eq('role', 'assistant')
-      .order('created_at', { ascending: false })
-      .range(traceFrom, traceFrom + tracePageSize - 1),
-    admin
-      .from('messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('theatre_id', tenantId)
-      .eq('role', 'assistant')
-      .contains('metadata', { feedback: { rating: 'positive' } }),
-    admin
-      .from('messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('theatre_id', tenantId)
-      .eq('role', 'assistant')
-      .contains('metadata', { feedback: { rating: 'negative' } }),
-    getBackstageResponseTraceMetrics(admin, tenantId),
+    getBackstageResponseTraces(admin, {
+      tenantId,
+      channel: traceQueryChannel,
+      limit: tracePageSize,
+      offset: traceFrom,
+    }),
     getKnowledgeSourcesPage(admin, {
       tenantId,
       sourceType: sourceTypeFilter,
@@ -126,16 +120,21 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
 
   if (!client) notFound()
 
-  const traceMessages = traceMessagesResult.data ?? []
-  const traceCount = traceMessagesResult.count ?? 0
+  const traceMessages = traceResult.items
+  const traceCount = traceResult.count
   const responseFeedbackMetrics = getResponseFeedbackMetrics({
-    positiveCount: positiveFeedbackCountResult.count ?? 0,
-    negativeCount: negativeFeedbackCountResult.count ?? 0,
+    positiveCount: traceResult.metrics.responsePositive,
+    negativeCount: traceResult.metrics.responseNegative,
     totalCount: traceCount,
   })
   const tracePageCount = Math.max(1, Math.ceil(traceCount / tracePageSize))
   if (activeTab === 'traceability' && tracePage > tracePageCount) {
-    redirect(`/backstage/tenants/${tenantId}?tab=traceability&page=${tracePageCount}&page_size=${tracePageSize}`)
+    redirect(buildTraceabilityHref({
+      tenantId,
+      page: tracePageCount,
+      pageSize: tracePageSize,
+      channel: traceChannelFilter,
+    }))
   }
   const knowledgeSources = knowledgeSourcesResult.data ?? []
   const knowledgeSourceCount = knowledgeSourcesResult.count ?? 0
@@ -165,14 +164,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
     .map((source) => source.source_id)
     .filter((sourceId): sourceId is string => Boolean(sourceId))))
   const visibleKnowledgeSourceIds = knowledgeSources.map((source) => source.id)
-  const [{ data: traceConversations }, { data: traceSources }, knowledgeChunksResult, { data: knowledgeDocuments }, { data: knowledgeSyncRuns }] = await Promise.all([
-    traceMessages.length
-      ? admin
-        .from('conversations')
-        .select('id, session_id, metadata')
-        .in('id', traceMessages.map((message) => message.conversation_id))
-        .eq('theatre_id', tenantId)
-      : Promise.resolve({ data: [] }),
+  const [{ data: traceSources }, knowledgeChunksResult, { data: knowledgeDocuments }, { data: knowledgeSyncRuns }] = await Promise.all([
     traceSourceIds.length
       ? admin
         .from('knowledge_sources')
@@ -210,7 +202,6 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
       : Promise.resolve({ data: null }),
     requirePlatformAdmin(),
   ])
-  const conversationById = new Map((traceConversations ?? []).map((conversation) => [conversation.id, conversation]))
   const sourceById = new Map((traceSources ?? []).map((source) => [source.id, source]))
   const chunkStatsAvailable = knowledgeChunksResult.error === null
   const chunkStatsBySource = getChunkStatsBySource(knowledgeChunksResult.data ?? [])
@@ -249,8 +240,8 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
   const knowledgeSourceNameById = new Map(knowledgeSourceSummaries.map((source) => [source.id, getKnowledgeSourceName(source)]))
   const knowledgeSourceTypeOptions = getKnowledgeSourceTypeOptions(knowledgeSourceSummaries)
   const ragHealth = buildBackstageKnowledgeHealth(knowledgeHealthResult.counts)
-  const traceStats = traceMetrics
-  const feedbackStats = traceMetrics
+  const traceStats = traceResult.metrics
+  const feedbackStats = traceResult.metrics
   const accountBilling = getAccountBillingMetadata(account?.metadata)
   const canManageCustomerBilling = hasPlatformPermission(platformAccess.permissions, 'manage_customer_billing')
 
@@ -436,7 +427,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
               </div>
               <span className="status-pill status-pill-muted">{traceCount} respuestas</span>
             </div>
-            <p className="muted">Consulta la evidencia RAG, los fallbacks y las valoraciones de las respuestas del chatbot.</p>
+            <p className="muted">Consulta la evidencia, los fallbacks y las valoraciones de las respuestas de Web, Email y WhatsApp.</p>
             <dl className="backstage-venue-overview-metrics">
               <div><dt>Accuracy</dt><dd>{responseFeedbackMetrics.accuracyPercent === null ? '—' : `${responseFeedbackMetrics.accuracyPercent}%`}</dd></div>
               <div><dt>Valoradas</dt><dd>{responseFeedbackMetrics.ratedCount}</dd></div>
@@ -451,7 +442,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
       <section className="card stack">
         <div className="section-title-row">
           <div>
-            <p className="eyebrow">RAG</p>
+            <p className="eyebrow">Atención</p>
             <h2 className="backstage-knowledge-title"><ScanHeart aria-hidden="true" size={20} strokeWidth={2} />Salud del conocimiento</h2>
           </div>
           <div className="header-actions">
@@ -517,11 +508,26 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
           <span className="status-pill status-pill-muted">{traceCount} respuestas</span>
         </div>
 
-        <p className="muted traceability-summary-caption">Resumen global de todas las respuestas registradas.</p>
+        <p className="muted traceability-summary-caption">
+          Respuestas generadas por el agente de {getTraceChannelLabel(traceChannelFilter)}.
+        </p>
 
-        <div className="rag-feedback-accuracy-card" aria-label="Accuracy de respuestas según valoraciones">
+        <nav className="backstage-tabs traceability-channel-tabs" aria-label="Filtrar respuestas por canal">
+          {backstageResponseTraceChannels.map((channel) => (
+            <Link
+              className={`backstage-tab ${traceChannelFilter === channel ? 'backstage-tab-active' : ''}`}
+              href={buildTraceabilityHref({ tenantId, page: 1, pageSize: tracePageSize, channel })}
+              key={channel}
+              scroll={false}
+            >
+              {getTraceChannelLabel(channel)} ({traceResult.channelCounts[channel]})
+            </Link>
+          ))}
+        </nav>
+
+        <div className="rag-feedback-accuracy-card" aria-label="Resumen de valoración de respuestas">
           <div>
-            <span>Accuracy según valoraciones</span>
+            <span>Respuestas útiles</span>
             <strong>
               {responseFeedbackMetrics.accuracyPercent === null
                 ? 'Sin datos'
@@ -530,59 +536,40 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
           </div>
           <div className="rag-feedback-accuracy-meta">
             <p>
-              <strong>{responseFeedbackMetrics.positiveCount}</strong> útiles de{' '}
               <strong>{responseFeedbackMetrics.ratedCount}</strong> respuestas valoradas
             </p>
             <span>
-              Cobertura de valoración: {responseFeedbackMetrics.coveragePercent}% ·{' '}
-              {responseFeedbackMetrics.ratedCount} de {responseFeedbackMetrics.totalCount}
+              {responseFeedbackMetrics.positiveCount} útiles ·{' '}
+              {responseFeedbackMetrics.negativeCount} no útiles ·{' '}
+              {responseFeedbackMetrics.coveragePercent}% de cobertura
             </span>
           </div>
         </div>
 
-        <div className="rag-trace-summary-grid" aria-label="Resumen de trazabilidad RAG">
-          <div className="rag-trace-summary-card rag-trace-summary-card-ok">
-            <span>Con fuentes</span>
-            <strong>{traceStats.withSources}</strong>
+        <details className="rag-trace-diagnostics">
+          <summary>
+            <span>
+              <strong>Diagnóstico técnico</strong>
+              Fuentes, confianza, fallbacks y resolución
+            </span>
+            <span className="rag-trace-diagnostics-action" aria-hidden="true">Ver métricas</span>
+          </summary>
+          <div className="rag-trace-diagnostics-grid" aria-label="Diagnóstico técnico de las respuestas">
+            <div><span>Con fuentes</span><strong>{traceStats.withSources}</strong></div>
+            <div><span>Sin fuentes</span><strong>{traceStats.withoutSources}</strong></div>
+            <div><span>Baja confianza</span><strong>{traceStats.lowConfidence}</strong></div>
+            <div><span>Fallback</span><strong>{traceStats.fallbacks}</strong></div>
+            <div><span>Sesiones resueltas</span><strong>{feedbackStats.sessionResolved}</strong></div>
+            <div><span>Sesiones no resueltas</span><strong>{feedbackStats.sessionUnresolved}</strong></div>
           </div>
-          <div className="rag-trace-summary-card rag-trace-summary-card-warning">
-            <span>Sin fuentes</span>
-            <strong>{traceStats.withoutSources}</strong>
-          </div>
-          <div className="rag-trace-summary-card rag-trace-summary-card-warning">
-            <span>Baja confianza</span>
-            <strong>{traceStats.lowConfidence}</strong>
-          </div>
-          <div className="rag-trace-summary-card rag-trace-summary-card-danger">
-            <span>Fallback</span>
-            <strong>{traceStats.fallbacks}</strong>
-          </div>
-        </div>
-
-        <div className="rag-feedback-summary-grid" aria-label="Resumen de feedback del chatbot">
-          <div className="rag-feedback-summary-card rag-feedback-summary-card-positive">
-            <span>Respuestas útiles</span>
-            <strong>{feedbackStats.responsePositive}</strong>
-          </div>
-          <div className="rag-feedback-summary-card rag-feedback-summary-card-negative">
-            <span>Respuestas no útiles</span>
-            <strong>{feedbackStats.responseNegative}</strong>
-          </div>
-          <div className="rag-feedback-summary-card rag-feedback-summary-card-positive">
-            <span>Sesiones resueltas</span>
-            <strong>{feedbackStats.sessionResolved}</strong>
-          </div>
-          <div className="rag-feedback-summary-card rag-feedback-summary-card-negative">
-            <span>Sesiones no resueltas</span>
-            <strong>{feedbackStats.sessionUnresolved}</strong>
-          </div>
-        </div>
+        </details>
 
         {traceMessages.length ? (
           <div className="backstage-table-scroll traceability-table-scroll">
             <table className="data-table traceability-table">
               <thead>
                 <tr>
+                  <th>Canal</th>
                   <th>Estado</th>
                   <th>Consulta</th>
                   <th>Proveedor</th>
@@ -593,9 +580,8 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
               {traceMessages.map((message) => {
               const metadata = isRecord(message.metadata) ? message.metadata : {}
               const sources = getAgentSources(message.metadata)
-              const conversation = conversationById.get(message.conversation_id)
               const responseFeedback = getResponseFeedback(metadata)
-              const sessionFeedback = getSessionFeedback(conversation?.metadata)
+              const sessionFeedback = getSessionFeedback(message.conversationMetadata)
               const provider = typeof metadata.source === 'string' ? metadata.source : 'unknown'
               const requestedProvider = typeof metadata.requested_provider === 'string' ? metadata.requested_provider : null
               const model = typeof metadata.model === 'string' ? metadata.model : null
@@ -634,8 +620,8 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                 },
                 response: {
                   message_id: message.id,
-                  conversation_id: message.conversation_id,
-                  created_at: message.created_at,
+                  conversation_id: message.conversationId,
+                  created_at: message.createdAt,
                   question: userMessage,
                   answer: message.content,
                 },
@@ -685,6 +671,11 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
               return (
                 <tbody className={`traceability-table-group traceability-table-group-${traceSummary.tone}`} key={message.id}>
                   <tr className="traceability-entry-header">
+                    <td>
+                      <span className={`traceability-channel-pill traceability-channel-${message.channel}`}>
+                        {getTraceChannelLabel(message.channel)}
+                      </span>
+                    </td>
                     <td><span className={`rag-trace-state rag-trace-state-${traceSummary.tone}`}>{traceSummary.label}</span></td>
                     <td>
                       <strong className="traceability-question">
@@ -708,25 +699,27 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                         </small>
                       ) : null}
                     </td>
-                    <td><time>{new Date(message.created_at).toLocaleString('es-ES')}</time></td>
+                    <td><time>{new Date(message.createdAt).toLocaleString('es-ES')}</time></td>
                   </tr>
                   <tr className="traceability-detail-row">
-                    <td colSpan={5}>
+                    <td colSpan={6}>
                       <div className="traceability-detail-shell">
                         <div className="traceability-export-row">
                           <span>Acciones de esta respuesta</span>
                           <ResponseTraceDownloadButton
-                            filename={buildResponseTraceFilename(message.created_at, message.id)}
+                            filename={buildResponseTraceFilename(message.createdAt, message.id)}
                             trace={traceExport}
                           />
                         </div>
-                        <BackstageAiDiagnosticPanel
-                          tenantId={tenantId}
-                          artifactType="response_trace"
-                          artifactId={message.id}
-                        />
+                        {message.channel === 'web' && shouldOfferResponseDiagnostic(responseFeedback?.rating ?? null) ? (
+                          <BackstageAiDiagnosticPanel
+                            tenantId={tenantId}
+                            artifactType="response_trace"
+                            artifactId={message.id}
+                          />
+                        ) : null}
                         <details className="rag-trace-details traceability-details">
-                          <summary>Ver respuesta y detalle RAG</summary>
+                          <summary>Ver respuesta y trazabilidad</summary>
                           <div className="rag-trace-detail-body">
                           <div className="rag-trace-answer traceability-answer">
                             <span>Respuesta</span>
@@ -766,7 +759,9 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                       ) : null}
                           <div className="rag-trace-foot">
                             <p className="muted mono">
-                              {conversation ? `session ${conversation.session_id.slice(0, 16)}...` : `conversation ${message.conversation_id.slice(0, 8)}...`}
+                              {message.conversationLabel
+                                ? `${getTraceChannelConversationLabel(message.channel)} ${truncate(message.conversationLabel, 48)}`
+                                : `conversation ${message.conversationId.slice(0, 8)}...`}
                             </p>
                             <div>
                               {requestedProvider && requestedProvider !== provider ? <span>pedido {requestedProvider}</span> : null}
@@ -799,7 +794,9 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
             </table>
           </div>
         ) : (
-          <p className="muted">Todavía no hay respuestas del chatbot con trazabilidad registrada.</p>
+          <p className="muted">
+            Todavía no hay respuestas del agente de {getTraceChannelLabel(traceChannelFilter)}.
+          </p>
         )}
         <TracePagination
           page={tracePage}
@@ -807,6 +804,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
           pageSize={tracePageSize}
           tenantId={tenantId}
           total={traceCount}
+          channel={traceChannelFilter}
         />
       </section>
       ) : null}
@@ -1138,19 +1136,25 @@ function TracePagination({
   pageSize,
   tenantId,
   total,
+  channel,
 }: {
   page: number
   pageCount: number
   pageSize: number
   tenantId: string
   total: number
+  channel: BackstageResponseTraceChannel
 }) {
   if (total === 0) return null
 
   const firstResult = (page - 1) * pageSize + 1
   const lastResult = Math.min(total, page * pageSize)
-  const hrefForPage = (targetPage: number) =>
-    `/backstage/tenants/${tenantId}?tab=traceability&page=${targetPage}&page_size=${pageSize}#traceability`
+  const hrefForPage = (targetPage: number) => buildTraceabilityHref({
+    tenantId,
+    page: targetPage,
+    pageSize,
+    channel,
+  })
 
   return (
     <nav className="table-pagination" aria-label="Paginación de respuestas">
@@ -1190,6 +1194,10 @@ function normalizeTracePageSize(value: string | undefined) {
   return TRACE_PAGE_SIZES.includes(parsed as (typeof TRACE_PAGE_SIZES)[number]) ? parsed : 10
 }
 
+function normalizeTraceChannel(value: string | undefined): BackstageResponseTraceChannel {
+  return backstageResponseTraceChannels.find((channel) => channel === value) ?? 'web'
+}
+
 function normalizeKnowledgeSourcePageSize(value: string | undefined) {
   const parsed = Number(value)
   return KNOWLEDGE_SOURCE_PAGE_SIZES.includes(parsed as (typeof KNOWLEDGE_SOURCE_PAGE_SIZES)[number]) ? parsed : 10
@@ -1227,6 +1235,38 @@ function buildKnowledgeSourcesHref({
   if (sourceType) params.set('source_type', sourceType)
   if (sourceStatus) params.set('source_status', sourceStatus)
   return `/backstage/tenants/${tenantId}?${params.toString()}#knowledge-web-sources`
+}
+
+function buildTraceabilityHref({
+  tenantId,
+  page,
+  pageSize,
+  channel,
+}: {
+  tenantId: string
+  page: number
+  pageSize: number
+  channel: BackstageResponseTraceChannel
+}) {
+  const params = new URLSearchParams({
+    tab: 'traceability',
+    page: String(page),
+    page_size: String(pageSize),
+  })
+  params.set('trace_channel', channel)
+  return `/backstage/tenants/${tenantId}?${params.toString()}#traceability`
+}
+
+function getTraceChannelLabel(channel: BackstageResponseTraceChannel) {
+  if (channel === 'web') return 'Web'
+  if (channel === 'email') return 'Email'
+  return 'WhatsApp'
+}
+
+function getTraceChannelConversationLabel(channel: BackstageResponseTraceChannel) {
+  if (channel === 'web') return 'sesión'
+  if (channel === 'email') return 'hilo'
+  return 'contacto'
 }
 
 function getKnowledgeSourceTypeOptions(sources: Array<{ type: string }>) {

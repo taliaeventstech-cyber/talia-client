@@ -10,6 +10,7 @@ export const diagnosticReportSchema = z.object({
   summary: z.string(),
   classification: z.enum([
     'knowledge_gap',
+    'knowledge_conflict',
     'retrieval_failure',
     'grounding_rejection',
     'configuration',
@@ -24,6 +25,24 @@ export const diagnosticReportSchema = z.object({
     title: z.string(),
     evidence: z.string(),
     severity: z.enum(['info', 'warning', 'critical']),
+    source_ids: z.array(z.string()).default([]),
+  })),
+  knowledge_review: z.object({
+    status: z.enum(['completed', 'unavailable', 'not_available']),
+    query: z.string().nullable(),
+    sources_reviewed: z.number().int().nonnegative(),
+    source_ids: z.array(z.string()),
+  }),
+  discrepancies: z.array(z.object({
+    subject: z.string(),
+    attribute: z.string(),
+    assessment: z.enum(['conflict', 'scope_mismatch', 'ambiguous', 'resolved']),
+    explanation: z.string(),
+    values: z.array(z.object({
+      value: z.string(),
+      source_ids: z.array(z.string()),
+      specificity: z.enum(['general', 'subject_specific', 'unknown']),
+    })),
   })),
   recommended_actions: z.array(z.object({
     action: z.string(),
@@ -43,6 +62,12 @@ export const diagnosticUsageSchema = z.object({
   { message: 'Cached input tokens cannot exceed input tokens' },
 )
 
+export const diagnosticUsageComponentSchema = diagnosticUsageSchema.safeExtend({
+  component: z.enum(['diagnostic_agent', 'retrieval_embedding']),
+  provider: z.string(),
+  model: z.string(),
+})
+
 export type DiagnosticArtifactType = z.infer<typeof diagnosticArtifactTypeSchema>
 export type DiagnosticReport = z.infer<typeof diagnosticReportSchema>
 
@@ -51,6 +76,7 @@ export type DiagnosticAnalysis = {
   provider: string
   model: string
   usage: z.infer<typeof diagnosticUsageSchema>
+  usageComponents: z.infer<typeof diagnosticUsageComponentSchema>[]
 }
 
 export function getDiagnosticReportFilename(report: DiagnosticReport) {
@@ -60,6 +86,10 @@ export function getDiagnosticReportFilename(report: DiagnosticReport) {
     : date.toISOString().slice(0, 19).replace('T', '_').replaceAll(':', '-')
   const id = report.artifact_id.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 12) || 'artifact'
   return `talia-ai-diagnostic_${report.artifact_type}_${timestamp}_${id}.json`
+}
+
+export function shouldOfferResponseDiagnostic(rating: 'positive' | 'negative' | null) {
+  return rating !== 'positive'
 }
 
 const SENSITIVE_FIELD_NAME = /authorization|api[_-]?key|secret|token|password|cookie|credential|session/i
