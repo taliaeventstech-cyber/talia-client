@@ -140,6 +140,31 @@ Operational reference:
 
 - `docs/operations/knowledge-web-sync.md`.
 
+## Structured Programme Extraction
+
+Managed web sources can opt into a canary programme-extraction stage through
+`config.programme_extraction_enabled`. The scheduled `talia-ai` worker keeps the
+normal documentary chunks and additionally extracts typed events with
+occurrences, event language, duration, participants, location, offers, validity
+dates and field-level evidence.
+
+Backstage owns the per-source rollout toggle. Enabling it queues a refresh when
+the source is active; disabling it removes the structured representation from
+retrieval without deleting the last known-good rows.
+The source card also aggregates extraction health and measured model usage from
+document metadata so a canary can be assessed without inspecting raw database
+rows.
+
+The additive `programme_events` model remains Knowledge-owned and read-only to
+the browser. Writes use a tenant/source/document-scoped service-role RPC. Current
+retrieval excludes expired events unless a query explicitly requests a past
+period. The read-only `programme_knowledge_lifecycle_candidates` view exposes
+expired, duplicate and removed-source candidates for later review without
+performing destructive cleanup.
+
+Canonical service behavior and limitations live in
+`talia-ai/docs/structured-programme-knowledge.md`.
+
 ## Seams Toward RAG
 
 ### Knowledge Ingestion

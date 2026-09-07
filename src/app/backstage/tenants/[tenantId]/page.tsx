@@ -9,7 +9,7 @@ import { ChevronLeft, ChevronRight, FileText, LayoutDashboard, LifeBuoy, ScanHea
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { EditClientForm } from './edit-client-form'
-import { BackstageDeleteKnowledgeSourceButton, BackstageManagedWebSyncToggle, BackstageReindexTenantKnowledgeButton, BackstageReprocessSourceButton, BackstageRetryEmbeddingsButton } from './knowledge-source-actions'
+import { BackstageDeleteKnowledgeSourceButton, BackstageManagedWebSyncToggle, BackstageProgrammeExtractionToggle, BackstageReindexTenantKnowledgeButton, BackstageReprocessSourceButton, BackstageRetryEmbeddingsButton } from './knowledge-source-actions'
 import { KnowledgeWebAlerts } from '../../knowledge-web-alerts'
 import { KnowledgeSyncRealtime } from '@/components/knowledge-sync-realtime'
 import { getKnowledgeSyncActivity } from '@/lib/knowledge/sync-activity'
@@ -31,6 +31,7 @@ import {
   getBackstageResponseTraces,
   type BackstageResponseTraceChannel,
 } from '@/lib/attention/backstage-response-traces'
+import { isProgrammeExtractionEnabled, summarizeProgrammeExtractionBySource } from '@/lib/knowledge/programme'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -179,7 +180,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
     visibleKnowledgeSourceIds.length
       ? admin
         .from('knowledge_documents')
-        .select('source_id, status')
+        .select('source_id, status, metadata')
         .eq('theatre_id', tenantId)
         .in('source_id', visibleKnowledgeSourceIds)
       : Promise.resolve({ data: [] }),
@@ -206,6 +207,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
   const chunkStatsAvailable = knowledgeChunksResult.error === null
   const chunkStatsBySource = getChunkStatsBySource(knowledgeChunksResult.data ?? [])
   const documentCountsBySource = getDocumentCountsBySource(knowledgeDocuments ?? [])
+  const programmeExtractionBySource = summarizeProgrammeExtractionBySource(knowledgeDocuments ?? [])
   const latestSyncRunBySource = getLatestSyncRunBySource(knowledgeSyncRuns ?? [])
   const activeSyncRunBySource = new Map(
     (activeKnowledgeSyncResult.data ?? []).map((run) => [run.source_id, run]),
@@ -876,6 +878,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
               const stats = chunkStatsBySource.get(source.id) ?? createEmptyChunkStats()
               const documentCount = documentCountsBySource.get(source.id) ?? 0
               const latestSyncRun = latestSyncRunBySource.get(source.id)
+              const programmeExtraction = programmeExtractionBySource.get(source.id)
               const syncPresentation = getBackstageSyncRunPresentation({
                 run: latestSyncRun,
                 sourceLastError: source.last_error,
@@ -910,6 +913,15 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                         {isManagedWebSource(source.type) ? (
                           <span className={`knowledge-file-status ${source.sync_enabled ? 'knowledge-file-status-ready' : 'knowledge-file-status-paused'}`}>
                             {source.sync_enabled ? 'Fuente habilitada' : 'Fuente pausada'}
+                          </span>
+                        ) : null}
+                        {isManagedWebSource(source.type) && isProgrammeExtractionEnabled(source.config) ? (
+                          <span className={`knowledge-file-status ${programmeExtraction?.errorDocuments ? 'knowledge-file-status-error' : 'knowledge-file-status-ready'}`}>
+                            {programmeExtraction?.errorDocuments
+                              ? 'Extracción con incidencias'
+                              : programmeExtraction?.extractedDocuments
+                                ? `${programmeExtraction.eventCount} eventos estructurados`
+                                : 'Extracción pendiente'}
                           </span>
                         ) : null}
                         <span className={`knowledge-file-status knowledge-file-status-${source.status}`}>
@@ -955,6 +967,29 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                         ) : null}
                       </div>
                     ) : null}
+                    {isProgrammeExtractionEnabled(source.config) ? (
+                      <div className="knowledge-installed-signals" aria-label="Extracción estructurada de programación">
+                        <span className="knowledge-installed-signal">
+                          {programmeExtraction?.extractedDocuments
+                            ? `${programmeExtraction.extractedDocuments} páginas analizadas`
+                            : 'Pendiente de la primera extracción'}
+                        </span>
+                        {programmeExtraction?.requestCount ? (
+                          <span className="knowledge-installed-signal">
+                            {programmeExtraction.requestCount} peticiones ·{' '}
+                            {programmeExtraction.inputTokens + programmeExtraction.outputTokens} tokens
+                          </span>
+                        ) : null}
+                        {programmeExtraction?.models.length ? (
+                          <span className="knowledge-installed-signal">{programmeExtraction.models.join(', ')}</span>
+                        ) : null}
+                        {programmeExtraction?.lastExtractedAt ? (
+                          <span className="knowledge-installed-signal">
+                            Última extracción: {formatDate(programmeExtraction.lastExtractedAt)}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {syncPresentation.issue ? (
                       <p className={`knowledge-file-issue knowledge-file-issue-${syncPresentation.issueTone}`}>
                         {syncPresentation.issue}
@@ -984,11 +1019,18 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                       <BackstageKnowledgeSourceDebugDownloadButton source={debugSource} />
                     ) : null}
                     {isManagedWebSource(source.type) ? (
-                      <BackstageManagedWebSyncToggle
-                        tenantId={tenantId}
-                        sourceId={source.id}
-                        enabled={source.sync_enabled}
-                      />
+                      <>
+                        <BackstageProgrammeExtractionToggle
+                          tenantId={tenantId}
+                          sourceId={source.id}
+                          enabled={isProgrammeExtractionEnabled(source.config)}
+                        />
+                        <BackstageManagedWebSyncToggle
+                          tenantId={tenantId}
+                          sourceId={source.id}
+                          enabled={source.sync_enabled}
+                        />
+                      </>
                     ) : null}
                     {stats.pending + stats.error > 0 ? (
                       <BackstageRetryEmbeddingsButton tenantId={tenantId} sourceId={source.id} />
