@@ -44,4 +44,20 @@ describe('parseOutlookMessage', () => {
       },
     })
   })
+
+  it('rejects a sender field containing more than one mailbox', () => {
+    const parsed = parseOutlookMessage({
+      id: 'msg_2',
+      conversationId: 'conv_2',
+      from: {
+        emailAddress: {
+          name: 'Spoofed sender',
+          address: 'victim@example.com, attacker@example.com',
+        },
+      },
+      body: { contentType: 'text', content: 'Hello' },
+    })
+
+    expect(parsed.fromEmail).toBeNull()
+  })
 })

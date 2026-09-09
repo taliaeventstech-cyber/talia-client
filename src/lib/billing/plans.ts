@@ -70,7 +70,7 @@ export const BILLING_PLANS: BillingPlan[] = [
     features: [
       'Todo lo incluido en Agente Web',
       'Agente de correo para buzón info@',
-      'Respuestas automáticas por mail',
+      'Borradores de respuesta con revisión humana',
       'Informes y supervisión continua',
     ],
     moduleKeys: ['web', 'email', 'data'],
@@ -86,8 +86,8 @@ export const BILLING_PLANS: BillingPlan[] = [
     includedLabel: '1.000 missatges / mes',
     description: 'Agente de correo conectado a Gmail u Outlook.',
     features: [
-      'Respuestas automáticas por mail',
-      'Buzón info@ gestionado por IA',
+      'Borradores de respuesta con revisión humana',
+      'Buzón info@ asistido por IA',
       'Dashboard Àgora incluido',
       'Informe mensual de actividad',
     ],

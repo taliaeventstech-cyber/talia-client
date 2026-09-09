@@ -18,6 +18,7 @@ import { createOutlookDraft } from './outlook'
 import { getEmailAgentSettings } from './settings'
 import { TaliaAiEmailClassifierProvider, TaliaAiEmailDrafterProvider } from './talia-ai'
 import { EMAIL_MESSAGE_WITH_THREAD_SELECT } from './message-query'
+import { normalizeSingleEmailAddress } from './email-address'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -374,7 +375,8 @@ async function createProviderDraft(
     metadata: Json
   },
 ) {
-  if (!input.to) {
+  const recipient = normalizeSingleEmailAddress(input.to)
+  if (!recipient) {
     await admin
       .from('email_drafts')
       .update({
@@ -426,13 +428,13 @@ async function createProviderDraft(
   try {
     const providerDraft = input.connection.provider === 'microsoft'
       ? await createOutlookDraft(accessToken, {
-        to: input.to,
+        to: recipient,
         subject: input.subject,
         bodyText: input.bodyText,
         bodyHtml: input.bodyHtml,
       })
       : await createGmailDraft(accessToken, {
-        to: input.to,
+        to: recipient,
         subject: input.subject,
         bodyText: input.bodyText,
         bodyHtml: input.bodyHtml,

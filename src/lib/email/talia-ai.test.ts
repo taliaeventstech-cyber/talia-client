@@ -96,6 +96,7 @@ describe('TALIA AI email providers', () => {
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({ Authorization: 'Bearer secret' }),
+        signal: expect.any(AbortSignal),
       }),
     )
     expect(JSON.parse(String(request.body))).toMatchObject({

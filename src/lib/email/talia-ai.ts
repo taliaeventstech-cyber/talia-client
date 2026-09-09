@@ -13,6 +13,8 @@ type TaliaAiEmailProviderOptions = {
   fetcher?: typeof fetch
 }
 
+const TALIA_AI_EMAIL_TIMEOUT_MS = 20_000
+
 export class TaliaAiEmailClassifierProvider implements EmailAgentClassifierProvider {
   private readonly config: Required<TaliaAiEmailProviderOptions>
 
@@ -122,6 +124,7 @@ async function postTaliaAi(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(TALIA_AI_EMAIL_TIMEOUT_MS),
     })
     const text = await response.text()
     const body = parseObject(text)

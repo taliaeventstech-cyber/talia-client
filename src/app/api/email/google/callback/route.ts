@@ -7,6 +7,7 @@ import {
   verifyGoogleOAuthState,
 } from '@/lib/email/google-oauth'
 import { logSafeEmailError } from '@/lib/email/safe-error'
+import { assertEmailOAuthInitiator } from '@/lib/email/oauth-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -33,9 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     const access = await requireEmailAgentPreviewPermission(tenantId)
-    if (access.userId !== payload.userId && access.source !== 'platform') {
-      throw new Error('OAuth session does not match the initiating user')
-    }
+    assertEmailOAuthInitiator(access.userId, payload.userId)
 
     const tokens = await exchangeGoogleCodeForTokens(code)
     const gmailProfile = await fetchGmailProfile(tokens.access_token)

@@ -578,6 +578,8 @@ Product principle:
 Implemented:
 
 - Gmail OAuth connection from Agora.
+- OAuth callbacks are bound to the exact authenticated user who initiated the
+  connection, including platform-support sessions.
 - Microsoft/Outlook hidden until verification is complete.
 - Current Gmail scopes:
   - `gmail.readonly`;
@@ -597,6 +599,10 @@ Implemented:
 - Current field: `should_generate_draft`.
 - `should_reply` is removed as a new contract.
 - Drafts visible in Agora and/or created in Gmail depending on mode.
+- Provider-controlled sender headers are accepted as a draft recipient only when
+  they normalize to exactly one mailbox address. Agent output is plain-text at
+  the `talia-ai` runtime boundary; model-generated HTML is not persisted into new
+  provider drafts.
 - TAL-34 provides the secured `/api/cron/email/sync` scheduler endpoint,
   Postgres global lease and durable `email_sync_runs` records. Vercel Cron wakes
   the scheduler every 15 minutes for controlled canary operation on the Pro

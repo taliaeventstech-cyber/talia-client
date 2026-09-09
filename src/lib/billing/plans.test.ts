@@ -18,6 +18,14 @@ describe('public billing plans', () => {
     expect(isPublicBillingPlan('chatbot_email')).toBe(false)
     expect(isPublicBillingPlan('email_agent')).toBe(false)
   })
+
+  it('does not advertise automatic sending for supervised email plans', () => {
+    for (const key of ['chatbot_email', 'email_agent'] as const) {
+      const plan = getBillingPlan(key)!
+      expect(plan.features.join(' ').toLowerCase()).not.toContain('automátic')
+      expect(plan.features.join(' ').toLowerCase()).toContain('revisión humana')
+    }
+  })
 })
 
 describe('localized Stripe prices', () => {

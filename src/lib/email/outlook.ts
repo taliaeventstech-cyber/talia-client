@@ -1,4 +1,5 @@
 import { createEmailProviderError } from './safe-error'
+import { normalizeSingleEmailAddress } from './email-address'
 
 const GRAPH_MESSAGES_ENDPOINT = 'https://graph.microsoft.com/v1.0/me/messages'
 const GRAPH_INBOX_MESSAGES_ENDPOINT = 'https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages'
@@ -170,7 +171,7 @@ export function parseOutlookMessage(message: OutlookMessageResponse): ParsedOutl
     id: message.id,
     threadId: message.conversationId ?? message.id,
     subject: message.subject ?? null,
-    fromEmail: from?.address?.toLowerCase() ?? null,
+    fromEmail: normalizeSingleEmailAddress(from?.address),
     fromName: from?.name ?? null,
     toEmails: parseRecipients(message.toRecipients),
     ccEmails: parseRecipients(message.ccRecipients),
@@ -185,7 +186,7 @@ export function parseOutlookMessage(message: OutlookMessageResponse): ParsedOutl
 
 function parseRecipients(recipients: OutlookEmailAddress[] | undefined) {
   return (recipients ?? [])
-    .map((recipient) => recipient.emailAddress?.address?.toLowerCase())
+    .map((recipient) => normalizeSingleEmailAddress(recipient.emailAddress?.address))
     .filter((email): email is string => Boolean(email))
 }
 

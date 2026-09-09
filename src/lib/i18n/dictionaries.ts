@@ -475,7 +475,7 @@ const es = {
         features: [
           'Todo lo incluido en Agente Web',
           'Agente de email para buzón info@',
-          'Respuestas automáticas por email',
+          'Borradores de respuesta con revisión humana',
           'Informes y supervisión continua',
         ],
       },
@@ -483,8 +483,8 @@ const es = {
         title: 'Agente de Email',
         includedLabel: '1.000 mensajes / mes',
         features: [
-          'Respuestas automáticas por email',
-          'Buzón info@ gestionado por IA',
+          'Borradores de respuesta con revisión humana',
+          'Buzón info@ asistido por IA',
           'Dashboard Àgora incluido',
           'Informe mensual de actividad',
         ],
@@ -1711,7 +1711,7 @@ const ca: Dictionary = {
         features: [
           'Tot l’inclòs a l’Agent Web',
           'Agent d’email per a bústia info@',
-          'Respostes automàtiques per email',
+          'Esborranys de resposta amb revisió humana',
           'Informes i supervisió contínua',
         ],
       },
@@ -1719,8 +1719,8 @@ const ca: Dictionary = {
         title: 'Agent d’Email',
         includedLabel: '1.000 missatges / mes',
         features: [
-          'Respostes automàtiques per email',
-          'Bústia info@ gestionada per IA',
+          'Esborranys de resposta amb revisió humana',
+          'Bústia info@ assistida per IA',
           'Dashboard Àgora inclòs',
           'Informe mensual d’activitat',
         ],
@@ -2864,7 +2864,7 @@ const en: Dictionary = {
         features: [
           'Everything included in Web Agent',
           'Email agent for info@ mailbox',
-          'Automatic replies by email',
+          'Reply drafts with human review',
           'Reports and continuous supervision',
         ],
       },
@@ -2872,8 +2872,8 @@ const en: Dictionary = {
         title: 'Email Agent',
         includedLabel: '1,000 messages / month',
         features: [
-          'Automatic replies by email',
-          'info@ mailbox managed by AI',
+          'Reply drafts with human review',
+          'AI-assisted info@ mailbox',
           'Agora dashboard included',
           'Monthly activity report',
         ],
@@ -4030,7 +4030,7 @@ const ptBR: Dictionary = {
         features: [
           'Tudo incluído no Agente Web',
           'Agente de e-mail para caixa de correio info@',
-          'Respostas automáticas por e-mail',
+          'Rascunhos de resposta com revisão humana',
           'Relatórios e supervisão contínua',
         ],
       },
@@ -4038,8 +4038,8 @@ const ptBR: Dictionary = {
         title: 'Agente de e-mail',
         includedLabel: '1.000 mensagens/mês',
         features: [
-          'Respostas automáticas por e-mail',
-          'info@ caixa de correio gerenciada por IA',
+          'Rascunhos de resposta com revisão humana',
+          'Caixa de correio info@ assistida por IA',
           'Painel do Àgora incluído',
           'Relatório mensal de atividades',
         ],

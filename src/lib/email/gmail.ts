@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
 import { createEmailProviderError } from './safe-error'
+import { normalizeSingleEmailAddress } from './email-address'
 
 const GMAIL_DRAFTS_ENDPOINT = 'https://gmail.googleapis.com/gmail/v1/users/me/drafts'
 const GMAIL_MESSAGES_ENDPOINT = 'https://gmail.googleapis.com/gmail/v1/users/me/messages'
@@ -262,14 +263,14 @@ function parseEmailAddress(value: string) {
   if (angleMatch) {
     return {
       name: cleanHeaderName(angleMatch[1]),
-      email: angleMatch[2].trim().toLowerCase(),
+      email: normalizeSingleEmailAddress(angleMatch[2]),
     }
   }
 
   const trimmed = value.trim()
   return {
     name: null,
-    email: trimmed.includes('@') ? trimmed.toLowerCase() : null,
+    email: normalizeSingleEmailAddress(trimmed),
   }
 }
 
