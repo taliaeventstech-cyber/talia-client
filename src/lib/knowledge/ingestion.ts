@@ -394,7 +394,13 @@ export async function ingestWebSnapshotSource({
     .eq('type', 'web_snapshot')
     .maybeSingle()
   const existingConfig = isRecord(existingSource?.config) ? existingSource.config : {}
-  if (existingSource?.status === 'ready' && existingConfig.content_hash === contentHash) {
+  const programmeExtractionRequested = captureMode === 'automatic'
+  if (shouldReuseWebSnapshot({
+    status: existingSource?.status,
+    config: existingConfig,
+    contentHash,
+    captureMode,
+  })) {
     return {
       ok: true,
       count: typeof existingConfig.chunk_count === 'number' ? existingConfig.chunk_count : 0,
@@ -418,6 +424,7 @@ export async function ingestWebSnapshotSource({
         source_type: 'web_snapshot',
         capture_mode: captureMode,
         content_hash: contentHash,
+        programme_extraction_requested: programmeExtractionRequested,
         capture_started_at: captureStartedAt,
       },
     })
@@ -440,6 +447,7 @@ export async function ingestWebSnapshotSource({
       page_title: title?.trim() || null,
       capture_method: 'installed_widget',
       capture_mode: captureMode,
+      programme_extraction_requested: programmeExtractionRequested,
       language: 'es',
       indexed_at: new Date().toISOString(),
     },
@@ -462,6 +470,13 @@ export async function ingestWebSnapshotSource({
   })
 
   const captureCompletedAt = new Date().toISOString()
+  const previousProgrammeEnabled = existingConfig.programme_extraction_enabled === true
+  const programmeEnabled = ingest.programme?.status === 'ready'
+    ? true
+    : ingest.programme?.status === 'skipped'
+      ? false
+      : previousProgrammeEnabled
+  const programmeEvaluated = programmeExtractionRequested && Boolean(ingest.programme)
   await admin
     .from('knowledge_sources')
     .update({
@@ -475,6 +490,17 @@ export async function ingestWebSnapshotSource({
         source_type: 'web_snapshot',
         capture_mode: captureMode,
         content_hash: contentHash,
+        programme_extraction_requested: programmeExtractionRequested,
+        programme_extraction_enabled: programmeEnabled,
+        ...(programmeEvaluated ? {
+          programme_extraction_evaluated_hash: contentHash,
+          programme_extraction_status: ingest.programme?.status,
+          programme_event_count: ingest.programme?.status === 'ready'
+            ? ingest.programme.eventCount
+            : ingest.programme?.status === 'skipped'
+              ? 0
+              : existingConfig.programme_event_count,
+        } : {}),
         capture_started_at: captureStartedAt,
         capture_completed_at: captureCompletedAt,
         chunk_count: ingest.chunks,
@@ -489,6 +515,22 @@ export async function ingestWebSnapshotSource({
     count: ingest.chunks,
     message: 'Captura web preparada para TALIA.',
   }
+}
+
+export function shouldReuseWebSnapshot({
+  status,
+  config,
+  contentHash,
+  captureMode,
+}: {
+  status?: string
+  config: Record<string, unknown>
+  contentHash: string
+  captureMode: 'manual' | 'automatic'
+}) {
+  if (status !== 'ready' || config.content_hash !== contentHash) return false
+  if (captureMode === 'manual') return true
+  return config.programme_extraction_evaluated_hash === contentHash
 }
 
 export async function importPdfKnowledgeSource({

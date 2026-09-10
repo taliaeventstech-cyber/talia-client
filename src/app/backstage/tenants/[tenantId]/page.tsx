@@ -885,7 +885,15 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
               })
               const fileName = getKnowledgeSourceName(source)
               const managedWebSource = isManagedWebSource(source.type)
-              const programmeEnabled = managedWebSource && isProgrammeExtractionEnabled(source.config)
+              const widgetSnapshotSource = source.type === 'web_snapshot'
+              const widgetCaptureMode = getKnowledgeSourceConfigString(source.config, 'capture_mode')
+              const widgetAutomaticCapture = widgetSnapshotSource && widgetCaptureMode === 'automatic'
+              const programmeStatus = getKnowledgeSourceConfigString(source.config, 'programme_extraction_status')
+              const programmeEnabled = isProgrammeExtractionEnabled(source.config)
+              const configuredEventCount = getKnowledgeSourceConfigNumber(source.config, 'programme_event_count')
+              const programmeEventCount = programmeExtraction?.eventCount ?? configuredEventCount ?? 0
+              const programmeHasIssue = Boolean(programmeExtraction?.errorDocuments)
+                || programmeStatus === 'error'
               const automaticRefresh = managedWebSource
                 && source.sync_enabled
                 && source.refresh_interval !== 'manual'
@@ -939,7 +947,13 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                       <div>
                         <dt>Alcance</dt>
                         <dd>{getSourceTypeLabel(source.type)}</dd>
-                        <span>{managedWebSource ? `${documentCount} ${documentCount === 1 ? 'página' : 'páginas'} capturadas` : 'Fuente documental'}</span>
+                        <span>
+                          {managedWebSource
+                            ? `${documentCount} ${documentCount === 1 ? 'página' : 'páginas'} capturadas`
+                            : widgetSnapshotSource
+                              ? '1 página detectada por el widget'
+                              : 'Fuente documental'}
+                        </span>
                       </div>
                       {managedWebSource ? (
                         <div>
@@ -962,24 +976,43 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                           </span>
                         </div>
                       ) : null}
-                      {managedWebSource ? (
+                      {widgetSnapshotSource ? (
+                        <div>
+                          <dt>Captura</dt>
+                          <dd className={widgetAutomaticCapture ? 'is-positive' : ''}>
+                            {widgetAutomaticCapture ? 'Automática' : 'Manual'}
+                          </dd>
+                          <span>
+                            {widgetAutomaticCapture
+                              ? 'El widget procesa el contenido cuando cambia'
+                              : 'Se procesa sólo mediante una captura manual'}
+                          </span>
+                        </div>
+                      ) : null}
+                      {managedWebSource || widgetAutomaticCapture ? (
                         <div>
                           <dt>Eventos</dt>
-                          <dd className={programmeExtraction?.errorDocuments ? 'is-danger' : programmeEnabled ? 'is-positive' : 'is-muted'}>
-                            {!programmeEnabled
+                          <dd className={programmeHasIssue ? 'is-danger' : programmeEnabled ? 'is-positive' : 'is-muted'}>
+                            {managedWebSource && !programmeEnabled
                               ? 'Sin estructurar'
-                              : programmeExtraction?.errorDocuments
+                              : programmeStatus === 'skipped'
+                                ? 'No detectados'
+                                : programmeHasIssue
                                 ? 'Con incidencias'
-                                : programmeExtraction?.extractedDocuments
-                                  ? `${programmeExtraction.eventCount} ${programmeExtraction.eventCount === 1 ? 'evento' : 'eventos'}`
+                                : programmeExtraction?.extractedDocuments || programmeStatus === 'ready'
+                                  ? `${programmeEventCount} ${programmeEventCount === 1 ? 'evento' : 'eventos'}`
                                   : 'Pendiente'}
                           </dd>
                           <span>
-                            {!programmeEnabled
+                            {managedWebSource && !programmeEnabled
                               ? 'No participa como programación estructurada'
+                              : programmeStatus === 'skipped'
+                                ? 'La página sigue disponible como conocimiento general'
                               : programmeExtraction?.lastExtractedAt
                                 ? `Extraídos ${formatDate(programmeExtraction.lastExtractedAt)}`
-                                : 'Se procesará en la próxima captura'}
+                                : programmeHasIssue
+                                  ? 'La captura RAG sigue disponible; los eventos se revisarán al cambiar'
+                                  : 'Se evaluará en la próxima captura automática'}
                           </span>
                         </div>
                       ) : null}
@@ -2073,6 +2106,16 @@ function getSourceTypeLabel(type: string) {
 
 function isManagedWebSource(type: string) {
   return type === 'url' || type === 'sitemap' || type === 'website'
+}
+
+function getKnowledgeSourceConfigString(config: unknown, key: string) {
+  if (!isRecord(config)) return null
+  return typeof config[key] === 'string' ? config[key] : null
+}
+
+function getKnowledgeSourceConfigNumber(config: unknown, key: string) {
+  if (!isRecord(config)) return null
+  return typeof config[key] === 'number' && Number.isFinite(config[key]) ? config[key] : null
 }
 
 function getRefreshIntervalLabel(interval: string) {

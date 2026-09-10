@@ -83,10 +83,16 @@ disabled:
    `talia-ai /v1/knowledge/ingest` with `source_type = web_snapshot`.
 7. `talia-ai` normalizes the content, splits it into chunks, updates
    `knowledge_chunks`, and leaves the source ready for embeddings/retrieval.
+8. For automatic captures, `talia-ai` applies a deterministic programme-page
+   gate. Eligible pages also refresh typed `programme_events`; generic pages
+   remain ordinary RAG knowledge and do not invoke the extraction model.
 
-Automatic processing stores a SHA-256 hash of the normalized visible text. A
-ready source with the same hash is not sent through ingestion again, avoiding
-unchanged-page token and embedding costs.
+Automatic processing stores a SHA-256 hash of the normalized visible text and
+the hash last evaluated for programme extraction. A ready source with both
+hashes current is not sent through ingestion again, avoiding unchanged-page
+embedding and extraction costs. Existing automatic snapshots without an
+evaluation hash are assessed once after rollout even when their text has not
+changed.
 
 The tenant's official website remains administrative data. It is not used to automatically create URL sources.
 

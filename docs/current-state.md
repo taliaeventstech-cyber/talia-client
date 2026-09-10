@@ -489,7 +489,12 @@ Implemented:
 - Installed-web sources are connected to `knowledge_sources` as
   `web_snapshot`: the installed widget extracts visible DOM text and `talia-ai`
   normalizes, chunks and generates embeddings. Automatic captures persist a
-  content hash and skip reingestion when the page has not changed.
+  content hash and skip reingestion when the page has not changed. In automatic
+  mode, `talia-ai` also evaluates likely cultural programme pages and stores
+  typed events alongside the unchanged RAG representation. Strong programme
+  URLs are admitted directly; other pages require both cultural and explicit
+  date signals. Generic pages are marked as evaluated without an extraction
+  model call, and each content hash is evaluated at most once.
 - Installed-web URLs are canonicalized across the widget, API and database. Tracking parameters are discarded, functional query parameters are preserved, duplicate rows are merged before a unique tenant/type/URL index is enforced, and page-presence writes are throttled to once per hour per source.
 - Agora can configure managed single-page, sitemap and bounded-website sources
   with manual, daily, weekly or monthly refresh policies. The persistence model

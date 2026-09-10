@@ -56,6 +56,33 @@ describe('ingestKnowledgeTextWithTaliaAi', () => {
     )
   })
 
+  it('returns structured programme extraction results for widget snapshots', async () => {
+    process.env.TALIA_AI_BASE_URL = 'https://talia-ai.example.test/'
+    process.env.TALIA_AI_INTERNAL_API_KEY = 'secret'
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({
+        ok: true,
+        source_id: 'snapshot-1',
+        chunks: 4,
+        programme: { status: 'ready', event_count: 2 },
+      }),
+    }))
+
+    await expect(ingestKnowledgeTextWithTaliaAi({
+      tenantId: 'tenant-1',
+      sourceId: 'snapshot-1',
+      sourceType: 'web_snapshot',
+      text: 'Programación visible de la página instalada',
+      metadata: { programme_extraction_requested: true },
+    })).resolves.toEqual({
+      ok: true,
+      sourceId: 'snapshot-1',
+      chunks: 4,
+      programme: { status: 'ready', eventCount: 2 },
+    })
+  })
+
   it('can send a private storage reference instead of text', async () => {
     process.env.TALIA_AI_BASE_URL = 'https://talia-ai.example.test/'
     process.env.TALIA_AI_INTERNAL_API_KEY = 'secret'

@@ -4,6 +4,12 @@ type TaliaAiIngestResponse = {
   chunks?: unknown
   error?: unknown
   details?: unknown
+  programme?: unknown
+}
+
+export type TaliaAiProgrammeResult = {
+  status: 'ready' | 'skipped' | 'error' | 'unavailable'
+  eventCount: number
 }
 
 export type TaliaAiIngestResult = {
@@ -11,6 +17,7 @@ export type TaliaAiIngestResult = {
   sourceId: string
   chunks: number
   error?: string
+  programme?: TaliaAiProgrammeResult
 }
 
 export async function ingestKnowledgeTextWithTaliaAi({
@@ -66,10 +73,12 @@ export async function ingestKnowledgeTextWithTaliaAi({
       }
     }
 
+    const programme = parseProgrammeResult(body?.programme)
     return {
       ok: true,
       sourceId: typeof body?.source_id === 'string' ? body.source_id : sourceId,
       chunks: numberOrZero(body?.chunks),
+      ...(programme ? { programme } : {}),
     }
   } catch (error) {
     return {
@@ -78,6 +87,22 @@ export async function ingestKnowledgeTextWithTaliaAi({
       chunks: 0,
       error: error instanceof Error ? error.message : String(error),
     }
+  }
+}
+
+function parseProgrammeResult(value: unknown): TaliaAiProgrammeResult | null {
+  if (!isRecord(value)) return null
+  const status = value.status
+  if (
+    status !== 'ready'
+    && status !== 'skipped'
+    && status !== 'error'
+    && status !== 'unavailable'
+  ) return null
+
+  return {
+    status,
+    eventCount: numberOrZero(value.event_count),
   }
 }
 
