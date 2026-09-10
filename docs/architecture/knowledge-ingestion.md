@@ -307,9 +307,11 @@ Future implementation:
 
 ## MVP Limitations
 
-- There is no embeddings worker or automatic backfill of old chunks.
-- Managed URL, sitemap, and website sources can be configured, but their scheduled
-  crawler must still be implemented and deployed in `talia-ai`.
+- Managed-source embeddings are processed by the scheduled `talia-ai` worker,
+  but old sources still require an explicit reindex when a new derived
+  representation is introduced.
+- Crawling remains deliberately bounded by source and tenant quotas; it is not
+  an unrestricted whole-domain mirror.
 - There is a limit on chunk size and number to avoid huge prompts.
 - Scanned PDFs without selectable text are not processed.
 

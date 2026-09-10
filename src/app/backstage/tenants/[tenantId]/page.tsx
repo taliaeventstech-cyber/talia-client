@@ -884,6 +884,16 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                 sourceLastError: source.last_error,
               })
               const fileName = getKnowledgeSourceName(source)
+              const managedWebSource = isManagedWebSource(source.type)
+              const programmeEnabled = managedWebSource && isProgrammeExtractionEnabled(source.config)
+              const automaticRefresh = managedWebSource
+                && source.sync_enabled
+                && source.refresh_interval !== 'manual'
+              const knowledgeReady = chunkStatsAvailable
+                && stats.total > 0
+                && stats.pending === 0
+                && stats.processing === 0
+                && stats.error === 0
               const debugSource: DebuggableSource = {
                 id: source.id,
                 type: source.type,
@@ -902,7 +912,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
               }
 
               return (
-                <article className="knowledge-file-item" id={`source-${source.id}`} key={source.id}>
+                <article className="knowledge-file-item backstage-knowledge-source" id={`source-${source.id}`} key={source.id}>
                   <div className="knowledge-file-icon" aria-hidden="true">
                     <FileText size={20} strokeWidth={2} />
                   </div>
@@ -910,120 +920,171 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                     <div className="knowledge-file-title-row">
                       <h3>{fileName}</h3>
                       <div className="knowledge-file-title-statuses">
-                        {isManagedWebSource(source.type) ? (
-                          <span className={`knowledge-file-status ${source.sync_enabled ? 'knowledge-file-status-ready' : 'knowledge-file-status-paused'}`}>
-                            {source.sync_enabled ? 'Fuente habilitada' : 'Fuente pausada'}
-                          </span>
-                        ) : null}
-                        {isManagedWebSource(source.type) && isProgrammeExtractionEnabled(source.config) ? (
-                          <span className={`knowledge-file-status ${programmeExtraction?.errorDocuments ? 'knowledge-file-status-error' : 'knowledge-file-status-ready'}`}>
-                            {programmeExtraction?.errorDocuments
-                              ? 'Extracción con incidencias'
-                              : programmeExtraction?.extractedDocuments
-                                ? `${programmeExtraction.eventCount} eventos estructurados`
-                                : 'Extracción pendiente'}
-                          </span>
-                        ) : null}
                         <span className={`knowledge-file-status knowledge-file-status-${source.status}`}>
                           {getSourceStatusLabel(source.status)}
                         </span>
                       </div>
                     </div>
-                    <div className="knowledge-file-meta">
-                      <span>{getSourceTypeLabel(source.type)}</span>
-                      <span>{chunkStatsAvailable ? `${stats.total} fragmentos` : 'Fragmentos no disponibles'}</span>
-                      {source.source_url ? <span>{source.source_url}</span> : null}
-                      {source.last_synced_at ? <span>Actualizado {formatDate(source.last_synced_at)}</span> : null}
-                      {isManagedWebSource(source.type) ? (
-                        <>
-                          <span>{documentCount} páginas</span>
-                          <span>Frecuencia: {getRefreshIntervalLabel(source.refresh_interval)}</span>
-                          {source.next_sync_at ? <span>Próxima: {formatDate(source.next_sync_at)}</span> : null}
-                        </>
+                    {source.source_url ? (
+                      <a
+                        className="backstage-knowledge-source-url"
+                        href={source.source_url}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {source.source_url}
+                      </a>
+                    ) : null}
+                    <dl className="backstage-knowledge-source-summary">
+                      <div>
+                        <dt>Alcance</dt>
+                        <dd>{getSourceTypeLabel(source.type)}</dd>
+                        <span>{managedWebSource ? `${documentCount} ${documentCount === 1 ? 'página' : 'páginas'} capturadas` : 'Fuente documental'}</span>
+                      </div>
+                      {managedWebSource ? (
+                        <div>
+                          <dt>Actualización</dt>
+                          <dd className={!source.sync_enabled ? 'is-muted' : automaticRefresh ? 'is-positive' : ''}>
+                            {!source.sync_enabled
+                              ? 'Pausada'
+                              : automaticRefresh
+                                ? getRefreshIntervalLabel(source.refresh_interval)
+                                : 'Manual'}
+                          </dd>
+                          <span>
+                            {!source.sync_enabled
+                              ? 'No se capturarán cambios'
+                              : automaticRefresh
+                                ? source.next_sync_at
+                                  ? `Próxima ${formatDate(source.next_sync_at)}`
+                                  : 'El worker programará la siguiente captura'
+                                : 'Sólo al pulsar «Actualizar ahora»'}
+                          </span>
+                        </div>
                       ) : null}
-                      <span className="mono">{shortId(source.id)}</span>
-                    </div>
-                    {latestSyncRun ? (
-                      <div className="knowledge-installed-signals" aria-label="Última sincronización web">
-                        <span className="knowledge-installed-signal">
-                          {latestSyncRun.status === 'succeeded' && stats.pending + stats.processing > 0
-                            ? 'Preparando conocimiento'
-                            : syncPresentation.statusLabel}
+                      {managedWebSource ? (
+                        <div>
+                          <dt>Eventos</dt>
+                          <dd className={programmeExtraction?.errorDocuments ? 'is-danger' : programmeEnabled ? 'is-positive' : 'is-muted'}>
+                            {!programmeEnabled
+                              ? 'Sin estructurar'
+                              : programmeExtraction?.errorDocuments
+                                ? 'Con incidencias'
+                                : programmeExtraction?.extractedDocuments
+                                  ? `${programmeExtraction.eventCount} ${programmeExtraction.eventCount === 1 ? 'evento' : 'eventos'}`
+                                  : 'Pendiente'}
+                          </dd>
+                          <span>
+                            {!programmeEnabled
+                              ? 'No participa como programación estructurada'
+                              : programmeExtraction?.lastExtractedAt
+                                ? `Extraídos ${formatDate(programmeExtraction.lastExtractedAt)}`
+                                : 'Se procesará en la próxima captura'}
+                          </span>
+                        </div>
+                      ) : null}
+                      <div>
+                        <dt>Conocimiento</dt>
+                        <dd className={stats.error > 0 ? 'is-danger' : knowledgeReady ? 'is-positive' : ''}>
+                          {chunkStatsAvailable ? `${stats.ready}/${stats.total} listos` : 'Sin datos'}
+                        </dd>
+                        <span>
+                          {stats.error > 0
+                            ? `${stats.error} con error`
+                            : stats.pending + stats.processing > 0
+                              ? `${stats.pending + stats.processing} preparándose`
+                              : source.last_synced_at
+                                ? `Actualizado ${formatDate(source.last_synced_at)}`
+                                : 'Todavía sin procesar'}
                         </span>
-                        {latestSyncRun.status === 'running' ? (
-                          <span className="knowledge-installed-signal knowledge-installed-signal-ok">
-                            {getBackstageSyncPhase(latestSyncRun.metadata)}
-                            {latestSyncRun.discovered_count > 0 ? ` · ${latestSyncRun.checked_count}/${latestSyncRun.discovered_count}` : ''}
-                          </span>
-                        ) : null}
-                        {syncPresentation.showCounters ? (
-                          <>
-                            <span className="knowledge-installed-signal">{latestSyncRun.checked_count} revisadas</span>
-                            <span className="knowledge-installed-signal knowledge-installed-signal-ok">{latestSyncRun.changed_count} cambiadas</span>
-                            {latestSyncRun.failed_count + latestSyncRun.blocked_count > 0 ? (
-                              <span className="knowledge-installed-signal">{latestSyncRun.failed_count + latestSyncRun.blocked_count} incidencias</span>
-                            ) : null}
-                          </>
-                        ) : null}
                       </div>
-                    ) : null}
-                    {isProgrammeExtractionEnabled(source.config) ? (
-                      <div className="knowledge-installed-signals" aria-label="Extracción estructurada de programación">
-                        <span className="knowledge-installed-signal">
-                          {programmeExtraction?.extractedDocuments
-                            ? `${programmeExtraction.extractedDocuments} páginas analizadas`
-                            : 'Pendiente de la primera extracción'}
-                        </span>
-                        {programmeExtraction?.requestCount ? (
-                          <span className="knowledge-installed-signal">
-                            {programmeExtraction.requestCount} peticiones ·{' '}
-                            {programmeExtraction.inputTokens + programmeExtraction.outputTokens} tokens
-                          </span>
-                        ) : null}
-                        {programmeExtraction?.models.length ? (
-                          <span className="knowledge-installed-signal">{programmeExtraction.models.join(', ')}</span>
-                        ) : null}
-                        {programmeExtraction?.lastExtractedAt ? (
-                          <span className="knowledge-installed-signal">
-                            Última extracción: {formatDate(programmeExtraction.lastExtractedAt)}
-                          </span>
-                        ) : null}
-                      </div>
-                    ) : null}
+                    </dl>
                     {syncPresentation.issue ? (
                       <p className={`knowledge-file-issue knowledge-file-issue-${syncPresentation.issueTone}`}>
                         {syncPresentation.issue}
                       </p>
                     ) : null}
-                    {hasKnowledgeSourceDebugData(debugSource) ? (
-                      <>
-                        <BackstageKnowledgeSourceErrorDetails source={debugSource} />
-                        <BackstageAiDiagnosticPanel
-                          tenantId={tenantId}
-                          artifactType="knowledge_source"
-                          artifactId={source.id}
-                        />
-                      </>
-                    ) : null}
-                    {chunkStatsAvailable && stats.total > 0 ? (
-                      <div className="knowledge-embedding-stats" aria-label="Estado de embeddings">
-                        <span className="knowledge-embedding-stat knowledge-embedding-stat-ready">{stats.ready} listos</span>
-                        {stats.processing > 0 ? <span className="knowledge-embedding-stat">{stats.processing} procesando</span> : null}
-                        {stats.pending > 0 ? <span className="knowledge-embedding-stat knowledge-embedding-stat-pending">{stats.pending} pendientes</span> : null}
-                        {stats.error > 0 ? <span className="knowledge-embedding-stat knowledge-embedding-stat-error">{stats.error} error</span> : null}
+                    <details className="backstage-knowledge-source-details">
+                      <summary>Detalles técnicos</summary>
+                      <div className="backstage-knowledge-source-details-body">
+                        <div className="knowledge-file-meta">
+                          <span>Tipo: {getSourceTypeLabel(source.type)}</span>
+                          <span>{chunkStatsAvailable ? `${stats.total} fragmentos` : 'Fragmentos no disponibles'}</span>
+                          <span className="mono">ID {shortId(source.id)}</span>
+                        </div>
+                        {latestSyncRun ? (
+                          <div className="knowledge-installed-signals" aria-label="Última sincronización web">
+                            <span className="knowledge-installed-signal">
+                              {latestSyncRun.status === 'succeeded' && stats.pending + stats.processing > 0
+                                ? 'Preparando conocimiento'
+                                : syncPresentation.statusLabel}
+                            </span>
+                            {latestSyncRun.status === 'running' ? (
+                              <span className="knowledge-installed-signal knowledge-installed-signal-ok">
+                                {getBackstageSyncPhase(latestSyncRun.metadata)}
+                                {latestSyncRun.discovered_count > 0 ? ` · ${latestSyncRun.checked_count}/${latestSyncRun.discovered_count}` : ''}
+                              </span>
+                            ) : null}
+                            {syncPresentation.showCounters ? (
+                              <>
+                                <span className="knowledge-installed-signal">{latestSyncRun.checked_count} revisadas</span>
+                                <span className="knowledge-installed-signal knowledge-installed-signal-ok">{latestSyncRun.changed_count} cambiadas</span>
+                                {latestSyncRun.failed_count + latestSyncRun.blocked_count > 0 ? (
+                                  <span className="knowledge-installed-signal">{latestSyncRun.failed_count + latestSyncRun.blocked_count} incidencias</span>
+                                ) : null}
+                              </>
+                            ) : null}
+                          </div>
+                        ) : null}
+                        {programmeEnabled ? (
+                          <div className="knowledge-installed-signals" aria-label="Extracción estructurada de programación">
+                            <span className="knowledge-installed-signal">
+                              {programmeExtraction?.extractedDocuments
+                                ? `${programmeExtraction.extractedDocuments} páginas analizadas`
+                                : 'Pendiente de la primera extracción'}
+                            </span>
+                            {programmeExtraction?.requestCount ? (
+                              <span className="knowledge-installed-signal">
+                                {programmeExtraction.requestCount} peticiones ·{' '}
+                                {programmeExtraction.inputTokens + programmeExtraction.outputTokens} tokens
+                              </span>
+                            ) : null}
+                            {programmeExtraction?.models.length ? (
+                              <span className="knowledge-installed-signal">{programmeExtraction.models.join(', ')}</span>
+                            ) : null}
+                          </div>
+                        ) : null}
+                        {chunkStatsAvailable && stats.total > 0 ? (
+                          <div className="knowledge-embedding-stats" aria-label="Estado de embeddings">
+                            <span className="knowledge-embedding-stat knowledge-embedding-stat-ready">{stats.ready} listos</span>
+                            {stats.processing > 0 ? <span className="knowledge-embedding-stat">{stats.processing} procesando</span> : null}
+                            {stats.pending > 0 ? <span className="knowledge-embedding-stat knowledge-embedding-stat-pending">{stats.pending} pendientes</span> : null}
+                            {stats.error > 0 ? <span className="knowledge-embedding-stat knowledge-embedding-stat-error">{stats.error} error</span> : null}
+                          </div>
+                        ) : null}
+                        {hasKnowledgeSourceDebugData(debugSource) ? (
+                          <>
+                            <BackstageKnowledgeSourceErrorDetails source={debugSource} />
+                            <BackstageAiDiagnosticPanel
+                              tenantId={tenantId}
+                              artifactType="knowledge_source"
+                              artifactId={source.id}
+                            />
+                          </>
+                        ) : null}
                       </div>
-                    ) : null}
+                    </details>
                   </div>
                   <div className="knowledge-file-actions">
-                    {hasKnowledgeSourceDebugData(debugSource) ? (
-                      <BackstageKnowledgeSourceDebugDownloadButton source={debugSource} />
+                    {managedWebSource && source.sync_enabled && canReprocessKnowledgeSourceFromBackstage(source.type) ? (
+                      <BackstageReprocessSourceButton tenantId={tenantId} sourceId={source.id} sourceType={source.type} />
                     ) : null}
-                    {isManagedWebSource(source.type) ? (
+                    {managedWebSource ? (
                       <>
                         <BackstageProgrammeExtractionToggle
                           tenantId={tenantId}
                           sourceId={source.id}
-                          enabled={isProgrammeExtractionEnabled(source.config)}
+                          enabled={programmeEnabled}
                         />
                         <BackstageManagedWebSyncToggle
                           tenantId={tenantId}
@@ -1032,10 +1093,13 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
                         />
                       </>
                     ) : null}
+                    {hasKnowledgeSourceDebugData(debugSource) ? (
+                      <BackstageKnowledgeSourceDebugDownloadButton source={debugSource} />
+                    ) : null}
                     {stats.pending + stats.error > 0 ? (
                       <BackstageRetryEmbeddingsButton tenantId={tenantId} sourceId={source.id} />
                     ) : null}
-                    {canReprocessKnowledgeSourceFromBackstage(source.type) && (!isManagedWebSource(source.type) || source.sync_enabled) ? (
+                    {!managedWebSource && canReprocessKnowledgeSourceFromBackstage(source.type) ? (
                       <BackstageReprocessSourceButton tenantId={tenantId} sourceId={source.id} sourceType={source.type} />
                     ) : null}
                     <BackstageDeleteKnowledgeSourceButton

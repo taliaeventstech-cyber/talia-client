@@ -496,10 +496,19 @@ Implemented:
   separates logical sources, canonical documents and auditable sync runs, with
   worker leases, idempotency and per-run counters. Monthly refreshes clamp to
   the final valid day of shorter months instead of overflowing into the next one.
+- Managed URL, sitemap and bounded-website sources can opt into structured
+  programme extraction. Each successful changed-page capture keeps the normal
+  RAG chunks and also refreshes typed current events with dates, times,
+  duration, participants, location, purchase links and field-level evidence.
+  This repeats automatically only when the source is enabled and its refresh
+  policy is daily, weekly or monthly; a `manual` source requires **Actualizar
+  ahora**.
 - The installed widget remains available as a first-party capture fallback for
   public pages that direct HTTP/browser capture cannot read reliably.
-- Backstage shows managed-source frequency, next refresh, document count and the
-  latest sync-run counters, and can enqueue an operator-triggered refresh.
+- Backstage summarizes each source as four distinct operational concepts:
+  capture scope, update automation, structured events and ready knowledge.
+  Technical sync, extraction and embedding counters remain available in a
+  collapsed detail panel, and operators can enqueue an explicit refresh.
   Sources with processing errors expose an inline technical diagnostic with the
   latest error code, run, incident counters and embedding failures; operators
   can also download the sanitized JSON diagnostic from the same source row.

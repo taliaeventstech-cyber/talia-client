@@ -167,7 +167,7 @@ export function BackstageManagedWebSyncToggle({
         {enabled
           ? <CirclePause size={13} strokeWidth={2.2} aria-hidden="true" />
           : <CirclePlay size={13} strokeWidth={2.2} aria-hidden="true" />}
-        {isPending ? 'Guardando...' : enabled ? 'Pausar fuente' : 'Habilitar fuente'}
+        {isPending ? 'Guardando...' : enabled ? 'Pausar capturas' : 'Reactivar capturas'}
       </button>
     </>
   )
@@ -209,7 +209,7 @@ export function BackstageProgrammeExtractionToggle({
         aria-label={enabled ? 'Desactivar extracción de eventos' : 'Activar extracción de eventos'}
       >
         <ListTree size={13} strokeWidth={2.2} aria-hidden="true" />
-        {isPending ? 'Guardando...' : enabled ? 'Eventos activos' : 'Estructurar eventos'}
+        {isPending ? 'Guardando...' : enabled ? 'Desactivar eventos' : 'Estructurar eventos'}
       </button>
     </>
   )
@@ -285,7 +285,7 @@ export function BackstageDeleteKnowledgeSourceButton({
 
 function getReprocessLabel(sourceType: string) {
   if (sourceType === 'pdf') return 'Reprocesar PDF'
-  if (sourceType === 'url' || sourceType === 'sitemap' || sourceType === 'website') return 'Actualizar fuente'
+  if (sourceType === 'url' || sourceType === 'sitemap' || sourceType === 'website') return 'Actualizar ahora'
   if (sourceType === 'manual') return 'Reindexar FAQs'
   if (sourceType === 'xlsx' || sourceType === 'csv') return 'Reindexar archivo'
   return 'Reindexar fuente'
