@@ -83,10 +83,16 @@ disabled:
    `talia-ai /v1/knowledge/ingest` with `source_type = web_snapshot`.
 7. `talia-ai` normalizes the content, splits it into chunks, updates
    `knowledge_chunks`, and leaves the source ready for embeddings/retrieval.
+8. For automatic captures, `talia-ai` applies a deterministic programme-page
+   gate. Eligible pages also refresh typed `programme_events`; generic pages
+   remain ordinary RAG knowledge and do not invoke the extraction model.
 
-Automatic processing stores a SHA-256 hash of the normalized visible text. A
-ready source with the same hash is not sent through ingestion again, avoiding
-unchanged-page token and embedding costs.
+Automatic processing stores a SHA-256 hash of the normalized visible text and
+the hash last evaluated for programme extraction. A ready source with both
+hashes current is not sent through ingestion again, avoiding unchanged-page
+embedding and extraction costs. Existing automatic snapshots without an
+evaluation hash are assessed once after rollout even when their text has not
+changed.
 
 The tenant's official website remains administrative data. It is not used to automatically create URL sources.
 
@@ -139,6 +145,31 @@ fallback rather than being removed.
 Operational reference:
 
 - `docs/operations/knowledge-web-sync.md`.
+
+## Structured Programme Extraction
+
+Managed web sources can opt into a canary programme-extraction stage through
+`config.programme_extraction_enabled`. The scheduled `talia-ai` worker keeps the
+normal documentary chunks and additionally extracts typed events with
+occurrences, event language, duration, participants, location, offers, validity
+dates and field-level evidence.
+
+Backstage owns the per-source rollout toggle. Enabling it queues a refresh when
+the source is active; disabling it removes the structured representation from
+retrieval without deleting the last known-good rows.
+The source card also aggregates extraction health and measured model usage from
+document metadata so a canary can be assessed without inspecting raw database
+rows.
+
+The additive `programme_events` model remains Knowledge-owned and read-only to
+the browser. Writes use a tenant/source/document-scoped service-role RPC. Current
+retrieval excludes expired events unless a query explicitly requests a past
+period. The read-only `programme_knowledge_lifecycle_candidates` view exposes
+expired, duplicate and removed-source candidates for later review without
+performing destructive cleanup.
+
+Canonical service behavior and limitations live in
+`talia-ai/docs/structured-programme-knowledge.md`.
 
 ## Seams Toward RAG
 
@@ -282,9 +313,11 @@ Future implementation:
 
 ## MVP Limitations
 
-- There is no embeddings worker or automatic backfill of old chunks.
-- Managed URL, sitemap, and website sources can be configured, but their scheduled
-  crawler must still be implemented and deployed in `talia-ai`.
+- Managed-source embeddings are processed by the scheduled `talia-ai` worker,
+  but old sources still require an explicit reindex when a new derived
+  representation is introduced.
+- Crawling remains deliberately bounded by source and tenant quotas; it is not
+  an unrestricted whole-domain mirror.
 - There is a limit on chunk size and number to avoid huge prompts.
 - Scanned PDFs without selectable text are not processed.
 
