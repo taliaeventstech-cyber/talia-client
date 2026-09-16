@@ -15,6 +15,7 @@ import { buildResponseDiagnosticArtifact } from '@/lib/diagnostics/artifacts'
 import { buildKnowledgeSourceDebugPayload } from '@/lib/knowledge/source-debug'
 import type { DiagnosticAnalysis, DiagnosticArtifactType } from '@/lib/diagnostics/report'
 import { recordDiagnosticUsage } from '@/lib/diagnostics/usage'
+import { withProgrammeExtractionEnabled } from '@/lib/knowledge/programme'
 
 const diagnosticActionSchema = z.object({
   tenantId: z.string().uuid(),
@@ -275,6 +276,87 @@ export async function setBackstageManagedWebSyncEnabled(
   }
 }
 
+export async function setBackstageProgrammeExtractionEnabled(
+  tenantId: string,
+  sourceId: string,
+  enabled: boolean,
+): Promise<{ ok: boolean; message: string }> {
+  const platformAccess = await requirePlatformAdmin()
+  const parsed = z.object({
+    tenantId: z.string().uuid(),
+    sourceId: z.string().uuid(),
+    enabled: z.boolean(),
+  }).safeParse({ tenantId, sourceId, enabled })
+  if (!parsed.success) return { ok: false, message: 'La referencia de la fuente no es válida.' }
+
+  const admin = createAdminClient()
+  const [{ data: source, error: sourceError }, { data: venue, error: venueError }] = await Promise.all([
+    admin
+      .from('knowledge_sources')
+      .select('id, type, config, sync_enabled')
+      .eq('id', sourceId)
+      .eq('theatre_id', tenantId)
+      .maybeSingle(),
+    admin
+      .from('theatres')
+      .select('account_id')
+      .eq('id', tenantId)
+      .maybeSingle(),
+  ])
+  if (sourceError || venueError) {
+    return { ok: false, message: sourceError?.message ?? venueError?.message ?? 'No se pudo cargar la fuente.' }
+  }
+  if (!source || !venue) return { ok: false, message: 'Fuente no encontrada.' }
+  if (!isManagedWebSourceType(source.type)) {
+    return { ok: false, message: 'La extracción de programación solo está disponible para fuentes web gestionadas.' }
+  }
+
+  const { error: updateError } = await admin
+    .from('knowledge_sources')
+    .update({ config: withProgrammeExtractionEnabled(source.config, enabled) })
+    .eq('id', sourceId)
+    .eq('theatre_id', tenantId)
+  if (updateError) return { ok: false, message: `No se pudo guardar la configuración: ${updateError.message}` }
+
+  const { error: auditError } = await admin.from('audit_events').insert({
+    account_id: venue.account_id,
+    theatre_id: tenantId,
+    actor_user_id: platformAccess.user.id,
+    action: enabled ? 'knowledge.programme_extraction_enabled' : 'knowledge.programme_extraction_disabled',
+    target_type: 'knowledge_source',
+    target_id: sourceId,
+    metadata: { source_type: source.type },
+  })
+  if (auditError) {
+    console.error('[backstage-programme-extraction] failed to record audit event', {
+      tenantId,
+      sourceId,
+      error: auditError.message,
+    })
+  }
+
+  const queued = enabled && source.sync_enabled
+    ? await queueManagedWebSourceFromBackstage(admin, tenantId, sourceId)
+    : null
+
+  revalidatePath('/backstage')
+  revalidatePath(`/backstage/tenants/${tenantId}`)
+  revalidatePath(`/${tenantId}/knowledge`)
+
+  if (queued && !queued.ok) {
+    return {
+      ok: false,
+      message: `La extracción quedó activada, pero no se pudo poner la fuente en cola: ${queued.message}`,
+    }
+  }
+  return {
+    ok: true,
+    message: enabled
+      ? `Extracción estructurada activada.${queued ? ` ${queued.message}` : ' Se aplicará en la próxima sincronización.'}`
+      : 'Extracción estructurada desactivada. Los eventos dejan de participar en consultas actuales.',
+  }
+}
+
 export async function deleteBackstageKnowledgeSource(
   tenantId: string,
   sourceId: string,
@@ -338,6 +420,7 @@ async function queueManagedWebSourceFromBackstage(
     .from('knowledge_sync_runs')
     .select('id')
     .eq('source_id', sourceId)
+    .eq('theatre_id', tenantId)
     .in('status', ['queued', 'running'])
     .maybeSingle()
 
