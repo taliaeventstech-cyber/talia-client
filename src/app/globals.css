@@ -3328,6 +3328,48 @@ textarea {
   gap: 6px;
 }
 
+.nav-channel-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.nav-channel-toggle:hover,
+.nav-channel-toggle:focus-visible {
+  color: var(--color-text-secondary);
+}
+
+.nav-channel-toggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 40%, transparent);
+  outline-offset: 2px;
+}
+
+.nav-channel-toggle-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.nav-channel-toggle-actions svg {
+  flex: 0 0 auto;
+  transition: transform 160ms ease;
+}
+
+.nav-channel-toggle[aria-expanded="false"] .nav-channel-toggle-actions svg {
+  transform: rotate(-90deg);
+}
+
 .nav-channel-title {
   display: flex;
   align-items: center;

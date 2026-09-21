@@ -78,4 +78,26 @@ describe('getChatbotConfigurationHref', () => {
     expect(html).toContain('href="/tenant-1/whatsapp"')
     expect(html).not.toContain('Web Agent')
   })
+
+  it('collapses each agent instead of the whole attention section', () => {
+    const html = renderToStaticMarkup(
+      <DashboardNav
+        tenantId="tenant-1"
+        labels={labels}
+        role="owner"
+        modules={{ web: 'active', data: 'active', email: 'active', whatsapp: 'active' }}
+        hasProductAccess
+        needsUpgrade={false}
+        isTrialExpired={false}
+        trialDaysRemaining={null}
+        chatbotSetupCompleted
+        emailAgentPreviewEnabled
+      />,
+    )
+
+    expect(html).toContain('aria-label="Collapse: Web Agent"')
+    expect(html).toContain('aria-label="Collapse: Email agent"')
+    expect(html).toContain('aria-label="Collapse: WhatsApp agent"')
+    expect(html).not.toContain('aria-label="Collapse: Attention"')
+  })
 })

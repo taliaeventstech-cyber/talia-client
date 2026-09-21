@@ -123,13 +123,8 @@ export function DashboardNav({
       </div>
 
       {showKnowledge ? (
-        <CollapsibleNavSection
-          storageKey={`talia:dashboard-nav:${tenantId}:intelligence`}
-          label={labels.intelligence}
-          isActive={active(`/${tenantId}/knowledge`)}
-          expandLabel={labels.expand}
-          collapseLabel={labels.collapse}
-        >
+        <div className="nav-section">
+          <p className="nav-section-label">{labels.intelligence}</p>
           <Link
             className={`nav-link ${active(`/${tenantId}/knowledge`) ? 'nav-link-active' : ''}`}
             href={`/${tenantId}/knowledge`}
@@ -137,139 +132,122 @@ export function DashboardNav({
             <Database size={14} strokeWidth={2} aria-hidden="true" />
             {labels.knowledge}
           </Link>
-        </CollapsibleNavSection>
+        </div>
       ) : null}
 
       {showAttention ? (
-        <CollapsibleNavSection
-          storageKey={`talia:dashboard-nav:${tenantId}:attention`}
-          label={labels.attention}
-          isActive={isAttentionPath(pathname, tenantId)}
-          expandLabel={labels.expand}
-          collapseLabel={labels.collapse}
-        >
-
+        <div className="nav-section nav-section-first">
+          <p className="nav-section-label">{labels.attention}</p>
           {showChatbot ? (
-            <div className="nav-channel">
-              <div className="nav-channel-title">
-                <span className="nav-channel-title-main">
-                  <Bot size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
-                  <span>{labels.webChatbot}</span>
-                </span>
-                <span className="nav-channel-status">
-                  {labels.active}
-                </span>
-              </div>
-              <div className="nav-subnav">
-                {canViewConversations ? (
-                  <Link
-                    className={`nav-link nav-link-nested ${active(`/${tenantId}/conversations`) ? 'nav-link-active' : ''}`}
-                    href={`/${tenantId}/conversations`}
-                  >
-                    <MessageSquare size={14} strokeWidth={2} aria-hidden="true" />
-                    {labels.conversations}
-                  </Link>
-                ) : null}
-                {dataEnabled && canViewAnalytics ? (
-                  <Link
-                    className={`nav-link nav-link-nested ${active(`/${tenantId}/analytics`) ? 'nav-link-active' : ''}`}
-                    href={`/${tenantId}/analytics`}
-                  >
-                    <Network size={14} strokeWidth={2} aria-hidden="true" />
-                    {labels.analysis}
-                  </Link>
-                ) : null}
-                {canManageChatbot ? (
-                  <Link
-                    className={`nav-link nav-link-nested ${active(chatbotConfigurationHref) ? 'nav-link-active' : ''}`}
-                    href={chatbotConfigurationHref}
-                  >
-                    <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
-                    {labels.settings}
-                  </Link>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-
-          {showEmail ? (
-            <div className="nav-channel">
-              <div className="nav-channel-title">
-                <span className="nav-channel-title-main">
-                  <Mail size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
-                  <span>{labels.emailAgent}</span>
-                </span>
-                <span className="nav-channel-status">{labels.active}</span>
-              </div>
-              <div className="nav-subnav">
+            <CollapsibleNavAgent
+              storageKey={`talia:dashboard-nav:${tenantId}:web-agent`}
+              label={labels.webChatbot}
+              icon={<Bot size={14} strokeWidth={2} aria-hidden="true" />}
+              status={labels.active}
+              isActive={active(`/${tenantId}/conversations`) || active(`/${tenantId}/analytics`) || active(chatbotConfigurationHref)}
+              expandLabel={labels.expand}
+              collapseLabel={labels.collapse}
+            >
+              {canViewConversations ? (
                 <Link
-                  className={`nav-link nav-link-nested ${pathname === `/${tenantId}/email` ? 'nav-link-active' : ''}`}
-                  href={`/${tenantId}/email`}
-                >
-                  <Inbox size={14} strokeWidth={2} aria-hidden="true" />
-                  {labels.inbox}
-                </Link>
-                <Link
-                  className={`nav-link nav-link-nested ${active(`/${tenantId}/email/analysis`) ? 'nav-link-active' : ''}`}
-                  href={`/${tenantId}/email/analysis`}
-                >
-                  <Network size={14} strokeWidth={2} aria-hidden="true" />
-                  {labels.analysis}
-                </Link>
-              </div>
-            </div>
-          ) : null}
-
-          {showWhatsapp ? (
-            <div className="nav-channel">
-              <div className="nav-channel-title">
-                <span className="nav-channel-title-main">
-                  <MessageCircle size={14} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
-                  <span>{labels.whatsappAgent}</span>
-                </span>
-                <span className="nav-channel-status">{labels.active}</span>
-              </div>
-              <div className="nav-subnav">
-                <Link
-                  className={`nav-link nav-link-nested ${isWhatsappConversationPath(pathname, tenantId) ? 'nav-link-active' : ''}`}
-                  href={`/${tenantId}/whatsapp`}
+                  className={`nav-link nav-link-nested ${active(`/${tenantId}/conversations`) ? 'nav-link-active' : ''}`}
+                  href={`/${tenantId}/conversations`}
                 >
                   <MessageSquare size={14} strokeWidth={2} aria-hidden="true" />
                   {labels.conversations}
                 </Link>
-                {canManageWhatsapp ? (
-                  <Link
-                    className={`nav-link nav-link-nested ${active(`/${tenantId}/whatsapp/settings`) ? 'nav-link-active' : ''}`}
-                    href={`/${tenantId}/whatsapp/settings`}
-                  >
-                    <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
-                    {labels.settings}
-                  </Link>
-                ) : null}
-              </div>
-            </div>
+              ) : null}
+              {dataEnabled && canViewAnalytics ? (
+                <Link
+                  className={`nav-link nav-link-nested ${active(`/${tenantId}/analytics`) ? 'nav-link-active' : ''}`}
+                  href={`/${tenantId}/analytics`}
+                >
+                  <Network size={14} strokeWidth={2} aria-hidden="true" />
+                  {labels.analysis}
+                </Link>
+              ) : null}
+              {canManageChatbot ? (
+                <Link
+                  className={`nav-link nav-link-nested ${active(chatbotConfigurationHref) ? 'nav-link-active' : ''}`}
+                  href={chatbotConfigurationHref}
+                >
+                  <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
+                  {labels.settings}
+                </Link>
+              ) : null}
+            </CollapsibleNavAgent>
           ) : null}
 
-        </CollapsibleNavSection>
+          {showEmail ? (
+            <CollapsibleNavAgent
+              storageKey={`talia:dashboard-nav:${tenantId}:email-agent`}
+              label={labels.emailAgent}
+              icon={<Mail size={14} strokeWidth={2} aria-hidden="true" />}
+              status={labels.active}
+              isActive={active(`/${tenantId}/email`)}
+              expandLabel={labels.expand}
+              collapseLabel={labels.collapse}
+            >
+              <Link
+                className={`nav-link nav-link-nested ${pathname === `/${tenantId}/email` ? 'nav-link-active' : ''}`}
+                href={`/${tenantId}/email`}
+              >
+                <Inbox size={14} strokeWidth={2} aria-hidden="true" />
+                {labels.inbox}
+              </Link>
+              <Link
+                className={`nav-link nav-link-nested ${active(`/${tenantId}/email/analysis`) ? 'nav-link-active' : ''}`}
+                href={`/${tenantId}/email/analysis`}
+              >
+                <Network size={14} strokeWidth={2} aria-hidden="true" />
+                {labels.analysis}
+              </Link>
+            </CollapsibleNavAgent>
+          ) : null}
+
+          {showWhatsapp ? (
+            <CollapsibleNavAgent
+              storageKey={`talia:dashboard-nav:${tenantId}:whatsapp-agent`}
+              label={labels.whatsappAgent}
+              icon={<MessageCircle size={14} strokeWidth={2} aria-hidden="true" />}
+              status={labels.active}
+              isActive={isWhatsappConversationPath(pathname, tenantId) || active(`/${tenantId}/whatsapp/settings`)}
+              expandLabel={labels.expand}
+              collapseLabel={labels.collapse}
+            >
+              <Link
+                className={`nav-link nav-link-nested ${isWhatsappConversationPath(pathname, tenantId) ? 'nav-link-active' : ''}`}
+                href={`/${tenantId}/whatsapp`}
+              >
+                <MessageSquare size={14} strokeWidth={2} aria-hidden="true" />
+                {labels.conversations}
+              </Link>
+              {canManageWhatsapp ? (
+                <Link
+                  className={`nav-link nav-link-nested ${active(`/${tenantId}/whatsapp/settings`) ? 'nav-link-active' : ''}`}
+                  href={`/${tenantId}/whatsapp/settings`}
+                >
+                  <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
+                  {labels.settings}
+                </Link>
+              ) : null}
+            </CollapsibleNavAgent>
+          ) : null}
+        </div>
       ) : null}
 
       {showAccessibility ? (
-        <CollapsibleNavSection
-          storageKey={`talia:dashboard-nav:${tenantId}:accessibility`}
-          label={labels.accessibility}
-          isActive={active(`/${tenantId}/accessibility`)}
-          expandLabel={labels.expand}
-          collapseLabel={labels.collapse}
-        >
+        <div className="nav-section">
+          <p className="nav-section-label">{labels.accessibility}</p>
           <Link
-            className={`nav-link nav-link-nested ${active(`/${tenantId}/accessibility`) ? 'nav-link-active' : ''}`}
+            className={`nav-link ${active(`/${tenantId}/accessibility`) ? 'nav-link-active' : ''}`}
             href={`/${tenantId}/accessibility/settings`}
           >
             <WebAccessibilityIcon size={16} strokeWidth={2} aria-hidden="true" />
             {labels.settings}
             <span className="nav-channel-status">{labels.active}</span>
           </Link>
-        </CollapsibleNavSection>
+        </div>
       ) : null}
 
       {needsUpgrade ? (
@@ -309,41 +287,49 @@ export function DashboardNav({
   )
 }
 
-function CollapsibleNavSection({
+function CollapsibleNavAgent({
   children,
-  className,
   collapseLabel,
   expandLabel,
+  icon,
   isActive,
   label,
+  status,
   storageKey,
 }: {
   children: ReactNode
-  className?: string
   collapseLabel: string
   expandLabel: string
+  icon: ReactNode
   isActive: boolean
   label: string
+  status: string
   storageKey: string
 }) {
   const [isOpen, setIsOpen] = useStoredDisclosure(storageKey, isActive)
   const contentId = `${storageKey}-content`
 
   return (
-    <section className={['nav-section', className].filter(Boolean).join(' ')}>
+    <div className="nav-channel">
       <button
-        className="nav-section-toggle"
+        className="nav-channel-toggle"
         type="button"
         aria-expanded={isOpen}
         aria-controls={contentId}
         aria-label={`${isOpen ? collapseLabel : expandLabel}: ${label}`}
         onClick={() => setIsOpen((current) => !current)}
       >
-        <span>{label}</span>
-        <ChevronDown size={15} strokeWidth={2} aria-hidden="true" />
+        <span className="nav-channel-title-main">
+          {icon}
+          <span>{label}</span>
+        </span>
+        <span className="nav-channel-toggle-actions">
+          <span className="nav-channel-status">{status}</span>
+          <ChevronDown size={15} strokeWidth={2} aria-hidden="true" />
+        </span>
       </button>
-      {isOpen ? <div id={contentId} className="nav-section-content">{children}</div> : null}
-    </section>
+      {isOpen ? <div id={contentId} className="nav-subnav">{children}</div> : null}
+    </div>
   )
 }
 
@@ -364,17 +350,6 @@ function useStoredDisclosure(storageKey: string, isActive: boolean) {
   }
 
   return [isOpen, updateIsOpen] as const
-}
-
-function isAttentionPath(pathname: string, tenantId: string) {
-  return [
-    `/${tenantId}/conversations`,
-    `/${tenantId}/analytics`,
-    `/${tenantId}/settings`,
-    `/${tenantId}/chatbot/setup`,
-    `/${tenantId}/email`,
-    `/${tenantId}/whatsapp`,
-  ].some((href) => pathname === href || pathname.startsWith(`${href}/`))
 }
 
 function isWhatsappConversationPath(pathname: string, tenantId: string) {
