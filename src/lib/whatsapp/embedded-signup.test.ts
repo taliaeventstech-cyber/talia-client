@@ -5,6 +5,7 @@ import {
   registerMetaWhatsappPhone,
   subscribeMetaWhatsappApp,
   unsubscribeMetaWhatsappApp,
+  verifyMetaWhatsappAppSubscription,
 } from './embedded-signup'
 
 afterEach(() => {
@@ -59,6 +60,24 @@ describe('Meta WhatsApp Embedded Signup client', () => {
     expect(JSON.parse(fetcher.mock.calls[1][1].body as string)).toEqual({
       messaging_product: 'whatsapp',
       pin: '472901',
+    })
+  })
+
+  it('confirms that the selected WABA is subscribed to the configured Meta app', async () => {
+    vi.stubEnv('NEXT_PUBLIC_META_APP_ID', 'app-123')
+    const fetcher = vi.fn().mockResolvedValue(Response.json({
+      data: [{ whatsapp_business_api_data: { id: 'app-123' } }],
+    }))
+
+    await expect(verifyMetaWhatsappAppSubscription({
+      wabaId: 'waba-123',
+      accessToken: 'business-token',
+    }, { fetcher })).resolves.toBeUndefined()
+
+    expect(String(fetcher.mock.calls[0][0])).toContain('/waba-123/subscribed_apps')
+    expect(fetcher.mock.calls[0][1]).toMatchObject({
+      method: 'GET',
+      headers: { Authorization: 'Bearer business-token' },
     })
   })
 

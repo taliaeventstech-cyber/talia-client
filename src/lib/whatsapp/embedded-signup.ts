@@ -16,6 +16,12 @@ const phoneNumbersResponseSchema = z.object({
   })),
 })
 
+const subscribedAppsResponseSchema = z.object({
+  data: z.array(z.object({
+    whatsapp_business_api_data: z.object({ id: z.string().min(1) }),
+  })),
+})
+
 export type MetaEmbeddedSignupToken = z.infer<typeof tokenResponseSchema>
 export type MetaWhatsappPhone = z.infer<typeof phoneNumbersResponseSchema>['data'][number]
 
@@ -84,6 +90,28 @@ export async function subscribeMetaWhatsappApp(
     options.fetcher,
   )
   await parseResponse(response, z.object({ success: z.literal(true) }), 'meta_waba_subscription')
+}
+
+export async function verifyMetaWhatsappAppSubscription(
+  input: { wabaId: string; accessToken: string },
+  options: { fetcher?: typeof fetch; timeoutMs?: number } = {},
+) {
+  const appId = process.env.NEXT_PUBLIC_META_APP_ID
+  if (!appId) throw new MetaEmbeddedSignupError('meta_app_configuration_missing')
+
+  const response = await request(
+    graphUrl(`/${encodeURIComponent(input.wabaId)}/subscribed_apps`),
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${input.accessToken}` },
+      signal: AbortSignal.timeout(options.timeoutMs ?? 10_000),
+    },
+    options.fetcher,
+  )
+  const payload = await parseResponse(response, subscribedAppsResponseSchema, 'meta_waba_subscription_verification')
+  if (!payload.data.some((item) => item.whatsapp_business_api_data.id === appId)) {
+    throw new MetaEmbeddedSignupError('meta_waba_subscription_not_confirmed', 502)
+  }
 }
 
 export async function unsubscribeMetaWhatsappApp(

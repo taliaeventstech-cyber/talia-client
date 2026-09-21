@@ -13,6 +13,7 @@ import {
   registerMetaWhatsappPhone,
   subscribeMetaWhatsappApp,
   unsubscribeMetaWhatsappApp,
+  verifyMetaWhatsappAppSubscription,
 } from './embedded-signup'
 
 type AdminClient = ReturnType<typeof createAdminClient>
@@ -42,6 +43,7 @@ type CompletionDependencies = {
   exchangeCode?: typeof exchangeMetaEmbeddedSignupCode
   getPhone?: typeof getMetaWhatsappPhone
   subscribeApp?: typeof subscribeMetaWhatsappApp
+  verifyAppSubscription?: typeof verifyMetaWhatsappAppSubscription
   registerPhone?: typeof registerMetaWhatsappPhone
   now?: () => number
   createPin?: () => string
@@ -88,6 +90,7 @@ export async function completeWhatsappEmbeddedSignup(
   const exchangeCode = dependencies.exchangeCode ?? exchangeMetaEmbeddedSignupCode
   const getPhone = dependencies.getPhone ?? getMetaWhatsappPhone
   const subscribeApp = dependencies.subscribeApp ?? subscribeMetaWhatsappApp
+  const verifyAppSubscription = dependencies.verifyAppSubscription ?? verifyMetaWhatsappAppSubscription
   const registerPhone = dependencies.registerPhone ?? registerMetaWhatsappPhone
   const now = dependencies.now ?? Date.now
   const twoStepPin = dependencies.createPin?.() ?? createTwoStepPin()
@@ -120,6 +123,7 @@ export async function completeWhatsappEmbeddedSignup(
 
   try {
     await subscribeApp({ wabaId: parsed.wabaId, accessToken: token.access_token })
+    await verifyAppSubscription({ wabaId: parsed.wabaId, accessToken: token.access_token })
     if (!isMetaWhatsappPhoneConnected(phone)) {
       try {
         await registerPhone({

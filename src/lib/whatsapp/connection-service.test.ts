@@ -27,12 +27,13 @@ describe('WhatsApp Embedded Signup completion', () => {
       exchangeCode: async () => ({ access_token: 'business-token', token_type: 'bearer', expires_in: 60 }),
       getPhone: async () => ({ id: 'phone-1', display_phone_number: '+34 600 000 000', verified_name: 'Sala' }),
       subscribeApp: async () => { calls.push('subscribe') },
+      verifyAppSubscription: async () => { calls.push('verify-subscription') },
       registerPhone: async () => { calls.push('register') },
       createPin: () => '472901',
       now: () => Date.parse('2026-08-19T12:00:00.000Z'),
     })
 
-    expect(calls).toEqual(['save:draft', 'subscribe', 'register', 'save:connected'])
+    expect(calls).toEqual(['save:draft', 'subscribe', 'verify-subscription', 'register', 'save:connected'])
     expect(result.displayPhoneNumber).toBe('+34 600 000 000')
   })
 
@@ -55,6 +56,7 @@ describe('WhatsApp Embedded Signup completion', () => {
       exchangeCode: async () => ({ access_token: 'business-token' }),
       getPhone: async () => ({ id: 'phone-1' }),
       subscribeApp: async () => undefined,
+      verifyAppSubscription: async () => undefined,
       registerPhone: async () => { throw new MetaEmbeddedSignupError('meta_phone_registration_http_400', 400) },
       createPin: () => '472901',
     })).rejects.toThrow('meta_phone_registration_http_400')
@@ -94,6 +96,7 @@ describe('WhatsApp Embedded Signup completion', () => {
       exchangeCode: async () => ({ access_token: 'business-token' }),
       getPhone,
       subscribeApp: async () => undefined,
+      verifyAppSubscription: async () => undefined,
       registerPhone: async () => {
         throw new MetaEmbeddedSignupError('meta_phone_registration_http_400', 400)
       },
@@ -130,12 +133,44 @@ describe('WhatsApp Embedded Signup completion', () => {
         status: 'CONNECTED',
       }),
       subscribeApp: async () => undefined,
+      verifyAppSubscription: async () => undefined,
       registerPhone,
       createPin: () => '472901',
     })
 
     expect(registerPhone).not.toHaveBeenCalled()
     expect(statuses).toEqual(['draft', 'connected'])
+  })
+
+  it('keeps the connection in an error state when Meta does not confirm the WABA subscription', async () => {
+    vi.stubEnv('WHATSAPP_TOKEN_ENCRYPTION_KEY', 'w'.repeat(32))
+    const statuses: string[] = []
+    const registerPhone = vi.fn()
+    const rpc = vi.fn(async (_name: string, args: Record<string, unknown>) => {
+      statuses.push(String(args.p_status))
+      return { data: '50000000-0000-4000-8000-000000000001', error: null }
+    })
+
+    await expect(completeWhatsappEmbeddedSignup({ rpc } as never, {
+      tenantId: '10000000-0000-4000-8000-000000000001',
+      actorUserId: '20000000-0000-4000-8000-000000000001',
+      code: 'single-use-code',
+      businessId: 'business-1',
+      wabaId: 'waba-1',
+      phoneNumberId: 'phone-1',
+    }, {
+      exchangeCode: async () => ({ access_token: 'business-token' }),
+      getPhone: async () => ({ id: 'phone-1' }),
+      subscribeApp: async () => undefined,
+      verifyAppSubscription: async () => {
+        throw new MetaEmbeddedSignupError('meta_waba_subscription_not_confirmed', 502)
+      },
+      registerPhone,
+      createPin: () => '472901',
+    })).rejects.toThrow('meta_waba_subscription_not_confirmed')
+
+    expect(statuses).toEqual(['draft', 'error'])
+    expect(registerPhone).not.toHaveBeenCalled()
   })
 })
 
