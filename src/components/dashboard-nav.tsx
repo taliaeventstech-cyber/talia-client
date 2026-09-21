@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode, type SVGProps } from 'react'
+import { useCallback, useSyncExternalStore, type ReactNode, type SVGProps } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Bot, ChevronDown, Database, Inbox, LayoutDashboard, Mail, MessageSquare, Network, SlidersHorizontal, Zap } from 'lucide-react'
@@ -351,23 +351,53 @@ function CollapsibleNavAgent({
 }
 
 function useStoredDisclosure(storageKey: string, isActive: boolean) {
-  const [isOpen, setIsOpen] = useState(() => {
-    if (typeof window === 'undefined' || isActive) return true
+  const subscribe = useCallback((onStoreChange: () => void) => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== storageKey) return
+      storedDisclosureMemory.delete(storageKey)
+      onStoreChange()
+    }
+    const handleLocalChange = (event: Event) => {
+      if (!(event instanceof CustomEvent) || event.detail !== storageKey) return
+      onStoreChange()
+    }
 
-    const storedValue = window.localStorage.getItem(storageKey)
-    return storedValue === null || storedValue === 'true'
-  })
+    window.addEventListener('storage', handleStorage)
+    window.addEventListener(STORED_DISCLOSURE_EVENT, handleLocalChange)
+    return () => {
+      window.removeEventListener('storage', handleStorage)
+      window.removeEventListener(STORED_DISCLOSURE_EVENT, handleLocalChange)
+    }
+  }, [storageKey])
+  const getSnapshot = useCallback(() => {
+    if (isActive) return true
+    const inMemoryValue = storedDisclosureMemory.get(storageKey)
+    if (inMemoryValue !== undefined) return inMemoryValue
+    try {
+      const storedValue = window.localStorage.getItem(storageKey)
+      return storedValue === null || storedValue === 'true'
+    } catch {
+      return true
+    }
+  }, [isActive, storageKey])
+  const isOpen = useSyncExternalStore(subscribe, getSnapshot, () => true)
 
   const updateIsOpen = (updater: (current: boolean) => boolean) => {
-    setIsOpen((current) => {
-      const next = updater(current)
+    const next = updater(isOpen)
+    storedDisclosureMemory.set(storageKey, next)
+    try {
       window.localStorage.setItem(storageKey, String(next))
-      return next
-    })
+    } catch {
+      // The in-memory value keeps the disclosure usable without browser storage.
+    }
+    window.dispatchEvent(new CustomEvent(STORED_DISCLOSURE_EVENT, { detail: storageKey }))
   }
 
   return [isOpen, updateIsOpen] as const
 }
+
+const STORED_DISCLOSURE_EVENT = 'talia:stored-disclosure-change'
+const storedDisclosureMemory = new Map<string, boolean>()
 
 function isWhatsappConversationPath(pathname: string, tenantId: string) {
   const root = `/${tenantId}/whatsapp`

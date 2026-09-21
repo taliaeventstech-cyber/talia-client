@@ -36,6 +36,7 @@ export type TenantPermission =
   | 'manage_voice'
   | 'manage_email'
   | 'manage_whatsapp'
+  | 'manage_instagram'
   | 'manage_users'
 
 const permissionRoles: Record<TenantPermission, TenantRole[]> = {
@@ -49,6 +50,7 @@ const permissionRoles: Record<TenantPermission, TenantRole[]> = {
   manage_voice: ['owner', 'admin'],
   manage_email: ['owner', 'admin'],
   manage_whatsapp: ['owner', 'admin'],
+  manage_instagram: ['owner', 'admin'],
   manage_users: ['owner'],
 }
 
