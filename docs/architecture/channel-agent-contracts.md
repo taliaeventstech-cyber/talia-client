@@ -75,7 +75,7 @@ need under their own access controls.
 
 The canonical module and usage channel for the website agent is `web`. New and
 historical module, entitlement, billing and usage records use this value. The
-commercial plan key `chatbot_web` remains a separate product identifier.
+commercial plan keys `basic` and `premium` remain separate product identifiers.
 
 ## Permissions and retention
 

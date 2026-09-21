@@ -63,7 +63,7 @@ Workspace owners and administrators are responsible for:
 
 ## 6. Free trial
 
-TALIA may offer a free trial period of fifteen days unless otherwise stated in the applicable offer.
+TALIA may offer a free trial period of seven days unless otherwise stated in the applicable offer.
 
 During the free trial:
 

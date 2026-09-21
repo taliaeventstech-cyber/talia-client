@@ -8,6 +8,8 @@ vi.mock('next/navigation', () => ({
 
 const labels = {
   main: 'Main navigation',
+  expand: 'Expand',
+  collapse: 'Collapse',
   overview: 'Overview',
   attention: 'Attention',
   webChatbot: 'Web Agent',

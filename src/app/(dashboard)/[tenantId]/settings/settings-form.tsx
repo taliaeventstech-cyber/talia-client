@@ -10,7 +10,7 @@ import { updateTenantSettings, type SettingsFormState } from './actions'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry } from '@/lib/phone/international'
 import Image from 'next/image'
-import { ArrowDown, ArrowUp, ArrowUpRight, Bot, ChevronLeft, MessageCircle, MessageCircleMore, Plus, RefreshCcw, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bot, ChevronLeft, MessageCircle, MessageCircleMore, Plus, RefreshCcw, Trash2 } from 'lucide-react'
 import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { getSessionFeedbackCopy } from '@/lib/widget/session-feedback-copy'
 import {
@@ -35,9 +35,6 @@ type SettingsFormLabels = {
   widgetKnowledgeLink: string
   widgetEnabled: string
   widgetDisabled: string
-  currentPlan: string
-  planDescription: string
-  managePlan: string
   initialMessage: string
   privacyUrl: string
   privacyUrlHint: string
@@ -109,11 +106,13 @@ type SettingsFormLabels = {
   collisionStrategyHint: string
   offsetHint: string
   channelPrompt: string
-  channelPromptHint: string
+  channelPromptHintBefore: string
+  channelPromptHintKnowledge: string
   unsavedChanges: string
   unsavedChangesWarning: string
   keepEditing: string
   leaveWithoutSaving: string
+  saveChanges: string
   saving: string
   save: string
 }
@@ -126,12 +125,6 @@ type SettingsFormProps = {
     fallback_phone: string | null
     primary_language: string
     website_url: string | null
-  }
-  commercialPlan: {
-    title: string
-    priceLabel: string
-    includedLabel: string
-    cadenceLabel: string
   }
   widgetConfig: {
     enabled: boolean
@@ -187,7 +180,7 @@ const initialState: SettingsFormState = {
   message: '',
 }
 
-export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, hasUsableKnowledge, labels, compliance, previewLabel, integration }: SettingsFormProps) {
+export function SettingsForm({ tenantId, theatre, widgetConfig, hasUsableKnowledge, labels, compliance, previewLabel, integration }: SettingsFormProps) {
   const router = useRouter()
   const [state, formAction, pending] = useActionState(updateTenantSettings.bind(null, tenantId), initialState)
   const [widgetEnabled, setWidgetEnabled] = useState(widgetConfig.enabled)
@@ -196,6 +189,8 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
   const changeVersionRef = useRef(0)
   const submittedVersionRef = useRef(0)
+  const formRef = useRef<HTMLFormElement>(null)
+  const savingPendingNavigationRef = useRef(false)
   const navigationTriggerRef = useRef<HTMLAnchorElement | null>(null)
   const [previewConfig, setPreviewConfig] = useState({
     assistantName: 'TALIA',
@@ -222,6 +217,12 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
 
   useEffect(() => {
     if (!state.ok) return
+
+    if (savingPendingNavigationRef.current) {
+      savingPendingNavigationRef.current = false
+      setPendingNavigation(null)
+      navigationTriggerRef.current = null
+    }
 
     const timer = setTimeout(() => {
       if (changeVersionRef.current === submittedVersionRef.current) setDirty(false)
@@ -285,6 +286,12 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
     router.push(destination)
   }
 
+  const savePendingNavigation = () => {
+    if (!pendingNavigation || pending) return
+    savingPendingNavigationRef.current = true
+    formRef.current?.requestSubmit()
+  }
+
   const markDirty = () => {
     changeVersionRef.current += 1
     setDirty(true)
@@ -303,6 +310,7 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
 
   return (
     <form
+      ref={formRef}
       action={formAction}
       className="stack"
       onChange={() => {
@@ -316,68 +324,65 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
       <ActionToast state={state} />
       {pendingNavigation ? (
         <ConfirmationToast
+          title={labels.unsavedChanges}
           message={labels.unsavedChangesWarning}
-          cancelLabel={labels.keepEditing}
-          confirmLabel={labels.leaveWithoutSaving}
+          discardLabel={labels.leaveWithoutSaving}
+          saveLabel={labels.saveChanges}
+          saving={pending}
           onCancel={keepEditing}
-          onConfirm={leaveWithoutSaving}
+          onDiscard={leaveWithoutSaving}
+          onSave={savePendingNavigation}
         />
       ) : null}
 
       <div className="chatbot-settings-save-bar">
-        <span className="chatbot-settings-unsaved" aria-live="polite">
-          {dirty ? labels.unsavedChanges : ''}
-        </span>
-        <button className="button-primary" type="submit" disabled={!dirty || pending}>
-          {pending ? labels.saving : labels.save}
-        </button>
+        <div className="chatbot-settings-save-actions">
+          {activationLocked ? (
+            <Link
+              className="chatbot-settings-availability-hint"
+              href={`/${tenantId}/knowledge`}
+              title={labels.widgetKnowledgeRequired}
+              id="chatbot-knowledge-requirement"
+            >
+              {labels.widgetKnowledgeLink}
+            </Link>
+          ) : null}
+          <label className="chatbot-availability-control" data-disabled={activationLocked}>
+            <input
+              type="checkbox"
+              name="widget_enabled"
+              checked={widgetEnabled}
+              disabled={activationLocked}
+              aria-describedby={activationLocked ? 'chatbot-knowledge-requirement' : undefined}
+              onChange={(event) => setWidgetEnabled(event.target.checked)}
+            />
+            <span className="chatbot-availability-switch" aria-hidden="true">
+              <span />
+            </span>
+            <strong>{widgetEnabled ? labels.widgetEnabled : labels.widgetDisabled}</strong>
+          </label>
+        </div>
       </div>
 
       <div className="two-column-grid chatbot-settings-grid">
         <div className="stack">
-          <section className="card chatbot-availability-card" data-enabled={widgetEnabled}>
-            <div>
-              <h2>{labels.widgetAvailability}</h2>
-              <p className="muted">{labels.widgetAvailabilityHint}</p>
-              {activationLocked ? (
-                <p className="chatbot-availability-requirement" id="chatbot-knowledge-requirement">
-                  {labels.widgetKnowledgeRequired}{' '}
-                  <Link href={`/${tenantId}/knowledge`}>{labels.widgetKnowledgeLink}</Link>
-                </p>
-              ) : null}
-            </div>
-            <label className="chatbot-availability-control" data-disabled={activationLocked}>
-              <input
-                type="checkbox"
-                name="widget_enabled"
-                checked={widgetEnabled}
-                disabled={activationLocked}
-                aria-describedby={activationLocked ? 'chatbot-knowledge-requirement' : undefined}
-                onChange={(event) => setWidgetEnabled(event.target.checked)}
-              />
-              <span className="chatbot-availability-switch" aria-hidden="true">
-                <span />
-              </span>
-              <strong>{widgetEnabled ? labels.widgetEnabled : labels.widgetDisabled}</strong>
-            </label>
+          <section className="card stack">
+            <h2>{labels.channelPrompt}</h2>
+            <p className="muted">
+              {labels.channelPromptHintBefore}
+              <Link href={`/${tenantId}/knowledge`}>{labels.channelPromptHintKnowledge}</Link>.
+            </p>
+            <textarea
+              name="system_prompt"
+              defaultValue={theatre.system_prompt ?? ''}
+              rows={10}
+              className="mono"
+              placeholder="Instrucciones específicas para el Agente Web."
+            />
           </section>
 
           <section className="card stack">
             <h2>{labels.chatbot}</h2>
-            <div className="chatbot-plan-summary">
-              <div className="chatbot-plan-summary-copy">
-                <span className="eyebrow">{labels.currentPlan}</span>
-                <div className="chatbot-plan-summary-title">
-                  <strong>{commercialPlan.title}</strong>
-                  <span>{commercialPlan.priceLabel} {commercialPlan.cadenceLabel}</span>
-                </div>
-                <p>{commercialPlan.includedLabel}. {labels.planDescription}</p>
-              </div>
-              <Link className="button-outline button-fit" href={`/${tenantId}/upgrade`}>
-                {labels.managePlan}
-                <ArrowUpRight size={16} strokeWidth={2} aria-hidden="true" />
-              </Link>
-            </div>
             <div className="form-grid">
               <label className="field">
                 {labels.initialMessage}
@@ -719,18 +724,13 @@ export function SettingsForm({ tenantId, theatre, commercialPlan, widgetConfig, 
             />
           </section>
 
-          <section className="card stack">
-            <h2>{labels.channelPrompt}</h2>
-            <p className="muted">{labels.channelPromptHint}</p>
-            <textarea
-              name="system_prompt"
-              defaultValue={theatre.system_prompt ?? ''}
-              rows={8}
-              className="mono"
-              placeholder="Instrucciones específicas para el Agente Web."
-            />
-          </section>
         </aside>
+      </div>
+
+      <div className="chatbot-settings-save-footer">
+        <button className="button-primary" type="submit" disabled={!dirty || pending}>
+          {pending ? labels.saving : labels.save}
+        </button>
       </div>
     </form>
   )

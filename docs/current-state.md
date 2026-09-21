@@ -17,7 +17,7 @@ Current state:
 - Planned or paused channels: Microsoft/Outlook, voice and Instagram.
 - Client dashboard: **Agora**, per venue.
 - Internal panel: **Backstage**.
-- Current commercial model: 15-day free trial, upgrade to paid plans and add-ons.
+- Current commercial model: 7-day free trial, upgrade to paid plans and add-ons.
 - Mexico/Brazil launch scope: **Web Agent**. Email remains available for
   internal testing and the `talia.events.tech@gmail.com` legacy account, but is not
   exposed to other client accounts or the public upgrade offer during this phase.
@@ -111,7 +111,7 @@ Current rule:
 - Initial onboarding creates the account/venue context.
 - The self-service creator is the account owner and receives the dedicated
   billing-management permission. New launch accounts start with the
-  `chatbot_web` commercial plan and without the Email module.
+  `basic` commercial plan and without the Email module.
 - Invitations are for teams that already exist, not for the client's initial signup.
 
 Reference:
@@ -194,8 +194,8 @@ Implemented:
   content and raw provider identifiers.
 - The canonical Attention channel and module key for the website agent is `web`.
   Historical billing, usage and entitlement rows are migrated to the same key;
-  the commercial plan key `chatbot_web` remains unchanged because it identifies
-  a product rather than an Attention channel.
+  the commercial plan keys `basic` and `premium` identify products rather than
+  Attention channels.
 
 These contracts do not activate paused or planned channels. Entitlements,
 provider verification and rollout controls remain mandatory before a venue can
@@ -738,7 +738,7 @@ Reference:
 
 Implemented:
 
-- 15-day free trial.
+- 7-day free trial.
 - After the trial, access to the Web Agent is replaced by an upgrade prompt.
 - `/upgrade` screen with the public Web Agent plan and compatible add-ons.
 - The current commercial plan is read-only in chatbot settings. Subscription
