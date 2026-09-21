@@ -4,41 +4,61 @@ import { AlertTriangle } from 'lucide-react'
 import { useEffect, useId, useRef } from 'react'
 
 type ConfirmationToastProps = {
+  title: string
   message: string
-  cancelLabel: string
-  confirmLabel: string
+  discardLabel: string
+  saveLabel: string
+  saving: boolean
   onCancel: () => void
-  onConfirm: () => void
+  onDiscard: () => void
+  onSave: () => void
 }
 
 export function ConfirmationToast({
+  title,
   message,
-  cancelLabel,
-  confirmLabel,
+  discardLabel,
+  saveLabel,
+  saving,
   onCancel,
-  onConfirm,
+  onDiscard,
+  onSave,
 }: ConfirmationToastProps) {
-  const messageId = useId()
-  const cancelRef = useRef<HTMLButtonElement>(null)
+  const descriptionId = useId()
+  const saveRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
-    cancelRef.current?.focus()
-  }, [])
+    saveRef.current?.focus()
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCancel()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onCancel])
 
   return (
-    <div className="confirmation-toast" role="alertdialog" aria-modal="false" aria-describedby={messageId}>
-      <span className="confirmation-toast-icon" aria-hidden="true">
-        <AlertTriangle size={18} strokeWidth={2} />
-      </span>
-      <div className="confirmation-toast-content">
-        <p id={messageId}>{message}</p>
-        <div className="confirmation-toast-actions">
-          <button type="button" className="confirmation-toast-discard" onClick={onConfirm}>
-            {confirmLabel}
-          </button>
-          <button ref={cancelRef} type="button" className="confirmation-toast-continue" onClick={onCancel}>
-            {cancelLabel}
-          </button>
+    <div
+      className="confirmation-overlay"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onCancel()
+      }}
+    >
+      <div className="confirmation-modal" role="dialog" aria-modal="true" aria-labelledby="confirmation-title" aria-describedby={descriptionId}>
+        <span className="confirmation-modal-icon" aria-hidden="true">
+          <AlertTriangle size={20} strokeWidth={2} />
+        </span>
+        <div className="confirmation-modal-content">
+          <h2 id="confirmation-title">{title}</h2>
+          <p id={descriptionId}>{message}</p>
+          <div className="confirmation-modal-actions">
+            <button type="button" className="button-outline button-danger" onClick={onDiscard} disabled={saving}>
+              {discardLabel}
+            </button>
+            <button ref={saveRef} type="button" className="button-primary" onClick={onSave} disabled={saving}>
+              {saving ? `${saveLabel}…` : saveLabel}
+            </button>
+          </div>
         </div>
       </div>
     </div>

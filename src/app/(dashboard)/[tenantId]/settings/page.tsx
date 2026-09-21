@@ -6,9 +6,6 @@ import { normalizeChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import { normalizeWidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { normalizeProactiveGreeting } from '@/lib/widget/proactive-greeting'
 import { isChatbotEnabled } from '@/lib/widget/availability'
-import { getBillingPlan, getBillingPlanPrice, type BillingCadence, type BillingPlanKey } from '@/lib/billing/plans'
-import { getCommercialCurrency } from '@/lib/billing/market'
-import { getIntlLocale } from '@/lib/i18n/config'
 import { normalizeSuggestedQuestions } from '@/lib/widget/suggested-questions'
 import { getPublicWidgetAppUrl, getWidgetEmbedCode } from '@/lib/widget/embed-code'
 import { getWidgetComplianceCopy, normalizePrivacyUrl } from '@/lib/widget/compliance'
@@ -25,14 +22,6 @@ export default async function SettingsPage({ params }: Props) {
   const dictionary = await getDictionary(locale)
   const access = await requireTenantProductAccess(tenantId, 'manage_chatbot', 'web')
   const hasScriptAccess = access.billingAccess.hasProductAccess && access.chatbotSetupCompleted
-  const commercialPlanKey = getCommercialPlanKey(
-    isPlainObject(access.accountMetadata) ? access.accountMetadata.commercial_plan : undefined
-  )
-  const commercialPlan = getBillingPlan(commercialPlanKey) ?? getBillingPlan('chatbot_web')!
-  const marketCountry = access.accountMarketCountry ?? 'ES'
-  const cadence: BillingCadence = isPlainObject(access.accountMetadata) && access.accountMetadata.billing_cadence === 'yearly' ? 'yearly' : 'monthly'
-  const commercialPrice = getBillingPlanPrice(commercialPlan, marketCountry, cadence)
-
   const admin = createAdminClient()
 
   const [{ data: theatre }, hasUsableKnowledge, { data: installation }] = await Promise.all([
@@ -74,14 +63,6 @@ export default async function SettingsPage({ params }: Props) {
             fallback_phone: theatre.fallback_phone,
             primary_language: theatre.primary_language ?? 'es',
             website_url: theatre.website_url,
-          }}
-          commercialPlan={{
-            title: dictionary.upgrade.plans[commercialPlanKey].title,
-            priceLabel: commercialPrice
-              ? new Intl.NumberFormat(getIntlLocale(locale), { style: 'currency', currency: getCommercialCurrency(marketCountry), maximumFractionDigits: 2 }).format(commercialPrice.amount)
-              : '',
-            includedLabel: dictionary.upgrade.plans[commercialPlanKey].includedLabel,
-            cadenceLabel: cadence === 'yearly' ? dictionary.upgrade.yearly : dictionary.upgrade.monthly,
           }}
           widgetConfig={{
             enabled: widgetConfig.enabled,
@@ -136,15 +117,6 @@ export default async function SettingsPage({ params }: Props) {
       ) : null}
     </main>
   )
-}
-
-function getCommercialPlanKey(value: unknown): BillingPlanKey {
-  if (value === 'chatbot_web' || value === 'chatbot_email' || value === 'email_agent') return value
-  return 'chatbot_web'
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
 function getAiSettings(value: unknown) {

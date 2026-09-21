@@ -3048,88 +3048,70 @@ textarea {
   color: var(--color-gold);
 }
 
-.confirmation-toast {
+.confirmation-overlay {
   position: fixed;
-  top: 22px;
-  right: 22px;
+  inset: 0;
   z-index: 130;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, #000 46%, transparent);
+}
+
+.confirmation-modal {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
-  gap: 12px;
-  width: min(460px, calc(100vw - 32px));
+  gap: 16px;
+  width: min(460px, 100%);
   border: 0.5px solid color-mix(in srgb, var(--color-warning) 42%, var(--color-border));
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  border-radius: 14px;
+  background: var(--color-surface);
   box-shadow:
-    0 18px 50px color-mix(in srgb, #000000 22%, transparent),
+    0 24px 80px color-mix(in srgb, #000000 35%, transparent),
     inset 0 1px 0 color-mix(in srgb, #ffffff 10%, transparent);
   color: var(--color-text-primary);
-  padding: 14px;
-  backdrop-filter: blur(18px);
+  padding: 24px;
 }
 
-.confirmation-toast-icon {
+.confirmation-modal-icon {
   display: inline-grid;
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   place-items: center;
-  border-radius: 8px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--color-warning) 12%, transparent);
   color: var(--color-warning);
 }
 
-.confirmation-toast-content {
+.confirmation-modal-content {
   display: grid;
   min-width: 0;
-  gap: 12px;
+  gap: 10px;
 }
 
-.confirmation-toast-content p {
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.4;
+.confirmation-modal-content h2 {
+  margin: 0;
+  font-size: 19px;
 }
 
-.confirmation-toast-actions {
+.confirmation-modal-content p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.confirmation-modal-actions {
   display: flex;
   justify-content: flex-end;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
+  margin-top: 10px;
 }
 
-.confirmation-toast-actions button {
-  min-height: 34px;
-  border-radius: 6px;
-  padding: 6px 11px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.confirmation-toast-discard {
-  border: 1px solid color-mix(in srgb, var(--color-error) 50%, var(--color-border));
-  background: transparent;
-  color: var(--color-error);
-}
-
-.confirmation-toast-continue {
-  border: 1px solid var(--color-brand);
-  background: var(--color-brand);
-  color: #fff;
-}
-
-[data-theme="dark"] .confirmation-toast-continue {
-  color: #1a1a2e;
-}
-
-.confirmation-toast-actions button:hover {
-  filter: brightness(0.96);
-}
-
-.confirmation-toast-actions button:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--color-brand) 35%, transparent);
-  outline-offset: 2px;
+.confirmation-modal-actions button {
+  min-height: 38px;
 }
 
 .knowledge-divider {
@@ -3275,12 +3257,45 @@ textarea {
   margin-bottom: 4px;
 }
 
-.nav-section-label {
+.nav-section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+  border: 0;
+  background: transparent;
   color: var(--color-text-tertiary);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.07em;
+  cursor: pointer;
+  padding: 0;
   text-transform: uppercase;
+}
+
+.nav-section-toggle:hover,
+.nav-section-toggle:focus-visible {
+  color: var(--color-text-secondary);
+}
+
+.nav-section-toggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 40%, transparent);
+  outline-offset: 3px;
+}
+
+.nav-section-toggle svg {
+  flex: 0 0 auto;
+  transition: transform 160ms ease;
+}
+
+.nav-section-toggle[aria-expanded="false"] svg {
+  transform: rotate(-90deg);
+}
+
+.nav-section-content {
+  display: grid;
+  gap: 10px;
 }
 
 .nav-section-header {
@@ -3920,53 +3935,34 @@ textarea {
   gap: 16px;
 }
 
-.chatbot-settings-save-bar .button-primary {
-  min-width: 190px;
-}
-
-.chatbot-settings-save-bar .button-primary:disabled {
-  cursor: not-allowed;
-  opacity: 0.48;
-}
-
-.chatbot-settings-unsaved {
-  color: var(--color-warning);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.chatbot-availability-card {
+.chatbot-settings-save-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   flex-wrap: wrap;
-  gap: 18px 24px;
-  border-color: color-mix(in srgb, var(--color-success) 42%, var(--color-border));
+  gap: 12px;
 }
 
-.chatbot-availability-card[data-enabled="false"] {
-  border-color: color-mix(in srgb, var(--color-error) 48%, var(--color-border));
-}
-
-.chatbot-availability-card h2,
-.chatbot-availability-card p {
-  margin: 0;
-}
-
-.chatbot-availability-card p {
-  margin-top: 6px;
-}
-
-.chatbot-availability-requirement {
+.chatbot-settings-availability-hint {
   color: var(--color-warning);
   font-size: 13px;
-}
-
-.chatbot-availability-requirement a {
-  color: inherit;
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+.chatbot-settings-save-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.chatbot-settings-save-footer .button-primary {
+  min-width: 124px;
+}
+
+.chatbot-settings-save-footer .button-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .chatbot-availability-control {
@@ -6531,7 +6527,7 @@ textarea {
 
 .pricing-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
   align-items: stretch;
 }
@@ -6577,6 +6573,11 @@ textarea {
 .pricing-card-featured {
   border: 2px solid var(--color-brand);
   box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-brand) 8%, transparent);
+}
+
+.pricing-card-selected:not(.pricing-card-featured) {
+  border-color: color-mix(in srgb, var(--color-brand) 72%, var(--color-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 8%, transparent);
 }
 
 .pricing-badge {

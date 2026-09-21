@@ -70,6 +70,8 @@ export default async function DashboardLayout({ children, params }: Props) {
             settings: dictionary.common.settings,
             upgrade: dictionary.nav.upgrade,
             trialEndsIn: dictionary.nav.trialEndsIn,
+            expand: dictionary.nav.expand,
+            collapse: dictionary.nav.collapse,
           }}
         />
         <div className="dashboard-sidebar-footer">

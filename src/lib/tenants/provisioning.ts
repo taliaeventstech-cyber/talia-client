@@ -86,7 +86,7 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
   } satisfies Json
   const trialMetadata = {
     ...createTrialMetadata(now),
-    commercial_plan: 'chatbot_web',
+    commercial_plan: 'basic',
   } satisfies Json
 
   const { data: account, error: accountError } = await admin

@@ -137,10 +137,8 @@ function getCommercialPlanName(
     ? (metadata as { commercial_plan?: unknown }).commercial_plan
     : null
 
-  if (planKey === 'chatbot_web' || planKey === 'chatbot_email' || planKey === 'email_agent') {
-    return dictionary.upgrade.plans[planKey].title
-  }
-  return dictionary.upgrade.plans.chatbot_web.title
+  if (planKey === 'premium' || planKey === 'chatbot_email') return dictionary.upgrade.plans.premium.title
+  return dictionary.upgrade.plans.basic.title
 }
 
 function DetailItem({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
