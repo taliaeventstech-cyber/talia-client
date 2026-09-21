@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: September 3, 2026
+Last updated: September 21, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -14,7 +14,8 @@ Current state:
 - Most mature channel: **Web chatbot**.
 - Channel in testing: **Gmail email agent**, in supervised drafts mode.
 - Channel in development: validated WhatsApp Cloud API pilot and tenant Embedded Signup.
-- Planned or paused channels: Microsoft/Outlook, voice and Instagram.
+- Instagram channel definition and direct Instagram Login preparation are in
+  progress; Microsoft/Outlook and voice remain planned or paused.
 - Client dashboard: **Agora**, per venue.
 - Internal panel: **Backstage**.
 - Current commercial model: 7-day free trial, upgrade to paid plans and add-ons.
@@ -733,6 +734,56 @@ Pending:
 Reference:
 
 - `docs/operations/whatsapp-cloud-api-development.md`.
+
+### Instagram
+
+Status: pilot scope and provider setup in progress; not available to customers.
+
+Implemented:
+
+- The independent `instagram_agent` contract already defines direct response,
+  channel-local conversations and identities, safe handoff, message usage and
+  90-day content retention.
+- The first pilot is explicitly limited to inbound one-to-one text DMs from an
+  Instagram Business or Creator account. Publishing, comments, insights,
+  campaigns, multimedia automation and unsolicited outbound messaging are out
+  of scope.
+- Direct Instagram Login is the selected first connection method. It requests
+  only `instagram_business_basic` and
+  `instagram_business_manage_messages`; Facebook Login remains a deferred,
+  evidence-driven alternative.
+- OAuth preparation uses dedicated Instagram configuration, signed ten-minute
+  state bound to the venue and initiating TALIA user, server-side code exchange
+  and server-side long-lived-token exchange. Provider error bodies and tokens
+  are never exposed through application errors.
+- A backend-only `instagram_connections` foundation enforces one Professional
+  account per venue and prevents the same Instagram account from being attached
+  to two venues. Provider tokens use a dedicated AES-256-GCM envelope, browser
+  database roles have no table or RPC access, and newly connected accounts stay
+  rollout-disabled.
+- Owners and administrators have a dedicated `manage_instagram` permission for
+  the future connection surface. Connection, summary, credential retrieval and
+  local disconnect operations are service-role-only and audited where they
+  change customer state.
+- Authenticated connect and callback routes now enforce the Instagram module,
+  commercial access, venue permission and initiating-user binding. The callback
+  exchanges the one-use code server-side, upgrades the token, validates a
+  Business or Creator profile and persists only the encrypted long-lived
+  credential.
+
+Pending:
+
+- Add the Instagram product, callback, webhook subscription and test account in
+  the Meta dashboard.
+- Implement webhook ingestion, durable processing, provider sending, the
+  dedicated `talia-ai` runtime and Agora history/handoff surfaces.
+- Complete a real app-role canary and the Meta review required for external
+  customer accounts.
+
+References:
+
+- `docs/requirements/instagram-agent.md`.
+- `docs/operations/instagram-api-development.md`.
 
 ## Billing and Trial
 

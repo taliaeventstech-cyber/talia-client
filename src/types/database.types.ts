@@ -2112,6 +2112,42 @@ export type Database = {
         }
         Returns: Json
       }
+      get_instagram_connection_credentials: {
+        Args: {
+          p_instagram_user_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      get_instagram_connection_summary: {
+        Args: {
+          p_actor_user_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      save_instagram_connection: {
+        Args: {
+          p_account_type: string
+          p_actor_user_id: string
+          p_credential_metadata: Json
+          p_instagram_user_id: string
+          p_scopes: string[]
+          p_theatre_id: string
+          p_username: string
+        }
+        Returns: string
+      }
+      disconnect_instagram_connection: {
+        Args: {
+          p_actor_user_id: string
+          p_connection_id: string
+          p_provider_error_code?: string | null
+          p_provider_revoked?: boolean
+          p_theatre_id: string
+        }
+        Returns: string
+      }
       get_whatsapp_connection_disconnect_context: {
         Args: {
           p_actor_user_id: string
