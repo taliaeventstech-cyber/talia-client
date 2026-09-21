@@ -57,6 +57,20 @@ describe('Instagram OAuth routes', () => {
     expect(requireAccess).not.toHaveBeenCalled()
   })
 
+  it('returns to Instagram settings when OAuth configuration is incomplete', async () => {
+    getAuthorizationUrl.mockImplementation(() => {
+      throw new Error('instagram_oauth_configuration_missing')
+    })
+    const { GET } = await import('./connect/route')
+    const response = await GET(new NextRequest(
+      `https://agora.example.test/api/instagram/connect?tenantId=${tenantId}`,
+    ))
+
+    expect(response.headers.get('location')).toBe(
+      `https://agora.example.test/${tenantId}/instagram/settings?instagram_error=oauth_config`,
+    )
+  })
+
   it('completes OAuth only for the same initiating TALIA user', async () => {
     const { GET } = await import('./callback/route')
     const response = await GET(new NextRequest(
@@ -70,7 +84,7 @@ describe('Instagram OAuth routes', () => {
       code: 'one-use-code',
     })
     expect(response.headers.get('location')).toBe(
-      `https://agora.example.test/${tenantId}/overview?instagram_connected=1`,
+      `https://agora.example.test/${tenantId}/instagram/settings?instagram_connected=1`,
     )
   })
 

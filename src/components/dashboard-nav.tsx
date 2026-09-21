@@ -54,6 +54,30 @@ function WhatsAppIcon({
   )
 }
 
+function InstagramIcon({
+  size = 14,
+  strokeWidth = 2,
+  ...props
+}: SVGProps<SVGSVGElement> & { size?: number | string; strokeWidth?: number | string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.4" cy="6.6" r=".75" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
 type DashboardNavLabels = {
   main: string
   overview: string
@@ -62,10 +86,12 @@ type DashboardNavLabels = {
   accessibility: string
   emailAgent: string
   whatsappAgent: string
+  instagramAgent: string
   inbox: string
   intelligence: string
   knowledge: string
   active: string
+  pilot: string
   conversations: string
   analysis: string
   settings: string
@@ -110,18 +136,21 @@ export function DashboardNav({
   const dataEnabled = isTenantModuleEnabled(modules.data)
   const emailEnabled = isTenantModuleEnabled(modules.email)
   const whatsappEnabled = isTenantModuleEnabled(modules.whatsapp)
+  const instagramEnabled = isTenantModuleEnabled(modules.instagram)
   const canViewConversations = hasTenantPermission(role, 'view_conversations')
   const canViewAnalytics = hasTenantPermission(role, 'view_analytics')
   const canManageChatbot = hasTenantPermission(role, 'manage_chatbot')
   const canManageKnowledge = hasTenantPermission(role, 'manage_knowledge')
   const canManageEmail = hasTenantPermission(role, 'manage_email')
   const canManageWhatsapp = hasTenantPermission(role, 'manage_whatsapp')
+  const canManageInstagram = hasTenantPermission(role, 'manage_instagram')
   const showChatbot = hasProductAccess && chatbotEnabled && (canManageChatbot || canViewConversations || (dataEnabled && canViewAnalytics))
   const showAccessibility = hasProductAccess && chatbotEnabled && canManageChatbot
   const showKnowledge = hasProductAccess && dataEnabled && canManageKnowledge
   const showEmail = emailAgentPreviewEnabled && hasProductAccess && emailEnabled && canManageEmail
   const showWhatsapp = hasProductAccess && whatsappEnabled && canViewConversations
-  const showAttention = showChatbot || showEmail || showWhatsapp
+  const showInstagram = hasProductAccess && instagramEnabled && canManageInstagram
+  const showAttention = showChatbot || showEmail || showWhatsapp || showInstagram
   const chatbotConfigurationHref = getChatbotConfigurationHref(tenantId, chatbotSetupCompleted)
   const trialProgress = trialDaysRemaining === null
     ? 0
@@ -248,6 +277,26 @@ export function DashboardNav({
                   {labels.settings}
                 </Link>
               ) : null}
+            </CollapsibleNavAgent>
+          ) : null}
+
+          {showInstagram ? (
+            <CollapsibleNavAgent
+              storageKey={`talia:dashboard-nav:${tenantId}:instagram-agent`}
+              label={labels.instagramAgent}
+              icon={<InstagramIcon size={14} strokeWidth={2} aria-hidden="true" />}
+              status={labels.pilot}
+              isActive={active(`/${tenantId}/instagram/settings`)}
+              expandLabel={labels.expand}
+              collapseLabel={labels.collapse}
+            >
+              <Link
+                className={`nav-link nav-link-nested ${active(`/${tenantId}/instagram/settings`) ? 'nav-link-active' : ''}`}
+                href={`/${tenantId}/instagram/settings`}
+              >
+                <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
+                {labels.settings}
+              </Link>
             </CollapsibleNavAgent>
           ) : null}
         </div>

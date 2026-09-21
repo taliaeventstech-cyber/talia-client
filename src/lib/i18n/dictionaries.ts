@@ -31,6 +31,7 @@ const es = {
     accessibility: 'Accesibilidad',
     emailAgent: 'Agente de email',
     whatsappAgent: 'Agente de WhatsApp',
+    instagramAgent: 'Agente de Instagram',
     inbox: 'Bandeja',
     whatsapp: 'WhatsApp',
     intelligence: 'Inteligencia',
@@ -39,6 +40,7 @@ const es = {
     campaigns: 'Campañas',
     upgrade: 'Mejorar plan',
     trial: 'Trial',
+    pilot: 'Piloto',
     trialEndsIn: 'La prueba gratuita termina en {days} días',
   },
   trialExpired: {
@@ -1261,6 +1263,7 @@ const ca: Dictionary = {
     accessibility: 'Accessibilitat',
     emailAgent: 'Agent d’email',
     whatsappAgent: 'Agent de WhatsApp',
+    instagramAgent: 'Agent d’Instagram',
     inbox: 'Safata',
     whatsapp: 'WhatsApp',
     intelligence: 'Intel·ligència',
@@ -1269,6 +1272,7 @@ const ca: Dictionary = {
     campaigns: 'Campanyes',
     upgrade: 'Millorar pla',
     trial: 'Prova',
+    pilot: 'Pilot',
     trialEndsIn: 'La prova gratuïta acaba d’aquí a {days} dies',
   },
   trialExpired: {
@@ -2474,6 +2478,7 @@ const en: Dictionary = {
     accessibility: 'Accessibility',
     emailAgent: 'Email agent',
     whatsappAgent: 'WhatsApp agent',
+    instagramAgent: 'Instagram agent',
     inbox: 'Inbox',
     whatsapp: 'WhatsApp',
     intelligence: 'Intelligence',
@@ -2482,6 +2487,7 @@ const en: Dictionary = {
     campaigns: 'Campaigns',
     upgrade: 'Upgrade plan',
     trial: 'Trial',
+    pilot: 'Pilot',
     trialEndsIn: 'The free trial ends in {days} days',
   },
   trialExpired: {
@@ -3636,6 +3642,7 @@ const ptBR: Dictionary = {
     accessibility: 'Acessibilidade',
     emailAgent: 'Agente de e-mail',
     whatsappAgent: 'Agente de WhatsApp',
+    instagramAgent: 'Agente do Instagram',
     inbox: 'Caixa de entrada',
     whatsapp: 'WhatsApp',
     intelligence: 'Inteligência',
@@ -3644,6 +3651,7 @@ const ptBR: Dictionary = {
     campaigns: 'Campanhas',
     upgrade: 'Melhorar plano',
     trial: 'Teste',
+    pilot: 'Piloto',
     trialEndsIn: 'A avaliação gratuita termina em {days} dias',
   },
   trialExpired: {

@@ -20,10 +20,12 @@ const labels = {
   accessibility: 'Accessibility',
   emailAgent: 'Email agent',
   whatsappAgent: 'WhatsApp agent',
+  instagramAgent: 'Instagram agent',
   inbox: 'Inbox',
   intelligence: 'Intelligence',
   knowledge: 'Knowledge',
   active: 'Active',
+  pilot: 'Pilot',
   conversations: 'Conversations',
   analysis: 'Analysis',
   settings: 'Configuration',
@@ -83,13 +85,35 @@ describe('getChatbotConfigurationHref', () => {
     expect(html).not.toContain('Web Agent')
   })
 
+  it('shows Instagram as an independent pilot with only its connection settings', () => {
+    const html = renderToStaticMarkup(
+      <DashboardNav
+        tenantId="tenant-1"
+        labels={labels}
+        role="owner"
+        modules={{ instagram: 'active' }}
+        hasProductAccess
+        needsUpgrade={false}
+        isTrialExpired={false}
+        trialDaysRemaining={null}
+        chatbotSetupCompleted={false}
+        emailAgentPreviewEnabled={false}
+      />,
+    )
+
+    expect(html).toContain('Instagram agent')
+    expect(html).toContain('Pilot')
+    expect(html).toContain('href="/tenant-1/instagram/settings"')
+    expect(html).not.toContain('href="/tenant-1/instagram"')
+  })
+
   it('collapses each agent instead of the whole attention section', () => {
     const html = renderToStaticMarkup(
       <DashboardNav
         tenantId="tenant-1"
         labels={labels}
         role="owner"
-        modules={{ web: 'active', data: 'active', email: 'active', whatsapp: 'active' }}
+        modules={{ web: 'active', data: 'active', email: 'active', whatsapp: 'active', instagram: 'active' }}
         hasProductAccess
         needsUpgrade={false}
         isTrialExpired={false}
@@ -102,6 +126,7 @@ describe('getChatbotConfigurationHref', () => {
     expect(html).toContain('aria-label="Collapse: Web Agent"')
     expect(html).toContain('aria-label="Collapse: Email agent"')
     expect(html).toContain('aria-label="Collapse: WhatsApp agent"')
+    expect(html).toContain('aria-label="Collapse: Instagram agent"')
     expect(html).not.toContain('aria-label="Collapse: Attention"')
   })
 

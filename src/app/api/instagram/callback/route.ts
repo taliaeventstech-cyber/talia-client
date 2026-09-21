@@ -16,14 +16,14 @@ export async function GET(request: NextRequest) {
     tenantId = payload.tenantId
 
     if (oauthError) {
-      return redirectToOverview(
+      return redirectToInstagramSettings(
         request,
         tenantId,
         `instagram_error=${sanitizeOAuthError(oauthError)}`,
       )
     }
     if (!code) {
-      return redirectToOverview(request, tenantId, 'instagram_error=missing_code')
+      return redirectToInstagramSettings(request, tenantId, 'instagram_error=missing_code')
     }
 
     const access = await requireTenantProductAccess(
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       code,
     })
 
-    return redirectToOverview(request, tenantId, 'instagram_connected=1')
+    return redirectToInstagramSettings(request, tenantId, 'instagram_connected=1')
   } catch (error) {
     console.error('[instagram-oauth] callback failed', {
       tenantId,
@@ -49,14 +49,14 @@ export async function GET(request: NextRequest) {
       status: error instanceof InstagramOAuthError ? error.status : null,
     })
     if (tenantId) {
-      return redirectToOverview(request, tenantId, 'instagram_error=oauth_callback')
+      return redirectToInstagramSettings(request, tenantId, 'instagram_error=oauth_callback')
     }
     return NextResponse.redirect(new URL('/login?error=instagram_oauth', request.url))
   }
 }
 
-function redirectToOverview(request: NextRequest, tenantId: string, query: string) {
-  return NextResponse.redirect(new URL(`/${tenantId}/overview?${query}`, request.url))
+function redirectToInstagramSettings(request: NextRequest, tenantId: string, query: string) {
+  return NextResponse.redirect(new URL(`/${tenantId}/instagram/settings?${query}`, request.url))
 }
 
 function sanitizeOAuthError(error: string) {

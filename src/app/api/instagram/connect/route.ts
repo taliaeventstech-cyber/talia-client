@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       code: getSafeErrorCode(error),
     })
     return NextResponse.redirect(
-      new URL(`/${tenantId}/overview?instagram_error=oauth_config`, request.url),
+      new URL(`/${tenantId}/instagram/settings?instagram_error=oauth_config`, request.url),
     )
   }
 }

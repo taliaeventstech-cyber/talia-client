@@ -762,9 +762,12 @@ Implemented:
   database roles have no table or RPC access, and newly connected accounts stay
   rollout-disabled.
 - Owners and administrators have a dedicated `manage_instagram` permission for
-  the future connection surface. Connection, summary, credential retrieval and
-  local disconnect operations are service-role-only and audited where they
-  change customer state.
+  the dedicated Agora pilot-connection surface. It appears as a distinct
+  Instagram agent in Attention only when the venue has the Instagram module
+  enabled; it exposes connection configuration, never a shared WhatsApp view
+  or a misleading active-message state. Connection, summary, credential
+  retrieval and local disconnect operations are service-role-only and audited
+  where they change customer state.
 - Authenticated connect and callback routes now enforce the Instagram module,
   commercial access, venue permission and initiating-user binding. The callback
   exchanges the one-use code server-side, upgrades the token, validates a
@@ -773,8 +776,8 @@ Implemented:
 
 Pending:
 
-- Add the Instagram product, callback, webhook subscription and test account in
-  the Meta dashboard.
+- Complete deployment configuration and run an app-role OAuth canary with the
+  configured test account.
 - Implement webhook ingestion, durable processing, provider sending, the
   dedicated `talia-ai` runtime and Agora history/handoff surfaces.
 - Complete a real app-role canary and the Meta review required for external

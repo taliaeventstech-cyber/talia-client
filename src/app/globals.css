@@ -12796,6 +12796,46 @@ textarea {
   gap: 10px;
 }
 
+.instagram-connection-card,
+.instagram-settings-header {
+  max-width: 760px;
+}
+
+.instagram-settings-header {
+  display: grid;
+  gap: 8px;
+}
+
+.instagram-connection-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.instagram-connection-state-description {
+  max-width: 620px;
+  margin: 0;
+  line-height: 1.55;
+}
+
+.instagram-connection-metadata {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.instagram-connection-metadata dt {
+  color: var(--color-text-muted);
+}
+
+.instagram-connection-metadata dd,
+.instagram-connection-pilot-notice,
+.instagram-connection-permissions {
+  margin: 0;
+}
+
 @media (max-width: 900px) {
   .whatsapp-operator-panel {
     position: static;
