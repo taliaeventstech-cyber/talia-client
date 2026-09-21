@@ -35,6 +35,7 @@ This directory holds the curated documentation for product, architecture, requir
 
 - [`requirements/chatbot.md`](requirements/chatbot.md): web chatbot and widget.
 - [`requirements/email-agent.md`](requirements/email-agent.md): email agent and connection with real mailboxes.
+- [`requirements/instagram-agent.md`](requirements/instagram-agent.md): scoped Instagram DM pilot and direct Instagram Login decision.
 - [`requirements/voice-agent.md`](requirements/voice-agent.md): voice agent, telephony and ElevenLabs/Twilio.
 
 ## Operations
@@ -42,6 +43,7 @@ This directory holds the curated documentation for product, architecture, requir
 - [`operations/client-launch-checklist.md`](operations/client-launch-checklist.md): internal checklist for launching a client.
 - [`operations/git-sync-workflow.md`](operations/git-sync-workflow.md): post-merge synchronization for `talia-client` and `talia-ai`, including VS Code Git Graph.
 - [`operations/google-cloud-production-oauth.md`](operations/google-cloud-production-oauth.md): Google OAuth verification for Gmail.
+- [`operations/instagram-api-development.md`](operations/instagram-api-development.md): Instagram Login configuration and pilot runbook.
 - [`operations/production-email-scheduler-and-casa-evidence.md`](operations/production-email-scheduler-and-casa-evidence.md): production scheduler, sensitive-access boundaries and CASA-038 evidence runbook.
 - [`operations/data-retention.md`](operations/data-retention.md): operational data retention and cleanup policy.
 - [`legal/data-processing-agreement.md`](legal/data-processing-agreement.md): base customer DPA for GDPR, LGPD and LFPDPPP processing roles.

@@ -1,10 +1,14 @@
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DashboardNav, getChatbotConfigurationHref } from './dashboard-nav'
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/tenant-1/overview',
 }))
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 const labels = {
   main: 'Main navigation',
@@ -99,5 +103,33 @@ describe('getChatbotConfigurationHref', () => {
     expect(html).toContain('aria-label="Collapse: Email agent"')
     expect(html).toContain('aria-label="Collapse: WhatsApp agent"')
     expect(html).not.toContain('aria-label="Collapse: Attention"')
+  })
+
+  it('keeps the initial disclosure markup stable when the browser stored it as collapsed', () => {
+    const navigation = (
+      <DashboardNav
+        tenantId="tenant-1"
+        labels={labels}
+        role="owner"
+        modules={{ web: 'active', data: 'active' }}
+        hasProductAccess
+        needsUpgrade={false}
+        isTrialExpired={false}
+        trialDaysRemaining={null}
+        chatbotSetupCompleted
+        emailAgentPreviewEnabled={false}
+      />
+    )
+    const serverMarkup = renderToStaticMarkup(navigation)
+
+    vi.stubGlobal('window', {
+      localStorage: {
+        getItem: vi.fn().mockReturnValue('false'),
+        setItem: vi.fn(),
+      },
+    })
+    const firstBrowserMarkup = renderToStaticMarkup(navigation)
+
+    expect(firstBrowserMarkup).toBe(serverMarkup)
   })
 })
