@@ -193,10 +193,12 @@ export async function subscribeInstagramMessagingWebhooks(
   const url = new URL(
     `https://graph.instagram.com/${version}/${encodeURIComponent(requireIdentifier(instagramUserId))}/subscribed_apps`,
   )
-  const body = new URLSearchParams({ subscribed_fields: 'messages' })
+  const body = new URLSearchParams({
+    subscribed_fields: 'messages',
+    access_token: requireIdentifier(accessToken),
+  })
   const response = await request(url, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${requireIdentifier(accessToken)}` },
     body,
     signal: AbortSignal.timeout(options.timeoutMs ?? 10_000),
   }, options.fetcher)

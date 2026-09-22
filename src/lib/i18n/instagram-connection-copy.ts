@@ -22,6 +22,7 @@ export type InstagramConnectionCopy = {
   permissions: string
   connectedNotice: string
   failedNotice: string
+  subscriptionFailedNotice: string
 }
 
 const copies: Record<'es' | 'ca' | 'en' | 'pt', InstagramConnectionCopy> = {
@@ -39,6 +40,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', InstagramConnectionCopy> = {
     pilotNotice: 'Esta conexión no activa todavía respuestas ni procesamiento de mensajes.',
     permissions: 'Solo propietarios y administradores del espacio pueden gestionar esta conexión.',
     connectedNotice: 'Instagram se ha conectado correctamente.', failedNotice: 'No se ha podido completar la conexión con Instagram.',
+    subscriptionFailedNotice: 'La cuenta se autorizó, pero Instagram rechazó la activación de mensajes. Revisa el rol de tester y vuelve a intentarlo.',
   },
   ca: {
     eyebrow: 'Agent d’Instagram', title: 'Configura Instagram',
@@ -54,6 +56,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', InstagramConnectionCopy> = {
     pilotNotice: 'Aquesta connexió encara no activa respostes ni processament de missatges.',
     permissions: 'Només els propietaris i administradors de l’espai poden gestionar aquesta connexió.',
     connectedNotice: 'Instagram s’ha connectat correctament.', failedNotice: 'No s’ha pogut completar la connexió amb Instagram.',
+    subscriptionFailedNotice: 'El compte s’ha autoritzat, però Instagram ha rebutjat l’activació dels missatges. Revisa el rol de tester i torna-ho a provar.',
   },
   en: {
     eyebrow: 'Instagram agent', title: 'Set up Instagram',
@@ -69,6 +72,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', InstagramConnectionCopy> = {
     pilotNotice: 'This connection does not yet enable replies or message processing.',
     permissions: 'Only venue owners and administrators can manage this connection.',
     connectedNotice: 'Instagram connected successfully.', failedNotice: 'Instagram could not complete the connection.',
+    subscriptionFailedNotice: 'The account was authorized, but Instagram rejected message activation. Check the tester role and try again.',
   },
   pt: {
     eyebrow: 'Agente do Instagram', title: 'Configure o Instagram',
@@ -84,6 +88,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', InstagramConnectionCopy> = {
     pilotNotice: 'Esta conexão ainda não habilita respostas nem processamento de mensagens.',
     permissions: 'Somente proprietários e administradores do espaço podem gerenciar esta conexão.',
     connectedNotice: 'Instagram conectado com sucesso.', failedNotice: 'Não foi possível concluir a conexão com o Instagram.',
+    subscriptionFailedNotice: 'A conta foi autorizada, mas o Instagram rejeitou a ativação das mensagens. Verifique a função de testador e tente novamente.',
   },
 }
 

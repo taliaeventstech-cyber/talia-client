@@ -101,4 +101,22 @@ describe('Instagram OAuth routes', () => {
     expect(completeConnection).not.toHaveBeenCalled()
     expect(response.headers.get('location')).toContain('instagram_error=oauth_callback')
   })
+
+  it('returns a bounded account-subscription error to the settings surface', async () => {
+    const { InstagramOAuthError } = await vi.importActual<typeof import('@/lib/instagram/oauth')>(
+      '@/lib/instagram/oauth',
+    )
+    completeConnection.mockRejectedValue(new InstagramOAuthError(
+      'instagram_webhook_subscription_http_400',
+      400,
+    ))
+    const { GET } = await import('./callback/route')
+    const response = await GET(new NextRequest(
+      'https://agora.example.test/api/instagram/callback?code=one-use-code&state=signed',
+    ))
+
+    expect(response.headers.get('location')).toBe(
+      `https://agora.example.test/${tenantId}/instagram/settings?instagram_error=webhook_subscription`,
+    )
+  })
 })

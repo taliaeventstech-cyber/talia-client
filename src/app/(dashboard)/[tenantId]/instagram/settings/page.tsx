@@ -39,7 +39,13 @@ export default async function InstagramSettingsPage({ params, searchParams }: Pr
         </div>
 
         {query.instagram_connected === '1' ? <p className="notice notice-success" role="status">{copy.connectedNotice}</p> : null}
-        {query.instagram_error ? <p className="notice notice-error" role="alert">{copy.failedNotice}</p> : null}
+        {query.instagram_error ? (
+          <p className="notice notice-error" role="alert">
+            {query.instagram_error === 'webhook_subscription'
+              ? copy.subscriptionFailedNotice
+              : copy.failedNotice}
+          </p>
+        ) : null}
         <p className="muted instagram-connection-state-description">{presentation.description}</p>
 
         {connection ? (

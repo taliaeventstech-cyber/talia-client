@@ -49,7 +49,11 @@ export async function GET(request: NextRequest) {
       status: error instanceof InstagramOAuthError ? error.status : null,
     })
     if (tenantId) {
-      return redirectToInstagramSettings(request, tenantId, 'instagram_error=oauth_callback')
+      return redirectToInstagramSettings(
+        request,
+        tenantId,
+        `instagram_error=${getSafeRedirectError(error)}`,
+      )
     }
     return NextResponse.redirect(new URL('/login?error=instagram_oauth', request.url))
   }
@@ -69,4 +73,14 @@ function getSafeErrorCode(error: unknown) {
   return error instanceof InstagramOAuthError
     ? error.code
     : 'instagram_oauth_callback_failed'
+}
+
+function getSafeRedirectError(error: unknown) {
+  if (
+    error instanceof InstagramOAuthError
+    && error.code.startsWith('instagram_webhook_subscription_')
+  ) {
+    return 'webhook_subscription'
+  }
+  return 'oauth_callback'
 }

@@ -148,9 +148,10 @@ describe('Instagram OAuth', () => {
     expect(requestUrl.toString()).toBe(
       'https://graph.instagram.com/v26.0/17841400000000000/subscribed_apps',
     )
+    expect(requestUrl.toString()).not.toContain('long-lived-token')
     expect(init.method).toBe('POST')
-    expect(init.headers).toEqual({ Authorization: 'Bearer long-lived-token' })
     expect((init.body as URLSearchParams).get('subscribed_fields')).toBe('messages')
+    expect((init.body as URLSearchParams).get('access_token')).toBe('long-lived-token')
   })
 })
 
