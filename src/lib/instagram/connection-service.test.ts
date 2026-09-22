@@ -92,4 +92,25 @@ describe('Instagram connection service', () => {
       actorUserId: '20000000-0000-4000-8000-000000000001',
     })).resolves.toMatchObject({ username: 'venue_account', rollout_enabled: false })
   })
+
+  it('accepts PostgreSQL timestamps with an explicit UTC offset', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        id: '50000000-0000-4000-8000-000000000001',
+        status: 'connected',
+        username: 'venue_account',
+        account_type: 'creator',
+        rollout_enabled: false,
+        connected_at: '2026-09-22T08:05:56.123+00:00',
+        token_expires_at: '2026-11-20T10:00:00.000+00:00',
+        updated_at: '2026-09-22T08:05:56.123+00:00',
+      },
+      error: null,
+    })
+
+    await expect(getInstagramConnectionSummary({ rpc } as never, {
+      tenantId: '10000000-0000-4000-8000-000000000001',
+      actorUserId: '20000000-0000-4000-8000-000000000001',
+    })).resolves.toMatchObject({ username: 'venue_account', rollout_enabled: false })
+  })
 })

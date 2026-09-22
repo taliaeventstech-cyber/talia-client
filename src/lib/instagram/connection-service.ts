@@ -19,9 +19,9 @@ const connectionSummarySchema = z.object({
   username: z.string().min(1),
   account_type: z.enum(['business', 'creator']),
   rollout_enabled: z.boolean(),
-  connected_at: z.string().datetime().nullable(),
-  token_expires_at: z.string().datetime().nullable(),
-  updated_at: z.string().datetime(),
+  connected_at: z.string().datetime({ offset: true }).nullable(),
+  token_expires_at: z.string().datetime({ offset: true }).nullable(),
+  updated_at: z.string().datetime({ offset: true }),
 })
 
 export type InstagramConnectionSummary = z.infer<typeof connectionSummarySchema>
