@@ -3,10 +3,10 @@
 ## Current boundary
 
 TALIA is preparing Instagram API with Instagram Login for an inbound-DM pilot.
-OAuth connection and signed webhook ingestion are implemented. The webhook
-stores accepted messages in Instagram-only tables and an independent durable
-queue; it does not run the agent or send provider replies yet. New connections
-remain rollout-disabled until that complete adapter passes its canary.
+OAuth connection, signed webhook ingestion, the independent worker, the
+`instagram_agent` runtime and provider text sending are implemented. New
+connections remain rollout-disabled until both services and the worker migration
+are deployed and a controlled app-role canary is ready.
 
 The planned callback and webhook URLs are:
 
@@ -116,11 +116,30 @@ Before configuring the Meta webhook:
 
 1. Apply the Instagram connection migration in the target environment.
 2. Apply `20260922110000_instagram_inbound_foundation.sql`.
-3. Configure the dedicated server secrets listed above and deploy the route.
-4. In Meta, enter the production callback URL and the same webhook verification
+3. Apply `20260922130000_instagram_agent_worker.sql`.
+4. Deploy `talia-ai` with `/v1/instagram/respond`, then deploy `talia-client`
+   with the Instagram webhook wake-up and minute recovery cron.
+5. Configure the dedicated server secrets listed above.
+6. In Meta, enter the production callback URL and the same webhook verification
    token, then subscribe only to `messages`.
-5. Keep `rollout_enabled = false` until the queue worker, provider sender and
-   operator handoff surface are deployed and have passed the app-role canary.
+7. Keep `rollout_enabled = false` until both deployments report healthy and the
+   exact connected app-role account is selected for the canary.
+
+## Agent and send boundary
+
+The worker sends bounded, channel-local context to
+`POST <TALIA_AI_BASE_URL>/v1/instagram/respond`. The AI service never receives
+Meta credentials and never sends a provider message. `talia-client` decrypts the
+connection token only at the final send boundary and calls:
+
+```text
+POST https://graph.instagram.com/<version>/<IG_USER_ID>/messages
+```
+
+The outbound reply is stored before this request. Provider or network ambiguity
+after the send starts is marked `unknown` and handed off without an automatic
+retry. A cron at `/api/cron/instagram/process` recovers only jobs that have not
+crossed that boundary.
 
 The Agora Instagram settings surface starts OAuth through
 `/api/instagram/connect?tenantId=<VENUE_UUID>` for an authorized owner or

@@ -785,14 +785,26 @@ Implemented:
 - The pilot parser queues only one-to-one text DMs. Attachments, unsupported
   message types and empty messages are persisted minimally as Instagram
   handoffs, without attempting automated processing.
+- A dedicated Instagram worker leases only `instagram_inbound_jobs`, loads at
+  most six messages from the same Instagram conversation and calls the separate
+  `/v1/instagram/respond` contract. `talia-ai` fixes the channel to Instagram
+  and identifies every decision as `instagram_agent` while continuing to use
+  venue-scoped Knowledge and the controlled grounding runtime.
+- Direct text replies are prepared durably before any Meta side effect and sent
+  through `graph.instagram.com` with the connection's encrypted token. Once the
+  provider-send boundary starts, ambiguous or failed outcomes become a handoff
+  and are never automatically retried, preventing duplicate customer replies.
+- Instagram message and measured AI usage are recorded with Instagram-specific
+  idempotency keys. A dedicated minute cron recovers jobs when the webhook
+  wake-up is unavailable.
 
 Pending:
 
-- Apply and deploy the inbound foundation, configure the production webhook
-  verification token and subscribe the Meta Instagram webhook to `messages`.
-- Implement the independent queue worker, provider sending, dedicated
-  `instagram_agent` runtime and Agora history/handoff surfaces before enabling
-  `rollout_enabled` for the connected account.
+- Apply and deploy the agent-worker migration and the dedicated `talia-ai`
+  Instagram runtime before enabling `rollout_enabled` for the connected test
+  account.
+- Implement Agora Instagram history, operator handoff/takeover, manual reply,
+  disconnect/revocation and retention surfaces before an external canary.
 - Complete a real app-role canary and the Meta review required for external
   customer accounts.
 

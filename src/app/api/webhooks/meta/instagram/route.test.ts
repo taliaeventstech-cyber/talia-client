@@ -1,10 +1,15 @@
 import { createHmac } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }))
+const { rpc, processJobs } = vi.hoisted(() => ({ rpc: vi.fn(), processJobs: vi.fn() }))
 
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => ({ rpc }),
+}))
+vi.mock('@/lib/instagram/processor', () => ({ processInstagramInboundJobs: processJobs }))
+vi.mock('next/server', async (importOriginal) => ({
+  ...await importOriginal<typeof import('next/server')>(),
+  after: (callback: () => unknown) => callback(),
 }))
 
 import { GET, POST } from './route'
@@ -20,6 +25,10 @@ afterEach(() => {
 beforeEach(() => {
   rpc.mockReset()
   rpc.mockResolvedValue({ data: [{ outcome: 'accepted' }], error: null })
+  processJobs.mockReset()
+  processJobs.mockResolvedValue({
+    claimed: 1, responded: 1, handoffs: 0, retried: 0, deferred: 0, failed: 0,
+  })
 })
 
 describe('Meta Instagram webhook route', () => {
@@ -55,6 +64,7 @@ describe('Meta Instagram webhook route', () => {
       p_sender_igsid: 'instagram-scoped-user-1',
       p_provider_message_id: 'instagram-message-1',
     }))
+    await vi.waitFor(() => expect(processJobs).toHaveBeenCalledWith(expect.anything(), { limit: 3 }))
   })
 
   it('rejects missing or invalid signatures before parsing', async () => {

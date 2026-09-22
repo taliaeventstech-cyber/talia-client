@@ -2,9 +2,10 @@
 
 ## Status
 
-Connection and provider setup in progress. Instagram remains unavailable to
-customers until the durable message adapter, agent runtime,
-operator handoff and pilot gates are implemented and validated.
+Connection, durable message processing, agent runtime and provider text sending
+are implemented for the app-role pilot. Instagram remains unavailable to
+customers until the operator handoff surface, revocation/retention controls and
+pilot gates are implemented and validated.
 
 ## Pilot objective
 

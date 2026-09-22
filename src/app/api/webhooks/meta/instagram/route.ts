@@ -1,10 +1,12 @@
 import { ingestMetaInstagramEnvelope } from '@/lib/instagram/inbound'
 import { parseMetaInstagramWebhookEnvelope } from '@/lib/instagram/meta-webhook'
+import { processInstagramInboundJobs } from '@/lib/instagram/processor'
 import {
   verifyMetaWebhookChallenge,
   verifyMetaWebhookSignature,
 } from '@/lib/meta/webhook-security'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { after } from 'next/server'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -51,7 +53,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const summary = await ingestMetaInstagramEnvelope(createAdminClient(), envelope)
+    const admin = createAdminClient()
+    const summary = await ingestMetaInstagramEnvelope(admin, envelope)
     if (summary.unmatched > 0) {
       console.warn(JSON.stringify({
         event: 'instagram_webhook_unmatched_connection',
@@ -63,6 +66,24 @@ export async function POST(request: Request) {
         event: 'instagram_webhook_messages_queued',
         accepted_count: summary.accepted,
       }))
+      try {
+        after(async () => {
+          try {
+            const result = await processInstagramInboundJobs(admin, { limit: 3 })
+            console.info(JSON.stringify({ event: 'instagram_webhook_processor_completed', ...result }))
+          } catch {
+            console.error(JSON.stringify({
+              event: 'instagram_webhook_processor_failed',
+              error_code: 'processor_wakeup_failed',
+            }))
+          }
+        })
+      } catch {
+        console.warn(JSON.stringify({
+          event: 'instagram_webhook_processor_schedule_failed',
+          error_code: 'processor_wakeup_not_scheduled',
+        }))
+      }
     }
   } catch {
     console.error(JSON.stringify({

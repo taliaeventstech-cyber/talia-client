@@ -2018,6 +2018,17 @@ export type Database = {
         }
         Returns: string | null
       }
+      claim_instagram_inbound_jobs: {
+        Args: {
+          p_lease_seconds?: number
+          p_limit?: number
+          p_worker_id: string
+        }
+        Returns: {
+          attempt_count: number
+          job_id: string
+        }[]
+      }
       claim_whatsapp_inbound_jobs: {
         Args: {
           p_lease_seconds?: number
@@ -2031,6 +2042,29 @@ export type Database = {
           message_id: string
           theatre_id: string
         }[]
+      }
+      complete_instagram_agent_handoff: {
+        Args: {
+          p_agent_metadata?: Json
+          p_failed?: boolean
+          p_job_id: string
+          p_outbound_delivery_status?: string
+          p_outbound_message_id?: string
+          p_reason: string
+          p_worker_id: string
+        }
+        Returns: string
+      }
+      complete_instagram_agent_reply: {
+        Args: {
+          p_agent_metadata?: Json
+          p_job_id: string
+          p_outbound_message_id: string
+          p_provider_message_id: string
+          p_resolution?: Json
+          p_worker_id: string
+        }
+        Returns: boolean
       }
       complete_whatsapp_agent_handoff: {
         Args: {
@@ -2126,6 +2160,13 @@ export type Database = {
         }
         Returns: Json
       }
+      get_instagram_inbound_job_context: {
+        Args: {
+          p_job_id: string
+          p_worker_id: string
+        }
+        Returns: Json
+      }
       ingest_instagram_message: {
         Args: {
           p_body_text: string
@@ -2145,6 +2186,25 @@ export type Database = {
           resolved_theatre_id: string | null
         }[]
       }
+      prepare_instagram_agent_reply: {
+        Args: {
+          p_agent_metadata?: Json
+          p_job_id: string
+          p_reply: string
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      retry_instagram_agent_reply: {
+        Args: {
+          p_error_code: string
+          p_error_message: string
+          p_job_id: string
+          p_retry_delay_seconds?: number
+          p_worker_id: string
+        }
+        Returns: string
+      }
       save_instagram_connection: {
         Args: {
           p_account_type: string
@@ -2154,6 +2214,14 @@ export type Database = {
           p_scopes: string[]
           p_theatre_id: string
           p_username: string
+        }
+        Returns: string
+      }
+      start_instagram_agent_send: {
+        Args: {
+          p_job_id: string
+          p_outbound_message_id: string
+          p_worker_id: string
         }
         Returns: string
       }
