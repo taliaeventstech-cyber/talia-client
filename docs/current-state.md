@@ -773,13 +773,26 @@ Implemented:
   exchanges the one-use code server-side, upgrades the token, validates a
   Business or Creator profile and persists only the encrypted long-lived
   credential.
+- A dedicated `/api/webhooks/meta/instagram` boundary validates Meta's
+  verification challenge and the raw-body `X-Hub-Signature-256` before parsing
+  any notification. It accepts only inbound Instagram message events and does
+  not reuse the WhatsApp parser or ingestion path.
+- Backend-only `instagram_contacts`, `instagram_conversations`,
+  `instagram_messages` and `instagram_inbound_jobs` tables provide channel-local
+  identity, durable deduplication and an independent queue. The ingestion RPC
+  fails closed before storing content unless the connection, rollout, module
+  and entitlement are all active; raw webhook envelopes are never persisted.
+- The pilot parser queues only one-to-one text DMs. Attachments, unsupported
+  message types and empty messages are persisted minimally as Instagram
+  handoffs, without attempting automated processing.
 
 Pending:
 
-- Complete deployment configuration and run an app-role OAuth canary with the
-  configured test account.
-- Implement webhook ingestion, durable processing, provider sending, the
-  dedicated `talia-ai` runtime and Agora history/handoff surfaces.
+- Apply and deploy the inbound foundation, configure the production webhook
+  verification token and subscribe the Meta Instagram webhook to `messages`.
+- Implement the independent queue worker, provider sending, dedicated
+  `instagram_agent` runtime and Agora history/handoff surfaces before enabling
+  `rollout_enabled` for the connected account.
 - Complete a real app-role canary and the Meta review required for external
   customer accounts.
 

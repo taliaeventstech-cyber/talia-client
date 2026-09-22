@@ -3,10 +3,10 @@
 ## Current boundary
 
 TALIA is preparing Instagram API with Instagram Login for an inbound-DM pilot.
-The code creates and validates the OAuth flow and provides a backend-only
-`instagram_connections` foundation. It does not activate message processing;
-new connections remain rollout-disabled until the complete adapter passes its
-canary.
+OAuth connection and signed webhook ingestion are implemented. The webhook
+stores accepted messages in Instagram-only tables and an independent durable
+queue; it does not run the agent or send provider replies yet. New connections
+remain rollout-disabled until that complete adapter passes its canary.
 
 The planned callback and webhook URLs are:
 
@@ -16,8 +16,9 @@ https://<agora-origin>/api/webhooks/meta/instagram
 ```
 
 The callback validates the Professional account and persists its encrypted
-credential atomically. The webhook route must fail closed until an active
-Instagram connection can resolve its account to one venue.
+credential atomically. The webhook verifies the raw request signature before
+parsing and fails closed unless the provider account resolves to one enabled
+venue connection. It never routes through WhatsApp persistence or processing.
 
 ## Server environment
 
@@ -54,9 +55,10 @@ For each environment used in the pilot:
    never add wildcard redirect URIs.
 4. Request only `instagram_business_basic` and
    `instagram_business_manage_messages` for the DM pilot.
-5. Configure the Instagram webhook product with the HTTPS callback, a dedicated
-   verification token and the message-related subscription required by the
-   pilot.
+5. After deploying the inbound migration and route, configure the Instagram
+   webhook product with `https://<agora-origin>/api/webhooks/meta/instagram` and
+   the exact value of `META_INSTAGRAM_WEBHOOK_VERIFY_TOKEN`. Subscribe only to
+   the `messages` field for this pilot.
 6. Add a dedicated Instagram Business or Creator account as an app-role tester
    and accept the invitation from that account.
 7. Keep the app in development mode until the end-to-end test succeeds with app
@@ -92,18 +94,38 @@ The long-lived token is stored in a per-connection AES-256-GCM envelope using
 `INSTAGRAM_TOKEN_ENCRYPTION_KEY`. An Instagram account cannot be connected to
 two venues, and completing OAuth never enables rollout automatically.
 
-## Next implementation phase
+## Implemented inbound boundary
 
-Before running the browser OAuth flow against a real test account:
+`src/app/api/webhooks/meta/instagram/route.ts` provides:
+
+- GET challenge verification with a dedicated Instagram verification token;
+- raw-body HMAC verification with the dedicated Instagram app secret before
+  JSON parsing;
+- an Instagram-specific, bounded parser for inbound one-to-one messages;
+- durable, idempotent ingestion through `ingest_instagram_message`;
+- retryable 5xx responses when persistence fails.
+
+The inbound migration creates backend-only Instagram contacts, conversations,
+messages and jobs. Its rollout gate runs before message content is stored. Only
+plain text is queued; unsupported content enters a minimal handoff state. Raw
+Meta webhook envelopes and attachment URLs are not persisted.
+
+## Deployment sequence
+
+Before configuring the Meta webhook:
 
 1. Apply the Instagram connection migration in the target environment.
-2. Configure the Meta dashboard values and server environment described above.
-3. Start the connection through
-   `/api/instagram/connect?tenantId=<VENUE_UUID>` using an authorized owner or
-   administrator. Until the Agora settings surface is built, the callback returns
-   to the venue overview with a bounded success or error query parameter.
-4. Add provider-side revocation to the local disconnect foundation before
-   enabling any external venue.
+2. Apply `20260922110000_instagram_inbound_foundation.sql`.
+3. Configure the dedicated server secrets listed above and deploy the route.
+4. In Meta, enter the production callback URL and the same webhook verification
+   token, then subscribe only to `messages`.
+5. Keep `rollout_enabled = false` until the queue worker, provider sender and
+   operator handoff surface are deployed and have passed the app-role canary.
+
+The Agora Instagram settings surface starts OAuth through
+`/api/instagram/connect?tenantId=<VENUE_UUID>` for an authorized owner or
+administrator. The callback returns to that surface with a bounded success or
+error result.
 
 Do not temporarily write a token to a generic tenant settings field or an
 environment variable to bypass this sequence.

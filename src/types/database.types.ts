@@ -2126,6 +2126,25 @@ export type Database = {
         }
         Returns: Json
       }
+      ingest_instagram_message: {
+        Args: {
+          p_body_text: string
+          p_context_provider_message_id?: string
+          p_instagram_user_id: string
+          p_message_type: string
+          p_metadata?: Json
+          p_processable?: boolean
+          p_provider_message_id: string
+          p_provider_timestamp: string
+          p_sender_igsid: string
+        }
+        Returns: {
+          inbound_job_id: string | null
+          inbound_message_id: string | null
+          outcome: string
+          resolved_theatre_id: string | null
+        }[]
+      }
       save_instagram_connection: {
         Args: {
           p_account_type: string
