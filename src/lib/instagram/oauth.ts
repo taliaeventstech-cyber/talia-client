@@ -13,7 +13,6 @@ const STATE_TTL_MS = 10 * 60 * 1000
 
 const shortLivedTokenSchema = z.object({
   access_token: z.string().min(1),
-  user_id: z.union([z.string().min(1), z.number()]).transform(String),
 })
 
 const longLivedTokenSchema = z.object({
@@ -23,6 +22,7 @@ const longLivedTokenSchema = z.object({
 })
 
 const professionalProfileSchema = z.object({
+  id: z.string().min(1).max(200),
   username: z.string().min(1).max(200),
   account_type: z.string().min(1),
 })
@@ -40,6 +40,7 @@ type InstagramOAuthState = {
 export type InstagramShortLivedToken = z.infer<typeof shortLivedTokenSchema>
 export type InstagramLongLivedToken = z.infer<typeof longLivedTokenSchema>
 export type InstagramProfessionalProfile = {
+  id: string
   username: string
   accountType: 'business' | 'creator'
 }
@@ -164,7 +165,7 @@ export async function fetchInstagramProfessionalProfile(
   options: { fetcher?: typeof fetch; timeoutMs?: number } = {},
 ): Promise<InstagramProfessionalProfile> {
   const url = new URL('https://graph.instagram.com/me')
-  url.searchParams.set('fields', 'username,account_type')
+  url.searchParams.set('fields', 'id,username,account_type')
 
   const response = await request(url, {
     method: 'GET',
@@ -181,7 +182,7 @@ export async function fetchInstagramProfessionalProfile(
     throw new InstagramOAuthError('instagram_professional_account_required', 403)
   }
 
-  return { username: profile.username, accountType }
+  return { id: profile.id, username: profile.username, accountType }
 }
 
 export async function subscribeInstagramMessagingWebhooks(

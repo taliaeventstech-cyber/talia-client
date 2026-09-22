@@ -57,7 +57,7 @@ export async function completeInstagramOAuthConnection(
   const connectionId = await saveInstagramConnection(admin, {
     tenantId: input.tenantId,
     actorUserId: input.actorUserId,
-    instagramUserId: shortLived.user_id,
+    instagramUserId: profile.id,
     username: profile.username,
     accountType: profile.accountType,
     credentials: {

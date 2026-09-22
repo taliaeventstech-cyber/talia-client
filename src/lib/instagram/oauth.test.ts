@@ -69,13 +69,13 @@ describe('Instagram OAuth', () => {
     configureOAuth()
     const fetcher = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({
       access_token: 'short-lived-token',
-      user_id: 123456,
+      user_id: 29028644286753871,
     }), { status: 200 })).mockResolvedValueOnce(new Response(JSON.stringify({
       error_message: 'access_token=secret customer@example.com',
     }), { status: 401 }))
 
     await expect(exchangeInstagramAuthorizationCode('authorization-code', { fetcher }))
-      .resolves.toEqual({ access_token: 'short-lived-token', user_id: '123456' })
+      .resolves.toEqual({ access_token: 'short-lived-token' })
 
     const [, init] = fetcher.mock.calls[0] as [string, RequestInit]
     expect(init.method).toBe('POST')
@@ -111,21 +111,27 @@ describe('Instagram OAuth', () => {
 
   it('validates the authorized account as Professional without putting its token in the URL', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      id: '17841480248188457',
       username: 'venue_account',
       account_type: 'MEDIA_CREATOR',
     }), { status: 200 }))
 
     await expect(fetchInstagramProfessionalProfile('long-lived-token', { fetcher }))
-      .resolves.toEqual({ username: 'venue_account', accountType: 'creator' })
+      .resolves.toEqual({
+        id: '17841480248188457',
+        username: 'venue_account',
+        accountType: 'creator',
+      })
 
     const [requestUrl, init] = fetcher.mock.calls[0] as [URL, RequestInit]
     expect(requestUrl.toString()).not.toContain('long-lived-token')
-    expect(requestUrl.searchParams.get('fields')).toBe('username,account_type')
+    expect(requestUrl.searchParams.get('fields')).toBe('id,username,account_type')
     expect(init.headers).toEqual({ Authorization: 'Bearer long-lived-token' })
   })
 
   it('rejects a non-professional account', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      id: '17841480248188457',
       username: 'personal_account',
       account_type: 'PERSONAL',
     }), { status: 200 }))

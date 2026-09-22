@@ -25,13 +25,17 @@ describe('Instagram connection service', () => {
       actorUserId: '20000000-0000-4000-8000-000000000001',
       code: 'single-use-code',
     }, {
-      exchangeCode: async () => ({ access_token: 'short-lived-token', user_id: '17841400000000000' }),
+      exchangeCode: async () => ({ access_token: 'short-lived-token' }),
       exchangeLongLivedToken: async () => ({
         access_token: 'long-lived-token',
         token_type: 'bearer',
         expires_in: 5_184_000,
       }),
-      fetchProfile: async () => ({ username: 'venue_account', accountType: 'business' }),
+      fetchProfile: async () => ({
+        id: '17841400000000000',
+        username: 'venue_account',
+        accountType: 'business',
+      }),
       subscribeWebhooks: async (accessToken) => {
         expect(accessToken).toBe('long-lived-token')
         calls.push('subscribe')
@@ -40,6 +44,8 @@ describe('Instagram connection service', () => {
     })
 
     expect(calls).toEqual(['subscribe', 'save'])
+    const [, saveArgs] = rpc.mock.calls[0] as [string, Record<string, unknown>]
+    expect(saveArgs.p_instagram_user_id).toBe('17841400000000000')
     expect(result).toEqual({
       connectionId: '50000000-0000-4000-8000-000000000001',
       username: 'venue_account',
