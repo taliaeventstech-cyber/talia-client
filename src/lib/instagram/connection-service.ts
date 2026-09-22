@@ -5,6 +5,7 @@ import {
   exchangeInstagramLongLivedToken,
   fetchInstagramProfessionalProfile,
   INSTAGRAM_OAUTH_SCOPES,
+  subscribeInstagramMessagingWebhooks,
 } from './oauth'
 import {
   buildInstagramCredentialMetadata,
@@ -30,6 +31,7 @@ type OAuthDependencies = {
   exchangeCode?: typeof exchangeInstagramAuthorizationCode
   exchangeLongLivedToken?: typeof exchangeInstagramLongLivedToken
   fetchProfile?: typeof fetchInstagramProfessionalProfile
+  subscribeWebhooks?: typeof subscribeInstagramMessagingWebhooks
   now?: () => number
 }
 
@@ -45,6 +47,9 @@ export async function completeInstagramOAuthConnection(
   const profile = await (
     dependencies.fetchProfile ?? fetchInstagramProfessionalProfile
   )(longLived.access_token)
+  await (
+    dependencies.subscribeWebhooks ?? subscribeInstagramMessagingWebhooks
+  )(shortLived.user_id, longLived.access_token)
   const expiresAt = new Date(
     (dependencies.now ?? Date.now)() + longLived.expires_in * 1000,
   ).toISOString()

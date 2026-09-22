@@ -773,6 +773,10 @@ Implemented:
   exchanges the one-use code server-side, upgrades the token, validates a
   Business or Creator profile and persists only the encrypted long-lived
   credential.
+- OAuth completion also subscribes the authorized Professional account to the
+  `messages` webhook through its own long-lived token before saving the local
+  connection. Configuring the app-level callback in Meta alone is not treated
+  as an account subscription.
 - A dedicated `/api/webhooks/meta/instagram` boundary validates Meta's
   verification challenge and the raw-body `X-Hub-Signature-256` before parsing
   any notification. It accepts only inbound Instagram message events and does

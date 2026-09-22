@@ -27,6 +27,8 @@ const professionalProfileSchema = z.object({
   account_type: z.string().min(1),
 })
 
+const webhookSubscriptionSchema = z.object({ success: z.literal(true) })
+
 type InstagramOAuthState = {
   provider: 'instagram'
   tenantId: string
@@ -182,6 +184,30 @@ export async function fetchInstagramProfessionalProfile(
   return { username: profile.username, accountType }
 }
 
+export async function subscribeInstagramMessagingWebhooks(
+  instagramUserId: string,
+  accessToken: string,
+  options: { fetcher?: typeof fetch; timeoutMs?: number } = {},
+) {
+  const version = normalizeGraphApiVersion(process.env.META_INSTAGRAM_GRAPH_API_VERSION)
+  const url = new URL(
+    `https://graph.instagram.com/${version}/${encodeURIComponent(requireIdentifier(instagramUserId))}/subscribed_apps`,
+  )
+  const body = new URLSearchParams({ subscribed_fields: 'messages' })
+  const response = await request(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${requireIdentifier(accessToken)}` },
+    body,
+    signal: AbortSignal.timeout(options.timeoutMs ?? 10_000),
+  }, options.fetcher)
+
+  await parseResponse(
+    response,
+    webhookSubscriptionSchema,
+    'instagram_webhook_subscription',
+  )
+}
+
 async function request(
   url: string | URL,
   init: RequestInit,
@@ -257,4 +283,8 @@ function normalizeProfessionalAccountType(value: string): 'business' | 'creator'
   if (normalized === 'business') return 'business'
   if (normalized === 'creator' || normalized === 'media_creator') return 'creator'
   return null
+}
+
+function normalizeGraphApiVersion(value: string | undefined) {
+  return /^v\d+\.\d+$/.test(value ?? '') ? value! : 'v26.0'
 }

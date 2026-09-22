@@ -6,6 +6,7 @@ import {
   fetchInstagramProfessionalProfile,
   getInstagramAuthorizationUrl,
   INSTAGRAM_OAUTH_SCOPES,
+  subscribeInstagramMessagingWebhooks,
   verifyInstagramOAuthState,
 } from './oauth'
 
@@ -131,6 +132,25 @@ describe('Instagram OAuth', () => {
 
     await expect(fetchInstagramProfessionalProfile('token', { fetcher }))
       .rejects.toThrow('instagram_professional_account_required')
+  })
+
+  it('subscribes each authorized account only to Instagram messages', async () => {
+    vi.stubEnv('META_INSTAGRAM_GRAPH_API_VERSION', 'v26.0')
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ success: true }))
+
+    await expect(subscribeInstagramMessagingWebhooks(
+      '17841400000000000',
+      'long-lived-token',
+      { fetcher },
+    )).resolves.toBeUndefined()
+
+    const [requestUrl, init] = fetcher.mock.calls[0] as [URL, RequestInit]
+    expect(requestUrl.toString()).toBe(
+      'https://graph.instagram.com/v26.0/17841400000000000/subscribed_apps',
+    )
+    expect(init.method).toBe('POST')
+    expect(init.headers).toEqual({ Authorization: 'Bearer long-lived-token' })
+    expect((init.body as URLSearchParams).get('subscribed_fields')).toBe('messages')
   })
 })
 

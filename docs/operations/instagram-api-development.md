@@ -19,6 +19,10 @@ The callback validates the Professional account and persists its encrypted
 credential atomically. The webhook verifies the raw request signature before
 parsing and fails closed unless the provider account resolves to one enabled
 venue connection. It never routes through WhatsApp persistence or processing.
+Before persistence, OAuth completion calls the account-level
+`/<IG_USER_ID>/subscribed_apps` endpoint with `subscribed_fields=messages`.
+This is required in addition to the app-level webhook callback configured in
+the Meta dashboard.
 
 ## Server environment
 
@@ -78,6 +82,7 @@ evidence; they are not application logs.
 - server-side authorization-code exchange;
 - server-side exchange from a short-lived to a long-lived access token;
 - Professional account validation without putting the token in the request URL;
+- account-level subscription to the `messages` webhook before persistence;
 - bounded provider errors that never include Meta response bodies.
 
 The implementation deliberately uses dedicated Instagram environment keys and
