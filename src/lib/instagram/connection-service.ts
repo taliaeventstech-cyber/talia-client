@@ -49,7 +49,7 @@ export async function completeInstagramOAuthConnection(
   )(longLived.access_token)
   await (
     dependencies.subscribeWebhooks ?? subscribeInstagramMessagingWebhooks
-  )(shortLived.user_id, longLived.access_token)
+  )(longLived.access_token)
   const expiresAt = new Date(
     (dependencies.now ?? Date.now)() + longLived.expires_in * 1000,
   ).toISOString()

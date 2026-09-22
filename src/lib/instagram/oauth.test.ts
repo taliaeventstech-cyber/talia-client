@@ -139,14 +139,13 @@ describe('Instagram OAuth', () => {
     const fetcher = vi.fn().mockResolvedValue(Response.json({ success: true }))
 
     await expect(subscribeInstagramMessagingWebhooks(
-      '17841400000000000',
       'long-lived-token',
       { fetcher },
     )).resolves.toBeUndefined()
 
     const [requestUrl, init] = fetcher.mock.calls[0] as [URL, RequestInit]
     expect(requestUrl.toString()).toBe(
-      'https://graph.instagram.com/v26.0/17841400000000000/subscribed_apps',
+      'https://graph.instagram.com/v26.0/me/subscribed_apps',
     )
     expect(requestUrl.toString()).not.toContain('long-lived-token')
     expect(init.method).toBe('POST')

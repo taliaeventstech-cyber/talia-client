@@ -185,14 +185,11 @@ export async function fetchInstagramProfessionalProfile(
 }
 
 export async function subscribeInstagramMessagingWebhooks(
-  instagramUserId: string,
   accessToken: string,
   options: { fetcher?: typeof fetch; timeoutMs?: number } = {},
 ) {
   const version = normalizeGraphApiVersion(process.env.META_INSTAGRAM_GRAPH_API_VERSION)
-  const url = new URL(
-    `https://graph.instagram.com/${version}/${encodeURIComponent(requireIdentifier(instagramUserId))}/subscribed_apps`,
-  )
+  const url = new URL(`https://graph.instagram.com/${version}/me/subscribed_apps`)
   const body = new URLSearchParams({
     subscribed_fields: 'messages',
     access_token: requireIdentifier(accessToken),

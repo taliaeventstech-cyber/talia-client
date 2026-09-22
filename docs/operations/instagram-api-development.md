@@ -20,7 +20,8 @@ credential atomically. The webhook verifies the raw request signature before
 parsing and fails closed unless the provider account resolves to one enabled
 venue connection. It never routes through WhatsApp persistence or processing.
 Before persistence, OAuth completion calls the account-level
-`/<IG_USER_ID>/subscribed_apps` endpoint with `subscribed_fields=messages`.
+`/me/subscribed_apps` endpoint with `subscribed_fields=messages`, resolving
+`me` from that account's long-lived Instagram User access token.
 This is required in addition to the app-level webhook callback configured in
 the Meta dashboard.
 

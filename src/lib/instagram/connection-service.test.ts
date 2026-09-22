@@ -32,8 +32,7 @@ describe('Instagram connection service', () => {
         expires_in: 5_184_000,
       }),
       fetchProfile: async () => ({ username: 'venue_account', accountType: 'business' }),
-      subscribeWebhooks: async (instagramUserId, accessToken) => {
-        expect(instagramUserId).toBe('17841400000000000')
+      subscribeWebhooks: async (accessToken) => {
         expect(accessToken).toBe('long-lived-token')
         calls.push('subscribe')
       },
