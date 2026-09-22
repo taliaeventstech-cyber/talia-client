@@ -1,20 +1,10 @@
 import { createHmac } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { auditInsert, rpc, processJobs } = vi.hoisted(() => ({
-  auditInsert: vi.fn(),
-  rpc: vi.fn(),
-  processJobs: vi.fn(),
-}))
+const { rpc, processJobs } = vi.hoisted(() => ({ rpc: vi.fn(), processJobs: vi.fn() }))
 
 vi.mock('@/lib/supabase/admin', () => ({
-  createAdminClient: () => ({
-    from: (table: string) => {
-      if (table !== 'audit_events') throw new Error(`Unexpected table: ${table}`)
-      return { insert: auditInsert }
-    },
-    rpc,
-  }),
+  createAdminClient: () => ({ rpc }),
 }))
 vi.mock('@/lib/instagram/processor', () => ({ processInstagramInboundJobs: processJobs }))
 vi.mock('next/server', async (importOriginal) => ({
@@ -33,8 +23,6 @@ afterEach(() => {
 })
 
 beforeEach(() => {
-  auditInsert.mockReset()
-  auditInsert.mockResolvedValue({ error: null })
   rpc.mockReset()
   rpc.mockResolvedValue({ data: [{ outcome: 'accepted' }], error: null })
   processJobs.mockReset()
@@ -76,36 +64,7 @@ describe('Meta Instagram webhook route', () => {
       p_sender_igsid: 'instagram-scoped-user-1',
       p_provider_message_id: 'instagram-message-1',
     }))
-    expect(auditInsert).toHaveBeenCalledWith(expect.objectContaining({
-      action: 'instagram.webhook_diagnostic',
-      target_type: 'instagram_webhook',
-      metadata: expect.objectContaining({
-        stage: 'processed',
-        entry_count: 1,
-        entry_id_sha256: '84498545f9c6aab31891b5c01177a203fcce738ef3f2693035b525a85d82d0cc',
-        messaging_event_count: 1,
-        accepted: 1,
-      }),
-    }))
-    expect(JSON.stringify(auditInsert.mock.calls)).not.toContain('Hello')
-    expect(JSON.stringify(auditInsert.mock.calls)).not.toContain('instagram-scoped-user-1')
     await vi.waitFor(() => expect(processJobs).toHaveBeenCalledWith(expect.anything(), { limit: 3 }))
-  })
-
-  it('records only bounded metadata when a signed payload has an unknown shape', async () => {
-    process.env.META_INSTAGRAM_APP_SECRET = 'instagram-app-secret'
-    const payload = JSON.stringify({ object: 'instagram', secret_message: 'do not persist' })
-
-    const response = await POST(signedRequest(payload, 'instagram-app-secret'))
-
-    expect(response.status).toBe(422)
-    expect(auditInsert).toHaveBeenCalledWith(expect.objectContaining({
-      metadata: {
-        stage: 'invalid_envelope',
-        payload_size_bytes: Buffer.byteLength(payload),
-      },
-    }))
-    expect(JSON.stringify(auditInsert.mock.calls)).not.toContain('do not persist')
   })
 
   it('rejects missing or invalid signatures before parsing', async () => {
@@ -119,7 +78,6 @@ describe('Meta Instagram webhook route', () => {
     expect(missing.status).toBe(401)
     expect(invalid.status).toBe(401)
     expect(rpc).not.toHaveBeenCalled()
-    expect(auditInsert).not.toHaveBeenCalled()
   })
 
   it('asks Meta to retry when durable ingestion fails', async () => {
