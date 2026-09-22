@@ -82,6 +82,7 @@ describe('Meta Instagram webhook route', () => {
       metadata: expect.objectContaining({
         stage: 'processed',
         entry_count: 1,
+        entry_id_sha256: '84498545f9c6aab31891b5c01177a203fcce738ef3f2693035b525a85d82d0cc',
         messaging_event_count: 1,
         accepted: 1,
       }),

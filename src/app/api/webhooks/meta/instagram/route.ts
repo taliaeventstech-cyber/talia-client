@@ -1,6 +1,7 @@
 import { ingestMetaInstagramEnvelope } from '@/lib/instagram/inbound'
 import { parseMetaInstagramWebhookEnvelope } from '@/lib/instagram/meta-webhook'
 import { processInstagramInboundJobs } from '@/lib/instagram/processor'
+import { createHash } from 'node:crypto'
 import {
   verifyMetaWebhookChallenge,
   verifyMetaWebhookSignature,
@@ -65,6 +66,9 @@ export async function POST(request: Request) {
       stage: 'processed',
       payload_size_bytes: Buffer.byteLength(payload),
       entry_count: envelope.entry.length,
+      ...(envelope.entry[0]?.id
+        ? { entry_id_sha256: fingerprintIdentifier(envelope.entry[0].id) }
+        : {}),
       messaging_event_count: envelope.entry.reduce(
         (total, entry) => total + (entry.messaging?.length ?? 0),
         0,
@@ -134,4 +138,8 @@ async function recordWebhookDiagnostic(
   if (error) {
     console.warn('[DEBUG-ig-webhook-6f2a] Failed to persist Instagram webhook diagnostic')
   }
+}
+
+function fingerprintIdentifier(value: string) {
+  return createHash('sha256').update(value).digest('hex')
 }
