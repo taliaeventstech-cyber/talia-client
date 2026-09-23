@@ -19,6 +19,7 @@ export async function sendMetaInstagramText(
     instagramUserId: string
     recipientInstagramScopedId: string
     body: string
+    messagingType?: 'response' | 'human_agent'
   },
   options: {
     fetcher?: typeof fetch
@@ -48,6 +49,11 @@ export async function sendMetaInstagramText(
         body: JSON.stringify({
           recipient: { id: input.recipientInstagramScopedId },
           message: { text: input.body },
+          ...(input.messagingType === 'human_agent'
+            ? { messaging_type: 'MESSAGE_TAG', tag: 'HUMAN_AGENT' }
+            : input.messagingType === 'response'
+              ? { messaging_type: 'RESPONSE' }
+              : {}),
         }),
         signal: AbortSignal.timeout(options.timeoutMs ?? 20_000),
       },

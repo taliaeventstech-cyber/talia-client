@@ -289,13 +289,13 @@ export default async function OverviewPage({ params }: Props) {
           ) : null}
           {hasInstagramModule ? (
             <ModuleStatusCard
-              href={`/${tenantId}/overview`}
+              href={`/${tenantId}/instagram`}
               icon={<MessagesSquare size={22} />}
               label="Instagram"
               title={copy.modules.instagram}
-              status={dictionary.common.soon}
-              tone="soon"
-              description={copy.modules.instagramPending}
+              status={dictionary.common.active}
+              tone="active"
+              description={copy.modules.instagramReady}
             />
           ) : null}
         </div>

@@ -49,8 +49,10 @@ export async function ingestMetaInstagramEnvelope(
 
     if (error) throw new Error('instagram_message_ingest_failed')
 
-    const outcome = data?.[0]?.outcome
-    if (outcome === 'accepted') summary.accepted += 1
+    const result = data?.[0]
+    const outcome = result?.outcome
+    if (outcome === 'accepted' && result.inbound_job_id === null) summary.handoffs += 1
+    else if (outcome === 'accepted') summary.accepted += 1
     else if (outcome === 'duplicate') summary.duplicates += 1
     else if (outcome === 'disabled') summary.disabled += 1
     else if (outcome === 'handoff') summary.handoffs += 1

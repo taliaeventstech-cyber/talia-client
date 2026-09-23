@@ -149,7 +149,7 @@ export function DashboardNav({
   const showKnowledge = hasProductAccess && dataEnabled && canManageKnowledge
   const showEmail = emailAgentPreviewEnabled && hasProductAccess && emailEnabled && canManageEmail
   const showWhatsapp = hasProductAccess && whatsappEnabled && canViewConversations
-  const showInstagram = hasProductAccess && instagramEnabled && canManageInstagram
+  const showInstagram = hasProductAccess && instagramEnabled && (canViewConversations || canManageInstagram)
   const showAttention = showChatbot || showEmail || showWhatsapp || showInstagram
   const chatbotConfigurationHref = getChatbotConfigurationHref(tenantId, chatbotSetupCompleted)
   const trialProgress = trialDaysRemaining === null
@@ -286,17 +286,28 @@ export function DashboardNav({
               label={labels.instagramAgent}
               icon={<InstagramIcon size={14} strokeWidth={2} aria-hidden="true" />}
               status={labels.pilot}
-              isActive={active(`/${tenantId}/instagram/settings`)}
+              isActive={isInstagramConversationPath(pathname, tenantId) || active(`/${tenantId}/instagram/settings`)}
               expandLabel={labels.expand}
               collapseLabel={labels.collapse}
             >
-              <Link
-                className={`nav-link nav-link-nested ${active(`/${tenantId}/instagram/settings`) ? 'nav-link-active' : ''}`}
-                href={`/${tenantId}/instagram/settings`}
-              >
-                <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
-                {labels.settings}
-              </Link>
+              {canViewConversations ? (
+                <Link
+                  className={`nav-link nav-link-nested ${isInstagramConversationPath(pathname, tenantId) ? 'nav-link-active' : ''}`}
+                  href={`/${tenantId}/instagram`}
+                >
+                  <MessageSquare size={14} strokeWidth={2} aria-hidden="true" />
+                  {labels.conversations}
+                </Link>
+              ) : null}
+              {canManageInstagram ? (
+                <Link
+                  className={`nav-link nav-link-nested ${active(`/${tenantId}/instagram/settings`) ? 'nav-link-active' : ''}`}
+                  href={`/${tenantId}/instagram/settings`}
+                >
+                  <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
+                  {labels.settings}
+                </Link>
+              ) : null}
             </CollapsibleNavAgent>
           ) : null}
         </div>
@@ -450,5 +461,10 @@ const storedDisclosureMemory = new Map<string, boolean>()
 
 function isWhatsappConversationPath(pathname: string, tenantId: string) {
   const root = `/${tenantId}/whatsapp`
+  return pathname === root || (pathname.startsWith(`${root}/`) && pathname !== `${root}/settings`)
+}
+
+function isInstagramConversationPath(pathname: string, tenantId: string) {
+  const root = `/${tenantId}/instagram`
   return pathname === root || (pathname.startsWith(`${root}/`) && pathname !== `${root}/settings`)
 }

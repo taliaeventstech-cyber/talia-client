@@ -14,8 +14,9 @@ Current state:
 - Most mature channel: **Web chatbot**.
 - Channel in testing: **Gmail email agent**, in supervised drafts mode.
 - Channel in development: validated WhatsApp Cloud API pilot and tenant Embedded Signup.
-- Instagram channel definition and direct Instagram Login preparation are in
-  progress; Microsoft/Outlook and voice remain planned or paused.
+- Instagram direct messages are active for the gated pilot, with direct
+  Instagram Login, an independent agent and channel-local conversation history;
+  Microsoft/Outlook and voice remain planned or paused.
 - Client dashboard: **Agora**, per venue.
 - Internal panel: **Backstage**.
 - Current commercial model: 7-day free trial, upgrade to paid plans and add-ons.
@@ -737,7 +738,8 @@ Reference:
 
 ### Instagram
 
-Status: pilot scope and provider setup in progress; not available to customers.
+Status: gated pilot active for venues with the Instagram module; external
+customer access still depends on Meta review.
 
 Implemented:
 
@@ -777,6 +779,10 @@ Implemented:
   `messages` webhook through its own long-lived token before saving the local
   connection. Configuring the app-level callback in Meta alone is not treated
   as an account subscription.
+- OAuth stores the Professional account ID returned by `GET /me` as text. It
+  deliberately ignores the numeric app-scoped ID returned by the short-lived
+  token exchange, preventing JavaScript precision loss and keeping connection,
+  webhook and send identifiers aligned.
 - A dedicated `/api/webhooks/meta/instagram` boundary validates Meta's
   verification challenge and the raw-body `X-Hub-Signature-256` before parsing
   any notification. It accepts only inbound Instagram message events and does
@@ -801,14 +807,31 @@ Implemented:
 - Instagram message and measured AI usage are recorded with Instagram-specific
   idempotency keys. A dedicated minute cron recovers jobs when the webhook
   wake-up is unavailable.
+- Agora exposes a tenant-scoped Instagram conversation list and ordered detail
+  view to members with conversation access. Contact identifiers remain masked,
+  and the UI never merges Instagram history or identities with Web or WhatsApp.
+- Web, WhatsApp and Instagram conversation screens share the same history,
+  detail-header and message-list components. Each channel maps its own records
+  into that presentation contract and supplies channel-only controls (review,
+  deletion, handoff, FAQ promotion) through explicit extension slots.
+- Venue owners and administrators can reconnect or disconnect the Instagram
+  account from Settings. Disconnect first asks Meta to remove the account-level
+  webhook subscription, then disables rollout and removes local credentials;
+  the existing conversation history is retained.
+- Instagram handoffs can be claimed by an authorized owner, administrator or
+  operator from the conversation detail. A human-authored reply is persisted
+  before the provider call, uses the normal response window during the first 24
+  hours and uses Meta's `HUMAN_AGENT` tag only between 24 hours and seven days.
+  Replies after seven days fail closed. While a handoff is claimed, new inbound
+  DMs remain durable but TALIA does not enqueue an automated response. Manual
+  sends are idempotent, audited and never retried automatically after an
+  uncertain provider outcome; a confirmed send or an explicit ignore resolves
+  the handoff.
 
 Pending:
 
-- Apply and deploy the agent-worker migration and the dedicated `talia-ai`
-  Instagram runtime before enabling `rollout_enabled` for the connected test
-  account.
-- Implement Agora Instagram history, operator handoff/takeover, manual reply,
-  disconnect/revocation and retention surfaces before an external canary.
+- Add proactive operator takeover and channel retention controls before broader
+  availability; the reactive human handoff required for the pilot is complete.
 - Complete a real app-role canary and the Meta review required for external
   customer accounts.
 

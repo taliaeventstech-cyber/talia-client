@@ -8,7 +8,7 @@ type AdminClient = ReturnType<typeof createAdminClient>
 describe('Instagram inbound ingestion', () => {
   it('persists each message through the Instagram-only atomic RPC', async () => {
     const rpc = vi.fn()
-      .mockResolvedValueOnce({ data: [{ outcome: 'accepted' }], error: null })
+      .mockResolvedValueOnce({ data: [{ outcome: 'accepted', inbound_job_id: 'job-1' }], error: null })
       .mockResolvedValueOnce({ data: [{ outcome: 'duplicate' }], error: null })
 
     const summary = await ingestMetaInstagramEnvelope(
@@ -30,6 +30,19 @@ describe('Instagram inbound ingestion', () => {
       p_provider_message_id: 'instagram-message-1',
       p_processable: true,
     }))
+  })
+
+  it('reports an operator-suppressed message as a handoff instead of a queued job', async () => {
+    const rpc = vi.fn()
+      .mockResolvedValueOnce({ data: [{ outcome: 'accepted', inbound_job_id: null }], error: null })
+      .mockResolvedValueOnce({ data: [{ outcome: 'duplicate', inbound_job_id: null }], error: null })
+
+    const summary = await ingestMetaInstagramEnvelope(
+      { rpc } as unknown as AdminClient,
+      inboundEnvelope(),
+    )
+
+    expect(summary).toMatchObject({ accepted: 0, handoffs: 1, duplicates: 1 })
   })
 
   it('fails the delivery attempt when durable ingestion fails', async () => {

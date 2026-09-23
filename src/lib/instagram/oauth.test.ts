@@ -7,6 +7,7 @@ import {
   getInstagramAuthorizationUrl,
   INSTAGRAM_OAUTH_SCOPES,
   subscribeInstagramMessagingWebhooks,
+  unsubscribeInstagramMessagingWebhooks,
   verifyInstagramOAuthState,
 } from './oauth'
 
@@ -156,6 +157,24 @@ describe('Instagram OAuth', () => {
     expect(requestUrl.toString()).not.toContain('long-lived-token')
     expect(init.method).toBe('POST')
     expect((init.body as URLSearchParams).get('subscribed_fields')).toBe('messages')
+    expect((init.body as URLSearchParams).get('access_token')).toBe('long-lived-token')
+  })
+
+  it('removes the account-level webhook subscription when disconnected', async () => {
+    vi.stubEnv('META_INSTAGRAM_GRAPH_API_VERSION', 'v26.0')
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ success: true }))
+
+    await expect(unsubscribeInstagramMessagingWebhooks(
+      'long-lived-token',
+      { fetcher },
+    )).resolves.toBeUndefined()
+
+    const [requestUrl, init] = fetcher.mock.calls[0] as [URL, RequestInit]
+    expect(requestUrl.toString()).toBe(
+      'https://graph.instagram.com/v26.0/me/subscribed_apps',
+    )
+    expect(requestUrl.toString()).not.toContain('long-lived-token')
+    expect(init.method).toBe('DELETE')
     expect((init.body as URLSearchParams).get('access_token')).toBe('long-lived-token')
   })
 })

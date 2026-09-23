@@ -208,6 +208,28 @@ export async function subscribeInstagramMessagingWebhooks(
   )
 }
 
+export async function unsubscribeInstagramMessagingWebhooks(
+  accessToken: string,
+  options: { fetcher?: typeof fetch; timeoutMs?: number } = {},
+) {
+  const version = normalizeGraphApiVersion(process.env.META_INSTAGRAM_GRAPH_API_VERSION)
+  const url = new URL(`https://graph.instagram.com/${version}/me/subscribed_apps`)
+  const body = new URLSearchParams({
+    access_token: requireIdentifier(accessToken),
+  })
+  const response = await request(url, {
+    method: 'DELETE',
+    body,
+    signal: AbortSignal.timeout(options.timeoutMs ?? 10_000),
+  }, options.fetcher)
+
+  await parseResponse(
+    response,
+    webhookSubscriptionSchema,
+    'instagram_webhook_unsubscription',
+  )
+}
+
 async function request(
   url: string | URL,
   init: RequestInit,

@@ -9,8 +9,12 @@ import {
 import { orderConversationMessagesByNewestTurn } from '@/lib/conversations/message-order'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { getIntlLocale } from '@/lib/i18n/config'
+import {
+  ConversationDetailHeader,
+  ConversationMessageList,
+  type ConversationMessageItem,
+} from '@/components/conversations/conversation-detail'
 import { LocalDateTime } from '@/components/local-date-time'
-import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { DeleteConversationButton } from '../delete-button'
@@ -84,41 +88,109 @@ export default async function ConversationDetailPage({ params }: Props) {
   const hasReviewActivity = pendingReviewItems.length > 0
     || reviewSummary.correctedCount > 0
     || reviewSummary.acceptedCount > 0
+  const messageItems: ConversationMessageItem[] = displayMessages.map((message) => {
+    const review = message.role === 'assistant'
+      ? getConversationResponseReview(message.metadata)
+      : null
+    const question = message.role === 'assistant'
+      ? getConversationQuestion(message.metadata) ?? questionByAssistantId.get(message.id)?.content ?? ''
+      : null
+    const publishedKnowledgeItemId = message.role === 'assistant' && supervisedFaqIds.has(message.id)
+      ? message.id
+      : null
+
+    return {
+      id: message.id,
+      anchorId: message.role === 'assistant'
+        ? `response-${message.id}`
+        : message.role === 'user'
+          ? `question-${message.id}`
+          : undefined,
+      senderLabel: message.role === 'assistant' ? 'TALIA' : 'Usuario',
+      body: message.content,
+      createdAt: message.created_at,
+      isAssistant: message.role === 'assistant',
+      extras: (
+        <>
+          {review ? (
+            <div className="conversation-feedback-row">
+              {review.rating === 'positive' ? (
+                <span className="conversation-feedback-pill conversation-feedback-positive">
+                  {supervisedFaqCopy.feedback.positive}
+                </span>
+              ) : null}
+              {review.eligibleForCorrection ? (
+                <span className="conversation-feedback-pill conversation-feedback-improvement">
+                  {supervisedFaqCopy.feedback.improvement}
+                </span>
+              ) : null}
+              {!review.rating && !review.fallback ? (
+                <span className="conversation-feedback-pill">{supervisedFaqCopy.feedback.unrated}</span>
+              ) : null}
+            </div>
+          ) : null}
+
+          {review && publishedKnowledgeItemId ? (
+            <div className="supervised-faq-published">
+              <div>
+                <strong>{supervisedFaqCopy.published.title}</strong>
+                <p>
+                  {review.publicationStatus === 'indexed'
+                    ? supervisedFaqCopy.published.indexed
+                    : supervisedFaqCopy.published.pending}
+                </p>
+              </div>
+              <Link className="button-outline button-fit" href={`/${tenantId}/knowledge`}>
+                {supervisedFaqCopy.published.viewKnowledge}
+              </Link>
+            </div>
+          ) : review?.humanReviewStatus === 'accepted_valid' ? (
+            <div className="supervised-faq-published supervised-response-accepted">
+              <div>
+                <strong>{supervisedFaqCopy.published.acceptedTitle}</strong>
+                <p>{supervisedFaqCopy.published.acceptedDescription}</p>
+              </div>
+            </div>
+          ) : review?.eligibleForCorrection && canManageKnowledge && question ? (
+            <SupervisedFaqForm
+              tenantId={tenantId}
+              conversationId={conversationId}
+              assistantMessageId={message.id}
+              question={question}
+              answer={message.content}
+              locale={locale}
+              copy={supervisedFaqCopy.form}
+            />
+          ) : null}
+        </>
+      ),
+    }
+  })
 
   return (
     <main className="page-shell">
-      <Link className="back-link" href={`/${tenantId}/conversations`}>
-        <ArrowLeft aria-hidden="true" size={14} strokeWidth={2} />
-        <span>Volver a conversaciones</span>
-      </Link>
-
-      <header className="card stack">
-        <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <p className="section-label">Conversation log</p>
-            <h1>Conversación</h1>
-          </div>
-          {access.role === 'owner' || access.role === 'admin' ? (
+      <ConversationDetailHeader
+        backHref={`/${tenantId}/conversations`}
+        backLabel="Volver a conversaciones"
+        eyebrow="Conversation log"
+        title="Conversación"
+        metadata={[
+          { label: 'Session ID', value: <span className="mono">{conversation.session_id}</span> },
+          { label: 'Email', value: visitorEmail ?? '-' },
+          {
+            label: 'Inicio',
+            value: <LocalDateTime value={conversation.started_at} locale={getIntlLocale(locale)} />,
+          },
+          { label: 'Mensajes', value: conversation.message_count },
+        ]}
+        actions={access.role === 'owner' || access.role === 'admin' ? (
             <DeleteConversationButton
               tenantId={tenantId}
               conversationId={conversationId}
               copy={dictionary.conversations.deletion}
             />
           ) : null}
-        </div>
-        <dl style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px 16px' }}>
-          <dt>Session ID</dt>
-          <dd className="mono">{conversation.session_id}</dd>
-          <dt>Email</dt>
-          <dd style={{ margin: 0 }}>{visitorEmail ?? '-'}</dd>
-          <dt>Inicio</dt>
-          <dd style={{ margin: 0 }}>
-            <LocalDateTime value={conversation.started_at} locale={getIntlLocale(locale)} />
-          </dd>
-          <dt>Mensajes</dt>
-          <dd style={{ margin: 0 }}>{conversation.message_count}</dd>
-        </dl>
-      </header>
+      />
 
       {hasReviewActivity ? (
         <ConversationReviewNavigator
@@ -129,88 +201,7 @@ export default async function ConversationDetailPage({ params }: Props) {
         />
       ) : null}
 
-      <section className="chat-log">
-        {displayMessages.map((message) => {
-          const review = message.role === 'assistant'
-            ? getConversationResponseReview(message.metadata)
-            : null
-          const question = message.role === 'assistant'
-            ? getConversationQuestion(message.metadata) ?? questionByAssistantId.get(message.id)?.content ?? ''
-            : null
-          const publishedKnowledgeItemId = message.role === 'assistant' && supervisedFaqIds.has(message.id)
-            ? message.id
-            : null
-
-          return (
-            <article
-              key={message.id}
-              id={message.role === 'assistant'
-                ? `response-${message.id}`
-                : message.role === 'user'
-                  ? `question-${message.id}`
-                  : undefined}
-              className={`card message-card ${message.role === 'assistant' ? 'message-card-assistant' : 'message-card-user'}`}
-            >
-              <div className="message-meta">
-                <strong>{message.role === 'assistant' ? 'TALIA' : 'Usuario'}</strong>
-                <LocalDateTime value={message.created_at} locale={getIntlLocale(locale)} />
-              </div>
-              <p style={{ whiteSpace: 'pre-wrap' }}>{message.content}</p>
-
-              {review ? (
-                <div className="conversation-feedback-row">
-                  {review.rating === 'positive' ? (
-                    <span className="conversation-feedback-pill conversation-feedback-positive">
-                      {supervisedFaqCopy.feedback.positive}
-                    </span>
-                  ) : null}
-                  {review.eligibleForCorrection ? (
-                    <span className="conversation-feedback-pill conversation-feedback-improvement">
-                      {supervisedFaqCopy.feedback.improvement}
-                    </span>
-                  ) : null}
-                  {!review.rating && !review.fallback ? (
-                    <span className="conversation-feedback-pill">{supervisedFaqCopy.feedback.unrated}</span>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {review && publishedKnowledgeItemId ? (
-                <div className="supervised-faq-published">
-                  <div>
-                    <strong>{supervisedFaqCopy.published.title}</strong>
-                    <p>
-                      {review.publicationStatus === 'indexed'
-                        ? supervisedFaqCopy.published.indexed
-                        : supervisedFaqCopy.published.pending}
-                    </p>
-                  </div>
-                  <Link className="button-outline button-fit" href={`/${tenantId}/knowledge`}>
-                    {supervisedFaqCopy.published.viewKnowledge}
-                  </Link>
-                </div>
-              ) : review?.humanReviewStatus === 'accepted_valid' ? (
-                <div className="supervised-faq-published supervised-response-accepted">
-                  <div>
-                    <strong>{supervisedFaqCopy.published.acceptedTitle}</strong>
-                    <p>{supervisedFaqCopy.published.acceptedDescription}</p>
-                  </div>
-                </div>
-              ) : review?.eligibleForCorrection && canManageKnowledge && question ? (
-                <SupervisedFaqForm
-                  tenantId={tenantId}
-                  conversationId={conversationId}
-                  assistantMessageId={message.id}
-                  question={question}
-                  answer={message.content}
-                  locale={locale}
-                  copy={supervisedFaqCopy.form}
-                />
-              ) : null}
-            </article>
-          )
-        })}
-      </section>
+      <ConversationMessageList items={messageItems} locale={getIntlLocale(locale)} />
     </main>
   )
 }

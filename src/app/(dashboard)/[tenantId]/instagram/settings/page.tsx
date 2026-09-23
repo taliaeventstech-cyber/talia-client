@@ -5,6 +5,7 @@ import { getInstagramConnectionCopy } from '@/lib/i18n/instagram-connection-copy
 import { getLocale } from '@/lib/i18n/dictionaries'
 import { getInstagramConnectionSummary } from '@/lib/instagram/connection-service'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { DisconnectInstagramConnectionButton } from './disconnect-connection-button'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -61,6 +62,13 @@ export default async function InstagramSettingsPage({ params, searchParams }: Pr
         <a className="button-primary button-fit" href={`/api/instagram/connect?tenantId=${tenantId}`}>
           {connection ? copy.replace : copy.connect}
         </a>
+        {connection?.status === 'connected' ? (
+          <DisconnectInstagramConnectionButton
+            connectionId={connection.id}
+            copy={copy}
+            tenantId={tenantId}
+          />
+        ) : null}
         <p className="muted instagram-connection-pilot-notice">{copy.pilotNotice}</p>
         <p className="muted instagram-connection-permissions">{copy.permissions}</p>
       </section>

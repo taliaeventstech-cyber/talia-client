@@ -12630,7 +12630,7 @@ textarea {
   50% { opacity: 0.3; }
 }
 
-.whatsapp-handoff-empty {
+.conversation-history-empty {
   display: grid;
   min-height: 180px;
   place-content: center;
@@ -12638,59 +12638,73 @@ textarea {
   text-align: center;
 }
 
-.whatsapp-handoff-empty p {
+.conversation-history-empty p {
   margin: 0;
 }
 
-.whatsapp-handoff-table-wrap {
+.conversation-history-table-wrap {
   overflow-x: auto;
 }
 
-.whatsapp-contact-mask {
+.conversation-history-identity-secondary {
   display: block;
   margin-top: 4px;
   color: var(--color-text-tertiary);
-  font-family: var(--font-mono), monospace;
   font-size: 11px;
 }
 
-.whatsapp-message-preview {
+.conversation-history-message-preview {
   max-width: 420px;
   white-space: normal;
 }
 
-.whatsapp-handoff-open-cell {
+.conversation-history-actions {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
   text-align: right;
 }
 
-.whatsapp-handoff-open-link {
+.conversation-history-open-link {
   display: inline-grid;
   place-items: center;
   padding: 6px;
   border-radius: 6px;
 }
 
-.whatsapp-handoff-metadata {
+.conversation-detail-heading {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+}
+
+.conversation-detail-metadata {
   display: grid;
-  grid-template-columns: 130px minmax(0, 1fr);
-  gap: 8px 16px;
+  gap: 8px;
   margin: 0;
 }
 
-.whatsapp-handoff-metadata dt {
+.conversation-detail-metadata-row {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 130px minmax(0, 1fr);
+}
+
+.conversation-detail-metadata dt {
   color: var(--color-text-tertiary);
 }
 
-.whatsapp-handoff-metadata dd {
+.conversation-detail-metadata dd {
   margin: 0;
 }
 
-.whatsapp-message-body {
+.conversation-message-body {
   margin: 0;
   white-space: pre-wrap;
 }
 
-.whatsapp-message-body + .status-pill {
+.conversation-message-body + .status-pill {
   margin-top: 12px;
 }
 
@@ -12740,7 +12754,7 @@ textarea {
 }
 
 .whatsapp-settings-header,
-.whatsapp-conversations-header {
+.conversation-history-header {
   display: grid;
   gap: 8px;
   max-width: 760px;
@@ -12842,12 +12856,12 @@ textarea {
     grid-row: 1;
   }
 
-  .whatsapp-handoff-metadata {
+  .conversation-detail-metadata-row {
     grid-template-columns: 1fr;
     gap: 4px;
   }
 
-  .whatsapp-handoff-metadata dd + dt {
+  .conversation-detail-metadata-row + .conversation-detail-metadata-row {
     margin-top: 8px;
   }
 }

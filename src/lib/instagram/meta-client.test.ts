@@ -47,4 +47,25 @@ describe('sendMetaInstagramText', () => {
     })
     expect(uncertain).toMatchObject({ ok: false, outcome: 'uncertain', status: null })
   })
+
+  it('uses the HUMAN_AGENT tag only for an explicitly human-authored reply', async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => Response.json({
+      recipient_id: 'igsid-visitor',
+      message_id: 'ig-message-human',
+    }))
+
+    await sendMetaInstagramText({
+      instagramUserId: 'ig-professional-account',
+      recipientInstagramScopedId: 'igsid-visitor',
+      body: 'Respuesta escrita por una persona',
+      messagingType: 'human_agent',
+    }, { fetcher, accessToken: 'instagram-token', graphApiVersion: 'v26.0' })
+
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual({
+      recipient: { id: 'igsid-visitor' },
+      message: { text: 'Respuesta escrita por una persona' },
+      messaging_type: 'MESSAGE_TAG',
+      tag: 'HUMAN_AGENT',
+    })
+  })
 })

@@ -331,6 +331,7 @@ const es = {
       whatsappReady: 'Historial de conversaciones y handoff humano disponibles.',
       instagram: 'Instagram',
       instagramPending: 'Canal planificado para el módulo de atención.',
+      instagramReady: 'Mensajes directos, historial de conversaciones y respuestas automáticas disponibles.',
       future: 'Email e Instagram',
       futureDescription: 'Canales planificados para el módulo de atención.',
       pending: 'Pendiente de configuración',
@@ -547,6 +548,8 @@ const es = {
   conversations: {
     title: 'Conversaciones',
     count: (count: number) => `${count} conversaciones`,
+    emptyTitle: 'Aún no hay conversaciones',
+    emptyDescription: 'Las conversaciones aparecerán aquí cuando alguien escriba al agente web.',
     retention: {
       title: 'Conservación y eliminación',
       description: 'Las conversaciones se conservan durante 90 días. Propietarios y administradores pueden eliminarlas antes. Al eliminar una conversación se borra su contenido, pero no se reduce el consumo ya registrado del periodo.',
@@ -1565,6 +1568,7 @@ const ca: Dictionary = {
       whatsappReady: 'Historial de converses i handoff humà disponibles.',
       instagram: 'Instagram',
       instagramPending: 'Canal planificat per al mòdul d’atenció.',
+      instagramReady: 'Missatges directes, historial de converses i respostes automàtiques disponibles.',
       future: 'Email i Instagram',
       futureDescription: 'Canals planificats per al mòdul d’atenció.',
       pending: 'Pendent de configuració',
@@ -1781,6 +1785,8 @@ const ca: Dictionary = {
   conversations: {
     title: 'Converses',
     count: (count: number) => `${count} converses`,
+    emptyTitle: 'Encara no hi ha converses',
+    emptyDescription: "Les converses apareixeran aquí quan algú escrigui a l'agent web.",
     retention: {
       title: 'Conservació i eliminació',
       description: 'Les converses es conserven durant 90 dies. Els propietaris i administradors poden eliminar-les abans. En eliminar una conversa se n’esborra el contingut, però no es redueix el consum ja registrat del període.',
@@ -2715,6 +2721,7 @@ const en: Dictionary = {
       whatsappReady: 'Conversation history and human handoff are available.',
       instagram: 'Instagram',
       instagramPending: 'Planned channel for the support module.',
+      instagramReady: 'Direct messages, conversation history, and automated replies are available.',
       future: 'Email and Instagram',
       futureDescription: 'Planned channels for the support module.',
       pending: 'Pending setup',
@@ -2932,6 +2939,8 @@ const en: Dictionary = {
   conversations: {
     title: 'Conversations',
     count: (count: number) => `${count} conversations`,
+    emptyTitle: 'No conversations yet',
+    emptyDescription: 'Conversations will appear here when someone messages the web agent.',
     retention: {
       title: 'Retention and deletion',
       description: 'Conversations are retained for 90 days. Owners and administrators can delete them sooner. Deleting a conversation removes its content, but does not reduce usage already recorded for the billing period.',
@@ -3879,6 +3888,7 @@ const ptBR: Dictionary = {
       whatsappReady: 'Histórico de conversas e handoff humano disponíveis.',
       instagram: 'Instagram',
       instagramPending: 'Canal planejado para o módulo de suporte.',
+      instagramReady: 'Mensagens diretas, histórico de conversas e respostas automáticas disponíveis.',
       future: 'E-mail e Instagram',
       futureDescription: 'Canais planejados para o módulo de suporte.',
       pending: 'Configuração pendente',
@@ -4096,6 +4106,8 @@ const ptBR: Dictionary = {
   conversations: {
     title: 'Conversas',
     count: (count: number) => `${count} conversas`,
+    emptyTitle: 'Ainda não há conversas',
+    emptyDescription: 'As conversas aparecerão aqui quando alguém escrever ao agente web.',
     retention: {
       title: 'Retenção e exclusão',
       description: 'As conversas são mantidas por 90 dias. Proprietários e administradores podem excluí-las antes. Excluir uma conversa remove seu conteúdo, mas não reduz o uso já registrado no período de cobrança.',

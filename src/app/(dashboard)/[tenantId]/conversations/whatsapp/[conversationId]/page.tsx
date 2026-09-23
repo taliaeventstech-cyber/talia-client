@@ -1,4 +1,9 @@
-import { LocalDateTime } from '@/components/local-date-time'
+import {
+  ConversationDetailHeader,
+  ConversationMessageList,
+  type ConversationMessageItem,
+} from '@/components/conversations/conversation-detail'
+import { getConversationStatusTone } from '@/components/conversations/conversation-history'
 import { MessageAttentionNavigator } from '@/components/message-attention-navigator'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { hasTenantPermission, isTenantModuleEnabled } from '@/lib/auth/permissions'
@@ -9,7 +14,6 @@ import { getWhatsappHandoffCopy, getWhatsappOperatorControlsCopy } from '@/lib/i
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getWhatsappHandoffDetail } from '@/lib/whatsapp/operator-handoff'
 import { getWhatsappQuestionByAssistantId } from '@/lib/whatsapp/supervised-learning'
-import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { WhatsappOperatorControls } from '../operator-controls'
@@ -59,34 +63,95 @@ export default async function WhatsappHandoffDetailPage({ params }: Props) {
   const questionByAssistantId = getWhatsappQuestionByAssistantId(conversation.messages)
   const faqMessageIds = new Set((existingFaqResult.data ?? []).map((item) => item.id))
   const supportsManualMode = conversation.operator_mode || conversation.status === 'open' || conversation.status === 'pending'
+  const messageItems: ConversationMessageItem[] = conversation.messages.map((message) => {
+    const label = message.direction === 'inbound'
+      ? copy.detail.user
+      : message.is_operator_reply
+        ? copy.detail.operator
+        : copy.detail.talia
+    const needsAttention = message.id === attentionMessage?.id
+    const faqQuestion = questionByAssistantId.get(message.id)
+    const faqPublished = faqMessageIds.has(message.id)
+    const canPromoteToFaq = canManageKnowledge
+      && message.direction === 'outbound'
+      && !message.is_operator_reply
+      && Boolean(message.body_text)
+      && Boolean(faqQuestion)
+      && ['sent', 'delivered', 'read'].includes(message.delivery_status ?? '')
+
+    return {
+      id: message.id,
+      senderLabel: label,
+      body: message.body_text ?? `[${copy.detail.unsupportedMessage}: ${message.message_type}]`,
+      createdAt: message.created_at,
+      isAssistant: message.direction === 'outbound',
+      anchorId: needsAttention ? attentionTargetId ?? undefined : undefined,
+      needsAttention,
+      delivery: message.direction === 'outbound' && message.delivery_status
+        ? {
+            label: copy.detail.delivery[message.delivery_status] ?? message.delivery_status,
+            tone: getConversationStatusTone(message.delivery_status),
+          }
+        : undefined,
+      extras: (
+        <>
+          {faqPublished ? (
+            <div className="supervised-faq-published">
+              <div>
+                <strong>{supervisedCopy.published.title}</strong>
+                <p>{supervisedCopy.published.indexed}</p>
+              </div>
+              <Link className="button-outline button-fit" href={`/${tenantId}/knowledge`}>
+                {supervisedCopy.published.viewKnowledge}
+              </Link>
+            </div>
+          ) : canPromoteToFaq && faqQuestion && message.body_text ? (
+            <WhatsappSupervisedFaqForm
+              answer={message.body_text}
+              assistantMessageId={message.id}
+              conversationId={conversationId}
+              copy={supervisedCopy.form}
+              locale={locale}
+              question={faqQuestion}
+              tenantId={tenantId}
+            />
+          ) : null}
+
+          {needsAttention ? (
+            <div className="whatsapp-message-attention">
+              <WhatsappOperatorControls
+                canManage={canManage}
+                conversationId={conversationId}
+                copy={controlsCopy}
+                isAssigned={conversation.assigned_profile_id !== null}
+                isAssignedToCurrentUser={conversation.assigned_profile_id === currentProfileId}
+                locale={locale}
+                tenantId={tenantId}
+              />
+            </div>
+          ) : null}
+        </>
+      ),
+    }
+  })
 
   return (
     <main className="page-shell whatsapp-handoff-detail-shell">
-      <Link className="back-link" href={`/${tenantId}/whatsapp`}>
-        <ArrowLeft aria-hidden="true" size={14} strokeWidth={2} />
-        <span>{copy.detail.back}</span>
-      </Link>
-
-      <header className="card stack whatsapp-handoff-header">
-        <div className="page-header">
-          <div>
-            <p className="section-label">{copy.detail.eyebrow}</p>
-            <h1>{copy.detail.title}</h1>
-          </div>
-        </div>
-        <dl className="whatsapp-handoff-metadata">
-          <dt>{copy.detail.contact}</dt>
-          <dd>{conversation.contact_name} · {conversation.contact_masked}</dd>
-          {conversation.status === 'handoff' ? (
-            <>
-              <dt>{copy.detail.assignedTo}</dt>
-              <dd>{assignedLabel}</dd>
-              <dt>{copy.detail.reason}</dt>
-              <dd>{conversation.handoff_reason ?? '—'}</dd>
-            </>
-          ) : null}
-        </dl>
-      </header>
+      <ConversationDetailHeader
+        backHref={`/${tenantId}/whatsapp`}
+        backLabel={copy.detail.back}
+        eyebrow={copy.detail.eyebrow}
+        title={copy.detail.title}
+        metadata={[
+          { label: copy.detail.contact, value: `${conversation.contact_name} · ${conversation.contact_masked}` },
+          ...(conversation.status === 'handoff'
+            ? [
+                { label: copy.detail.assignedTo, value: assignedLabel },
+                { label: copy.detail.reason, value: conversation.handoff_reason ?? '—' },
+              ]
+            : []),
+        ]}
+      />
 
       {supportsManualMode ? (
         <section className="card stack">
@@ -121,81 +186,11 @@ export default async function WhatsappHandoffDetailPage({ params }: Props) {
         />
       ) : null}
 
-      <section className="chat-log" aria-label={copy.detail.title}>
-        {conversation.messages.map((message) => {
-          const label = message.direction === 'inbound'
-            ? copy.detail.user
-            : message.is_operator_reply
-              ? copy.detail.operator
-              : copy.detail.talia
-          const needsAttention = message.id === attentionMessage?.id
-          const faqQuestion = questionByAssistantId.get(message.id)
-          const faqPublished = faqMessageIds.has(message.id)
-          const canPromoteToFaq = canManageKnowledge
-            && message.direction === 'outbound'
-            && !message.is_operator_reply
-            && Boolean(message.body_text)
-            && Boolean(faqQuestion)
-            && ['sent', 'delivered', 'read'].includes(message.delivery_status ?? '')
-          return (
-            <article
-              className={`card message-card ${message.direction === 'outbound' ? 'message-card-assistant' : 'message-card-user'}`}
-              data-attention-target={needsAttention ? 'true' : undefined}
-              id={needsAttention ? attentionTargetId ?? undefined : undefined}
-              key={message.id}
-            >
-              <div className="message-meta">
-                <strong>{label}</strong>
-                <LocalDateTime value={message.created_at} locale={getIntlLocale(locale)} />
-              </div>
-              <p className="whatsapp-message-body">
-                {message.body_text ?? `[${copy.detail.unsupportedMessage}: ${message.message_type}]`}
-              </p>
-              {message.direction === 'outbound' && message.delivery_status ? (
-                <span className={`status-pill ${getDeliveryClass(message.delivery_status)}`}>
-                  {copy.detail.delivery[message.delivery_status] ?? message.delivery_status}
-                </span>
-              ) : null}
-
-              {faqPublished ? (
-                <div className="supervised-faq-published">
-                  <div>
-                    <strong>{supervisedCopy.published.title}</strong>
-                    <p>{supervisedCopy.published.indexed}</p>
-                  </div>
-                  <Link className="button-outline button-fit" href={`/${tenantId}/knowledge`}>
-                    {supervisedCopy.published.viewKnowledge}
-                  </Link>
-                </div>
-              ) : canPromoteToFaq && faqQuestion && message.body_text ? (
-                <WhatsappSupervisedFaqForm
-                  answer={message.body_text}
-                  assistantMessageId={message.id}
-                  conversationId={conversationId}
-                  copy={supervisedCopy.form}
-                  locale={locale}
-                  question={faqQuestion}
-                  tenantId={tenantId}
-                />
-              ) : null}
-
-              {needsAttention ? (
-                <div className="whatsapp-message-attention">
-                  <WhatsappOperatorControls
-                    canManage={canManage}
-                    conversationId={conversationId}
-                    copy={controlsCopy}
-                    isAssigned={conversation.assigned_profile_id !== null}
-                    isAssignedToCurrentUser={conversation.assigned_profile_id === currentProfileId}
-                    locale={locale}
-                    tenantId={tenantId}
-                  />
-                </div>
-              ) : null}
-            </article>
-          )
-        })}
-      </section>
+      <ConversationMessageList
+        ariaLabel={copy.detail.title}
+        items={messageItems}
+        locale={getIntlLocale(locale)}
+      />
     </main>
   )
 }
@@ -205,10 +200,4 @@ function findCurrentAttentionMessage<T extends { direction: string; processing_s
     ?? [...messages].reverse().find((message) => message.direction === 'inbound')
     ?? messages.at(-1)
     ?? null
-}
-
-function getDeliveryClass(status: string) {
-  if (status === 'failed' || status === 'unknown') return 'status-pill-danger'
-  if (status === 'read' || status === 'delivered') return 'status-pill-active'
-  return 'status-pill-muted'
 }

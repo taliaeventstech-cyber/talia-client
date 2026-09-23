@@ -85,7 +85,7 @@ describe('getChatbotConfigurationHref', () => {
     expect(html).not.toContain('Web Agent')
   })
 
-  it('shows Instagram as an independent pilot with only its connection settings', () => {
+  it('shows Instagram as an independent pilot with conversations and connection settings', () => {
     const html = renderToStaticMarkup(
       <DashboardNav
         tenantId="tenant-1"
@@ -103,8 +103,28 @@ describe('getChatbotConfigurationHref', () => {
 
     expect(html).toContain('Instagram agent')
     expect(html).toContain('Pilot')
+    expect(html).toContain('href="/tenant-1/instagram"')
     expect(html).toContain('href="/tenant-1/instagram/settings"')
-    expect(html).not.toContain('href="/tenant-1/instagram"')
+  })
+
+  it('lets read-only venue members see Instagram conversations without connection settings', () => {
+    const html = renderToStaticMarkup(
+      <DashboardNav
+        tenantId="tenant-1"
+        labels={labels}
+        role="viewer"
+        modules={{ instagram: 'active' }}
+        hasProductAccess
+        needsUpgrade={false}
+        isTrialExpired={false}
+        trialDaysRemaining={null}
+        chatbotSetupCompleted={false}
+        emailAgentPreviewEnabled={false}
+      />,
+    )
+
+    expect(html).toContain('href="/tenant-1/instagram"')
+    expect(html).not.toContain('href="/tenant-1/instagram/settings"')
   })
 
   it('collapses each agent instead of the whole attention section', () => {

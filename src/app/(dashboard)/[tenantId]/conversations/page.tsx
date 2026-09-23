@@ -11,8 +11,8 @@ import {
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { getIntlLocale } from '@/lib/i18n/config'
 import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
-import { LocalDateTime } from '@/components/local-date-time'
-import { ChevronLeft, ChevronRight, Eye } from 'lucide-react'
+import { ConversationHistory } from '@/components/conversations/conversation-history'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { DeleteConversationButton } from './delete-button'
@@ -130,90 +130,71 @@ export default async function ConversationsPage({ params, searchParams }: Props)
 
   return (
     <main className="page-shell">
-      <header className="page-header">
-        <h1>{dictionary.conversations.title}</h1>
-        <p className="muted">{dictionary.conversations.count(totalConversations)}</p>
-      </header>
-
-      <aside className="conversation-retention-notice">
-        <strong>{dictionary.conversations.retention.title}</strong>
-        <p>{dictionary.conversations.retention.description}</p>
-      </aside>
-
-      <ResponseAccuracySummary
-        copy={dictionary.analytics.feedback}
-        metrics={feedbackMetrics}
-      />
-
-      <section className="card stack">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>{dictionary.conversations.table.session}</th>
-              <th>{dictionary.conversations.table.email}</th>
-              <th>{dictionary.conversations.table.lastMessage}</th>
-              <th>{dictionary.conversations.table.started}</th>
-              <th>{dictionary.conversations.table.messages}</th>
-              <th>{dictionary.conversations.review.column}</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {conversations.map((conversation) => (
-              <tr key={conversation.id}>
-                <td className="mono">
-                  {conversation.session_id.slice(0, 16)}...
-                </td>
-                <td>{getVisitorEmail(conversation.metadata) ?? '-'}</td>
-                <td style={{ maxWidth: 360 }}>
-                  {truncate(latestMessageByConversation.get(conversation.id) ?? '-', 120)}
-                </td>
-                <td>
-                  <LocalDateTime
-                    value={conversation.last_message_at ?? conversation.started_at}
-                    locale={getIntlLocale(locale)}
-                  />
-                </td>
-                <td>{conversation.message_count}</td>
-                <td>
-                  <ConversationReviewStatus
-                    tenantId={tenantId}
-                    conversationId={conversation.id}
-                    summary={reviewSummaryByConversation.get(conversation.id)}
-                    copy={dictionary.conversations.review}
-                  />
-                </td>
-                <td style={{ textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-                  <Link
-                    className="link-accent"
-                    aria-label={dictionary.conversations.viewMessages}
-                    href={`/${tenantId}/conversations/${conversation.id}`}
-                    style={{ display: 'grid', placeItems: 'center', padding: 4, borderRadius: 4 }}
-                  >
-                    <Eye aria-hidden="true" size={14} strokeWidth={2} />
-                  </Link>
-                  {access.role === 'owner' || access.role === 'admin' ? (
+      <ConversationHistory
+        title={dictionary.conversations.title}
+        countLabel={dictionary.conversations.count(totalConversations)}
+        emptyTitle={dictionary.conversations.emptyTitle}
+        emptyDescription={dictionary.conversations.emptyDescription}
+        labels={{
+          identity: dictionary.conversations.table.session,
+          latestMessage: dictionary.conversations.table.lastMessage,
+          status: dictionary.conversations.review.column,
+          activity: dictionary.conversations.table.started,
+          messages: dictionary.conversations.table.messages,
+          view: dictionary.conversations.viewMessages,
+        }}
+        locale={getIntlLocale(locale)}
+        beforeTable={(
+          <>
+            <aside className="conversation-retention-notice">
+              <strong>{dictionary.conversations.retention.title}</strong>
+              <p>{dictionary.conversations.retention.description}</p>
+            </aside>
+            <ResponseAccuracySummary
+              copy={dictionary.analytics.feedback}
+              metrics={feedbackMetrics}
+            />
+          </>
+        )}
+        afterTable={(
+          <ConversationPagination
+            tenantId={tenantId}
+            page={pagination.page}
+            pageCount={pageCount}
+            pageSize={pagination.pageSize}
+            total={totalConversations}
+            copy={dictionary.conversations.pagination}
+          />
+        )}
+        items={conversations.map((conversation) => ({
+          id: conversation.id,
+          identity: {
+            primary: `${conversation.session_id.slice(0, 16)}...`,
+            secondary: getVisitorEmail(conversation.metadata) ?? '-',
+            mono: true,
+          },
+          latestMessage: truncate(latestMessageByConversation.get(conversation.id) ?? '-', 120),
+          statusContent: (
+            <ConversationReviewStatus
+              tenantId={tenantId}
+              conversationId={conversation.id}
+              summary={reviewSummaryByConversation.get(conversation.id)}
+              copy={dictionary.conversations.review}
+            />
+          ),
+          activityAt: conversation.last_message_at ?? conversation.started_at,
+          messageCount: conversation.message_count,
+          href: `/${tenantId}/conversations/${conversation.id}`,
+          actions: access.role === 'owner' || access.role === 'admin' ? (
                     <DeleteConversationButton
                       tenantId={tenantId}
                       conversationId={conversation.id}
                       variant="icon"
                       copy={dictionary.conversations.deletion}
                     />
-                  ) : null}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <ConversationPagination
-          tenantId={tenantId}
-          page={pagination.page}
-          pageCount={pageCount}
-          pageSize={pagination.pageSize}
-          total={totalConversations}
-          copy={dictionary.conversations.pagination}
-        />
-      </section>
+                  ) : undefined,
+        }))}
+      />
     </main>
   )
 }

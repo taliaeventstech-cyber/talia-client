@@ -2029,6 +2029,14 @@ export type Database = {
           job_id: string
         }[]
       }
+      claim_instagram_handoff: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_theatre_id: string
+        }
+        Returns: string
+      }
       claim_whatsapp_inbound_jobs: {
         Args: {
           p_lease_seconds?: number
@@ -2063,6 +2071,16 @@ export type Database = {
           p_provider_message_id: string
           p_resolution?: Json
           p_worker_id: string
+        }
+        Returns: boolean
+      }
+      complete_instagram_operator_reply: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_outbound_message_id: string
+          p_provider_message_id: string
+          p_theatre_id: string
         }
         Returns: boolean
       }
@@ -2153,9 +2171,33 @@ export type Database = {
         }
         Returns: Json
       }
+      get_instagram_connection_disconnect_context: {
+        Args: {
+          p_actor_user_id: string
+          p_connection_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
       get_instagram_connection_summary: {
         Args: {
           p_actor_user_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      get_instagram_conversation_detail: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      get_instagram_conversation_history: {
+        Args: {
+          p_actor_user_id: string
+          p_limit?: number
           p_theatre_id: string
         }
         Returns: Json
@@ -2195,6 +2237,16 @@ export type Database = {
         }
         Returns: Json
       }
+      prepare_instagram_operator_reply: {
+        Args: {
+          p_actor_user_id: string
+          p_body_text: string
+          p_conversation_id: string
+          p_idempotency_key: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
       retry_instagram_agent_reply: {
         Args: {
           p_error_code: string
@@ -2222,6 +2274,34 @@ export type Database = {
           p_job_id: string
           p_outbound_message_id: string
           p_worker_id: string
+        }
+        Returns: string
+      }
+      start_instagram_operator_reply_send: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_outbound_message_id: string
+          p_theatre_id: string
+        }
+        Returns: string
+      }
+      fail_instagram_operator_reply: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_delivery_status: string
+          p_error_code: string
+          p_outbound_message_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
+      }
+      ignore_instagram_handoff: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_theatre_id: string
         }
         Returns: string
       }

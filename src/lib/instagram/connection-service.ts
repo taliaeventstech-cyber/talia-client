@@ -5,10 +5,13 @@ import {
   exchangeInstagramLongLivedToken,
   fetchInstagramProfessionalProfile,
   INSTAGRAM_OAUTH_SCOPES,
+  InstagramOAuthError,
   subscribeInstagramMessagingWebhooks,
+  unsubscribeInstagramMessagingWebhooks,
 } from './oauth'
 import {
   buildInstagramCredentialMetadata,
+  decryptInstagramCredentials,
   type InstagramCredentials,
 } from './credentials'
 
@@ -33,6 +36,16 @@ type OAuthDependencies = {
   fetchProfile?: typeof fetchInstagramProfessionalProfile
   subscribeWebhooks?: typeof subscribeInstagramMessagingWebhooks
   now?: () => number
+}
+
+const disconnectContextSchema = z.object({
+  id: z.uuid(),
+  credential_metadata: z.record(z.string(), z.unknown()),
+})
+
+type DisconnectDependencies = {
+  unsubscribeWebhooks?: typeof unsubscribeInstagramMessagingWebhooks
+  decryptCredentials?: typeof decryptInstagramCredentials
 }
 
 export async function completeInstagramOAuthConnection(
@@ -118,4 +131,50 @@ export async function getInstagramConnectionSummary(
   const parsed = connectionSummarySchema.safeParse(data)
   if (!parsed.success) throw new Error('instagram_connection_summary_invalid')
   return parsed.data
+}
+
+export async function disconnectInstagramConnection(
+  admin: AdminClient,
+  input: { tenantId: string; actorUserId: string; connectionId: string },
+  dependencies: DisconnectDependencies = {},
+) {
+  const contextResult = await admin.rpc('get_instagram_connection_disconnect_context', {
+    p_theatre_id: input.tenantId,
+    p_actor_user_id: input.actorUserId,
+    p_connection_id: input.connectionId,
+  })
+  if (contextResult.error) throw new Error('instagram_connection_disconnect_context_failed')
+  if (contextResult.data === null) return { disconnected: false, providerWarning: false }
+
+  const context = disconnectContextSchema.parse(contextResult.data)
+  const decryptCredentials = dependencies.decryptCredentials ?? decryptInstagramCredentials
+  const unsubscribeWebhooks = dependencies.unsubscribeWebhooks ?? unsubscribeInstagramMessagingWebhooks
+  let providerUnsubscribed = false
+  let providerErrorCode: string | null = null
+
+  try {
+    const credentials = decryptCredentials(context.credential_metadata.encrypted_credentials)
+    await unsubscribeWebhooks(credentials.accessToken)
+    providerUnsubscribed = true
+  } catch (providerError) {
+    providerErrorCode = providerError instanceof InstagramOAuthError
+      ? providerError.code
+      : 'instagram_webhook_unsubscription_unavailable'
+  }
+
+  const disconnectResult = await admin.rpc('disconnect_instagram_connection', {
+    p_theatre_id: input.tenantId,
+    p_actor_user_id: input.actorUserId,
+    p_connection_id: context.id,
+    p_provider_revoked: providerUnsubscribed,
+    p_provider_error_code: providerErrorCode,
+  })
+  if (disconnectResult.error || !disconnectResult.data) {
+    throw new Error('instagram_connection_disconnect_failed')
+  }
+
+  return {
+    disconnected: true,
+    providerWarning: providerErrorCode !== null,
+  }
 }
