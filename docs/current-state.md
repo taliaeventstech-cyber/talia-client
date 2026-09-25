@@ -272,9 +272,7 @@ Implemented:
   Knowledge only for members who can manage it. The same presentation is used
   in Web, WhatsApp and Instagram conversation details.
 - The Agora conversation list is server-side paginated with selectable page
-  sizes of 10, 25, 50 or 100 sessions. It also exposes the same all-time
-  response-feedback accuracy and rating-coverage metrics used by Backstage, so
-  unrated answers are never treated as incorrect answers. Each conversation
+  sizes of 10, 25, 50 or 100 sessions. Each conversation
   row distinguishes pending negative responses, pending controlled fallbacks
   and supervised corrections already applied; these states link directly to
   the relevant assistant response. Negative visitor feedback and controlled
@@ -384,10 +382,9 @@ Implemented:
   divided by all positively or negatively rated responses, together with rating
   coverage so small or biased samples remain visible.
 - Agora exposes the same venue-wide signal to customers as response
-  satisfaction. A compact percentage appears in Overview, while Conversations
-  contains the actionable detail with helpful/unhelpful counts, total ratings
-  and coverage in Spanish, Catalan and English. Analytics stays focused on
-  intents, topics and demand trends.
+  satisfaction through a compact percentage in Overview. Conversations stays
+  focused on the session list and per-response review state, while Analytics
+  remains focused on intents, topics and demand trends.
 - Every successful web-assistant turn persists a message-linked, idempotent
   analytics event from `talia-ai` with versioned topic, visitor intent,
   classification confidence and source. Deterministic runtime classification

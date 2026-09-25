@@ -7241,93 +7241,6 @@ textarea {
   gap: 12px;
 }
 
-.analytics-feedback-section {
-  overflow: hidden;
-}
-
-.analytics-feedback-score {
-  display: grid;
-  flex: 0 0 auto;
-  min-width: 160px;
-  gap: 6px;
-  border: 0.5px solid color-mix(in srgb, var(--color-brand) 38%, var(--color-border));
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--color-brand) 8%, var(--color-surface-2));
-  padding: 13px 16px;
-  text-align: right;
-}
-
-.analytics-feedback-score span,
-.analytics-feedback-grid span,
-.analytics-feedback-coverage span {
-  color: var(--color-text-tertiary);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.analytics-feedback-score strong {
-  color: var(--color-brand);
-  font-size: 30px;
-  line-height: 1;
-}
-
-.analytics-feedback-grid {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.analytics-feedback-grid > div {
-  display: grid;
-  gap: 7px;
-  border: 0.5px solid var(--color-border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--color-surface-2) 44%, transparent);
-  padding: 12px 14px;
-}
-
-.analytics-feedback-grid strong {
-  color: var(--color-text-primary);
-  font-size: 22px;
-}
-
-.analytics-feedback-grid > div:first-child {
-  border-color: color-mix(in srgb, var(--color-success) 30%, var(--color-border));
-}
-
-.analytics-feedback-grid > div:nth-child(2) {
-  border-color: color-mix(in srgb, var(--color-error) 28%, var(--color-border));
-}
-
-.analytics-feedback-coverage {
-  display: grid;
-  gap: 8px;
-}
-
-.analytics-feedback-coverage > div:first-child {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.analytics-feedback-coverage > div:first-child strong {
-  color: var(--color-text-primary);
-  font-size: 13px;
-}
-
-.analytics-feedback-coverage small {
-  color: var(--color-text-tertiary);
-  font-size: 11px;
-}
-
-.analytics-feedback-method {
-  margin: 0;
-  font-size: 12px;
-}
-
 .rag-feedback-accuracy-card {
   display: flex;
   align-items: center;
@@ -8205,16 +8118,6 @@ textarea {
     border-left: 0;
   }
 
-  .analytics-feedback-section .section-title-row {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .analytics-feedback-score {
-    min-width: 0;
-    text-align: left;
-  }
-
   .rag-feedback-accuracy-card {
     align-items: flex-start;
     flex-direction: column;
@@ -8281,10 +8184,6 @@ textarea {
 
   .rag-trace-diagnostics-grid > div:first-child {
     border-top: 0;
-  }
-
-  .analytics-feedback-grid {
-    grid-template-columns: 1fr;
   }
 
   .rag-health-grid {

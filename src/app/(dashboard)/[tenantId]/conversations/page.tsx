@@ -10,7 +10,6 @@ import {
 } from '@/lib/chat/supervised-learning'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { getIntlLocale } from '@/lib/i18n/config'
-import { getResponseFeedbackMetrics } from '@/lib/knowledge/response-feedback-metrics'
 import { ConversationHistory } from '@/components/conversations/conversation-history'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
@@ -39,49 +38,19 @@ export default async function ConversationsPage({ params, searchParams }: Props)
 
   const admin = createAdminClient()
 
-  const [
-    conversationsResult,
-    { count: totalResponses },
-    { count: positiveResponses },
-    { count: negativeResponses },
-  ] = await Promise.all([
-    admin
-      .from('conversations')
-      .select('id, session_id, started_at, last_message_at, message_count, metadata', { count: 'exact' })
-      .eq('theatre_id', tenantId)
-      .order('last_message_at', { ascending: false, nullsFirst: false })
-      .order('started_at', { ascending: false })
-      .range(pagination.from, pagination.to),
-    admin
-      .from('messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('theatre_id', tenantId)
-      .eq('role', 'assistant'),
-    admin
-      .from('messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('theatre_id', tenantId)
-      .eq('role', 'assistant')
-      .contains('metadata', { feedback: { rating: 'positive' } }),
-    admin
-      .from('messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('theatre_id', tenantId)
-      .eq('role', 'assistant')
-      .contains('metadata', { feedback: { rating: 'negative' } }),
-  ])
+  const conversationsResult = await admin
+    .from('conversations')
+    .select('id, session_id, started_at, last_message_at, message_count, metadata', { count: 'exact' })
+    .eq('theatre_id', tenantId)
+    .order('last_message_at', { ascending: false, nullsFirst: false })
+    .order('started_at', { ascending: false })
+    .range(pagination.from, pagination.to)
   const conversations = conversationsResult.data ?? []
   const totalConversations = conversationsResult.count ?? 0
   const pageCount = getConversationPageCount(totalConversations, pagination.pageSize)
   if (pagination.page > pageCount) {
     redirect(`/${tenantId}/conversations?page=${pageCount}&page_size=${pagination.pageSize}`)
   }
-  const feedbackMetrics = getResponseFeedbackMetrics({
-    positiveCount: positiveResponses ?? 0,
-    negativeCount: negativeResponses ?? 0,
-    totalCount: totalResponses ?? 0,
-  })
-
   const conversationIds = conversations.map((conversation) => conversation.id)
   const { data: pageMessages } = conversationIds.length
     ? await admin
@@ -145,16 +114,10 @@ export default async function ConversationsPage({ params, searchParams }: Props)
         }}
         locale={getIntlLocale(locale)}
         beforeTable={(
-          <>
-            <aside className="conversation-retention-notice">
-              <strong>{dictionary.conversations.retention.title}</strong>
-              <p>{dictionary.conversations.retention.description}</p>
-            </aside>
-            <ResponseAccuracySummary
-              copy={dictionary.analytics.feedback}
-              metrics={feedbackMetrics}
-            />
-          </>
+          <aside className="conversation-retention-notice">
+            <strong>{dictionary.conversations.retention.title}</strong>
+            <p>{dictionary.conversations.retention.description}</p>
+          </aside>
         )}
         afterTable={(
           <ConversationPagination
@@ -266,77 +229,6 @@ function ConversationReviewStatus({
         </Link>
       ) : null}
     </div>
-  )
-}
-
-function ResponseAccuracySummary({
-  copy,
-  metrics,
-}: {
-  copy: {
-    section: string
-    title: string
-    description: string
-    accuracy: string
-    positive: string
-    negative: string
-    rated: string
-    coverage: string
-    coverageDetail: (rated: number, total: number) => string
-    noData: string
-    method: string
-  }
-  metrics: ReturnType<typeof getResponseFeedbackMetrics>
-}) {
-  return (
-    <section className="card stack analytics-feedback-section" aria-labelledby="conversation-response-satisfaction-title">
-      <div className="section-title-row">
-        <div>
-          <p className="eyebrow">{copy.section}</p>
-          <h2 id="conversation-response-satisfaction-title">{copy.title}</h2>
-          <p className="muted">{copy.description}</p>
-        </div>
-        <div className="analytics-feedback-score">
-          <span>{copy.accuracy}</span>
-          <strong>{metrics.accuracyPercent === null ? copy.noData : `${metrics.accuracyPercent}%`}</strong>
-        </div>
-      </div>
-
-      <div className="analytics-feedback-grid">
-        <div>
-          <span>{copy.positive}</span>
-          <strong>{metrics.positiveCount}</strong>
-        </div>
-        <div>
-          <span>{copy.negative}</span>
-          <strong>{metrics.negativeCount}</strong>
-        </div>
-        <div>
-          <span>{copy.rated}</span>
-          <strong>{metrics.ratedCount}</strong>
-        </div>
-      </div>
-
-      <div className="analytics-feedback-coverage">
-        <div>
-          <span>{copy.coverage}</span>
-          <strong>{metrics.coveragePercent}%</strong>
-        </div>
-        <div
-          className="progress-track"
-          role="progressbar"
-          aria-label={copy.coverage}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={metrics.coveragePercent}
-        >
-          <div className="progress-fill" style={{ width: `${metrics.coveragePercent}%` }} />
-        </div>
-        <small>{copy.coverageDetail(metrics.ratedCount, metrics.totalCount)}</small>
-      </div>
-
-      <p className="muted analytics-feedback-method">{copy.method}</p>
-    </section>
   )
 }
 
