@@ -112,7 +112,8 @@ describe('Instagram OAuth', () => {
 
   it('validates the authorized account as Professional without putting its token in the URL', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      id: '17841480248188457',
+      id: '29028644286753871',
+      user_id: '17841480248188457',
       username: 'venue_account',
       account_type: 'MEDIA_CREATOR',
     }), { status: 200 }))
@@ -126,13 +127,14 @@ describe('Instagram OAuth', () => {
 
     const [requestUrl, init] = fetcher.mock.calls[0] as [URL, RequestInit]
     expect(requestUrl.toString()).not.toContain('long-lived-token')
-    expect(requestUrl.searchParams.get('fields')).toBe('id,username,account_type')
+    expect(requestUrl.searchParams.get('fields')).toBe('id,user_id,username,account_type')
     expect(init.headers).toEqual({ Authorization: 'Bearer long-lived-token' })
   })
 
   it('rejects a non-professional account', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      id: '17841480248188457',
+      id: '29028644286753871',
+      user_id: '17841480248188457',
       username: 'personal_account',
       account_type: 'PERSONAL',
     }), { status: 200 }))

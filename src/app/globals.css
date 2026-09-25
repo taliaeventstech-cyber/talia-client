@@ -4132,6 +4132,10 @@ textarea {
   width: min(100%, 820px);
 }
 
+.email-page-title-row-disconnected {
+  grid-template-columns: 1fr;
+}
+
 .email-header-separator {
   width: 3px;
   height: 46px;
@@ -4795,14 +4799,6 @@ textarea {
   max-width: 520px;
 }
 
-.email-connect-instructions {
-  max-width: 680px;
-  margin: 8px 0 0;
-  color: var(--color-text-secondary);
-  font-size: 14px;
-  line-height: 1.45;
-}
-
 .email-action-strip {
   display: flex;
   align-items: center;
@@ -4825,18 +4821,6 @@ textarea {
 
 .email-action-buttons form {
   display: contents;
-}
-
-.email-provider-connectors {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.email-provider-icon {
-  width: 18px;
-  height: 18px;
-  flex: 0 0 auto;
 }
 
 .email-action-buttons .button-primary,
@@ -10288,8 +10272,7 @@ textarea {
   padding-block: 18px;
 }
 
-.knowledge-capture-settings-header,
-.knowledge-capture-processing {
+.knowledge-capture-settings-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -10302,8 +10285,7 @@ textarea {
   max-width: 680px;
 }
 
-.knowledge-capture-settings-copy p,
-.knowledge-capture-processing p {
+.knowledge-capture-settings-copy p {
   margin: 0;
 }
 
@@ -10321,65 +10303,8 @@ textarea {
   white-space: nowrap;
 }
 
-.knowledge-capture-processing {
-  border-top: 0.5px solid var(--color-border);
-  padding-top: 16px;
-}
-
-.knowledge-capture-processing > div {
-  display: grid;
-  gap: 4px;
-  max-width: 680px;
-}
-
-.knowledge-capture-mode {
-  display: inline-grid;
-  grid-template-columns: repeat(2, auto);
-  flex-shrink: 0;
-  border: 0;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--color-surface-2) 76%, transparent);
-  padding: 0;
-}
-
-.knowledge-capture-mode label {
-  display: grid;
-  min-width: 128px;
-  place-items: center;
-  border: 0.5px solid var(--color-border);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 750;
-  padding: 10px 16px;
-}
-
-.knowledge-capture-mode label:first-of-type {
-  border-radius: 8px 0 0 8px;
-}
-
-.knowledge-capture-mode label:last-of-type {
-  border-left: 0;
-  border-radius: 0 8px 8px 0;
-}
-
-.knowledge-capture-mode label:has(input:checked) {
-  border-color: var(--color-brand);
-  background: color-mix(in srgb, var(--color-brand) 14%, var(--color-surface));
-  color: var(--color-brand);
-}
-
-.knowledge-capture-mode input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  opacity: 0;
-}
-
 @media (max-width: 900px) {
-  .knowledge-capture-settings-header,
-  .knowledge-capture-processing {
+  .knowledge-capture-settings-header {
     align-items: stretch;
     flex-direction: column;
   }
@@ -10393,14 +10318,6 @@ textarea {
   .knowledge-capture-settings-actions {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .knowledge-capture-mode {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .knowledge-capture-mode label {
-    min-width: 0;
   }
 }
 
@@ -10632,6 +10549,59 @@ textarea {
   margin-top: 14px;
   padding-top: 12px;
   border-top: 0.5px solid color-mix(in srgb, var(--color-border) 76%, transparent);
+}
+
+.response-sources {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 0.5px solid color-mix(in srgb, var(--color-border) 76%, transparent);
+}
+
+.response-sources > strong {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.response-source-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.response-source-link,
+.response-source-more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border: 0.5px solid color-mix(in srgb, var(--color-ia) 30%, var(--color-border));
+  border-radius: 999px;
+  padding: 4px 9px;
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-ia-bg) 56%, var(--color-surface));
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+a.response-source-link:hover {
+  border-color: color-mix(in srgb, var(--color-ia) 58%, var(--color-border));
+  color: var(--color-ia);
+}
+
+.response-source-more {
+  border-color: transparent;
+  padding-inline: 2px;
+  background: transparent;
+  color: var(--color-text-tertiary);
+}
+
+.response-sources-knowledge-link {
+  width: fit-content;
+  color: var(--color-ia);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .conversation-review-statuses {
@@ -12708,7 +12678,7 @@ textarea {
   margin-top: 12px;
 }
 
-.whatsapp-message-attention {
+.conversation-message-attention {
   display: grid;
   gap: 14px;
   margin-top: 16px;
@@ -12716,7 +12686,7 @@ textarea {
   border-top: 0.5px solid color-mix(in srgb, var(--color-border) 76%, transparent);
 }
 
-.whatsapp-message-attention .whatsapp-operator-panel {
+.conversation-message-attention .whatsapp-operator-panel {
   position: static;
   width: 100%;
   max-width: 620px;
@@ -12813,6 +12783,65 @@ textarea {
 .instagram-connection-card,
 .instagram-settings-header {
   max-width: 760px;
+}
+
+.email-settings-card,
+.email-settings-header {
+  max-width: 760px;
+}
+
+.email-settings-header {
+  display: grid;
+  gap: 8px;
+}
+
+.email-settings-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.email-settings-metadata {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.email-settings-metadata dt {
+  color: var(--color-text-muted);
+}
+
+.email-settings-metadata dd {
+  margin: 0;
+}
+
+.email-settings-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.email-settings-actions form {
+  display: contents;
+}
+
+.email-settings-actions .button-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.email-automation-form {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+}
+
+.email-automation-form .checkbox-row-card {
+  width: min(100%, 620px);
 }
 
 .instagram-settings-header {

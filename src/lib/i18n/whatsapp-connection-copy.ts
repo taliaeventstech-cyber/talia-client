@@ -43,7 +43,7 @@ export type WhatsappConnectionCopy = {
 
 const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappConnectionCopy> = {
   es: {
-    nav: 'Configuración', eyebrow: 'Agente de WhatsApp', title: 'Configura WhatsApp',
+    nav: 'Conexión', eyebrow: 'Agente de WhatsApp', title: 'Configura WhatsApp',
     description: 'Vincula el número de WhatsApp Business que utiliza este espacio para atender a su público. Durante el proceso podrás elegir qué cuenta de Meta autorizas.',
     status: 'Estado', connected: 'Conectado', pilot: 'Conexión de prueba', pending: 'Pendiente', error: 'Requiere atención',
     revoked: 'Acceso revocado', disabled: 'Desactivado', disconnected: 'Sin conectar',
@@ -55,7 +55,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappConnectionCopy> = {
     disabledDescription: 'Esta conexión está desactivada. Vuelve a conectarla para utilizar el agente de WhatsApp.',
     disconnectedDescription: 'Conecta el número de WhatsApp Business que utilizará TALIA para atender al público.',
     phone: 'Número', name: 'Nombre verificado', expires: 'Renovación de credencial',
-    connect: 'Conectar número de WhatsApp', replace: 'Conectar el WhatsApp de este espacio', retry: 'Reintentar conexión', connecting: 'Conectando…',
+    connect: 'Conectar WhatsApp', replace: 'Conectar el WhatsApp de este espacio', retry: 'Conectar WhatsApp', connecting: 'Conectando…',
     connectingDescription: 'Mantén abierta la ventana de Meta mientras terminamos de configurar la conexión.',
     success: 'WhatsApp se ha conectado correctamente.', cancelled: 'Has cancelado la conexión.',
     sdkError: 'No se ha podido abrir Meta. Inténtalo de nuevo.', setupMissing: 'Falta completar la configuración de Meta en este entorno.',
@@ -68,7 +68,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappConnectionCopy> = {
     permissions: 'Solo propietarios y administradores del espacio pueden gestionar esta conexión.',
   },
   ca: {
-    nav: 'Configuració', eyebrow: 'Agent de WhatsApp', title: 'Configura WhatsApp',
+    nav: 'Connexió', eyebrow: 'Agent de WhatsApp', title: 'Configura WhatsApp',
     description: 'Vincula el número de WhatsApp Business que utilitza aquest espai per atendre el seu públic. Durant el procés podràs triar quin compte de Meta autoritzes.',
     status: 'Estat', connected: 'Connectat', pilot: 'Connexió de prova', pending: 'Pendent', error: 'Requereix atenció',
     revoked: 'Accés revocat', disabled: 'Desactivat', disconnected: 'Sense connectar',
@@ -80,7 +80,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappConnectionCopy> = {
     disabledDescription: 'Aquesta connexió està desactivada. Torna a connectar-la per utilitzar l’agent de WhatsApp.',
     disconnectedDescription: 'Connecta el número de WhatsApp Business que TALIA utilitzarà per atendre el públic.',
     phone: 'Número', name: 'Nom verificat', expires: 'Renovació de credencial',
-    connect: 'Connectar número de WhatsApp', replace: 'Connectar el WhatsApp d’aquest espai', retry: 'Tornar a provar la connexió', connecting: 'Connectant…',
+    connect: 'Connectar WhatsApp', replace: 'Connectar el WhatsApp d’aquest espai', retry: 'Connectar WhatsApp', connecting: 'Connectant…',
     connectingDescription: 'Mantén oberta la finestra de Meta mentre acabem de configurar la connexió.',
     success: 'WhatsApp s’ha connectat correctament.', cancelled: 'Has cancel·lat la connexió.',
     sdkError: 'No s’ha pogut obrir Meta. Torna-ho a provar.', setupMissing: 'Falta completar la configuració de Meta en aquest entorn.',
@@ -93,7 +93,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappConnectionCopy> = {
     permissions: 'Només els propietaris i administradors de l’espai poden gestionar aquesta connexió.',
   },
   en: {
-    nav: 'Settings', eyebrow: 'WhatsApp agent', title: 'Set up WhatsApp',
+    nav: 'Connection', eyebrow: 'WhatsApp agent', title: 'Set up WhatsApp',
     description: 'Link the WhatsApp Business number this venue uses to assist its audience. During setup, you can choose which Meta account to authorize.',
     status: 'Status', connected: 'Connected', pilot: 'Test connection', pending: 'Pending', error: 'Needs attention',
     revoked: 'Access revoked', disabled: 'Disabled', disconnected: 'Not connected',
@@ -105,7 +105,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappConnectionCopy> = {
     disabledDescription: 'This connection is disabled. Connect it again to use the WhatsApp agent.',
     disconnectedDescription: 'Connect the WhatsApp Business number TALIA will use to assist the audience.',
     phone: 'Number', name: 'Verified name', expires: 'Credential renewal',
-    connect: 'Connect WhatsApp number', replace: 'Connect this venue’s WhatsApp', retry: 'Retry connection', connecting: 'Connecting…',
+    connect: 'Connect WhatsApp', replace: 'Connect this venue’s WhatsApp', retry: 'Connect WhatsApp', connecting: 'Connecting…',
     connectingDescription: 'Keep the Meta window open while we finish setting up the connection.',
     success: 'WhatsApp was connected successfully.', cancelled: 'You cancelled the connection.',
     sdkError: 'Meta could not be opened. Try again.', setupMissing: 'Meta configuration is incomplete in this environment.',
@@ -118,7 +118,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappConnectionCopy> = {
     permissions: 'Only venue owners and administrators can manage this connection.',
   },
   pt: {
-    nav: 'Configurações', eyebrow: 'Agente de WhatsApp', title: 'Configure o WhatsApp',
+    nav: 'Conexão', eyebrow: 'Agente de WhatsApp', title: 'Configure o WhatsApp',
     description: 'Vincule o número do WhatsApp Business que este espaço usa para atender seu público. Durante o processo, você poderá escolher qual conta da Meta autorizar.',
     status: 'Status', connected: 'Conectado', pilot: 'Conexão de teste', pending: 'Pendente', error: 'Requer atenção',
     revoked: 'Acesso revogado', disabled: 'Desativado', disconnected: 'Não conectado',
@@ -130,7 +130,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', WhatsappConnectionCopy> = {
     disabledDescription: 'Esta conexão está desativada. Conecte-a novamente para usar o agente de WhatsApp.',
     disconnectedDescription: 'Conecte o número do WhatsApp Business que a TALIA usará para atender o público.',
     phone: 'Número', name: 'Nome verificado', expires: 'Renovação da credencial',
-    connect: 'Conectar número do WhatsApp', replace: 'Conectar o WhatsApp deste espaço', retry: 'Tentar conexão novamente', connecting: 'Conectando…',
+    connect: 'Conectar WhatsApp', replace: 'Conectar o WhatsApp deste espaço', retry: 'Conectar WhatsApp', connecting: 'Conectando…',
     connectingDescription: 'Mantenha a janela da Meta aberta enquanto concluímos a configuração da conexão.',
     success: 'O WhatsApp foi conectado com sucesso.', cancelled: 'Você cancelou a conexão.',
     sdkError: 'Não foi possível abrir a Meta. Tente novamente.', setupMissing: 'Falta concluir a configuração da Meta neste ambiente.',

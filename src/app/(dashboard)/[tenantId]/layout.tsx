@@ -70,6 +70,7 @@ export default async function DashboardLayout({ children, params }: Props) {
             conversations: dictionary.common.conversations,
             analysis: dictionary.common.analysis,
             settings: dictionary.common.settings,
+            connection: dictionary.common.connection,
             upgrade: dictionary.nav.upgrade,
             trialEndsIn: dictionary.nav.trialEndsIn,
             expand: dictionary.nav.expand,

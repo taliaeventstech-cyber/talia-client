@@ -257,6 +257,11 @@ Operational persistence:
 - Weekend synchronization must run from a worker/cron, not from the browser.
 - The MVP uses polling against Gmail `messages.list` + `messages.get` to import the latest messages from `in:inbox newer_than:14d`.
 - Ingestion is idempotent via `unique(connection_id, provider_message_id)`, so the cron can run repeatedly without duplicating emails.
+- Operator deletion is durable across future syncs. TALIA deletes the local
+  thread content and stores only a connection-scoped SHA-256 marker for each
+  deleted provider message. The sync checks these markers before downloading
+  message detail, while new provider message IDs in the same thread remain
+  eligible for import.
 - Backstage can adjust per connection:
   - `gmail_sync_window_days`: 1, 7, 14 or 30;
   - `sync_frequency_minutes`: 15, 30, 60 or 240;
@@ -264,9 +269,17 @@ Operational persistence:
   - `cron_enabled`: allows pausing the automatic cron per connection without disconnecting the mailbox or preventing manual syncs;
   - `gmail_sync_query`: advanced Gmail query for internal overrides;
   - `auto_process_after_sync`: chains email processing after syncing imported emails;
+  - `auto_classify_after_sync` and `auto_draft_after_sync`: control the two
+    processing stages independently for internal operations;
   - `exclude_automated`: ignores newsletters, bounces, no-reply and automated replies before calling the agent;
   - `blocked_senders` and `blocked_domains`: internal rules to ignore emails by sender;
   - `email_agent_settings`: settings specific to the email channel without duplicating the knowledge base.
+
+Agora exposes one customer-facing setting under Email Agent > Configuration:
+`Prepare drafts automatically`. Enabling it sets both automatic classification
+and automatic drafting because classification is a prerequisite. Disabling it
+stops both automatic stages while keeping manual processing available. This
+setting never sends an email automatically.
 
 ## Experience by surface
 
@@ -305,6 +318,12 @@ Mailbox connection per venue.
 ### `email_messages`
 
 Messages of a thread: inbound/outbound, provider message id, body text/html, recipients, timestamps.
+
+### `email_message_suppressions`
+
+Backend-only, content-free SHA-256 markers for provider messages explicitly
+deleted from TALIA. Markers are scoped to the mailbox connection and are
+removed when that connection is deleted.
 
 ### `email_drafts`
 

@@ -41,6 +41,7 @@ const messageSchema = z.object({
   delivery_status: nullableString,
   processing_status: z.string(),
   is_operator_reply: z.boolean(),
+  metadata: z.record(z.string(), z.unknown()),
 })
 const detailSchema = z.object({
   id: z.uuid(),

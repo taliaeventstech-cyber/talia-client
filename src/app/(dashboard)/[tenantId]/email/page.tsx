@@ -12,7 +12,6 @@ import { Suspense } from 'react'
 import {
   deleteSelectedEmailDraftsAction,
   deleteSelectedEmailThreadsAction,
-  disconnectGoogleEmailAction,
   processSelectedEmailThreadsAction,
   syncLatestEmailAction,
 } from './actions'
@@ -26,9 +25,6 @@ import { ThreadPageSizeSelect } from './thread-page-size-select'
 interface Props {
   params: Promise<{ tenantId: string }>
   searchParams?: Promise<{
-    email_connected?: string
-    email_disconnected?: string
-    email_error?: string
     email_processed?: string
     email_process_error?: string
     email_synced?: string
@@ -80,7 +76,7 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
       .single(),
     admin
       .from('email_connections')
-      .select('id, provider, mailbox_email, status, draft_mode, sync_mode, last_synced_at, error_message')
+      .select('id, provider, mailbox_email, status, draft_mode, sync_mode, last_synced_at')
       .eq('theatre_id', tenantId)
       .order('created_at', { ascending: false }),
     admin
@@ -134,10 +130,7 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
   const connection = connections?.[0] ?? null
   const activeMailbox = connection?.mailbox_email ?? theatre?.fallback_email ?? copy.mailboxFallback
   const isConnected = connection?.status === 'connected' || connection?.status === 'syncing'
-  const isError = connection?.status === 'error'
   const activeProvider = isConnected ? connection?.provider : undefined
-  const hasOAuthSuccess = query.email_connected === '1'
-  const hasDisconnectSuccess = query.email_disconnected === '1'
   const processSuccessMessage = getProcessSuccessMessage(copy, query.email_processed)
   const selectedProcessMessage = getSelectedProcessMessage(copy, {
     processed: query.email_selected_processed,
@@ -156,22 +149,15 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
       providerFailed: query.email_provider_drafts_failed,
     },
   )
-  const oauthErrorMessage = getOAuthErrorMessage(copy, query.email_error)
   const processErrorMessage = query.email_process_error
   const syncErrorMessage = query.email_sync_error
   const deleteErrorMessage = query.email_delete_error
   const draftDeleteErrorMessage = query.email_draft_delete_error
-  const successToast = hasOAuthSuccess
-    ? copy.toasts.connected
-    : hasDisconnectSuccess
-      ? copy.toasts.disconnected
-      : selectedProcessMessage ?? syncSuccessMessage ?? deleteSuccessMessage ?? draftDeleteSuccessMessage ?? processSuccessMessage
-  const errorToast = oauthErrorMessage
-    ?? (processErrorMessage ? copy.toasts.processError(processErrorMessage) : null)
+  const successToast = selectedProcessMessage ?? syncSuccessMessage ?? deleteSuccessMessage ?? draftDeleteSuccessMessage ?? processSuccessMessage
+  const errorToast = (processErrorMessage ? copy.toasts.processError(processErrorMessage) : null)
     ?? (syncErrorMessage ? copy.toasts.syncError(syncErrorMessage) : null)
     ?? (deleteErrorMessage ? copy.toasts.deleteError(deleteErrorMessage) : null)
     ?? (draftDeleteErrorMessage ? copy.toasts.draftDeleteError(draftDeleteErrorMessage) : null)
-  const disconnectAction = disconnectGoogleEmailAction.bind(null, tenantId)
   const processSelectedAction = processSelectedEmailThreadsAction.bind(null, tenantId)
   const deleteSelectedAction = deleteSelectedEmailThreadsAction.bind(null, tenantId)
   const deleteSelectedDraftsAction = deleteSelectedEmailDraftsAction.bind(null, tenantId)
@@ -185,20 +171,24 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
       <header className="page-header">
         <div>
           <p className="section-label">{copy.section}</p>
-          <div className="page-title-row email-page-title-row">
+          <div className={`page-title-row email-page-title-row ${isConnected ? '' : 'email-page-title-row-disconnected'}`}>
             <h1>{theatre?.name ?? 'Email'}</h1>
-            <span className="email-header-separator" aria-hidden="true" />
-            <div className="email-header-mailbox">
-              <div>
-                <strong>{activeMailbox}</strong>
-                <p>
-                  {formatProvider(copy, activeProvider)} · {formatDraftMode(copy, connection?.draft_mode)} · {formatSync(copy, connection?.sync_mode)}
-                  {connection?.last_synced_at
-                    ? <> · <LocalDateTime value={connection.last_synced_at} locale={getIntlLocale(locale)} /></>
-                    : null}
-                </p>
-              </div>
-            </div>
+            {isConnected ? (
+              <>
+                <span className="email-header-separator" aria-hidden="true" />
+                <div className="email-header-mailbox">
+                  <div>
+                    <strong>{activeMailbox}</strong>
+                    <p>
+                      {formatProvider(copy, activeProvider)} · {formatDraftMode(copy, connection?.draft_mode)} · {formatSync(copy, connection?.sync_mode)}
+                      {connection?.last_synced_at
+                        ? <> · <LocalDateTime value={connection.last_synced_at} locale={getIntlLocale(locale)} /></>
+                        : null}
+                    </p>
+                  </div>
+                </div>
+              </>
+            ) : null}
           </div>
         </div>
         <span className={`status-pill email-header-status ${getConnectionStatusClass(connection?.status)}`}>
@@ -206,20 +196,11 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
         </span>
       </header>
 
-      {isError || connection?.error_message ? (
-        <p className="notice notice-error">
-          {connection?.error_message ?? copy.connectionError}
-        </p>
-      ) : null}
-
       <section className="card stack">
         <div className="section-title-row">
           <div>
             <p className="eyebrow">{copy.inbox.eyebrow}</p>
             <h2>{copy.inbox.title}</h2>
-            {!isConnected ? (
-              <p className="email-connect-instructions">{copy.inbox.connectDescription}</p>
-            ) : null}
           </div>
           {isConnected ? (
             <Suspense fallback={<PageSizeSelectFallback ariaLabel={copy.inbox.pageSizeAria} label={copy.inbox.pageSize} value={threadPagination.limit} />}>
@@ -234,26 +215,11 @@ export default async function EmailAgentPage({ params, searchParams }: Props) {
               <form action={syncAction}>
                 <SyncEmailSubmitButton label={copy.inbox.sync} syncingLabel={copy.inbox.syncing} />
               </form>
-            ) : null}
-            {isConnected ? (
-              <a className="button-outline button-fit" href={getProviderConnectUrl(tenantId, connection.provider)}>
-                {copy.header.reconnect}
-              </a>
             ) : (
-              <div className="email-provider-connectors" aria-label={copy.header.connectMailbox}>
-                <a className="button-outline button-fit" href={getProviderConnectUrl(tenantId, 'google')}>
-                  <GoogleProviderIcon />
-                  {copy.header.connectGmail}
-                </a>
-              </div>
+              <Link className="button-primary button-fit" href={`/${tenantId}/email/settings`}>
+                {copy.settings.title}
+              </Link>
             )}
-            {isConnected ? (
-              <form action={disconnectAction}>
-                <button className="button-outline button-danger button-fit" type="submit">
-                  {copy.header.disconnect}
-                </button>
-              </form>
-            ) : null}
           </div>
         </div>
 
@@ -612,24 +578,13 @@ function getConnectionStatusClass(status?: string) {
 }
 
 function formatConnectionStatus(copy: EmailCopy, status?: string) {
+  if (!status) return copy.statuses.revoked
   if (status === 'connected') return copy.statuses.connected
   if (status === 'syncing') return copy.statuses.syncing
   if (status === 'error') return copy.statuses.error
   if (status === 'revoked') return copy.statuses.revoked
   if (status === 'disabled') return copy.statuses.disabled
   return copy.statuses.pending
-}
-
-function getOAuthErrorMessage(copy: EmailCopy, error?: string) {
-  if (!error) return null
-  if (error === 'oauth_config') return copy.toasts.oauthConfig
-  if (error === 'oauth_callback') return copy.toasts.oauthCallback
-  if (error === 'missing_code') return copy.toasts.missingCode
-  if (error === 'access_denied') return copy.toasts.accessDenied
-  if (error === 'no_connection') return copy.toasts.noConnection
-  if (error === 'disconnect_failed') return copy.toasts.disconnectFailed
-
-  return copy.toasts.connectFailed(error)
 }
 
 function getProcessSuccessMessage(copy: EmailCopy, action?: string) {
@@ -732,23 +687,6 @@ function formatDraftMode(copy: EmailCopy, mode?: string) {
 
 function formatSync(copy: EmailCopy, mode?: string) {
   return mode === 'webhook' ? copy.syncMode.webhook : mode === 'manual' ? copy.syncMode.manual : copy.syncMode.polling
-}
-
-function getProviderConnectUrl(tenantId: string, provider?: string) {
-  return provider === 'microsoft'
-    ? `/api/email/microsoft/connect?tenantId=${tenantId}`
-    : `/api/email/google/connect?tenantId=${tenantId}`
-}
-
-function GoogleProviderIcon() {
-  return (
-    <svg className="email-provider-icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9c-.3 1.4-1 2.6-2.1 3.4v2.8h3.4c2-1.8 3.4-4.5 3.4-8.2Z" />
-      <path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.6l-3.4-2.8c-.9.6-2.2 1-3.9 1-3 0-5.6-2-6.5-4.8H2v2.9C3.8 20.4 7.6 23 12 23Z" />
-      <path fill="#FBBC05" d="M5.5 13.8a6.7 6.7 0 0 1 0-4.3V6.6H2A11 11 0 0 0 2 16.7l3.5-2.9Z" />
-      <path fill="#EA4335" d="M12 4.4c1.6 0 3.1.6 4.2 1.7l3.1-3.1A10.6 10.6 0 0 0 12 0C7.6 0 3.8 2.6 2 6.6l3.5 2.9C6.4 6.4 9 4.4 12 4.4Z" />
-    </svg>
-  )
 }
 
 function formatThreadStatus(copy: EmailCopy, status: string) {

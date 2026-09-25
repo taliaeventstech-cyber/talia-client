@@ -849,11 +849,11 @@ function InstalledWebCaptureSettingsForm({
   toggleRef: RefObject<HTMLInputElement | null>
 }) {
   const [enabled, setEnabled] = useState(settings.enabled)
-  const [mode, setMode] = useState(settings.mode)
-  const dirty = enabled !== settings.enabled || mode !== settings.mode
+  const dirty = enabled !== settings.enabled || (enabled && settings.mode !== 'automatic')
 
   return (
     <form action={action} className="knowledge-capture-settings">
+      <input name="installed_web_capture_mode" type="hidden" value="automatic" />
       <div className="knowledge-capture-settings-header">
         <div className="knowledge-capture-settings-copy">
           <strong>{labels.captureSettingsTitle}</strong>
@@ -883,40 +883,6 @@ function InstalledWebCaptureSettingsForm({
           </button>
         </div>
       </div>
-
-      {!enabled ? <input name="installed_web_capture_mode" type="hidden" value={mode} /> : null}
-      {enabled ? (
-        <div className="knowledge-capture-processing">
-          <div>
-            <strong>{labels.captureMode}</strong>
-            <p className="muted">
-              {mode === 'manual' ? labels.captureModeManualHelp : labels.captureModeAutomaticHelp}
-            </p>
-          </div>
-          <fieldset className="knowledge-capture-mode" aria-label={labels.captureMode}>
-            <label>
-              <input
-                checked={mode === 'manual'}
-                name="installed_web_capture_mode"
-                onChange={() => setMode('manual')}
-                type="radio"
-                value="manual"
-              />
-              <span>{labels.captureModeManual}</span>
-            </label>
-            <label>
-              <input
-                checked={mode === 'automatic'}
-                name="installed_web_capture_mode"
-                onChange={() => setMode('automatic')}
-                type="radio"
-                value="automatic"
-              />
-              <span>{labels.captureModeAutomatic}</span>
-            </label>
-          </fieldset>
-        </div>
-      ) : null}
     </form>
   )
 }

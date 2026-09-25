@@ -266,6 +266,11 @@ Implemented:
   alone never modifies Knowledge. The complete supervised-correction UI,
   including validation and indexing states, is localized in Spanish, Catalan,
   English and Brazilian Portuguese.
+- Each TALIA response with recorded Knowledge evidence shows the operator the
+  human-readable names of the sources used. The customer view deliberately
+  omits scores, chunks, prompts and diagnostic metadata, and links to
+  Knowledge only for members who can manage it. The same presentation is used
+  in Web, WhatsApp and Instagram conversation details.
 - The Agora conversation list is server-side paginated with selectable page
   sizes of 10, 25, 50 or 100 sessions. It also exposes the same all-time
   response-feedback accuracy and rating-coverage metrics used by Backstage, so
@@ -485,9 +490,11 @@ Implemented:
   and records the platform-admin action for audit.
 - Local text-only fallback in Next over chunks/items.
 - Installed-web detection is opt-in per venue and defaults to disabled. Agora
-  offers a manual mode, which exposes the explicit capture actions, and an
-  automatic mode, in which the installed widget submits the visible page text
-  as pages are visited. Capture actions are hidden outside manual mode.
+  presents it as one advanced fallback toggle rather than as a second refresh
+  schedule: managed sync first uses direct HTTP and browser capture, while the
+  installed widget can submit visible public page text as pages are visited.
+  Enabling the customer-facing fallback selects automatic capture; the legacy
+  manual mode remains supported internally for existing configuration.
 - Installed-web sources are connected to `knowledge_sources` as
   `web_snapshot`: the installed widget extracts visible DOM text and `talia-ai`
   normalizes, chunks and generates embeddings. Automatic captures persist a
@@ -580,6 +587,10 @@ Product principle:
 Implemented:
 
 - Gmail OAuth connection from Agora.
+- Email configuration is the last Email Agent section in Agora. It owns the
+  mailbox connection and a customer-facing `Prepare drafts automatically`
+  setting. Enabling it also enables the classification prerequisite; disabling
+  it leaves manual processing available. It never enables automatic sending.
 - Microsoft/Outlook hidden until verification is complete.
 - Current Gmail scopes:
   - `gmail.readonly`;
@@ -606,6 +617,11 @@ Implemented:
   thread uniqueness keep repeated deliveries idempotent.
 - Failed mailbox syncs retry up to three consecutive runs before the connection
   remains in an actionable error state.
+- Deleting an email thread from TALIA atomically removes its stored messages and
+  drafts while retaining only connection-scoped SHA-256 suppression markers.
+  Later mailbox syncs skip those exact provider messages without downloading
+  their content again; a genuinely new reply in the provider thread can still
+  be imported.
 
 Pending:
 
@@ -779,10 +795,11 @@ Implemented:
   `messages` webhook through its own long-lived token before saving the local
   connection. Configuring the app-level callback in Meta alone is not treated
   as an account subscription.
-- OAuth stores the Professional account ID returned by `GET /me` as text. It
-  deliberately ignores the numeric app-scoped ID returned by the short-lived
-  token exchange, preventing JavaScript precision loss and keeping connection,
-  webhook and send identifiers aligned.
+- OAuth requests both `id` and `user_id` from `GET /me`, but stores the
+  Professional account `user_id` as text. The app-scoped `id` is not a webhook
+  routing identifier; using it would make valid `messages` notifications appear
+  unmatched. Keeping the Professional ID as text also prevents JavaScript
+  precision loss and aligns connection, webhook and Send API identifiers.
 - A dedicated `/api/webhooks/meta/instagram` boundary validates Meta's
   verification challenge and the raw-body `X-Hub-Signature-256` before parsing
   any notification. It accepts only inbound Instagram message events and does
@@ -827,11 +844,20 @@ Implemented:
   sends are idempotent, audited and never retried automatically after an
   uncertain provider outcome; a confirmed send or an explicit ignore resolves
   the handoff.
+- Instagram also mirrors WhatsApp's proactive operator controls. An authorized
+  operator can take over any active conversation, atomically suppress queued AI
+  work, reply manually and later return it to TALIA. Manual mode remains active
+  after each human reply until that explicit release. Reactive handoffs expose
+  the shared attention navigator, highlight every pending message and render
+  the reply controls inline with the latest message that needs attention.
+- Confirmed Instagram replies from TALIA can be promoted into an editable,
+  tenant-scoped FAQ using the same supervised Knowledge workflow as WhatsApp.
+  Operator-authored replies are never offered as reusable TALIA answers.
 
 Pending:
 
-- Add proactive operator takeover and channel retention controls before broader
-  availability; the reactive human handoff required for the pilot is complete.
+- Add channel retention controls before broader availability; reactive and
+  proactive human handoff are complete.
 - Complete a real app-role canary and the Meta review required for external
   customer accounts.
 

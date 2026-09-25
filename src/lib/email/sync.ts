@@ -14,6 +14,7 @@ import {
   parseOutlookMessage,
   type ParsedOutlookMessage,
 } from './outlook'
+import { hashEmailProviderMessageId } from './suppression'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 const GMAIL_LIST_PAGE_SIZE = 50
@@ -73,11 +74,16 @@ export async function syncGmailMessages(admin: AdminClient, input: SyncGmailInpu
       connection.id,
       messageRefs.map((messageRef) => messageRef.id),
     )
+    const suppressedMessageIds = await getSuppressedProviderMessageIds(
+      admin,
+      connection.id,
+      messageRefs.map((messageRef) => messageRef.id),
+    )
     let imported = 0
     let skipped = 0
 
     for (const messageRef of messageRefs.reverse()) {
-      if (existingMessageIds.has(messageRef.id)) {
+      if (existingMessageIds.has(messageRef.id) || suppressedMessageIds.has(messageRef.id)) {
         skipped += 1
         continue
       }
@@ -244,6 +250,32 @@ export function getEmailSyncConfig(metadata: Json) {
       ? record.auto_draft_after_sync
       : record.auto_process_after_sync === true,
   }
+}
+
+async function getSuppressedProviderMessageIds(
+  admin: AdminClient,
+  connectionId: string,
+  messageIds: string[],
+) {
+  if (messageIds.length === 0) return new Set<string>()
+
+  const hashesByMessageId = new Map(
+    messageIds.map((messageId) => [messageId, hashEmailProviderMessageId(connectionId, messageId)]),
+  )
+  const { data, error } = await admin
+    .from('email_message_suppressions')
+    .select('provider_message_id_hash')
+    .eq('connection_id', connectionId)
+    .in('provider_message_id_hash', [...hashesByMessageId.values()])
+
+  if (error) throw error
+
+  const suppressedHashes = new Set((data ?? []).map((row) => row.provider_message_id_hash))
+  return new Set(
+    [...hashesByMessageId]
+      .filter(([, messageHash]) => suppressedHashes.has(messageHash))
+      .map(([messageId]) => messageId),
+  )
 }
 
 async function getExistingProviderMessageIds(

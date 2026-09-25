@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   claimInstagramHandoff,
   ignoreInstagramHandoff,
+  releaseInstagramConversation,
   sendInstagramOperatorReply,
+  takeOverInstagramConversation,
 } from './operator-handoff'
 
 function createRpcAdmin(responses: Array<{ data: unknown; error: { message: string } | null }>) {
@@ -17,6 +19,36 @@ const actorUserId = '30000000-0000-4000-8000-000000000001'
 const outboundMessageId = '40000000-0000-4000-8000-000000000001'
 
 describe('Instagram operator handoff', () => {
+  it('takes over an active conversation through a tenant-scoped RPC', async () => {
+    const admin = createRpcAdmin([{ data: 'taken_over', error: null }])
+
+    await expect(takeOverInstagramConversation(admin as never, {
+      tenantId,
+      conversationId,
+      actorUserId,
+    })).resolves.toBe('taken_over')
+    expect(admin.rpc).toHaveBeenCalledWith('take_over_instagram_conversation', {
+      p_theatre_id: tenantId,
+      p_conversation_id: conversationId,
+      p_actor_user_id: actorUserId,
+    })
+  })
+
+  it('returns a manually controlled conversation to TALIA through a tenant-scoped RPC', async () => {
+    const admin = createRpcAdmin([{ data: 'released', error: null }])
+
+    await expect(releaseInstagramConversation(admin as never, {
+      tenantId,
+      conversationId,
+      actorUserId,
+    })).resolves.toBe('released')
+    expect(admin.rpc).toHaveBeenCalledWith('release_instagram_conversation', {
+      p_theatre_id: tenantId,
+      p_conversation_id: conversationId,
+      p_actor_user_id: actorUserId,
+    })
+  })
+
   it('claims an active handoff through a tenant-scoped RPC', async () => {
     const admin = createRpcAdmin([{ data: 'claimed', error: null }])
 

@@ -46,6 +46,32 @@ export async function ignoreInstagramHandoff(
   return typeof result.data === 'string' ? result.data : 'unavailable'
 }
 
+export async function takeOverInstagramConversation(
+  admin: AdminClient,
+  input: { tenantId: string; conversationId: string; actorUserId: string },
+) {
+  const result = await callInstagramRpc(admin, 'take_over_instagram_conversation', {
+    p_theatre_id: input.tenantId,
+    p_conversation_id: input.conversationId,
+    p_actor_user_id: input.actorUserId,
+  })
+  if (result.error) throw new Error(`instagram_conversation_takeover_failed:${result.error.message}`)
+  return typeof result.data === 'string' ? result.data : 'unavailable'
+}
+
+export async function releaseInstagramConversation(
+  admin: AdminClient,
+  input: { tenantId: string; conversationId: string; actorUserId: string },
+) {
+  const result = await callInstagramRpc(admin, 'release_instagram_conversation', {
+    p_theatre_id: input.tenantId,
+    p_conversation_id: input.conversationId,
+    p_actor_user_id: input.actorUserId,
+  })
+  if (result.error) throw new Error(`instagram_conversation_release_failed:${result.error.message}`)
+  return typeof result.data === 'string' ? result.data : 'unavailable'
+}
+
 export type SendInstagramOperatorReplyResult =
   | { outcome: 'sent' | 'already_sent'; outboundMessageId: string }
   | {

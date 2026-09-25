@@ -7,7 +7,9 @@ import type { InstagramHandoffActionState } from './actions'
 import {
   claimInstagramHandoffAction,
   ignoreInstagramHandoffAction,
+  releaseInstagramConversationAction,
   sendInstagramOperatorReplyAction,
+  takeOverInstagramConversationAction,
 } from './actions'
 
 const initialState: InstagramHandoffActionState = { ok: false, message: '' }
@@ -21,6 +23,7 @@ export function InstagramOperatorControls({
   isAssigned,
   windowExpired,
   copy,
+  variant = 'handoff',
 }: {
   tenantId: string
   conversationId: string
@@ -30,6 +33,7 @@ export function InstagramOperatorControls({
   isAssigned: boolean
   windowExpired: boolean
   copy: InstagramConversationCopy['controls']
+  variant?: 'handoff' | 'manual-available' | 'manual-active'
 }) {
   const router = useRouter()
   const [claimState, claimAction, claimPending] = useActionState(
@@ -44,6 +48,14 @@ export function InstagramOperatorControls({
     ignoreInstagramHandoffAction.bind(null, tenantId, conversationId, locale),
     initialState,
   )
+  const [takeoverState, takeoverAction, takeoverPending] = useActionState(
+    takeOverInstagramConversationAction.bind(null, tenantId, conversationId, locale),
+    initialState,
+  )
+  const [releaseState, releaseAction, releasePending] = useActionState(
+    releaseInstagramConversationAction.bind(null, tenantId, conversationId, locale),
+    initialState,
+  )
   const replyForm = useRef<HTMLFormElement>(null)
   const idempotencyInput = useRef<HTMLInputElement>(null)
   const [isComposing, setIsComposing] = useState(false)
@@ -54,29 +66,54 @@ export function InstagramOperatorControls({
   useEffect(() => {
     if (!replyState.ok || !replyState.resultId) return
     replyForm.current?.reset()
+    if (idempotencyInput.current) idempotencyInput.current.value = ''
     router.refresh()
   }, [replyState.ok, replyState.resultId, router])
+  useEffect(() => {
+    if (!takeoverState.ok && !releaseState.ok) return
+    router.refresh()
+  }, [releaseState.ok, router, takeoverState.ok])
 
   if (!canManage) return <aside className="whatsapp-operator-panel muted">{copy.readOnly}</aside>
   if (isAssigned && !isAssignedToCurrentUser) {
     return <aside className="whatsapp-operator-panel muted">{copy.assignedElsewhere}</aside>
   }
 
-  if (windowExpired) {
+  if (variant === 'manual-available') {
     return (
       <aside className="whatsapp-operator-panel stack">
-        <p>{copy.expired}</p>
-        <form action={ignoreAction}>
-          <button className="button-outline button-fit" disabled={ignorePending} type="submit">
-            {copy.ignore}
+        <p>{copy.manualAvailable}</p>
+        <form action={takeoverAction}>
+          <button className="button-primary button-fit" disabled={takeoverPending} type="submit">
+            {takeoverPending ? copy.takingOver : copy.takeOver}
           </button>
         </form>
-        <ActionMessage state={ignoreState} />
+        <ActionMessage state={takeoverState} />
       </aside>
     )
   }
 
-  const showReplyForm = isComposing || claimState.ok
+  if (windowExpired) {
+    return (
+      <aside className="whatsapp-operator-panel stack">
+        <p>{copy.expired}</p>
+        <form action={variant === 'manual-active' ? releaseAction : ignoreAction}>
+          <button
+            className="button-outline button-fit"
+            disabled={variant === 'manual-active' ? releasePending : ignorePending}
+            type="submit"
+          >
+            {variant === 'manual-active'
+              ? releasePending ? copy.returningToTalia : copy.returnToTalia
+              : copy.ignore}
+          </button>
+        </form>
+        <ActionMessage state={variant === 'manual-active' ? releaseState : ignoreState} />
+      </aside>
+    )
+  }
+
+  const showReplyForm = variant === 'manual-active' ? isComposing : isComposing || claimState.ok
   if (!showReplyForm) {
     return (
       <aside className="whatsapp-operator-panel stack">
@@ -92,13 +129,24 @@ export function InstagramOperatorControls({
               </button>
             </form>
           )}
-          <form action={ignoreAction}>
-            <button className="button-outline" disabled={claimPending || ignorePending} type="submit">
-              {copy.ignore}
-            </button>
-          </form>
+          {variant === 'manual-active' ? (
+            <form action={releaseAction}>
+              <button className="button-outline" disabled={releasePending} type="submit">
+                {releasePending ? copy.returningToTalia : copy.returnToTalia}
+              </button>
+            </form>
+          ) : (
+            <form action={ignoreAction}>
+              <button className="button-outline" disabled={claimPending || ignorePending} type="submit">
+                {copy.ignore}
+              </button>
+            </form>
+          )}
         </div>
-        <ActionMessage state={claimState.message ? claimState : ignoreState} hideSuccess />
+        <ActionMessage
+          state={claimState.message ? claimState : releaseState.message ? releaseState : ignoreState}
+          hideSuccess={variant !== 'manual-active'}
+        />
       </aside>
     )
   }
@@ -129,13 +177,20 @@ export function InstagramOperatorControls({
           <button className="button-primary button-fit" disabled={replyPending || ignorePending} type="submit">
             {copy.send}
           </button>
-          <button className="button-outline" disabled={replyPending || ignorePending} form="instagram-ignore-form" type="submit">
-            {copy.ignore}
-          </button>
+          {variant === 'manual-active' ? (
+            <button className="button-outline" disabled={replyPending || releasePending} form="instagram-release-form" type="submit">
+              {releasePending ? copy.returningToTalia : copy.returnToTalia}
+            </button>
+          ) : (
+            <button className="button-outline" disabled={replyPending || ignorePending} form="instagram-ignore-form" type="submit">
+              {copy.ignore}
+            </button>
+          )}
         </div>
       </form>
       <form action={ignoreAction} id="instagram-ignore-form" />
-      <ActionMessage state={replyState.message ? replyState : ignoreState} />
+      <form action={releaseAction} id="instagram-release-form" />
+      <ActionMessage state={replyState.message ? replyState : releaseState.message ? releaseState : ignoreState} />
     </aside>
   )
 }

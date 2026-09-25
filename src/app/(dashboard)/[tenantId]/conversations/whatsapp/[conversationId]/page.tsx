@@ -3,12 +3,15 @@ import {
   ConversationMessageList,
   type ConversationMessageItem,
 } from '@/components/conversations/conversation-detail'
+import { ResponseSources } from '@/components/conversations/response-sources'
 import { getConversationStatusTone } from '@/components/conversations/conversation-history'
 import { MessageAttentionNavigator } from '@/components/message-attention-navigator'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { hasTenantPermission, isTenantModuleEnabled } from '@/lib/auth/permissions'
+import { getResponseSourcesByMessageId } from '@/lib/conversations/response-sources'
 import { getIntlLocale } from '@/lib/i18n/config'
 import { getLocale } from '@/lib/i18n/dictionaries'
+import { getResponseSourcesCopy } from '@/lib/i18n/response-sources-copy'
 import { getSupervisedFaqCopy } from '@/lib/i18n/supervised-faq-copy'
 import { getWhatsappHandoffCopy, getWhatsappOperatorControlsCopy } from '@/lib/i18n/whatsapp-handoff-copy'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -62,6 +65,11 @@ export default async function WhatsappHandoffDetailPage({ params }: Props) {
   const attentionTargetId = attentionMessage ? `whatsapp-attention-${attentionMessage.id}` : null
   const questionByAssistantId = getWhatsappQuestionByAssistantId(conversation.messages)
   const faqMessageIds = new Set((existingFaqResult.data ?? []).map((item) => item.id))
+  const responseSourcesByMessageId = await getResponseSourcesByMessageId(admin, {
+    tenantId,
+    messages: conversation.messages.filter((message) => message.direction === 'outbound' && !message.is_operator_reply),
+  })
+  const responseSourcesCopy = getResponseSourcesCopy(locale)
   const supportsManualMode = conversation.operator_mode || conversation.status === 'open' || conversation.status === 'pending'
   const messageItems: ConversationMessageItem[] = conversation.messages.map((message) => {
     const label = message.direction === 'inbound'
@@ -72,6 +80,7 @@ export default async function WhatsappHandoffDetailPage({ params }: Props) {
     const needsAttention = message.id === attentionMessage?.id
     const faqQuestion = questionByAssistantId.get(message.id)
     const faqPublished = faqMessageIds.has(message.id)
+    const responseSources = responseSourcesByMessageId.get(message.id)
     const canPromoteToFaq = canManageKnowledge
       && message.direction === 'outbound'
       && !message.is_operator_reply
@@ -95,6 +104,16 @@ export default async function WhatsappHandoffDetailPage({ params }: Props) {
         : undefined,
       extras: (
         <>
+          {responseSources ? (
+            <ResponseSources
+              additionalCount={responseSources.additionalCount}
+              canViewKnowledge={canManageKnowledge}
+              copy={responseSourcesCopy}
+              sources={responseSources.sources}
+              tenantId={tenantId}
+            />
+          ) : null}
+
           {faqPublished ? (
             <div className="supervised-faq-published">
               <div>
@@ -118,7 +137,7 @@ export default async function WhatsappHandoffDetailPage({ params }: Props) {
           ) : null}
 
           {needsAttention ? (
-            <div className="whatsapp-message-attention">
+            <div className="conversation-message-attention">
               <WhatsappOperatorControls
                 canManage={canManage}
                 conversationId={conversationId}

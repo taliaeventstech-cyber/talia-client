@@ -3,7 +3,7 @@
 import { useCallback, useSyncExternalStore, type ReactNode, type SVGProps } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bot, ChevronDown, Database, Inbox, LayoutDashboard, Mail, MessageSquare, Network, SlidersHorizontal, Zap } from 'lucide-react'
+import { Bot, ChevronDown, Database, Inbox, LayoutDashboard, Mail, MessageSquare, Network, Plug, SlidersHorizontal, Zap } from 'lucide-react'
 import { FREE_TRIAL_DAYS } from '@/lib/billing/plans'
 import {
   hasTenantPermission,
@@ -95,6 +95,7 @@ type DashboardNavLabels = {
   conversations: string
   analysis: string
   settings: string
+  connection: string
   upgrade: string
   trialEndsIn: string
   expand: string
@@ -248,6 +249,13 @@ export function DashboardNav({
                 <Network size={14} strokeWidth={2} aria-hidden="true" />
                 {labels.analysis}
               </Link>
+              <Link
+                className={`nav-link nav-link-nested ${active(`/${tenantId}/email/settings`) ? 'nav-link-active' : ''}`}
+                href={`/${tenantId}/email/settings`}
+              >
+                <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
+                {labels.settings}
+              </Link>
             </CollapsibleNavAgent>
           ) : null}
 
@@ -261,6 +269,15 @@ export function DashboardNav({
               expandLabel={labels.expand}
               collapseLabel={labels.collapse}
             >
+              {canManageWhatsapp ? (
+                <Link
+                  className={`nav-link nav-link-nested ${active(`/${tenantId}/whatsapp/settings`) ? 'nav-link-active' : ''}`}
+                  href={`/${tenantId}/whatsapp/settings`}
+                >
+                  <Plug size={14} strokeWidth={2} aria-hidden="true" />
+                  {labels.connection}
+                </Link>
+              ) : null}
               <Link
                 className={`nav-link nav-link-nested ${isWhatsappConversationPath(pathname, tenantId) ? 'nav-link-active' : ''}`}
                 href={`/${tenantId}/whatsapp`}
@@ -268,15 +285,6 @@ export function DashboardNav({
                 <MessageSquare size={14} strokeWidth={2} aria-hidden="true" />
                 {labels.conversations}
               </Link>
-              {canManageWhatsapp ? (
-                <Link
-                  className={`nav-link nav-link-nested ${active(`/${tenantId}/whatsapp/settings`) ? 'nav-link-active' : ''}`}
-                  href={`/${tenantId}/whatsapp/settings`}
-                >
-                  <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
-                  {labels.settings}
-                </Link>
-              ) : null}
             </CollapsibleNavAgent>
           ) : null}
 
@@ -290,6 +298,15 @@ export function DashboardNav({
               expandLabel={labels.expand}
               collapseLabel={labels.collapse}
             >
+              {canManageInstagram ? (
+                <Link
+                  className={`nav-link nav-link-nested ${active(`/${tenantId}/instagram/settings`) ? 'nav-link-active' : ''}`}
+                  href={`/${tenantId}/instagram/settings`}
+                >
+                  <Plug size={14} strokeWidth={2} aria-hidden="true" />
+                  {labels.connection}
+                </Link>
+              ) : null}
               {canViewConversations ? (
                 <Link
                   className={`nav-link nav-link-nested ${isInstagramConversationPath(pathname, tenantId) ? 'nav-link-active' : ''}`}
@@ -297,15 +314,6 @@ export function DashboardNav({
                 >
                   <MessageSquare size={14} strokeWidth={2} aria-hidden="true" />
                   {labels.conversations}
-                </Link>
-              ) : null}
-              {canManageInstagram ? (
-                <Link
-                  className={`nav-link nav-link-nested ${active(`/${tenantId}/instagram/settings`) ? 'nav-link-active' : ''}`}
-                  href={`/${tenantId}/instagram/settings`}
-                >
-                  <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
-                  {labels.settings}
                 </Link>
               ) : null}
             </CollapsibleNavAgent>

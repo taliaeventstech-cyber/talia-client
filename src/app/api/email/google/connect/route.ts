@@ -16,6 +16,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(authorizationUrl)
   } catch (error) {
     logSafeEmailError('email_google_connect_failed', error, 'google_oauth_config_failed')
-    return NextResponse.redirect(new URL(`/${tenantId}/email?email_error=oauth_config`, request.url))
+    return NextResponse.redirect(new URL(`/${tenantId}/email/settings?email_error=oauth_config`, request.url))
   }
 }

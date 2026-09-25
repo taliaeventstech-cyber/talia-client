@@ -2,6 +2,7 @@
 
 import { requireEmailAgentPreviewProductAccess } from '@/lib/email/legacy-access'
 import { syncAndMaybeProcessEmail } from '@/lib/email/automation'
+import { setAutomaticEmailDrafts } from '@/lib/email/automation-preferences'
 import { processEmailMessage } from '@/lib/email/service'
 import { getEmailProcessingFailureCode } from '@/lib/email/processing-failure'
 import { deleteGmailDraft } from '@/lib/email/gmail'
@@ -9,6 +10,7 @@ import { getFreshGoogleAccessToken } from '@/lib/email/google-tokens'
 import { revokeEmailConnectionToken } from '@/lib/email/revocation'
 import { getFreshMicrosoftAccessToken } from '@/lib/email/microsoft-tokens'
 import { deleteOutlookDraft } from '@/lib/email/outlook'
+import { deleteEmailThreadsFromTalia } from '@/lib/email/suppression'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/types/database.types'
 import { revalidatePath } from 'next/cache'
@@ -85,29 +87,22 @@ export async function deleteSelectedEmailThreadsAction(tenantId: string, formDat
     redirect(`/${tenantId}/email?email_delete_error=${encodeURIComponent('Selecciona al menos un thread')}`)
   }
 
-  const admin = createAdminClient()
-  const { data: threads, error: fetchError } = await admin
-    .from('email_threads')
-    .select('id')
-    .eq('theatre_id', tenantId)
-    .in('id', threadIds)
-
-  if (fetchError || !threads?.length) {
-    redirect(`/${tenantId}/email?email_delete_error=${encodeURIComponent(fetchError?.message ?? 'No se han encontrado threads válidos')}`)
+  let result: Awaited<ReturnType<typeof deleteEmailThreadsFromTalia>>
+  try {
+    result = await deleteEmailThreadsFromTalia(createAdminClient(), {
+      tenantId,
+      threadIds,
+    })
+  } catch {
+    redirect(`/${tenantId}/email?email_delete_error=${encodeURIComponent('No se han podido eliminar los threads')}`)
   }
 
-  const { error: deleteError } = await admin
-    .from('email_threads')
-    .delete()
-    .eq('theatre_id', tenantId)
-    .in('id', threads.map((thread) => thread.id))
-
-  if (deleteError) {
-    redirect(`/${tenantId}/email?email_delete_error=${encodeURIComponent(deleteError.message)}`)
+  if (!result.deleted) {
+    redirect(`/${tenantId}/email?email_delete_error=${encodeURIComponent('No se han encontrado threads válidos')}`)
   }
 
   revalidatePath(`/${tenantId}/email`)
-  redirect(`/${tenantId}/email?email_deleted=${threads.length}`)
+  redirect(`/${tenantId}/email?email_deleted=${result.deleted}`)
 }
 
 export async function deleteEmailDraftAction(tenantId: string, draftId: string) {
@@ -257,7 +252,7 @@ export async function disconnectGoogleEmailAction(tenantId: string) {
     .maybeSingle()
 
   if (error || !connection) {
-    redirect(`/${tenantId}/email?email_error=no_connection`)
+    redirect(`/${tenantId}/email/settings?email_error=no_connection`)
   }
 
   const revokeError = await revokeEmailConnectionToken(connection.provider, connection.oauth_metadata)
@@ -281,11 +276,43 @@ export async function disconnectGoogleEmailAction(tenantId: string) {
     .eq('id', connection.id)
 
   if (updateError) {
-    redirect(`/${tenantId}/email?email_error=disconnect_failed`)
+    redirect(`/${tenantId}/email/settings?email_error=disconnect_failed`)
   }
 
   revalidatePath(`/${tenantId}/email`)
-  redirect(`/${tenantId}/email?email_disconnected=1`)
+  revalidatePath(`/${tenantId}/email/settings`)
+  redirect(`/${tenantId}/email/settings?email_disconnected=1`)
+}
+
+export async function updateEmailDraftAutomationAction(tenantId: string, formData: FormData) {
+  await requireEmailAgentPreviewProductAccess(tenantId)
+
+  const admin = createAdminClient()
+  const { data: connection, error } = await admin
+    .from('email_connections')
+    .select('id, status, metadata')
+    .eq('theatre_id', tenantId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error || !connection || !['connected', 'syncing'].includes(connection.status)) {
+    redirect(`/${tenantId}/email/settings?email_settings_error=no_connection`)
+  }
+
+  const enabled = formData.get('auto_draft_after_sync') === 'on'
+  const { error: updateError } = await admin
+    .from('email_connections')
+    .update({ metadata: setAutomaticEmailDrafts(connection.metadata, enabled) })
+    .eq('id', connection.id)
+
+  if (updateError) {
+    redirect(`/${tenantId}/email/settings?email_settings_error=save_failed`)
+  }
+
+  revalidatePath(`/${tenantId}/email`)
+  revalidatePath(`/${tenantId}/email/settings`)
+  redirect(`/${tenantId}/email/settings?email_settings_saved=1`)
 }
 
 async function deleteProviderDraft(

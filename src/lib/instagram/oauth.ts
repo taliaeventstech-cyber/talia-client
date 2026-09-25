@@ -23,6 +23,7 @@ const longLivedTokenSchema = z.object({
 
 const professionalProfileSchema = z.object({
   id: z.string().min(1).max(200),
+  user_id: z.string().min(1).max(200),
   username: z.string().min(1).max(200),
   account_type: z.string().min(1),
 })
@@ -165,7 +166,7 @@ export async function fetchInstagramProfessionalProfile(
   options: { fetcher?: typeof fetch; timeoutMs?: number } = {},
 ): Promise<InstagramProfessionalProfile> {
   const url = new URL('https://graph.instagram.com/me')
-  url.searchParams.set('fields', 'id,username,account_type')
+  url.searchParams.set('fields', 'id,user_id,username,account_type')
 
   const response = await request(url, {
     method: 'GET',
@@ -182,7 +183,10 @@ export async function fetchInstagramProfessionalProfile(
     throw new InstagramOAuthError('instagram_professional_account_required', 403)
   }
 
-  return { id: profile.id, username: profile.username, accountType }
+  // Instagram Login returns both an app-scoped `id` and the Professional
+  // account `user_id`. Webhook recipient/entry IDs and the Send API use the
+  // latter, so persisting `id` makes otherwise valid webhook events unmatched.
+  return { id: profile.user_id, username: profile.username, accountType }
 }
 
 export async function subscribeInstagramMessagingWebhooks(

@@ -14,7 +14,10 @@ import {
   ConversationMessageList,
   type ConversationMessageItem,
 } from '@/components/conversations/conversation-detail'
+import { ResponseSources } from '@/components/conversations/response-sources'
+import { getResponseSourcesByMessageId } from '@/lib/conversations/response-sources'
 import { LocalDateTime } from '@/components/local-date-time'
+import { getResponseSourcesCopy } from '@/lib/i18n/response-sources-copy'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { DeleteConversationButton } from '../delete-button'
@@ -72,6 +75,11 @@ export default async function ConversationDetailPage({ params }: Props) {
     : { data: [] }
   const supervisedFaqIds = new Set((supervisedFaqs ?? []).map((item) => item.id))
   const assistantMessages = conversationMessages.filter((message) => message.role === 'assistant')
+  const responseSourcesByMessageId = await getResponseSourcesByMessageId(admin, {
+    tenantId,
+    messages: assistantMessages,
+  })
+  const responseSourcesCopy = getResponseSourcesCopy(locale)
   const reviewSummary = getConversationReviewSummary(assistantMessages, supervisedFaqIds)
   const pendingReviewItems = displayMessages.flatMap((message): PendingReviewNavigationItem[] => {
     if (message.role !== 'assistant') return []
@@ -98,6 +106,7 @@ export default async function ConversationDetailPage({ params }: Props) {
     const publishedKnowledgeItemId = message.role === 'assistant' && supervisedFaqIds.has(message.id)
       ? message.id
       : null
+    const responseSources = responseSourcesByMessageId.get(message.id)
 
     return {
       id: message.id,
@@ -128,6 +137,16 @@ export default async function ConversationDetailPage({ params }: Props) {
                 <span className="conversation-feedback-pill">{supervisedFaqCopy.feedback.unrated}</span>
               ) : null}
             </div>
+          ) : null}
+
+          {responseSources ? (
+            <ResponseSources
+              additionalCount={responseSources.additionalCount}
+              canViewKnowledge={canManageKnowledge}
+              copy={responseSourcesCopy}
+              sources={responseSources.sources}
+              tenantId={tenantId}
+            />
           ) : null}
 
           {review && publishedKnowledgeItemId ? (

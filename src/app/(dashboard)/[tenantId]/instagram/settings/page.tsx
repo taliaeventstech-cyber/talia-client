@@ -1,4 +1,5 @@
 import { LocalDateTime } from '@/components/local-date-time'
+import { shouldShowConnectedAccountDetails } from '@/lib/attention/connection-visibility'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getIntlLocale } from '@/lib/i18n/config'
 import { getInstagramConnectionCopy } from '@/lib/i18n/instagram-connection-copy'
@@ -22,6 +23,7 @@ export default async function InstagramSettingsPage({ params, searchParams }: Pr
     actorUserId: access.userId,
   })
   const presentation = getConnectionPresentation(connection, copy)
+  const showConnectedDetails = shouldShowConnectedAccountDetails(connection?.status)
 
   return (
     <main className="page-shell">
@@ -47,9 +49,11 @@ export default async function InstagramSettingsPage({ params, searchParams }: Pr
               : copy.failedNotice}
           </p>
         ) : null}
-        <p className="muted instagram-connection-state-description">{presentation.description}</p>
+        {showConnectedDetails ? (
+          <p className="muted instagram-connection-state-description">{presentation.description}</p>
+        ) : null}
 
-        {connection ? (
+        {connection && showConnectedDetails ? (
           <dl className="instagram-connection-metadata">
             <dt>{copy.account}</dt><dd>@{connection.username}</dd>
             <dt>{copy.accountType}</dt><dd>{connection.account_type}</dd>
@@ -60,17 +64,21 @@ export default async function InstagramSettingsPage({ params, searchParams }: Pr
         ) : null}
 
         <a className="button-primary button-fit" href={`/api/instagram/connect?tenantId=${tenantId}`}>
-          {connection ? copy.replace : copy.connect}
+          {showConnectedDetails ? copy.replace : copy.connect}
         </a>
-        {connection?.status === 'connected' ? (
+        {connection && showConnectedDetails ? (
           <DisconnectInstagramConnectionButton
             connectionId={connection.id}
             copy={copy}
             tenantId={tenantId}
           />
         ) : null}
-        <p className="muted instagram-connection-pilot-notice">{copy.pilotNotice}</p>
-        <p className="muted instagram-connection-permissions">{copy.permissions}</p>
+        {showConnectedDetails ? (
+          <>
+            <p className="muted instagram-connection-pilot-notice">{copy.pilotNotice}</p>
+            <p className="muted instagram-connection-permissions">{copy.permissions}</p>
+          </>
+        ) : null}
       </section>
     </main>
   )

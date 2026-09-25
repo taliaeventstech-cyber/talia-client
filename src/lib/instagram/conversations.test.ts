@@ -63,6 +63,7 @@ describe('Instagram conversations', () => {
           delivery_status: null,
           processing_status: 'responded',
           is_operator_reply: false,
+          metadata: {},
         }],
       },
       error: null,

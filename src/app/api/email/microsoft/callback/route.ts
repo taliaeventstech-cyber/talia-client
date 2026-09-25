@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
 }
 
 function redirectToEmail(request: NextRequest, tenantId: string, query: string) {
-  return NextResponse.redirect(new URL(`/${tenantId}/email?${query}`, request.url))
+  return NextResponse.redirect(new URL(`/${tenantId}/email/settings?${query}`, request.url))
 }
 
 async function markConnectionError(tenantId: string) {

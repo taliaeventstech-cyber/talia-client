@@ -1,4 +1,5 @@
 import { LocalDateTime } from '@/components/local-date-time'
+import { shouldShowConnectedAccountDetails } from '@/lib/attention/connection-visibility'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getIntlLocale } from '@/lib/i18n/config'
 import { getLocale } from '@/lib/i18n/dictionaries'
@@ -22,6 +23,7 @@ export default async function WhatsappSettingsPage({ params }: Props) {
     actorUserId: access.userId,
   })
   const presentation = getConnectionPresentation(connection, copy)
+  const showConnectedDetails = shouldShowConnectedAccountDetails(connection?.status)
 
   return (
     <main className="page-shell">
@@ -39,9 +41,11 @@ export default async function WhatsappSettingsPage({ params }: Props) {
           </span>
         </div>
 
-        <p className="muted whatsapp-connection-state-description">{presentation.description}</p>
+        {showConnectedDetails ? (
+          <p className="muted whatsapp-connection-state-description">{presentation.description}</p>
+        ) : null}
 
-        {connection ? (
+        {connection && showConnectedDetails ? (
           <dl className="whatsapp-handoff-metadata">
             {connection.display_phone_number ? (
               <><dt>{copy.phone}</dt><dd>{connection.display_phone_number}</dd></>
@@ -76,7 +80,9 @@ export default async function WhatsappSettingsPage({ params }: Props) {
             tenantId={tenantId}
           />
         ) : null}
-        <p className="muted whatsapp-connection-permissions">{copy.permissions}</p>
+        {showConnectedDetails ? (
+          <p className="muted whatsapp-connection-permissions">{copy.permissions}</p>
+        ) : null}
       </section>
     </main>
   )

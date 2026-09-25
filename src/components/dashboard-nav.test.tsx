@@ -29,6 +29,7 @@ const labels = {
   conversations: 'Conversations',
   analysis: 'Analysis',
   settings: 'Configuration',
+  connection: 'Connection',
   upgrade: 'Upgrade',
   trialEndsIn: '{days} days left',
 }
@@ -105,6 +106,53 @@ describe('getChatbotConfigurationHref', () => {
     expect(html).toContain('Pilot')
     expect(html).toContain('href="/tenant-1/instagram"')
     expect(html).toContain('href="/tenant-1/instagram/settings"')
+    expect(html).toContain('Connection')
+    expect(html.indexOf('href="/tenant-1/instagram/settings"'))
+      .toBeLessThan(html.indexOf('href="/tenant-1/instagram"'))
+  })
+
+  it('puts connection before conversations in the manageable messaging agents', () => {
+    const html = renderToStaticMarkup(
+      <DashboardNav
+        tenantId="tenant-1"
+        labels={labels}
+        role="owner"
+        modules={{ whatsapp: 'active', instagram: 'active' }}
+        hasProductAccess
+        needsUpgrade={false}
+        isTrialExpired={false}
+        trialDaysRemaining={null}
+        chatbotSetupCompleted={false}
+        emailAgentPreviewEnabled={false}
+      />,
+    )
+
+    expect(html.indexOf('href="/tenant-1/whatsapp/settings"'))
+      .toBeLessThan(html.indexOf('href="/tenant-1/whatsapp"'))
+    expect(html.indexOf('href="/tenant-1/instagram/settings"'))
+      .toBeLessThan(html.indexOf('href="/tenant-1/instagram"'))
+  })
+
+  it('puts email configuration after its inbox and analysis sections', () => {
+    const html = renderToStaticMarkup(
+      <DashboardNav
+        tenantId="tenant-1"
+        labels={labels}
+        role="owner"
+        modules={{ email: 'active' }}
+        hasProductAccess
+        needsUpgrade={false}
+        isTrialExpired={false}
+        trialDaysRemaining={null}
+        chatbotSetupCompleted={false}
+        emailAgentPreviewEnabled
+      />,
+    )
+
+    expect(html.indexOf('href="/tenant-1/email"'))
+      .toBeLessThan(html.indexOf('href="/tenant-1/email/analysis"'))
+    expect(html.indexOf('href="/tenant-1/email/analysis"'))
+      .toBeLessThan(html.indexOf('href="/tenant-1/email/settings"'))
   })
 
   it('lets read-only venue members see Instagram conversations without connection settings', () => {

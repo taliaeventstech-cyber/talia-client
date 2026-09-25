@@ -340,6 +340,45 @@ export type Database = {
         }
         Relationships: []
       }
+      email_message_suppressions: {
+        Row: {
+          connection_id: string
+          created_at: string
+          id: string
+          provider_message_id_hash: string
+          theatre_id: string
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string
+          id?: string
+          provider_message_id_hash: string
+          theatre_id: string
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string
+          id?: string
+          provider_message_id_hash?: string
+          theatre_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_message_suppressions_tenant_connection_fk"
+            columns: ["theatre_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "email_connections"
+            referencedColumns: ["theatre_id", "id"]
+          },
+          {
+            foreignKeyName: "email_message_suppressions_theatre_id_fkey"
+            columns: ["theatre_id"]
+            isOneToOne: false
+            referencedRelation: "theatres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_messages: {
         Row: {
           body_html: string | null
@@ -2018,6 +2057,13 @@ export type Database = {
         }
         Returns: string | null
       }
+      delete_email_threads_from_talia: {
+        Args: {
+          p_theatre_id: string
+          p_thread_ids: string[]
+        }
+        Returns: number
+      }
       claim_instagram_inbound_jobs: {
         Args: {
           p_lease_seconds?: number
@@ -2030,6 +2076,22 @@ export type Database = {
         }[]
       }
       claim_instagram_handoff: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_theatre_id: string
+        }
+        Returns: string
+      }
+      take_over_instagram_conversation: {
+        Args: {
+          p_actor_user_id: string
+          p_conversation_id: string
+          p_theatre_id: string
+        }
+        Returns: string
+      }
+      release_instagram_conversation: {
         Args: {
           p_actor_user_id: string
           p_conversation_id: string

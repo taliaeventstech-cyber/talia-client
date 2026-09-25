@@ -1,7 +1,32 @@
 // @vitest-environment node
 
-import { describe, expect, it } from 'vitest'
-import { getEmailSyncConfig, getEmailSyncFailureState } from './sync'
+import type { createAdminClient } from '@/lib/supabase/admin'
+import { createHash } from 'node:crypto'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { getEmailSyncConfig, getEmailSyncFailureState, syncGmailMessages } from './sync'
+
+type AdminClient = ReturnType<typeof createAdminClient>
+
+const emailProviderMocks = vi.hoisted(() => ({
+  getFreshGoogleAccessToken: vi.fn(),
+  getGmailMessage: vi.fn(),
+  listGmailInboxMessages: vi.fn(),
+  parseGmailMessage: vi.fn(),
+}))
+
+vi.mock('./google-tokens', () => ({
+  getFreshGoogleAccessToken: emailProviderMocks.getFreshGoogleAccessToken,
+}))
+
+vi.mock('./gmail', () => ({
+  getGmailMessage: emailProviderMocks.getGmailMessage,
+  listGmailInboxMessages: emailProviderMocks.listGmailInboxMessages,
+  parseGmailMessage: emailProviderMocks.parseGmailMessage,
+}))
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
 
 describe('getEmailSyncConfig', () => {
   it('uses safer defaults for automated Gmail syncs', () => {
@@ -56,3 +81,84 @@ describe('getEmailSyncFailureState', () => {
     })
   })
 })
+
+describe('syncGmailMessages', () => {
+  it('does not re-import a message that the operator deleted from TALIA', async () => {
+    const connectionId = '23000000-0000-0000-0000-000000000001'
+    const providerMessageId = 'gmail-message-deleted-from-talia'
+    const providerMessageIdHash = createHash('sha256')
+      .update(`${connectionId}:${providerMessageId}`)
+      .digest('hex')
+    const admin = createSyncAdmin({ connectionId, suppressedHashes: [providerMessageIdHash] })
+
+    emailProviderMocks.getFreshGoogleAccessToken.mockResolvedValue('google-access-token')
+    emailProviderMocks.listGmailInboxMessages.mockResolvedValue({
+      messages: [{ id: providerMessageId, threadId: 'gmail-thread-1' }],
+    })
+    emailProviderMocks.getGmailMessage.mockRejectedValue(
+      new Error('Suppressed Gmail messages must not be downloaded'),
+    )
+
+    await expect(syncGmailMessages(admin, {
+      tenantId: '22000000-0000-0000-0000-000000000001',
+    })).resolves.toMatchObject({
+      ok: true,
+      imported: 0,
+      skipped: 1,
+      inspected: 1,
+    })
+    expect(emailProviderMocks.getGmailMessage).not.toHaveBeenCalled()
+  })
+})
+
+function createSyncAdmin(input: { connectionId: string; suppressedHashes: string[] }) {
+  const connection = {
+    id: input.connectionId,
+    theatre_id: '22000000-0000-0000-0000-000000000001',
+    provider: 'google',
+    mailbox_email: 'venue@example.com',
+    status: 'connected',
+    oauth_metadata: {},
+    metadata: {},
+  }
+
+  const from = vi.fn((table: string) => {
+    if (table === 'email_connections') {
+      const selectChain = chain({ data: connection, error: null }, 'maybeSingle')
+      return {
+        select: vi.fn(() => selectChain),
+        update: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue({ error: null }),
+        })),
+      }
+    }
+
+    if (table === 'email_messages') {
+      return {
+        select: vi.fn(() => chain({ data: [], error: null }, 'in')),
+      }
+    }
+
+    if (table === 'email_message_suppressions') {
+      return {
+        select: vi.fn(() => chain({
+          data: input.suppressedHashes.map((provider_message_id_hash) => ({ provider_message_id_hash })),
+          error: null,
+        }, 'in')),
+      }
+    }
+
+    throw new Error(`Unexpected table in email sync test: ${table}`)
+  })
+
+  return { from } as unknown as AdminClient
+}
+
+function chain<T>(result: T, terminalMethod: 'in' | 'maybeSingle') {
+  const builder: Record<string, ReturnType<typeof vi.fn>> = {}
+  for (const method of ['eq', 'in', 'order', 'limit']) {
+    builder[method] = vi.fn(() => method === terminalMethod ? Promise.resolve(result) : builder)
+  }
+  builder.maybeSingle = vi.fn(() => terminalMethod === 'maybeSingle' ? Promise.resolve(result) : builder)
+  return builder
+}
