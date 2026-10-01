@@ -16,6 +16,21 @@ function createRpcAdmin(responses: Array<{ data: unknown; error: { message: stri
 }
 
 describe('WhatsApp operator handoff', () => {
+  it('preserves the Supabase client receiver when invoking a dynamic RPC name', async () => {
+    const receiver: { rpc?: ReturnType<typeof vi.fn> } = {}
+    const rpc = vi.fn(function (this: unknown) {
+      if (this !== receiver) throw new Error('rpc receiver was detached')
+      return Promise.resolve({ data: 'taken_over', error: null })
+    })
+    receiver.rpc = rpc
+
+    await expect(takeOverWhatsappConversation(receiver as never, {
+      tenantId: 'b2000000-0000-0000-0000-000000000001',
+      conversationId: 'b1000000-0000-4000-8000-000000000001',
+      actorUserId: 'b3000000-0000-0000-0000-000000000001',
+    })).resolves.toBe('taken_over')
+  })
+
   it('parses conversations from every WhatsApp status into the history', async () => {
     const admin = createRpcAdmin([{
       data: {

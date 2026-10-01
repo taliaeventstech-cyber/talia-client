@@ -19,6 +19,21 @@ const actorUserId = '30000000-0000-4000-8000-000000000001'
 const outboundMessageId = '40000000-0000-4000-8000-000000000001'
 
 describe('Instagram operator handoff', () => {
+  it('preserves the Supabase client receiver when invoking a dynamic RPC name', async () => {
+    const receiver: { rpc?: ReturnType<typeof vi.fn> } = {}
+    const rpc = vi.fn(function (this: unknown) {
+      if (this !== receiver) throw new Error('rpc receiver was detached')
+      return Promise.resolve({ data: 'claimed', error: null })
+    })
+    receiver.rpc = rpc
+
+    await expect(claimInstagramHandoff(receiver as never, {
+      tenantId,
+      conversationId,
+      actorUserId,
+    })).resolves.toBe('claimed')
+  })
+
   it('takes over an active conversation through a tenant-scoped RPC', async () => {
     const admin = createRpcAdmin([{ data: 'taken_over', error: null }])
 

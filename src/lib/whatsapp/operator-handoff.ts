@@ -345,5 +345,5 @@ function callWhatsappRpc(admin: AdminClient, name: string, args: Record<string, 
     functionName: string,
     parameters: Record<string, unknown>,
   ) => Promise<{ data: unknown; error: { message: string } | null }>
-  return rpc(name, args)
+  return rpc.call(admin, name, args)
 }
