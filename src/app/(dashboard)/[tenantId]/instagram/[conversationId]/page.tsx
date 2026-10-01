@@ -152,6 +152,7 @@ export default async function InstagramConversationDetailPage({ params }: Props)
                 <p>{copy.controls.description}</p>
               </div>
               <InstagramOperatorControls
+                key={`handoff-${conversationId}-${activeAttentionMessageId}`}
                 canManage={canManage}
                 conversationId={conversationId}
                 copy={copy.controls}
@@ -211,7 +212,7 @@ export default async function InstagramConversationDetailPage({ params }: Props)
             <p>{proactiveManualMode ? copy.controls.manualActive : copy.controls.manualAvailable}</p>
           </div>
           <InstagramOperatorControls
-            key={`${proactiveManualMode ? 'manual' : 'automatic'}-${conversation.messages.at(-1)?.id ?? 'empty'}`}
+            key={`${conversationId}-${proactiveManualMode ? 'manual' : 'automatic'}-${conversation.messages.at(-1)?.id ?? 'empty'}`}
             canManage={canManage}
             conversationId={conversationId}
             copy={copy.controls}

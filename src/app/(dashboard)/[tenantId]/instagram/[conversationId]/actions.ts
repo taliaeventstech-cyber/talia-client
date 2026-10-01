@@ -170,6 +170,7 @@ export async function sendInstagramOperatorReplyAction(
       return { ...success(copy.sent), resultId: result.outboundMessageId }
     }
     if (result.outcome === 'human_agent_window_expired') return { ok: false, message: copy.expired }
+    if (result.outcome === 'not_assigned') return { ok: false, message: copy.notAssigned }
     if (result.outcome === 'failed') return { ok: false, message: copy.sendFailed }
     if (result.outcome === 'uncertain') return { ok: false, message: copy.uncertain }
     return { ok: false, message: copy.unavailable }

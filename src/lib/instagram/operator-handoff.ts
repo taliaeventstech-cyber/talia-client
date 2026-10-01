@@ -108,15 +108,35 @@ export async function sendInstagramOperatorReply(
     resolveAccessToken?: typeof getInstagramConnectionAccessToken
   } = {},
 ): Promise<SendInstagramOperatorReplyResult> {
-  const preparedResult = await callInstagramRpc(admin, 'prepare_instagram_operator_reply', {
+  const prepareArgs = {
     p_theatre_id: input.tenantId,
     p_conversation_id: input.conversationId,
     p_actor_user_id: input.actorUserId,
     p_body_text: input.body,
     p_idempotency_key: input.idempotencyKey,
-  })
+  }
+  let preparedResult = await callInstagramRpc(admin, 'prepare_instagram_operator_reply', prepareArgs)
   if (preparedResult.error) {
     throw new Error(`instagram_operator_reply_prepare_failed:${preparedResult.error.message}`)
+  }
+
+  // A client-side navigation can briefly preserve the reply form from the
+  // previous conversation. Recover safely by claiming this handoff only when
+  // it is still free; the claim RPC refuses conversations owned by somebody
+  // else and is idempotent for the current operator.
+  if (getState(preparedResult.data) === 'not_assigned') {
+    const claimOutcome = await claimInstagramHandoff(admin, {
+      tenantId: input.tenantId,
+      conversationId: input.conversationId,
+      actorUserId: input.actorUserId,
+    })
+    if (claimOutcome !== 'claimed' && claimOutcome !== 'already_claimed') {
+      return { outcome: claimOutcome === 'already_assigned' ? 'not_assigned' : 'unavailable' }
+    }
+    preparedResult = await callInstagramRpc(admin, 'prepare_instagram_operator_reply', prepareArgs)
+    if (preparedResult.error) {
+      throw new Error(`instagram_operator_reply_prepare_failed:${preparedResult.error.message}`)
+    }
   }
 
   const existing = existingReplySchema.safeParse(preparedResult.data)

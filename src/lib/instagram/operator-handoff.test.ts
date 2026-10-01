@@ -140,6 +140,62 @@ describe('Instagram operator handoff', () => {
     }))
   })
 
+  it('claims a free handoff and retries preparation when stale UI skipped the claim step', async () => {
+    const admin = createRpcAdmin([
+      { data: { state: 'not_assigned' }, error: null },
+      { data: 'claimed', error: null },
+      {
+        data: {
+          state: 'prepared',
+          outbound_message_id: outboundMessageId,
+          instagram_user_id: 'ig-professional-account',
+          recipient_igsid: 'igsid-visitor',
+          body_text: 'Respuesta humana',
+          use_human_agent_tag: false,
+        },
+        error: null,
+      },
+      { data: 'started', error: null },
+      { data: true, error: null },
+    ])
+    const send = vi.fn().mockResolvedValue({ ok: true, providerMessageId: 'ig-message-outbound' })
+
+    await expect(sendInstagramOperatorReply(admin as never, {
+      tenantId,
+      conversationId,
+      actorUserId,
+      body: 'Respuesta humana',
+      idempotencyKey: '50000000-0000-4000-8000-000000000001',
+    }, {
+      send,
+      recordUsage: vi.fn().mockResolvedValue({ ok: true }) as never,
+      resolveAccessToken: async () => 'tenant-token',
+    })).resolves.toEqual({ outcome: 'sent', outboundMessageId })
+
+    expect(admin.rpc).toHaveBeenNthCalledWith(1, 'prepare_instagram_operator_reply', expect.any(Object))
+    expect(admin.rpc).toHaveBeenNthCalledWith(2, 'claim_instagram_handoff', expect.any(Object))
+    expect(admin.rpc).toHaveBeenNthCalledWith(3, 'prepare_instagram_operator_reply', expect.any(Object))
+    expect(send).toHaveBeenCalledOnce()
+  })
+
+  it('does not send when another operator owns the handoff', async () => {
+    const admin = createRpcAdmin([
+      { data: { state: 'not_assigned' }, error: null },
+      { data: 'already_assigned', error: null },
+    ])
+    const send = vi.fn()
+
+    await expect(sendInstagramOperatorReply(admin as never, {
+      tenantId,
+      conversationId,
+      actorUserId,
+      body: 'Respuesta humana',
+      idempotencyKey: '50000000-0000-4000-8000-000000000001',
+    }, { send })).resolves.toEqual({ outcome: 'not_assigned' })
+
+    expect(send).not.toHaveBeenCalled()
+  })
+
   it('uses the standard response window for a recent human reply', async () => {
     const admin = createRpcAdmin([
       {
