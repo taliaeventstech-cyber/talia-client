@@ -792,6 +792,11 @@ Implemented:
   `messages` webhook through its own long-lived token before saving the local
   connection. Configuring the app-level callback in Meta alone is not treated
   as an account subscription.
+- New Instagram accounts remain rollout-disabled for the gated pilot. Once an
+  account has been explicitly approved for the pilot, disconnecting and
+  reconnecting that same Professional account preserves the approval and
+  restores message routing; replacing it with a different account never
+  inherits the previous account's approval.
 - OAuth requests both `id` and `user_id` from `GET /me`, but stores the
   Professional account `user_id` as text. The app-scoped `id` is not a webhook
   routing identifier; using it would make valid `messages` notifications appear
@@ -953,7 +958,7 @@ Current documents:
 - EU AI Act operational controls and release gate: `docs/compliance/eu-ai-act.md`.
 - Google OAuth production checklist: `docs/operations/google-cloud-production-oauth.md`.
 - Data retention: `docs/operations/data-retention.md`.
-- Chatbot conversations and messages are retained for 90 days after their last activity. Venue owners and administrators can delete individual conversations earlier from Àgora; their content is removed, while usage records stripped of conversation and session identifiers remain for 12 months and already-recorded consumption stays unchanged for billing integrity.
+- Web conversations and messages are retained for 90 days after their last activity. Venue owners and administrators can manually delete individual Web, WhatsApp and Instagram conversations from Àgora using the same shared control in each channel; their content is removed, while usage records stripped of conversation and session identifiers remain for 12 months and already-recorded consumption stays unchanged for billing integrity.
 - Backup and restore exercises: `docs/operations/disaster-recovery.md`.
 - Security incident response: `docs/security/incident-response.md`.
 - Vulnerability management: `docs/security/vulnerability-management.md`.

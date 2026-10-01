@@ -24,13 +24,22 @@ export async function claimInstagramHandoff(
   admin: AdminClient,
   input: { tenantId: string; conversationId: string; actorUserId: string },
 ) {
-  const result = await callInstagramRpc(admin, 'claim_instagram_handoff', {
+  const args = {
     p_theatre_id: input.tenantId,
     p_conversation_id: input.conversationId,
     p_actor_user_id: input.actorUserId,
-  })
-  if (result.error) throw new Error(`instagram_handoff_claim_failed:${result.error.message}`)
-  return typeof result.data === 'string' ? result.data : 'unavailable'
+  }
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const result = await callInstagramRpc(admin, 'claim_instagram_handoff', args)
+    const outcome = typeof result.data === 'string' ? result.data : 'unavailable'
+    if (!result.error && outcome !== 'unavailable') return outcome
+    if (attempt === 0) continue
+    if (result.error) throw new Error(`instagram_handoff_claim_failed:${result.error.message}`)
+    return outcome
+  }
+
+  return 'unavailable'
 }
 
 export async function ignoreInstagramHandoff(

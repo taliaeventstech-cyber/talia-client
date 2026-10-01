@@ -64,6 +64,34 @@ describe('Instagram operator handoff', () => {
     })
   })
 
+  it('retries an idempotent claim when the first result is transiently unavailable', async () => {
+    const admin = createRpcAdmin([
+      { data: 'unavailable', error: null },
+      { data: 'claimed', error: null },
+    ])
+
+    await expect(claimInstagramHandoff(admin as never, {
+      tenantId,
+      conversationId,
+      actorUserId,
+    })).resolves.toBe('claimed')
+    expect(admin.rpc).toHaveBeenCalledTimes(2)
+  })
+
+  it('recovers an ambiguous claim error through the idempotent already-claimed result', async () => {
+    const admin = createRpcAdmin([
+      { data: null, error: { message: 'transient network failure' } },
+      { data: 'already_claimed', error: null },
+    ])
+
+    await expect(claimInstagramHandoff(admin as never, {
+      tenantId,
+      conversationId,
+      actorUserId,
+    })).resolves.toBe('already_claimed')
+    expect(admin.rpc).toHaveBeenCalledTimes(2)
+  })
+
   it('persists, starts and confirms a human-agent reply before recording usage', async () => {
     const admin = createRpcAdmin([
       {

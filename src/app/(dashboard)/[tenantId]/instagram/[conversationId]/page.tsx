@@ -10,7 +10,7 @@ import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { hasTenantPermission, isTenantModuleEnabled } from '@/lib/auth/permissions'
 import { getResponseSourcesByMessageId } from '@/lib/conversations/response-sources'
 import { getIntlLocale } from '@/lib/i18n/config'
-import { getLocale } from '@/lib/i18n/dictionaries'
+import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { getInstagramConversationCopy } from '@/lib/i18n/instagram-conversation-copy'
 import { getResponseSourcesCopy } from '@/lib/i18n/response-sources-copy'
 import { getSupervisedFaqCopy } from '@/lib/i18n/supervised-faq-copy'
@@ -19,6 +19,7 @@ import { getInstagramQuestionByAssistantId } from '@/lib/instagram/supervised-le
 import { createAdminClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { DeleteConversationButton } from '../../conversations/delete-button'
 import { InstagramOperatorControls } from './operator-controls'
 import { InstagramSupervisedFaqForm } from './supervised-faq-form'
 
@@ -29,6 +30,7 @@ interface Props {
 export default async function InstagramConversationDetailPage({ params }: Props) {
   const { tenantId, conversationId } = await params
   const locale = await getLocale()
+  const dictionary = await getDictionary(locale)
   const copy = getInstagramConversationCopy(locale)
   const supervisedCopy = getSupervisedFaqCopy(locale)
   const access = await requireTenantProductAccess(tenantId, 'view_conversations', 'instagram')
@@ -191,6 +193,15 @@ export default async function InstagramConversationDetailPage({ params }: Props)
               ]
             : []),
         ]}
+        actions={access.role === 'owner' || access.role === 'admin' ? (
+          <DeleteConversationButton
+            tenantId={tenantId}
+            conversationId={conversationId}
+            channel="instagram"
+            redirectHref={`/${tenantId}/instagram`}
+            copy={dictionary.conversations.deletion}
+          />
+        ) : null}
       />
 
       {supportsManualMode ? (

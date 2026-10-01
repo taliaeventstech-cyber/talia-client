@@ -344,10 +344,60 @@ export async function acceptConversationResponse(
 export async function deleteConversation(
   tenantId: string,
   conversationId: string,
+  channel: 'web' | 'whatsapp' | 'instagram' = 'web',
 ): Promise<{ ok: boolean; error?: string }> {
-  const access = await requireTenantProductAccess(tenantId, 'delete_conversations', 'web')
+  const parsedChannel = z.enum(['web', 'whatsapp', 'instagram']).safeParse(channel)
+  if (!parsedChannel.success) return { ok: false, error: 'Canal no válido.' }
+
+  const access = await requireTenantProductAccess(
+    tenantId,
+    'delete_conversations',
+    parsedChannel.data,
+  )
 
   const admin = createAdminClient()
+
+  if (parsedChannel.data !== 'web') {
+    const table = parsedChannel.data === 'whatsapp'
+      ? 'whatsapp_conversations'
+      : 'instagram_conversations'
+    const { data: conversation, error: conversationError } = await admin
+      // Channel-local tables are intentionally backend-only and are not exposed
+      // in the generated browser database types.
+      .from(table as 'conversations')
+      .select('id')
+      .eq('id', conversationId)
+      .eq('theatre_id', tenantId)
+      .maybeSingle()
+
+    if (conversationError) return { ok: false, error: conversationError.message }
+    if (!conversation) return { ok: false, error: 'Conversación no encontrada.' }
+
+    const { error: deleteError } = await admin
+      .from(table as 'conversations')
+      .delete()
+      .eq('id', conversationId)
+      .eq('theatre_id', tenantId)
+
+    if (deleteError) return { ok: false, error: deleteError.message }
+
+    await anonymizeChannelUsageIdentifiers(admin, {
+      tenantId,
+      conversationId,
+      channel: parsedChannel.data,
+    })
+
+    await auditConversationDeletion(admin, {
+      tenantId,
+      conversationId,
+      actorUserId: access.userId,
+      channel: parsedChannel.data,
+    })
+
+    revalidatePath(`/${tenantId}/${parsedChannel.data}`)
+    revalidatePath(`/${tenantId}/${parsedChannel.data}/${conversationId}`)
+    return { ok: true }
+  }
 
   // Fetch session_id to clean up conversation_topics
   const [{ data: conversation }, { data: theatre }] = await Promise.all([
@@ -394,28 +444,137 @@ export async function deleteConversation(
     })
   }
 
-  const { error: auditError } = await admin.from('audit_events').insert({
-    account_id: theatre?.account_id ?? null,
-    theatre_id: tenantId,
-    actor_user_id: access.userId,
+  await auditConversationDeletion(admin, {
+    tenantId,
+    conversationId,
+    actorUserId: access.userId,
+    channel: 'web',
+    accountId: theatre?.account_id ?? null,
+  })
+
+  revalidatePath(`/${tenantId}/conversations`)
+  return { ok: true }
+}
+
+type AdminClient = ReturnType<typeof createAdminClient>
+
+async function anonymizeChannelUsageIdentifiers(
+  admin: AdminClient,
+  input: {
+    tenantId: string
+    conversationId: string
+    channel: 'whatsapp' | 'instagram'
+  },
+) {
+  const { data: usageRows, error: usageReadError } = await admin
+    .from('usage_events')
+    .select('id, metadata')
+    .eq('theatre_id', input.tenantId)
+    .eq('channel', input.channel)
+    .contains('metadata', { conversation_id: input.conversationId })
+
+  if (usageReadError) {
+    console.error('[conversation-deletion] failed to load retained channel usage', {
+      ...input,
+      error: usageReadError.message,
+    })
+  } else {
+    for (const row of usageRows ?? []) {
+      const metadata = isRecord(row.metadata) ? { ...row.metadata } : {}
+      delete metadata.conversation_id
+      const { error } = await admin
+        .from('usage_events')
+        .update({
+          idempotency_key: `retained:${row.id}`,
+          metadata,
+        })
+        .eq('id', row.id)
+      if (error) {
+        console.error('[conversation-deletion] failed to anonymize retained channel usage', {
+          ...input,
+          usageEventId: row.id,
+          error: error.message,
+        })
+      }
+    }
+  }
+
+  const { data: aiUsageRows, error: aiUsageReadError } = await admin
+    .from('ai_usage_events')
+    .select('id, metadata')
+    .eq('theatre_id', input.tenantId)
+    .eq('session_id', input.conversationId)
+
+  if (aiUsageReadError) {
+    console.error('[conversation-deletion] failed to load retained channel AI usage', {
+      ...input,
+      error: aiUsageReadError.message,
+    })
+    return
+  }
+
+  for (const row of aiUsageRows ?? []) {
+    const metadata = isRecord(row.metadata) ? { ...row.metadata } : {}
+    delete metadata.conversation_id
+    const { error } = await admin
+      .from('ai_usage_events')
+      .update({
+        session_id: null,
+        idempotency_key: `retained:${row.id}`,
+        metadata,
+      })
+      .eq('id', row.id)
+    if (error) {
+      console.error('[conversation-deletion] failed to anonymize retained channel AI usage', {
+        ...input,
+        aiUsageEventId: row.id,
+        error: error.message,
+      })
+    }
+  }
+}
+
+async function auditConversationDeletion(
+  admin: AdminClient,
+  input: {
+    tenantId: string
+    conversationId: string
+    actorUserId: string
+    channel: 'web' | 'whatsapp' | 'instagram'
+    accountId?: string | null
+  },
+) {
+  let accountId = input.accountId
+  if (accountId === undefined) {
+    const { data: theatre } = await admin
+      .from('theatres')
+      .select('account_id')
+      .eq('id', input.tenantId)
+      .maybeSingle()
+    accountId = theatre?.account_id ?? null
+  }
+
+  const { error } = await admin.from('audit_events').insert({
+    account_id: accountId,
+    theatre_id: input.tenantId,
+    actor_user_id: input.actorUserId,
     action: 'conversation.deleted_by_customer',
-    target_type: 'conversation',
-    target_id: conversationId,
+    target_type: input.channel === 'web' ? 'conversation' : `${input.channel}_conversation`,
+    target_id: input.conversationId,
     metadata: {
+      channel: input.channel,
       content_deleted: true,
       usage_retained: true,
     },
   })
-  if (auditError) {
+  if (error) {
     console.error('[conversation-deletion] failed to audit customer deletion', {
-      tenantId,
-      conversationId,
-      error: auditError.message,
+      tenantId: input.tenantId,
+      conversationId: input.conversationId,
+      channel: input.channel,
+      error: error.message,
     })
   }
-
-  revalidatePath(`/${tenantId}/conversations`)
-  return { ok: true }
 }
 
 function mergeSupervisedLearningMetadata(

@@ -4,10 +4,11 @@ import {
 } from '@/components/conversations/conversation-history'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getIntlLocale } from '@/lib/i18n/config'
-import { getLocale } from '@/lib/i18n/dictionaries'
+import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { getWhatsappHandoffCopy } from '@/lib/i18n/whatsapp-handoff-copy'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getWhatsappConversationHistory } from '@/lib/whatsapp/operator-handoff'
+import { DeleteConversationButton } from '../delete-button'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -17,6 +18,7 @@ export default async function WhatsappConversationHistoryPage({ params }: Props)
   const { tenantId } = await params
   const locale = await getLocale()
   const copy = getWhatsappHandoffCopy(locale)
+  const dictionary = await getDictionary(locale)
   const access = await requireTenantProductAccess(tenantId, 'view_conversations', 'whatsapp')
   const history = await getWhatsappConversationHistory(createAdminClient(), {
     tenantId,
@@ -52,6 +54,14 @@ export default async function WhatsappConversationHistoryPage({ params }: Props)
           activityAt: item.last_message_at ?? item.created_at,
           messageCount: item.message_count,
           href: `/${tenantId}/whatsapp/${item.id}`,
+          actions: access.role === 'owner' || access.role === 'admin' ? (
+            <DeleteConversationButton
+              tenantId={tenantId}
+              conversationId={item.id}
+              channel="whatsapp"
+              copy={dictionary.conversations.deletion}
+            />
+          ) : undefined,
         }))}
       />
     </main>

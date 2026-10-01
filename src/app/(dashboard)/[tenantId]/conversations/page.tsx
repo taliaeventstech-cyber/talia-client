@@ -152,7 +152,6 @@ export default async function ConversationsPage({ params, searchParams }: Props)
                     <DeleteConversationButton
                       tenantId={tenantId}
                       conversationId={conversation.id}
-                      variant="icon"
                       copy={dictionary.conversations.deletion}
                     />
                   ) : undefined,

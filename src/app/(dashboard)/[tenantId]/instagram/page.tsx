@@ -4,10 +4,11 @@ import {
 } from '@/components/conversations/conversation-history'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getIntlLocale } from '@/lib/i18n/config'
-import { getLocale } from '@/lib/i18n/dictionaries'
+import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { getInstagramConversationCopy } from '@/lib/i18n/instagram-conversation-copy'
 import { getInstagramConversationHistory } from '@/lib/instagram/conversations'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { DeleteConversationButton } from '../conversations/delete-button'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -17,6 +18,7 @@ export default async function InstagramConversationHistoryPage({ params }: Props
   const { tenantId } = await params
   const locale = await getLocale()
   const copy = getInstagramConversationCopy(locale)
+  const dictionary = await getDictionary(locale)
   const access = await requireTenantProductAccess(tenantId, 'view_conversations', 'instagram')
   const history = await getInstagramConversationHistory(createAdminClient(), {
     tenantId,
@@ -52,6 +54,14 @@ export default async function InstagramConversationHistoryPage({ params }: Props
           activityAt: item.last_message_at ?? item.created_at,
           messageCount: item.message_count,
           href: `/${tenantId}/instagram/${item.id}`,
+          actions: access.role === 'owner' || access.role === 'admin' ? (
+            <DeleteConversationButton
+              tenantId={tenantId}
+              conversationId={item.id}
+              channel="instagram"
+              copy={dictionary.conversations.deletion}
+            />
+          ) : undefined,
         }))}
       />
     </main>

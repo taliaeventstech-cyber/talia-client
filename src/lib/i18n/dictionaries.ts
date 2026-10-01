@@ -560,6 +560,7 @@ const es = {
       cancel: 'Cancelar',
       confirm: 'Confirmar',
       deleting: 'Eliminando...',
+      error: 'No se ha podido eliminar la conversación. Vuelve a intentarlo.',
     },
     pagination: {
       label: 'Paginación de conversaciones',
@@ -1813,6 +1814,7 @@ const ca: Dictionary = {
       cancel: 'Cancel·lar',
       confirm: 'Confirmar',
       deleting: 'Eliminant...',
+      error: 'No s’ha pogut eliminar la conversa. Torna-ho a provar.',
     },
     pagination: {
       label: 'Paginació de converses',
@@ -2984,6 +2986,7 @@ const en: Dictionary = {
       cancel: 'Cancel',
       confirm: 'Confirm',
       deleting: 'Deleting...',
+      error: 'The conversation could not be deleted. Try again.',
     },
     pagination: {
       label: 'Conversations pagination',
@@ -4168,6 +4171,7 @@ const ptBR: Dictionary = {
       cancel: 'Cancelar',
       confirm: 'Confirmar',
       deleting: 'Excluindo...',
+      error: 'Não foi possível excluir a conversa. Tente novamente.',
     },
     pagination: {
       label: 'Paginação de conversas',

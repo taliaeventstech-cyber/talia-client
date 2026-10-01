@@ -206,6 +206,7 @@ export default async function ConversationDetailPage({ params }: Props) {
             <DeleteConversationButton
               tenantId={tenantId}
               conversationId={conversationId}
+              redirectHref={`/${tenantId}/conversations`}
               copy={dictionary.conversations.deletion}
             />
           ) : null}

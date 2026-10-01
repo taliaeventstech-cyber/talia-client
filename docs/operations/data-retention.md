@@ -96,7 +96,7 @@ is required for the retention policy.
 ## Notes
 
 - Deleting `conversations` cascades to `messages`.
-- Venue owners and administrators can delete individual chatbot conversations before the automatic 90-day deadline from Àgora.
+- Venue owners and administrators can manually delete individual Web, WhatsApp and Instagram conversations from Àgora. The automatic 90-day retention job currently covers Web conversation content.
 - Manual conversation deletion removes the conversation content and its topic extracts, and immediately removes its identifiers from retained usage records. The usage and billing quantities remain, so deletion never resets consumption already recorded for a billing period.
 - After 90 days, session and message identifiers are removed from retained chatbot usage records. Counts, roles, tokens and costs remain available for billing and aggregate reporting.
 - Deleting `email_threads` cascades to `email_messages` and remaining `email_drafts`.

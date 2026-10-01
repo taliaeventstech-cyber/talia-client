@@ -10,7 +10,7 @@ import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { hasTenantPermission, isTenantModuleEnabled } from '@/lib/auth/permissions'
 import { getResponseSourcesByMessageId } from '@/lib/conversations/response-sources'
 import { getIntlLocale } from '@/lib/i18n/config'
-import { getLocale } from '@/lib/i18n/dictionaries'
+import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { getResponseSourcesCopy } from '@/lib/i18n/response-sources-copy'
 import { getSupervisedFaqCopy } from '@/lib/i18n/supervised-faq-copy'
 import { getWhatsappHandoffCopy, getWhatsappOperatorControlsCopy } from '@/lib/i18n/whatsapp-handoff-copy'
@@ -19,6 +19,7 @@ import { getWhatsappHandoffDetail } from '@/lib/whatsapp/operator-handoff'
 import { getWhatsappQuestionByAssistantId } from '@/lib/whatsapp/supervised-learning'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { DeleteConversationButton } from '../../delete-button'
 import { WhatsappOperatorControls } from '../operator-controls'
 import { WhatsappSupervisedFaqForm } from '../supervised-faq-form'
 
@@ -29,6 +30,7 @@ interface Props {
 export default async function WhatsappHandoffDetailPage({ params }: Props) {
   const { tenantId, conversationId } = await params
   const locale = await getLocale()
+  const dictionary = await getDictionary(locale)
   const copy = getWhatsappHandoffCopy(locale)
   const controlsCopy = getWhatsappOperatorControlsCopy(locale)
   const supervisedCopy = getSupervisedFaqCopy(locale)
@@ -170,6 +172,15 @@ export default async function WhatsappHandoffDetailPage({ params }: Props) {
               ]
             : []),
         ]}
+        actions={access.role === 'owner' || access.role === 'admin' ? (
+          <DeleteConversationButton
+            tenantId={tenantId}
+            conversationId={conversationId}
+            channel="whatsapp"
+            redirectHref={`/${tenantId}/whatsapp`}
+            copy={dictionary.conversations.deletion}
+          />
+        ) : null}
       />
 
       {supportsManualMode ? (
