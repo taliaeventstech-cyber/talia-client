@@ -4,6 +4,7 @@ import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getInstagramConversationCopy } from '@/lib/i18n/instagram-conversation-copy'
 import { getSupervisedFaqCopy } from '@/lib/i18n/supervised-faq-copy'
 import { getInstagramConversationDetail } from '@/lib/instagram/conversations'
+import { resolveInstagramActionConversationId } from '@/lib/instagram/action-conversation-id'
 import {
   claimInstagramHandoff,
   ignoreInstagramHandoff,
@@ -43,13 +44,13 @@ const supervisedFaqSchema = z.object({
 
 export async function takeOverInstagramConversationAction(
   tenantId: string,
-  conversationId: string,
+  boundConversationId: string,
   locale: string,
   _previousState: InstagramHandoffActionState,
-  _formData: FormData,
+  formData: FormData,
 ): Promise<InstagramHandoffActionState> {
   void _previousState
-  void _formData
+  const conversationId = resolveInstagramActionConversationId(boundConversationId, formData)
   const copy = getInstagramConversationCopy(locale).action
   if (!idSchema.safeParse(tenantId).success || !idSchema.safeParse(conversationId).success) {
     return { ok: false, message: copy.unavailable }
@@ -76,13 +77,13 @@ export async function takeOverInstagramConversationAction(
 
 export async function releaseInstagramConversationAction(
   tenantId: string,
-  conversationId: string,
+  boundConversationId: string,
   locale: string,
   _previousState: InstagramHandoffActionState,
-  _formData: FormData,
+  formData: FormData,
 ): Promise<InstagramHandoffActionState> {
   void _previousState
-  void _formData
+  const conversationId = resolveInstagramActionConversationId(boundConversationId, formData)
   const copy = getInstagramConversationCopy(locale).action
   if (!idSchema.safeParse(tenantId).success || !idSchema.safeParse(conversationId).success) {
     return { ok: false, message: copy.unavailable }
@@ -108,13 +109,13 @@ export async function releaseInstagramConversationAction(
 
 export async function claimInstagramHandoffAction(
   tenantId: string,
-  conversationId: string,
+  boundConversationId: string,
   locale: string,
   _previousState: InstagramHandoffActionState,
-  _formData: FormData,
+  formData: FormData,
 ): Promise<InstagramHandoffActionState> {
   void _previousState
-  void _formData
+  const conversationId = resolveInstagramActionConversationId(boundConversationId, formData)
   const copy = getInstagramConversationCopy(locale).action
   if (!idSchema.safeParse(tenantId).success || !idSchema.safeParse(conversationId).success) {
     return { ok: false, message: copy.unavailable }
@@ -140,12 +141,13 @@ export async function claimInstagramHandoffAction(
 
 export async function sendInstagramOperatorReplyAction(
   tenantId: string,
-  conversationId: string,
+  boundConversationId: string,
   locale: string,
   _previousState: InstagramHandoffActionState,
   formData: FormData,
 ): Promise<InstagramHandoffActionState> {
   void _previousState
+  const conversationId = resolveInstagramActionConversationId(boundConversationId, formData)
   const copy = getInstagramConversationCopy(locale).action
   if (!idSchema.safeParse(tenantId).success || !idSchema.safeParse(conversationId).success) {
     return { ok: false, message: copy.unavailable }
@@ -182,13 +184,13 @@ export async function sendInstagramOperatorReplyAction(
 
 export async function ignoreInstagramHandoffAction(
   tenantId: string,
-  conversationId: string,
+  boundConversationId: string,
   locale: string,
   _previousState: InstagramHandoffActionState,
-  _formData: FormData,
+  formData: FormData,
 ): Promise<InstagramHandoffActionState> {
   void _previousState
-  void _formData
+  const conversationId = resolveInstagramActionConversationId(boundConversationId, formData)
   const copy = getInstagramConversationCopy(locale).action
   if (!idSchema.safeParse(tenantId).success || !idSchema.safeParse(conversationId).success) {
     return { ok: false, message: copy.unavailable }
