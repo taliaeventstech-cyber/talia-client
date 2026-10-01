@@ -37,23 +37,23 @@ export function InstagramOperatorControls({
 }) {
   const router = useRouter()
   const [claimState, claimAction, claimPending] = useActionState(
-    claimInstagramHandoffAction.bind(null, tenantId, conversationId, locale),
+    claimInstagramHandoffAction,
     initialState,
   )
   const [replyState, replyAction, replyPending] = useActionState(
-    sendInstagramOperatorReplyAction.bind(null, tenantId, conversationId, locale),
+    sendInstagramOperatorReplyAction,
     initialState,
   )
   const [ignoreState, ignoreAction, ignorePending] = useActionState(
-    ignoreInstagramHandoffAction.bind(null, tenantId, conversationId, locale),
+    ignoreInstagramHandoffAction,
     initialState,
   )
   const [takeoverState, takeoverAction, takeoverPending] = useActionState(
-    takeOverInstagramConversationAction.bind(null, tenantId, conversationId, locale),
+    takeOverInstagramConversationAction,
     initialState,
   )
   const [releaseState, releaseAction, releasePending] = useActionState(
-    releaseInstagramConversationAction.bind(null, tenantId, conversationId, locale),
+    releaseInstagramConversationAction,
     initialState,
   )
   const replyForm = useRef<HTMLFormElement>(null)
@@ -84,7 +84,7 @@ export function InstagramOperatorControls({
       <aside className="whatsapp-operator-panel stack">
         <p>{copy.manualAvailable}</p>
         <form action={takeoverAction}>
-          <ConversationIdInput conversationId={conversationId} />
+          <ActionContextInputs conversationId={conversationId} locale={locale} tenantId={tenantId} />
           <button className="button-primary button-fit" disabled={takeoverPending} type="submit">
             {takeoverPending ? copy.takingOver : copy.takeOver}
           </button>
@@ -99,7 +99,7 @@ export function InstagramOperatorControls({
       <aside className="whatsapp-operator-panel stack">
         <p>{copy.expired}</p>
         <form action={variant === 'manual-active' ? releaseAction : ignoreAction}>
-          <ConversationIdInput conversationId={conversationId} />
+          <ActionContextInputs conversationId={conversationId} locale={locale} tenantId={tenantId} />
           <button
             className="button-outline button-fit"
             disabled={variant === 'manual-active' ? releasePending : ignorePending}
@@ -126,7 +126,7 @@ export function InstagramOperatorControls({
             </button>
           ) : (
             <form action={claimAction}>
-              <ConversationIdInput conversationId={conversationId} />
+              <ActionContextInputs conversationId={conversationId} locale={locale} tenantId={tenantId} />
               <button className="button-primary" disabled={claimPending || ignorePending} type="submit">
                 {copy.reply}
               </button>
@@ -134,14 +134,14 @@ export function InstagramOperatorControls({
           )}
           {variant === 'manual-active' ? (
             <form action={releaseAction}>
-              <ConversationIdInput conversationId={conversationId} />
+              <ActionContextInputs conversationId={conversationId} locale={locale} tenantId={tenantId} />
               <button className="button-outline" disabled={releasePending} type="submit">
                 {releasePending ? copy.returningToTalia : copy.returnToTalia}
               </button>
             </form>
           ) : (
             <form action={ignoreAction}>
-              <ConversationIdInput conversationId={conversationId} />
+              <ActionContextInputs conversationId={conversationId} locale={locale} tenantId={tenantId} />
               <button className="button-outline" disabled={claimPending || ignorePending} type="submit">
                 {copy.ignore}
               </button>
@@ -168,7 +168,7 @@ export function InstagramOperatorControls({
           }
         }}
       >
-        <ConversationIdInput conversationId={conversationId} />
+        <ActionContextInputs conversationId={conversationId} locale={locale} tenantId={tenantId} />
         <label className="sr-only" htmlFor="instagram-operator-reply">{copy.replyLabel}</label>
         <textarea
           id="instagram-operator-reply"
@@ -195,18 +195,32 @@ export function InstagramOperatorControls({
         </div>
       </form>
       <form action={ignoreAction} id="instagram-ignore-form">
-        <ConversationIdInput conversationId={conversationId} />
+        <ActionContextInputs conversationId={conversationId} locale={locale} tenantId={tenantId} />
       </form>
       <form action={releaseAction} id="instagram-release-form">
-        <ConversationIdInput conversationId={conversationId} />
+        <ActionContextInputs conversationId={conversationId} locale={locale} tenantId={tenantId} />
       </form>
       <ActionMessage state={replyState.message ? replyState : releaseState.message ? releaseState : ignoreState} />
     </aside>
   )
 }
 
-function ConversationIdInput({ conversationId }: { conversationId: string }) {
-  return <input name="conversationId" readOnly type="hidden" value={conversationId} />
+function ActionContextInputs({
+  tenantId,
+  conversationId,
+  locale,
+}: {
+  tenantId: string
+  conversationId: string
+  locale: string
+}) {
+  return (
+    <>
+      <input name="tenantId" readOnly type="hidden" value={tenantId} />
+      <input name="conversationId" readOnly type="hidden" value={conversationId} />
+      <input name="locale" readOnly type="hidden" value={locale} />
+    </>
+  )
 }
 
 function ActionMessage({ state, hideSuccess = false }: { state: InstagramHandoffActionState; hideSuccess?: boolean }) {

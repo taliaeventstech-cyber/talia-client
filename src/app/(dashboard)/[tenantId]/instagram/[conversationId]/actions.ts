@@ -3,8 +3,8 @@
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getInstagramConversationCopy } from '@/lib/i18n/instagram-conversation-copy'
 import { getSupervisedFaqCopy } from '@/lib/i18n/supervised-faq-copy'
+import { parseInstagramActionContext } from '@/lib/instagram/action-context'
 import { getInstagramConversationDetail } from '@/lib/instagram/conversations'
-import { resolveInstagramActionConversationId } from '@/lib/instagram/action-conversation-id'
 import {
   claimInstagramHandoff,
   ignoreInstagramHandoff,
@@ -43,18 +43,15 @@ const supervisedFaqSchema = z.object({
 })
 
 export async function takeOverInstagramConversationAction(
-  tenantId: string,
-  boundConversationId: string,
-  locale: string,
   _previousState: InstagramHandoffActionState,
   formData: FormData,
 ): Promise<InstagramHandoffActionState> {
   void _previousState
-  const conversationId = resolveInstagramActionConversationId(boundConversationId, formData)
+  const context = parseInstagramActionContext(formData)
+  const locale = getSubmittedLocale(formData)
   const copy = getInstagramConversationCopy(locale).action
-  if (!idSchema.safeParse(tenantId).success || !idSchema.safeParse(conversationId).success) {
-    return { ok: false, message: copy.unavailable }
-  }
+  if (!context.success) return { ok: false, message: copy.unavailable }
+  const { tenantId, conversationId } = context.data
 
   const access = await requireTenantProductAccess(tenantId, 'manage_conversations', 'instagram')
   try {
@@ -76,18 +73,15 @@ export async function takeOverInstagramConversationAction(
 }
 
 export async function releaseInstagramConversationAction(
-  tenantId: string,
-  boundConversationId: string,
-  locale: string,
   _previousState: InstagramHandoffActionState,
   formData: FormData,
 ): Promise<InstagramHandoffActionState> {
   void _previousState
-  const conversationId = resolveInstagramActionConversationId(boundConversationId, formData)
+  const context = parseInstagramActionContext(formData)
+  const locale = getSubmittedLocale(formData)
   const copy = getInstagramConversationCopy(locale).action
-  if (!idSchema.safeParse(tenantId).success || !idSchema.safeParse(conversationId).success) {
-    return { ok: false, message: copy.unavailable }
-  }
+  if (!context.success) return { ok: false, message: copy.unavailable }
+  const { tenantId, conversationId } = context.data
 
   const access = await requireTenantProductAccess(tenantId, 'manage_conversations', 'instagram')
   try {
@@ -108,18 +102,15 @@ export async function releaseInstagramConversationAction(
 }
 
 export async function claimInstagramHandoffAction(
-  tenantId: string,
-  boundConversationId: string,
-  locale: string,
   _previousState: InstagramHandoffActionState,
   formData: FormData,
 ): Promise<InstagramHandoffActionState> {
   void _previousState
-  const conversationId = resolveInstagramActionConversationId(boundConversationId, formData)
+  const context = parseInstagramActionContext(formData)
+  const locale = getSubmittedLocale(formData)
   const copy = getInstagramConversationCopy(locale).action
-  if (!idSchema.safeParse(tenantId).success || !idSchema.safeParse(conversationId).success) {
-    return { ok: false, message: copy.unavailable }
-  }
+  if (!context.success) return { ok: false, message: copy.unavailable }
+  const { tenantId, conversationId } = context.data
 
   const access = await requireTenantProductAccess(tenantId, 'manage_conversations', 'instagram')
   try {
@@ -140,18 +131,15 @@ export async function claimInstagramHandoffAction(
 }
 
 export async function sendInstagramOperatorReplyAction(
-  tenantId: string,
-  boundConversationId: string,
-  locale: string,
   _previousState: InstagramHandoffActionState,
   formData: FormData,
 ): Promise<InstagramHandoffActionState> {
   void _previousState
-  const conversationId = resolveInstagramActionConversationId(boundConversationId, formData)
+  const context = parseInstagramActionContext(formData)
+  const locale = getSubmittedLocale(formData)
   const copy = getInstagramConversationCopy(locale).action
-  if (!idSchema.safeParse(tenantId).success || !idSchema.safeParse(conversationId).success) {
-    return { ok: false, message: copy.unavailable }
-  }
+  if (!context.success) return { ok: false, message: copy.unavailable }
+  const { tenantId, conversationId } = context.data
   const parsed = replySchema.safeParse({
     body: formData.get('body'),
     idempotencyKey: formData.get('idempotencyKey'),
@@ -183,18 +171,15 @@ export async function sendInstagramOperatorReplyAction(
 }
 
 export async function ignoreInstagramHandoffAction(
-  tenantId: string,
-  boundConversationId: string,
-  locale: string,
   _previousState: InstagramHandoffActionState,
   formData: FormData,
 ): Promise<InstagramHandoffActionState> {
   void _previousState
-  const conversationId = resolveInstagramActionConversationId(boundConversationId, formData)
+  const context = parseInstagramActionContext(formData)
+  const locale = getSubmittedLocale(formData)
   const copy = getInstagramConversationCopy(locale).action
-  if (!idSchema.safeParse(tenantId).success || !idSchema.safeParse(conversationId).success) {
-    return { ok: false, message: copy.unavailable }
-  }
+  if (!context.success) return { ok: false, message: copy.unavailable }
+  const { tenantId, conversationId } = context.data
 
   const access = await requireTenantProductAccess(tenantId, 'manage_conversations', 'instagram')
   try {
@@ -345,6 +330,11 @@ export async function createSupervisedFaqFromInstagram(
 function revalidateInstagramPaths(tenantId: string, conversationId: string) {
   revalidatePath(`/${tenantId}/instagram`)
   revalidatePath(`/${tenantId}/instagram/${conversationId}`)
+}
+
+function getSubmittedLocale(formData: FormData) {
+  const locale = formData.get('locale')
+  return typeof locale === 'string' ? locale : 'en'
 }
 
 function success(message: string): InstagramHandoffActionState {
