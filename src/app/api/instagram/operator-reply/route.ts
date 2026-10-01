@@ -12,12 +12,15 @@ const requestSchema = z.object({
   idempotencyKey: z.uuid(),
 })
 
+const REPLY_REVISION = 'rpc-direct-2026-10-01'
+const replyHeaders = { 'X-Talia-Instagram-Reply-Revision': REPLY_REVISION }
+
 export async function POST(request: Request) {
   const parsed = requestSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) {
     return NextResponse.json(
-      { outcome: 'invalid_request', errorCode: 'IG_REPLY_INVALID_REQUEST' },
-      { status: 400 },
+      { outcome: 'invalid_request', errorCode: 'IG_REPLY_INVALID_REQUEST', revision: REPLY_REVISION },
+      { status: 400, headers: replyHeaders },
     )
   }
 
@@ -35,7 +38,7 @@ export async function POST(request: Request) {
 
     revalidatePath(`/${tenantId}/instagram`)
     revalidatePath(`/${tenantId}/instagram/${conversationId}`)
-    return NextResponse.json(result)
+    return NextResponse.json({ ...result, revision: REPLY_REVISION }, { headers: replyHeaders })
   } catch (error) {
     const diagnostic = getReplyDiagnostic(error)
     console.error('[instagram-handoff-api] reply failed', {
@@ -45,8 +48,8 @@ export async function POST(request: Request) {
       error,
     })
     return NextResponse.json(
-      { outcome: 'server_error', ...diagnostic },
-      { status: 500 },
+      { outcome: 'server_error', ...diagnostic, revision: REPLY_REVISION },
+      { status: 500, headers: replyHeaders },
     )
   }
 }

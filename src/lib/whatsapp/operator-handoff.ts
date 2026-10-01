@@ -341,9 +341,11 @@ function getState(value: unknown) {
 }
 
 function callWhatsappRpc(admin: AdminClient, name: string, args: Record<string, unknown>) {
-  const rpc = admin.rpc as unknown as (
-    functionName: string,
-    parameters: Record<string, unknown>,
-  ) => Promise<{ data: unknown; error: { message: string } | null }>
-  return rpc.call(admin, name, args)
+  // Keep this as a direct member call. Supabase's rpc implementation reads
+  // `this.rest`; extracting it into a local function throws before the RPC can
+  // create the outbound message.
+  return admin.rpc(name as never, args as never) as unknown as Promise<{
+    data: unknown
+    error: { message: string } | null
+  }>
 }
