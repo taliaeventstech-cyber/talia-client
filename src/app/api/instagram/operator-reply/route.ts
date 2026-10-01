@@ -37,6 +37,7 @@ export async function POST(request: Request) {
     revalidatePath(`/${tenantId}/instagram/${conversationId}`)
     return NextResponse.json(result)
   } catch (error) {
+    const diagnostic = getReplyDiagnostic(error)
     console.error('[instagram-handoff-api] reply failed', {
       tenantId,
       conversationId,
@@ -44,8 +45,26 @@ export async function POST(request: Request) {
       error,
     })
     return NextResponse.json(
-      { outcome: 'server_error', errorCode: 'IG_REPLY_SERVER_ERROR' },
+      { outcome: 'server_error', ...diagnostic },
       { status: 500 },
     )
+  }
+}
+
+function getReplyDiagnostic(error: unknown) {
+  const message = error instanceof Error ? error.message : 'unknown_error'
+  const errorCode = message.startsWith('instagram_operator_reply_prepare_failed:')
+    ? 'IG_REPLY_PREPARE_FAILED'
+    : message.startsWith('instagram_operator_reply_start_failed:')
+      ? 'IG_REPLY_START_FAILED'
+      : message === 'instagram_operator_reply_complete_failed'
+        ? 'IG_REPLY_COMPLETE_FAILED'
+        : message === 'instagram_operator_reply_failure_persist_failed'
+          ? 'IG_REPLY_FAILURE_PERSIST_FAILED'
+          : 'IG_REPLY_SERVER_ERROR'
+
+  return {
+    errorCode,
+    diagnostic: message.slice(0, 300),
   }
 }
