@@ -8,7 +8,6 @@ import {
   claimInstagramHandoffAction,
   ignoreInstagramHandoffAction,
   releaseInstagramConversationAction,
-  sendInstagramOperatorReplyAction,
   takeOverInstagramConversationAction,
 } from './actions'
 
@@ -23,6 +22,7 @@ export function InstagramOperatorControls({
   isAssigned,
   windowExpired,
   copy,
+  actionCopy,
   variant = 'handoff',
 }: {
   tenantId: string
@@ -33,6 +33,7 @@ export function InstagramOperatorControls({
   isAssigned: boolean
   windowExpired: boolean
   copy: InstagramConversationCopy['controls']
+  actionCopy: InstagramConversationCopy['action']
   variant?: 'handoff' | 'manual-available' | 'manual-active'
 }) {
   const router = useRouter()
@@ -40,10 +41,8 @@ export function InstagramOperatorControls({
     claimInstagramHandoffAction,
     initialState,
   )
-  const [replyState, replyAction, replyPending] = useActionState(
-    sendInstagramOperatorReplyAction,
-    initialState,
-  )
+  const [replyState, setReplyState] = useState(initialState)
+  const [replyPending, setReplyPending] = useState(false)
   const [ignoreState, ignoreAction, ignorePending] = useActionState(
     ignoreInstagramHandoffAction,
     initialState,
@@ -160,11 +159,31 @@ export function InstagramOperatorControls({
     <aside className="whatsapp-operator-panel stack">
       <form
         ref={replyForm}
-        action={replyAction}
         className="stack whatsapp-operator-reply-form"
-        onSubmit={() => {
+        onSubmit={async (event) => {
+          event.preventDefault()
           if (idempotencyInput.current && !idempotencyInput.current.value) {
             idempotencyInput.current.value = crypto.randomUUID()
+          }
+          const formData = new FormData(event.currentTarget)
+          const body = formData.get('body')
+          const idempotencyKey = formData.get('idempotencyKey')
+          if (typeof body !== 'string' || typeof idempotencyKey !== 'string') return
+
+          setReplyPending(true)
+          setReplyState(initialState)
+          try {
+            const response = await fetch('/api/instagram/operator-reply', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ tenantId, conversationId, body, idempotencyKey }),
+            })
+            const result = await response.json() as InstagramReplyApiResult
+            setReplyState(mapReplyResult(result, actionCopy))
+          } catch {
+            setReplyState({ ok: false, message: `${actionCopy.unavailable} (IG_REPLY_NETWORK_ERROR)` })
+          } finally {
+            setReplyPending(false)
           }
         }}
       >
@@ -203,6 +222,27 @@ export function InstagramOperatorControls({
       <ActionMessage state={replyState.message ? replyState : releaseState.message ? releaseState : ignoreState} />
     </aside>
   )
+}
+
+type InstagramReplyApiResult = {
+  outcome?: string
+  outboundMessageId?: string
+  errorCode?: string
+}
+
+function mapReplyResult(
+  result: InstagramReplyApiResult,
+  copy: InstagramConversationCopy['action'],
+): InstagramHandoffActionState {
+  if (result.outcome === 'sent' || result.outcome === 'already_sent') {
+    return { ok: true, message: copy.sent, resultId: result.outboundMessageId }
+  }
+  if (result.outcome === 'human_agent_window_expired') return { ok: false, message: copy.expired }
+  if (result.outcome === 'not_assigned') return { ok: false, message: copy.notAssigned }
+  if (result.outcome === 'failed') return { ok: false, message: copy.sendFailed }
+  if (result.outcome === 'uncertain') return { ok: false, message: copy.uncertain }
+  const errorCode = result.errorCode ?? 'IG_REPLY_UNAVAILABLE'
+  return { ok: false, message: `${copy.unavailable} (${errorCode})` }
 }
 
 function ActionContextInputs({

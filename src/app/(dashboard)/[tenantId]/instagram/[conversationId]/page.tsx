@@ -155,6 +155,7 @@ export default async function InstagramConversationDetailPage({ params }: Props)
                 key={`handoff-${conversationId}-${activeAttentionMessageId}`}
                 canManage={canManage}
                 conversationId={conversationId}
+                actionCopy={copy.action}
                 copy={copy.controls}
                 isAssigned={conversation.assigned_profile_id !== null}
                 isAssignedToCurrentUser={conversation.assigned_profile_id === currentProfileId}
@@ -215,6 +216,7 @@ export default async function InstagramConversationDetailPage({ params }: Props)
             key={`${conversationId}-${proactiveManualMode ? 'manual' : 'automatic'}-${conversation.messages.at(-1)?.id ?? 'empty'}`}
             canManage={canManage}
             conversationId={conversationId}
+            actionCopy={copy.action}
             copy={copy.controls}
             isAssigned={conversation.assigned_profile_id !== null}
             isAssignedToCurrentUser={conversation.assigned_profile_id === currentProfileId}
