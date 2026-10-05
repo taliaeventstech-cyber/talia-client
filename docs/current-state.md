@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: September 21, 2026
+Last updated: October 5, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -17,6 +17,11 @@ Current state:
 - Instagram direct messages are active for the gated pilot, with direct
   Instagram Login, an independent agent and channel-local conversation history;
   Microsoft/Outlook and voice remain planned or paused.
+- Marketing has a first gated Meta Marketing API foundation: owner/admin access,
+  venue-scoped connection metadata, encrypted backend-only credentials and an
+  Agora pilot surface. A supervised OAuth flow now lets an authorized operator
+  choose a Business Portfolio and ad account. Insights sync and campaign
+  creation are not yet implemented, and the rollout remains disabled by default.
 - Client dashboard: **Agora**, per venue.
 - Internal panel: **Backstage**.
 - Current commercial model: 7-day free trial, upgrade to paid plans and add-ons.
@@ -206,6 +211,39 @@ use Email, Voice, WhatsApp or Instagram.
 Reference:
 
 - `docs/architecture/channel-agent-contracts.md`.
+
+### Marketing
+
+Status: foundation in development, gated per venue.
+
+Implemented:
+
+- Independent `marketing` entitlement and owner/admin `manage_marketing`
+  permission in Agora.
+- Backend-only Meta connection foundation scoped to one venue and one ad
+  account, with encrypted credential envelopes, audited connect/disconnect
+  operations and rollout disabled by default.
+- Initial Agora Marketing surface showing connection and rollout state plus the
+  `ads_read`, `ads_management` and `business_management` prerequisites.
+- Supervised Meta OAuth flow with signed state, short-lived encrypted selection
+  session and server-verified Business Portfolio/ad-account selection.
+- Marketing credentials and lifecycle are separate from Instagram direct
+  messages and WhatsApp.
+
+Pending:
+
+- Campaign and Insights synchronization.
+- Creation of campaign, ad set and ad objects, always starting in `PAUSED`.
+- Meta App Review, advanced access and Business Verification before a customer
+  pilot.
+
+Current guardrail:
+
+- TALIA cannot activate advertising spend from this foundation.
+
+Reference:
+
+- `docs/operations/meta-marketing-api-development.md`.
 
 ### Web Chatbot
 

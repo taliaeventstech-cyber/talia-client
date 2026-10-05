@@ -3,7 +3,7 @@
 import { useCallback, useSyncExternalStore, type ReactNode, type SVGProps } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bot, ChevronDown, Database, Inbox, LayoutDashboard, Mail, MessageSquare, Network, Plug, SlidersHorizontal, Zap } from 'lucide-react'
+import { Bot, ChevronDown, Database, Inbox, LayoutDashboard, Mail, Megaphone, MessageSquare, Network, Plug, SlidersHorizontal, Zap } from 'lucide-react'
 import { FREE_TRIAL_DAYS } from '@/lib/billing/plans'
 import {
   hasTenantPermission,
@@ -90,6 +90,8 @@ type DashboardNavLabels = {
   inbox: string
   intelligence: string
   knowledge: string
+  marketing: string
+  campaigns: string
   active: string
   pilot: string
   conversations: string
@@ -138,6 +140,7 @@ export function DashboardNav({
   const emailEnabled = isTenantModuleEnabled(modules.email)
   const whatsappEnabled = isTenantModuleEnabled(modules.whatsapp)
   const instagramEnabled = isTenantModuleEnabled(modules.instagram)
+  const marketingEnabled = isTenantModuleEnabled(modules.marketing)
   const canViewConversations = hasTenantPermission(role, 'view_conversations')
   const canViewAnalytics = hasTenantPermission(role, 'view_analytics')
   const canManageChatbot = hasTenantPermission(role, 'manage_chatbot')
@@ -145,12 +148,14 @@ export function DashboardNav({
   const canManageEmail = hasTenantPermission(role, 'manage_email')
   const canManageWhatsapp = hasTenantPermission(role, 'manage_whatsapp')
   const canManageInstagram = hasTenantPermission(role, 'manage_instagram')
+  const canManageMarketing = hasTenantPermission(role, 'manage_marketing')
   const showChatbot = hasProductAccess && chatbotEnabled && (canManageChatbot || canViewConversations || (dataEnabled && canViewAnalytics))
   const showAccessibility = hasProductAccess && chatbotEnabled && canManageChatbot
   const showKnowledge = hasProductAccess && dataEnabled && canManageKnowledge
   const showEmail = emailAgentPreviewEnabled && hasProductAccess && emailEnabled && canManageEmail
   const showWhatsapp = hasProductAccess && whatsappEnabled && canViewConversations
   const showInstagram = hasProductAccess && instagramEnabled && (canViewConversations || canManageInstagram)
+  const showMarketing = hasProductAccess && marketingEnabled && canManageMarketing
   const showAttention = showChatbot || showEmail || showWhatsapp || showInstagram
   const chatbotConfigurationHref = getChatbotConfigurationHref(tenantId, chatbotSetupCompleted)
   const trialProgress = trialDaysRemaining === null
@@ -178,6 +183,20 @@ export function DashboardNav({
           >
             <Database size={14} strokeWidth={2} aria-hidden="true" />
             {labels.knowledge}
+          </Link>
+        </div>
+      ) : null}
+
+      {showMarketing ? (
+        <div className="nav-section">
+          <p className="nav-section-label">{labels.marketing}</p>
+          <Link
+            className={`nav-link ${active(`/${tenantId}/marketing`) ? 'nav-link-active' : ''}`}
+            href={`/${tenantId}/marketing`}
+          >
+            <Megaphone size={14} strokeWidth={2} aria-hidden="true" />
+            {labels.campaigns}
+            <span className="nav-channel-status">{labels.pilot}</span>
           </Link>
         </div>
       ) : null}
