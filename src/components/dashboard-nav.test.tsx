@@ -24,6 +24,8 @@ const labels = {
   inbox: 'Inbox',
   intelligence: 'Intelligence',
   knowledge: 'Knowledge',
+  marketing: 'Marketing',
+  campaigns: 'Campaigns',
   active: 'Active',
   pilot: 'Pilot',
   conversations: 'Conversations',
@@ -109,6 +111,42 @@ describe('getChatbotConfigurationHref', () => {
     expect(html).toContain('Connection')
     expect(html.indexOf('href="/tenant-1/instagram/settings"'))
       .toBeLessThan(html.indexOf('href="/tenant-1/instagram"'))
+  })
+
+  it('shows Marketing only to managers when the module is active', () => {
+    const managerHtml = renderToStaticMarkup(
+      <DashboardNav
+        tenantId="tenant-1"
+        labels={labels}
+        role="owner"
+        modules={{ marketing: 'active' }}
+        hasProductAccess
+        needsUpgrade={false}
+        isTrialExpired={false}
+        trialDaysRemaining={null}
+        chatbotSetupCompleted={false}
+        emailAgentPreviewEnabled={false}
+      />,
+    )
+    const viewerHtml = renderToStaticMarkup(
+      <DashboardNav
+        tenantId="tenant-1"
+        labels={labels}
+        role="viewer"
+        modules={{ marketing: 'active' }}
+        hasProductAccess
+        needsUpgrade={false}
+        isTrialExpired={false}
+        trialDaysRemaining={null}
+        chatbotSetupCompleted={false}
+        emailAgentPreviewEnabled={false}
+      />,
+    )
+
+    expect(managerHtml).toContain('href="/tenant-1/marketing"')
+    expect(managerHtml).toContain('Campaigns')
+    expect(managerHtml).toContain('Pilot')
+    expect(viewerHtml).not.toContain('href="/tenant-1/marketing"')
   })
 
   it('puts connection before conversations in the manageable messaging agents', () => {

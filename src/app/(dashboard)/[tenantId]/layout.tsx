@@ -65,6 +65,8 @@ export default async function DashboardLayout({ children, params }: Props) {
             inbox: dictionary.nav.inbox,
             intelligence: dictionary.nav.intelligence,
             knowledge: dictionary.nav.knowledge,
+            marketing: dictionary.nav.marketing,
+            campaigns: dictionary.nav.campaigns,
             active: dictionary.common.active,
             pilot: dictionary.nav.pilot,
             conversations: dictionary.common.conversations,

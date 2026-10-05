@@ -2248,6 +2248,20 @@ export type Database = {
         }
         Returns: Json
       }
+      get_meta_marketing_connection_credentials: {
+        Args: {
+          p_ad_account_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      get_meta_marketing_connection_summary: {
+        Args: {
+          p_actor_user_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
       get_instagram_conversation_detail: {
         Args: {
           p_actor_user_id: string
@@ -2331,6 +2345,21 @@ export type Database = {
         }
         Returns: string
       }
+      save_meta_marketing_connection: {
+        Args: {
+          p_actor_user_id: string
+          p_ad_account_currency: string | null
+          p_ad_account_id: string
+          p_ad_account_name: string | null
+          p_business_id: string
+          p_business_name: string | null
+          p_credential_metadata: Json
+          p_meta_user_id: string
+          p_scopes: string[]
+          p_theatre_id: string
+        }
+        Returns: string
+      }
       start_instagram_agent_send: {
         Args: {
           p_job_id: string
@@ -2368,6 +2397,16 @@ export type Database = {
         Returns: string
       }
       disconnect_instagram_connection: {
+        Args: {
+          p_actor_user_id: string
+          p_connection_id: string
+          p_provider_error_code?: string | null
+          p_provider_revoked?: boolean
+          p_theatre_id: string
+        }
+        Returns: string
+      }
+      disconnect_meta_marketing_connection: {
         Args: {
           p_actor_user_id: string
           p_connection_id: string
