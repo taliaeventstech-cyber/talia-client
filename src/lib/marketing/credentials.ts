@@ -56,6 +56,15 @@ export function buildMetaMarketingCredentialMetadata(credentials: MetaMarketingC
   }
 }
 
+export function parseMetaMarketingCredentialMetadata(metadata: unknown) {
+  const parsed = z.object({
+    encrypted_credentials: encryptedPayloadSchema,
+  }).parse(metadata)
+  return credentialsSchema.parse(
+    decryptMetaMarketingPayload(parsed.encrypted_credentials, 'stored-credentials'),
+  )
+}
+
 function getMetaMarketingEncryptionKey(purpose: string) {
   const secret = process.env.META_MARKETING_TOKEN_ENCRYPTION_KEY
   if (!secret || secret.length < 32) {
