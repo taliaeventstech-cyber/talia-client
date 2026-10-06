@@ -2262,6 +2262,20 @@ export type Database = {
         }
         Returns: Json
       }
+      get_meta_marketing_dashboard_snapshot: {
+        Args: {
+          p_actor_user_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      get_meta_marketing_sync_context: {
+        Args: {
+          p_actor_user_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
       get_instagram_conversation_detail: {
         Args: {
           p_actor_user_id: string
@@ -2359,6 +2373,26 @@ export type Database = {
           p_theatre_id: string
         }
         Returns: string
+      }
+      replace_meta_marketing_campaign_snapshot: {
+        Args: {
+          p_actor_user_id: string
+          p_campaigns: Json
+          p_connection_id: string
+          p_daily_insights: Json
+          p_summary: Json
+          p_theatre_id: string
+        }
+        Returns: number
+      }
+      record_meta_marketing_sync_failure: {
+        Args: {
+          p_actor_user_id: string
+          p_connection_id: string
+          p_error_code: string
+          p_theatre_id: string
+        }
+        Returns: boolean
       }
       start_instagram_agent_send: {
         Args: {

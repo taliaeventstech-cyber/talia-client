@@ -54,7 +54,7 @@ describe('Meta Marketing OAuth', () => {
       'meta_marketing_oauth_state_invalid',
     )
 
-    vi.advanceTimersByTime(10 * 60 * 1000 + 1)
+    vi.advanceTimersByTime(30 * 60 * 1000 + 1)
     expect(() => verifyMetaMarketingOAuthState(state)).toThrow(
       'meta_marketing_oauth_state_expired',
     )

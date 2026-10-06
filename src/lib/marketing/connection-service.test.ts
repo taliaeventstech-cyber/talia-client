@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   getMetaMarketingConnectionSummary,
+  getMetaMarketingDashboardSnapshot,
   saveMetaMarketingConnection,
 } from './connection-service'
 
@@ -79,6 +80,47 @@ describe('getMetaMarketingConnectionSummary', () => {
       token_type: 'bearer',
       encrypted_credentials: { alg: 'aes-256-gcm' },
     })
+  })
+
+  it('returns a validated dashboard snapshot', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        status: 'success',
+        last_attempted_at: '2026-10-06T10:00:00.000Z',
+        last_synced_at: '2026-10-06T10:00:00.000Z',
+        error_code: null,
+        summary: {
+          spend: 0,
+          impressions: 0,
+          reach: 0,
+          link_clicks: 0,
+          ctr: 0,
+          cpc: null,
+          frequency: 0,
+          date_start: null,
+          date_stop: null,
+        },
+        campaigns: [],
+        daily_insights: [{
+          date: '2026-10-06',
+          spend: 0,
+          impressions: 0,
+          reach: 0,
+          link_clicks: 0,
+          ctr: 0,
+          cpc: null,
+          frequency: 0,
+        }],
+      },
+      error: null,
+    })
+
+    await expect(getMetaMarketingDashboardSnapshot(
+      { rpc } as never,
+      { tenantId: 'tenant-1', actorUserId: 'user-1' },
+    )).resolves.toMatchObject({ status: 'success', campaigns: [], daily_insights: [{
+      date: '2026-10-06',
+    }] })
   })
 })
 

@@ -7,7 +7,7 @@ export const META_MARKETING_OAUTH_SCOPES = [
   'business_management',
 ] as const
 
-const STATE_TTL_MS = 10 * 60 * 1000
+const STATE_TTL_MS = 30 * 60 * 1000
 const MAX_GRAPH_PAGES = 5
 const MAX_BUSINESSES = 25
 
@@ -319,6 +319,7 @@ function safeGraphNextUrl(value: string) {
   if (url.protocol !== 'https:' || url.hostname !== 'graph.facebook.com') {
     throw new MetaMarketingOAuthError('meta_marketing_pagination_url_invalid')
   }
+  url.searchParams.delete('access_token')
   return url
 }
 

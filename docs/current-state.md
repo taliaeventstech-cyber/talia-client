@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: October 5, 2026
+Last updated: October 6, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -20,8 +20,9 @@ Current state:
 - Marketing has a first gated Meta Marketing API foundation: owner/admin access,
   venue-scoped connection metadata, encrypted backend-only credentials and an
   Agora pilot surface. A supervised OAuth flow now lets an authorized operator
-  choose a Business Portfolio and ad account. Insights sync and campaign
-  creation are not yet implemented, and the rollout remains disabled by default.
+  choose a Business Portfolio and ad account. Manual read-only synchronization
+  now stores a last-30-day campaign and Insights snapshot; campaign creation is
+  not yet implemented, and the rollout remains disabled by default.
 - Client dashboard: **Agora**, per venue.
 - Internal panel: **Backstage**.
 - Current commercial model: 7-day free trial, upgrade to paid plans and add-ons.
@@ -227,12 +228,20 @@ Implemented:
   `ads_read`, `ads_management` and `business_management` prerequisites.
 - Supervised Meta OAuth flow with signed state, short-lived encrypted selection
   session and server-verified Business Portfolio/ad-account selection.
+- Manual read-only synchronization of account totals and per-campaign Insights
+  for the last 30 days. Agora separates what happened, what is working and what
+  needs review, and handles both a first sync and an account without campaigns.
+- Account-level daily Insights use Meta's `time_increment=1` and feed a compact
+  Recharts view where operators can inspect spend, link clicks or CTR without
+  mixing incompatible units on a dual axis.
+- Backend-only, venue-scoped campaign snapshots. Account-level reach and
+  frequency and the daily account series remain separate from campaign rows to
+  avoid invalid aggregation.
 - Marketing credentials and lifecycle are separate from Instagram direct
   messages and WhatsApp.
 
 Pending:
 
-- Campaign and Insights synchronization.
 - Creation of campaign, ad set and ad objects, always starting in `PAUSED`.
 - Meta App Review, advanced access and Business Verification before a customer
   pilot.
@@ -243,6 +252,7 @@ Current guardrail:
 
 Reference:
 
+- `docs/architecture/marketing-module.md`.
 - `docs/operations/meta-marketing-api-development.md`.
 
 ### Web Chatbot
