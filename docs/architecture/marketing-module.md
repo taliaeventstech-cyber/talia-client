@@ -143,9 +143,17 @@ Both snapshot tables have RLS enabled and no direct grants for `anon` or
 authorization. Successful refreshes emit `marketing.meta_snapshot_synced` audit
 events without credentials or campaign contents.
 
-Migration:
+Migrations, in deployment order:
 
 - `supabase/migrations/20261006100000_meta_marketing_campaign_insights.sql`
+- `supabase/migrations/20261006110000_meta_marketing_daily_insights.sql`
+
+Migration files are append-only after they reach any shared environment. Do not
+extend an already-recorded timestamp with new tables or RPC signatures: create
+a later migration and keep the historical file aligned with what was actually
+applied. The dashboard schema accepts a missing `daily_insights` key as an empty
+series during a rolling deployment, while the newer migration upgrades the
+write RPC and persistence contract atomically.
 
 ## UI composition
 

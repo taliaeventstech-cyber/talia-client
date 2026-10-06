@@ -81,9 +81,10 @@ advanced access, App Review and Business Verification in Meta.
 
 ## Safe rollout sequence
 
-1. Apply the Meta Marketing connection migration to the target Supabase project.
-   Apply `20261006100000_meta_marketing_campaign_insights.sql` before deploying
-   the read-only dashboard.
+1. Apply the Meta Marketing migrations to the target Supabase project in order:
+   `20261006100000_meta_marketing_campaign_insights.sql`, followed by
+   `20261006110000_meta_marketing_daily_insights.sql`. The second migration must
+   be present before enabling refreshes that send `daily_insights`.
 2. Configure the server environment and the matching Meta redirect URI.
 3. Connect with an app-role user from Agora and select one Business Portfolio
    and one ad account.
@@ -146,6 +147,19 @@ accounts.
 Treat Meta 401/403 responses or an expired stored token as a reconnect event.
 Do not log or paste the token while diagnosing it. Reconnecting may change the
 selected ad account; TALIA clears the old snapshot when that happens.
+
+### Production reports React error 441 on the Marketing page
+
+React 441 means a Server Component failed while rendering and production hid
+the underlying server message. Check server logs and compare the deployed code
+with the target project's Supabase migration history. In particular, a project
+with `20261006100000` applied but without `20261006110000` still has the
+campaign-only RPC response and no `meta_marketing_daily_insights` table.
+
+Never add SQL to a migration version already recorded by Supabase. Applied
+migrations are append-only: restore the historical file to the SQL that was
+actually deployed and introduce every later schema or RPC change in a new,
+higher-numbered migration.
 
 ## Developer reference
 
