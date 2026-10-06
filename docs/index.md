@@ -30,6 +30,7 @@ This directory holds the curated documentation for product, architecture, requir
 - [`architecture/knowledge-ingestion.md`](architecture/knowledge-ingestion.md): ingestion of FAQs, Excel, PDFs, URLs and future retrieval layer.
 - [`architecture/ticketing-integrations-prestudy.md`](architecture/ticketing-integrations-prestudy.md): prestudy for public API and ticketing connector architecture.
 - [`architecture/scaling-roadmap-lisbon-2026.md`](architecture/scaling-roadmap-lisbon-2026.md): scalable architecture plan toward November 2026.
+- [`architecture/marketing-module.md`](architecture/marketing-module.md): Marketing product boundaries, Meta data flow, metric semantics, storage and developer onboarding.
 
 ## Requirements
 
@@ -44,6 +45,7 @@ This directory holds the curated documentation for product, architecture, requir
 - [`operations/git-sync-workflow.md`](operations/git-sync-workflow.md): post-merge synchronization for `talia-client` and `talia-ai`, including VS Code Git Graph.
 - [`operations/google-cloud-production-oauth.md`](operations/google-cloud-production-oauth.md): Google OAuth verification for Gmail.
 - [`operations/instagram-api-development.md`](operations/instagram-api-development.md): Instagram Login configuration and pilot runbook.
+- [`operations/meta-marketing-api-development.md`](operations/meta-marketing-api-development.md): Meta Marketing app configuration, deployment and troubleshooting runbook.
 - [`operations/production-email-scheduler-and-casa-evidence.md`](operations/production-email-scheduler-and-casa-evidence.md): production scheduler, sensitive-access boundaries and CASA-038 evidence runbook.
 - [`operations/data-retention.md`](operations/data-retention.md): operational data retention and cleanup policy.
 - [`legal/data-processing-agreement.md`](legal/data-processing-agreement.md): base customer DPA for GDPR, LGPD and LFPDPPP processing roles.

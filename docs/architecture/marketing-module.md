@@ -1,0 +1,263 @@
+# Marketing module
+
+Last updated: October 6, 2026
+
+This is the engineering onboarding document for TALIA Marketing. Read it before
+changing the Marketing product surface, Meta integration, data model or
+reporting semantics. Provider setup and production troubleshooting live in
+[`../operations/meta-marketing-api-development.md`](../operations/meta-marketing-api-development.md).
+
+## Product purpose
+
+Marketing turns advertising data into a clear operational reading for a cultural
+venue. The first version should answer three questions without requiring the
+operator to understand Meta Ads Manager:
+
+1. **What happened?** Account-level spend, delivery and response.
+2. **What works?** Which campaign currently produces the strongest useful
+   signal.
+3. **What should be reviewed?** Basic warnings such as spend without link
+   clicks or high frequency.
+
+The module is not part of the Attention channel system. Its Meta credentials,
+permissions, provider data and lifecycle remain separate from Instagram Direct
+and WhatsApp.
+
+## MVP boundaries
+
+Implemented:
+
+- venue-scoped Meta OAuth connection;
+- supervised Business Portfolio and ad-account selection;
+- manual, read-only synchronization;
+- account totals for Meta's `last_30d` period;
+- daily account-level time series using `time_increment=1`;
+- campaign status and aggregate performance for the same period;
+- a compact daily chart for spend, link clicks and CTR;
+- plain-language interpretation and explicit empty/error states.
+
+Not implemented:
+
+- scheduled synchronization;
+- date-range selection;
+- campaign, ad-set, creative or ad creation;
+- conversion attribution, purchases, revenue or ROAS;
+- automated recommendations or automatic budget changes;
+- cross-venue or account-level aggregation.
+
+Hard guardrail: any future object created through TALIA must start in `PAUSED`.
+The current code does not call Meta write endpoints and cannot activate spend.
+
+## Access and tenancy
+
+- Product key: `marketing`.
+- Required capability: `manage_marketing`.
+- Current UI route: `/(dashboard)/[tenantId]/marketing`.
+- A connection belongs to exactly one venue (`theatre_id`).
+- One selected Meta ad account is active per venue connection.
+- Server actions and RPCs authorize the acting user again; rendering the route
+  is not treated as sufficient authorization.
+- Provider tokens and raw provider identifiers that are not required by the UI
+  stay server-side.
+
+## End-to-end flow
+
+```text
+Agora operator
+  -> signed OAuth state
+  -> Meta authorization
+  -> encrypted, short-lived asset-selection session
+  -> Business Portfolio + ad-account confirmation
+  -> encrypted venue connection
+  -> manual "Refresh from Meta"
+  -> server-side Marketing API reads
+  -> validation and atomic snapshot replacement
+  -> server-rendered dashboard
+  -> isolated client chart
+```
+
+OAuth state is short-lived and signed. The asset-selection session is encrypted.
+Stored access tokens are encrypted with AES-256-GCM metadata and are decrypted
+only immediately before a server-side provider request.
+
+## Provider reads
+
+One manual synchronization requests four logical datasets from the selected ad
+account:
+
+| Dataset | Meta edge | Level | Period/granularity | Purpose |
+| --- | --- | --- | --- | --- |
+| Campaign catalogue | `/{act_id}/campaigns` | campaign | current objects | Names, status and lifecycle |
+| Account totals | `/{act_id}/insights` | account | `last_30d` | Canonical KPI cards |
+| Daily account trend | `/{act_id}/insights` | account | `last_30d`, `time_increment=1` | Time-series chart |
+| Campaign performance | `/{act_id}/insights` | campaign | `last_30d` | Campaign comparison table |
+
+Requests use the `Authorization: Bearer` header. Tokens are removed from Meta
+pagination URLs before they are followed. Fetches use `cache: no-store`, a
+bounded timeout, a five-page ceiling and a 500-campaign ceiling.
+
+## Metrics and semantic rules
+
+| UI metric | Meta field | Interpretation |
+| --- | --- | --- |
+| Spend | `spend` | Amount spent in the ad account currency |
+| Reach | `reach` | Unique people/accounts reached for the requested level and period |
+| Impressions | `impressions` | Number of ad deliveries |
+| Link clicks | `inline_link_clicks` | Link-click response used by this MVP |
+| CTR | `ctr` | Meta-provided percentage; stored and displayed as a percentage value |
+| CPC | `cpc` | Meta-provided cost per click; nullable when no valid denominator exists |
+| Frequency | `frequency` | Average impressions per reached person/account |
+
+Account totals are fetched directly from Meta and are not calculated by summing
+campaign rows. Reach is non-additive across campaigns, and therefore derived
+frequency would also be wrong. Daily rows are likewise fetched at account level;
+they are for trend visualization, not a replacement for the canonical 30-day
+account total. When Meta omits an inactive date between the reported period
+bounds, TALIA inserts a zero-valued daily point so the category axis preserves
+calendar spacing instead of visually compressing inactive days.
+
+ROAS, sales and conversions must remain absent until TALIA has a documented,
+validated attribution source. Do not infer revenue from clicks.
+
+## Persistence model
+
+The foundational connection is stored in `meta_marketing_connections`.
+Read-only reporting adds two backend-only snapshot tables:
+
+- `meta_marketing_campaign_snapshots`: current campaign catalogue joined with
+  aggregate `last_30d` campaign Insights;
+- `meta_marketing_daily_insights`: account-level daily rows for the current
+  `last_30d` snapshot.
+
+Canonical account totals and synchronization state live under
+`meta_marketing_connections.metadata.marketing_sync`. This avoids pretending
+that additive campaign values produce valid account reach or frequency.
+
+The replacement RPC validates all three payloads and replaces campaign and daily
+rows in one database transaction. A failed provider read or invalid payload
+does not partially replace the previous successful snapshot. When the selected
+ad account changes, the previous snapshot and sync metadata are cleared.
+
+Both snapshot tables have RLS enabled and no direct grants for `anon` or
+`authenticated`. Only service-role RPC paths may read or mutate them after
+authorization. Successful refreshes emit `marketing.meta_snapshot_synced` audit
+events without credentials or campaign contents.
+
+Migration:
+
+- `supabase/migrations/20261006100000_meta_marketing_campaign_insights.sql`
+
+## UI composition
+
+The page remains a Server Component. It loads the authorized connection and
+snapshot, formats the plain-language reading and passes serializable daily rows
+to a narrow Client Component that owns Recharts and the metric selector.
+
+Main source map:
+
+| Responsibility | File |
+| --- | --- |
+| Marketing page and semantic reading | `src/app/(dashboard)/[tenantId]/marketing/page.tsx` |
+| Interactive daily chart | `src/app/(dashboard)/[tenantId]/marketing/marketing-trend-chart.tsx` |
+| Manual refresh action | `src/app/(dashboard)/[tenantId]/marketing/sync-actions.ts` |
+| Meta provider reads and validation | `src/lib/marketing/insights-service.ts` |
+| Sync orchestration and error classification | `src/lib/marketing/sync-service.ts` |
+| Authorized persistence RPC adapter | `src/lib/marketing/connection-service.ts` |
+| Shared runtime schemas | `src/types/marketing.ts` |
+| Localized product copy | `src/lib/i18n/marketing-copy.ts` |
+| Marketing presentation styles | `src/app/globals.css` |
+
+The chart intentionally exposes one metric at a time. Spend, link clicks and CTR
+have different units, so overlaying them or using an unlabeled dual axis would
+make comparisons harder. KPI cards remain the source for exact period totals;
+the chart shows shape and timing. A screen-reader-only table exposes the same
+daily values without relying on SVG interpretation.
+
+## Dashboard states
+
+The product must distinguish these states explicitly:
+
+- **Disconnected:** explain prerequisites and offer Meta connection.
+- **Connected, never synchronized:** offer the first read.
+- **Successful synchronization with no campaigns:** confirm that the connection
+  works and explain that data will appear when campaigns exist.
+- **Successful synchronization with activity:** show KPIs, daily trend,
+  interpretation and campaign table.
+- **Refresh failure with prior data:** keep the previous snapshot visible and
+  label it as stale.
+- **Refresh failure without prior data:** show a retryable first-sync error.
+- **Expired/revoked Meta authorization:** direct the operator to reconnect.
+
+Never treat an empty Meta account as a broken connection.
+
+## Error boundaries and observability
+
+Provider and sync errors are converted into bounded internal codes. User-facing
+copy must not expose Meta responses, tokens or database details. The current
+manual flow records the latest attempt and error code in connection metadata;
+the UI preserves the last successful data when a later refresh fails.
+
+When diagnosing a refresh:
+
+1. Confirm the venue connection and selected ad account.
+2. Check whether the token has expired or Meta returned 401/403.
+3. Verify the four provider reads independently.
+4. Validate whether the failure occurred before or during the atomic RPC.
+5. Never print access tokens, app secrets or encrypted credential payloads.
+
+## Development and verification
+
+The focused test suite is:
+
+```bash
+npx vitest run \
+  src/lib/marketing/connection-foundation-migration.test.ts \
+  src/lib/marketing/campaign-insights-migration.test.ts \
+  src/lib/marketing/connection-service.test.ts \
+  src/lib/marketing/insights-service.test.ts \
+  src/lib/marketing/oauth-session.test.ts \
+  src/lib/marketing/oauth.test.ts \
+  src/lib/marketing/sync-service.test.ts
+```
+
+Before handoff, also run:
+
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+git diff --check
+```
+
+Tests should cover provider validation, pagination-token stripping, empty
+accounts, daily granularity, snapshot bounds, tenant consistency and expired
+authorization. Visual changes should be checked in light and dark themes and at
+mobile and desktop widths.
+
+## Change checklist
+
+When extending Marketing:
+
+1. Confirm the metric's source, level, attribution window and unit.
+2. Decide whether the value is additive before aggregating it.
+3. Update the Zod provider schema and normalized domain schema.
+4. Update the transactional persistence contract and generated database types.
+5. Add all four supported locales: Spanish, Catalan, English and Brazilian
+   Portuguese.
+6. Preserve empty, stale and reauthorization states.
+7. Add or update focused tests.
+8. Update this document, the operational runbook and `docs/current-state.md`.
+9. Reconfirm that no write path can activate spend.
+
+## Next likely slices
+
+1. A campaign comparison visualization with a deliberately chosen outcome
+   metric.
+2. A scheduler with freshness policy, rate-limit handling and retry controls.
+3. Explicit date-range controls and snapshot/history retention design.
+4. Supervised creation of campaign, ad set and ad objects in `PAUSED`.
+5. App Review, advanced access and Business Verification for customer pilots.
+
+Each slice should remain independently deployable and retain the read-only
+dashboard when later write capabilities are unavailable.
