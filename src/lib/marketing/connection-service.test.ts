@@ -122,6 +122,35 @@ describe('getMetaMarketingConnectionSummary', () => {
       date: '2026-10-06',
     }] })
   })
+
+  it('keeps the dashboard available while the daily Insights migration rolls out', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        status: 'success',
+        last_attempted_at: '2026-10-06T10:00:00.000Z',
+        last_synced_at: '2026-10-06T10:00:00.000Z',
+        error_code: null,
+        summary: {
+          spend: 0,
+          impressions: 0,
+          reach: 0,
+          link_clicks: 0,
+          ctr: 0,
+          cpc: null,
+          frequency: 0,
+          date_start: null,
+          date_stop: null,
+        },
+        campaigns: [],
+      },
+      error: null,
+    })
+
+    await expect(getMetaMarketingDashboardSnapshot(
+      { rpc } as never,
+      { tenantId: 'tenant-1', actorUserId: 'user-1' },
+    )).resolves.toMatchObject({ status: 'success', daily_insights: [] })
+  })
 })
 
 afterEach(() => vi.unstubAllEnvs())

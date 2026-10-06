@@ -72,7 +72,7 @@ export const metaMarketingDashboardSnapshotSchema = z.object({
   error_code: z.string().nullable(),
   summary: metaMarketingAccountInsightSchema.nullable(),
   campaigns: z.array(metaMarketingCampaignSnapshotSchema).max(500),
-  daily_insights: z.array(metaMarketingDailyInsightSchema).max(31),
+  daily_insights: z.array(metaMarketingDailyInsightSchema).max(31).default([]),
 })
 
 export type MetaMarketingAccountInsight = z.infer<
