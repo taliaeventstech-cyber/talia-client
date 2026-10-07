@@ -72,7 +72,7 @@ ${NEXT_PUBLIC_APP_URL}/api/marketing/meta/callback
 The MVP requests:
 
 - `ads_read` to read campaigns and Insights;
-- `ads_management` to prepare campaign objects in `PAUSED` in a later slice;
+- `ads_management` to prepare campaign objects in `PAUSED`;
 - `business_management` to list the operator's Business Portfolios and ad
   accounts.
 
@@ -83,13 +83,19 @@ advanced access, App Review and Business Verification in Meta.
 
 1. Apply the Meta Marketing migrations to the target Supabase project in order:
    `20261006100000_meta_marketing_campaign_insights.sql`, followed by
-   `20261006110000_meta_marketing_daily_insights.sql`. The second migration must
-   be present before enabling refreshes that send `daily_insights`.
+   `20261006110000_meta_marketing_daily_insights.sql`,
+   `20261007150000_meta_marketing_period_snapshots.sql` and
+   `20261007193000_meta_marketing_paused_campaign_creation.sql`.
 2. Configure the server environment and the matching Meta redirect URI.
 3. Connect with an app-role user from Agora and select one Business Portfolio
    and one ad account.
 4. Confirm the connection card shows the selected assets and that
    `rollout_enabled` remains `false`.
+5. Complete a read-only refresh and verify the selected ad account before
+   enabling campaign creation for that venue.
+6. Enable `rollout_enabled` only for the approved canary connection through an
+   audited operator procedure. Reconnecting resets it to `false`, so repeat the
+   verification after every account change.
 
 The connection flow never activates advertising spend. Reconnecting replaces
 the venue's selected account and resets rollout to disabled.
@@ -97,8 +103,20 @@ the venue's selected account and resets rollout to disabled.
 The Agora dashboard refresh is manual in this MVP. It reads account totals and
 account-level daily Insights (`time_increment=1`) plus campaign-level Insights
 for the selected `last_7d`, `last_30d` or `last_90d` preset, then atomically
-replaces only that backend-only period snapshot. It does not call any campaign
-creation or update edge in the Marketing API.
+replaces only that backend-only period snapshot.
+
+When rollout is enabled, the supervised creation form calls only the selected
+ad account's `/campaigns` edge. The server—not the browser—forces
+`status=PAUSED` and `special_ad_categories=[]`. This creates only the top-level
+campaign container: it does not create an ad set, budget, audience, creative or
+ad, and therefore cannot deliver or spend. Never add an `ACTIVE` option to the
+form or accept status from client input.
+
+Every submission has a UUID idempotency key recorded before Meta is called.
+Do not manually retry a request whose local state remains `processing`: Meta may
+have accepted it even if TALIA could not persist completion. Reconcile the
+campaign in Ads Manager first. Logs and tickets may contain the bounded internal
+error code and request UUID, but never the token or raw Meta response.
 
 Account totals are canonical. Do not calculate account reach or frequency by
 summing campaign or daily rows because those values are not additive across

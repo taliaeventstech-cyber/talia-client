@@ -245,18 +245,24 @@ Implemented:
 - Backend-only, venue-scoped campaign snapshots. Account-level reach and
   frequency and the daily account series remain separate from campaign rows to
   avoid invalid aggregation.
+- Supervised creation of the top-level Meta campaign object for three supported
+  objectives. The server always sends `status=PAUSED` and
+  `special_ad_categories=[]`; creation is idempotent, audited and unavailable
+  until the venue connection has `rollout_enabled=true` and `ads_management`.
 - Marketing credentials and lifecycle are separate from Instagram direct
   messages and WhatsApp.
 
 Pending:
 
-- Creation of campaign, ad set and ad objects, always starting in `PAUSED`.
+- Creation of the ad set, creative and ad objects, always starting in `PAUSED`,
+  plus budget, schedule, audience and destination validation.
 - Meta App Review, advanced access and Business Verification before a customer
   pilot.
 
 Current guardrail:
 
-- TALIA cannot activate advertising spend from this foundation.
+- TALIA cannot activate advertising spend. The only current write creates an
+  incomplete top-level campaign container in `PAUSED`.
 
 Reference:
 

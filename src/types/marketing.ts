@@ -19,6 +19,16 @@ export function parseMetaMarketingPeriod(value: unknown): MetaMarketingPeriod {
   return parsed.success ? parsed.data : 'last_30d'
 }
 
+export const metaMarketingCampaignObjectiveSchema = z.enum([
+  'OUTCOME_TRAFFIC',
+  'OUTCOME_ENGAGEMENT',
+  'OUTCOME_AWARENESS',
+])
+
+export type MetaMarketingCampaignObjective = z.infer<
+  typeof metaMarketingCampaignObjectiveSchema
+>
+
 export const metaMarketingConnectionSummarySchema = z.object({
   id: z.uuid(),
   status: z.enum(['connected', 'error', 'revoked', 'disabled']),

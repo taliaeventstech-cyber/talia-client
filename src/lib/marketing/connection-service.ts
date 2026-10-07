@@ -14,6 +14,7 @@ import {
   type MetaMarketingDailyInsight,
   type MetaMarketingDashboardSnapshot,
   type MetaMarketingPeriod,
+  type MetaMarketingCampaignObjective,
 } from '@/types/marketing'
 import { buildMetaMarketingCredentialMetadata } from './credentials'
 
@@ -27,6 +28,35 @@ const syncContextSchema = z.object({
 })
 
 export type MetaMarketingSyncContext = z.infer<typeof syncContextSchema>
+
+const campaignCreationClaimSchema = z.discriminatedUnion('outcome', [
+  z.object({
+    outcome: z.literal('claimed'),
+    request_id: z.uuid(),
+    connection_id: z.uuid(),
+    ad_account_id: z.string().min(1).max(200),
+    credential_metadata: z.unknown(),
+  }),
+  z.object({
+    outcome: z.literal('processing'),
+    request_id: z.uuid(),
+    provider_campaign_id: z.null(),
+  }),
+  z.object({
+    outcome: z.literal('failed'),
+    request_id: z.uuid(),
+    provider_campaign_id: z.null(),
+  }),
+  z.object({
+    outcome: z.literal('succeeded'),
+    request_id: z.uuid(),
+    provider_campaign_id: z.string().min(1).max(200),
+  }),
+])
+
+export type MetaMarketingCampaignCreationClaim = z.infer<
+  typeof campaignCreationClaimSchema
+>
 
 export async function getMetaMarketingConnectionSummary(
   admin: AdminClient,
@@ -169,4 +199,65 @@ export async function recordMetaMarketingSyncFailure(
     p_error_code: input.errorCode,
   })
   if (error || data !== true) throw new Error('meta_marketing_sync_failure_record_failed')
+}
+
+export async function claimMetaMarketingCampaignCreation(
+  admin: AdminClient,
+  input: {
+    tenantId: string
+    actorUserId: string
+    requestId: string
+    name: string
+    objective: MetaMarketingCampaignObjective
+  },
+): Promise<MetaMarketingCampaignCreationClaim> {
+  const { data, error } = await admin.rpc('claim_meta_marketing_campaign_creation', {
+    p_theatre_id: input.tenantId,
+    p_actor_user_id: input.actorUserId,
+    p_request_id: input.requestId,
+    p_name: input.name,
+    p_objective: input.objective,
+    p_no_special_ad_category_confirmed: true,
+  })
+  if (error) throw new Error('meta_marketing_campaign_creation_claim_failed')
+
+  const parsed = campaignCreationClaimSchema.safeParse(data)
+  if (!parsed.success) throw new Error('meta_marketing_campaign_creation_claim_invalid')
+  return parsed.data
+}
+
+export async function completeMetaMarketingCampaignCreation(
+  admin: AdminClient,
+  input: {
+    tenantId: string
+    actorUserId: string
+    requestId: string
+    providerCampaignId: string
+  },
+) {
+  const { data, error } = await admin.rpc('complete_meta_marketing_campaign_creation', {
+    p_theatre_id: input.tenantId,
+    p_actor_user_id: input.actorUserId,
+    p_request_id: input.requestId,
+    p_provider_campaign_id: input.providerCampaignId,
+  })
+  if (error || data !== true) throw new Error('meta_marketing_campaign_creation_complete_failed')
+}
+
+export async function failMetaMarketingCampaignCreation(
+  admin: AdminClient,
+  input: {
+    tenantId: string
+    actorUserId: string
+    requestId: string
+    errorCode: string
+  },
+) {
+  const { data, error } = await admin.rpc('fail_meta_marketing_campaign_creation', {
+    p_theatre_id: input.tenantId,
+    p_actor_user_id: input.actorUserId,
+    p_request_id: input.requestId,
+    p_error_code: input.errorCode,
+  })
+  if (error || data !== true) throw new Error('meta_marketing_campaign_creation_failure_record_failed')
 }

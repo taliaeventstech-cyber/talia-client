@@ -2012,6 +2012,26 @@ export type Database = {
       }
     }
     Functions: {
+      claim_meta_marketing_campaign_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_name: string
+          p_no_special_ad_category_confirmed: boolean
+          p_objective: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      complete_meta_marketing_campaign_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_provider_campaign_id: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
+      }
       apply_chat_message_top_up: {
         Args: {
           p_checkout_session_id: string
@@ -2225,6 +2245,15 @@ export type Database = {
           p_theatre_id: string
         }
         Returns: Json
+      }
+      fail_meta_marketing_campaign_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_error_code: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
       }
       get_instagram_connection_credentials: {
         Args: {
