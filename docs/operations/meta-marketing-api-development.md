@@ -96,9 +96,9 @@ the venue's selected account and resets rollout to disabled.
 
 The Agora dashboard refresh is manual in this MVP. It reads account totals and
 account-level daily Insights (`time_increment=1`) plus campaign-level Insights
-for Meta's `last_30d` period, then atomically replaces the backend-only
-snapshot. It does not call any campaign creation or update edge in the
-Marketing API.
+for the selected `last_7d`, `last_30d` or `last_90d` preset, then atomically
+replaces only that backend-only period snapshot. It does not call any campaign
+creation or update edge in the Marketing API.
 
 Account totals are canonical. Do not calculate account reach or frequency by
 summing campaign or daily rows because those values are not additive across
@@ -113,6 +113,8 @@ audiences or time buckets.
 - Daily chart data appears only after a successful refresh returns daily
   account-level Insights.
 - A failed refresh preserves the last successful snapshot and marks it stale.
+- A newly selected period remains pending until its first manual refresh; data
+  from another period is never shown as a substitute.
 
 ## Troubleshooting
 

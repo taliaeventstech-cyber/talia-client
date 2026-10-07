@@ -2265,6 +2265,7 @@ export type Database = {
       get_meta_marketing_dashboard_snapshot: {
         Args: {
           p_actor_user_id: string
+          p_period: string
           p_theatre_id: string
         }
         Returns: Json
@@ -2380,6 +2381,7 @@ export type Database = {
           p_campaigns: Json
           p_connection_id: string
           p_daily_insights: Json
+          p_period: string
           p_summary: Json
           p_theatre_id: string
         }
@@ -2390,6 +2392,7 @@ export type Database = {
           p_actor_user_id: string
           p_connection_id: string
           p_error_code: string
+          p_period: string
           p_theatre_id: string
         }
         Returns: boolean

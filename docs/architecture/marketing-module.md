@@ -30,7 +30,7 @@ Implemented:
 - venue-scoped Meta OAuth connection;
 - supervised Business Portfolio and ad-account selection;
 - manual, read-only synchronization;
-- account totals for Meta's `last_30d` period;
+- account totals for Meta's `last_7d`, `last_30d` and `last_90d` periods;
 - daily account-level time series using `time_increment=1`;
 - campaign status and aggregate performance for the same period;
 - a compact daily chart for spend, link clicks and CTR;
@@ -39,7 +39,7 @@ Implemented:
 Not implemented:
 
 - scheduled synchronization;
-- date-range selection;
+- custom date ranges;
 - campaign, ad-set, creative or ad creation;
 - conversion attribution, purchases, revenue or ROAS;
 - automated recommendations or automatic budget changes;
@@ -83,14 +83,14 @@ only immediately before a server-side provider request.
 ## Provider reads
 
 One manual synchronization requests four logical datasets from the selected ad
-account:
+account for one validated period (`last_7d`, `last_30d` or `last_90d`):
 
 | Dataset | Meta edge | Level | Period/granularity | Purpose |
 | --- | --- | --- | --- | --- |
 | Campaign catalogue | `/{act_id}/campaigns` | campaign | current objects | Names, status and lifecycle |
-| Account totals | `/{act_id}/insights` | account | `last_30d` | Canonical KPI cards |
-| Daily account trend | `/{act_id}/insights` | account | `last_30d`, `time_increment=1` | Time-series chart |
-| Campaign performance | `/{act_id}/insights` | campaign | `last_30d` | Campaign comparison table |
+| Account totals | `/{act_id}/insights` | account | selected preset | Canonical KPI cards |
+| Daily account trend | `/{act_id}/insights` | account | selected preset, `time_increment=1` | Time-series chart |
+| Campaign performance | `/{act_id}/insights` | campaign | selected preset | Campaign comparison table |
 
 Requests use the `Authorization: Bearer` header. Tokens are removed from Meta
 pagination URLs before they are followed. Fetches use `cache: no-store`, a
@@ -111,10 +111,10 @@ bounded timeout, a five-page ceiling and a 500-campaign ceiling.
 Account totals are fetched directly from Meta and are not calculated by summing
 campaign rows. Reach is non-additive across campaigns, and therefore derived
 frequency would also be wrong. Daily rows are likewise fetched at account level;
-they are for trend visualization, not a replacement for the canonical 30-day
-account total. When Meta omits an inactive date between the reported period
-bounds, TALIA inserts a zero-valued daily point so the category axis preserves
-calendar spacing instead of visually compressing inactive days.
+they are for trend visualization, not a replacement for the canonical account
+total for the selected period. When Meta omits an inactive date between the
+reported period bounds, TALIA inserts a zero-valued daily point so the category
+axis preserves calendar spacing instead of visually compressing inactive days.
 
 ROAS, sales and conversions must remain absent until TALIA has a documented,
 validated attribution source. Do not infer revenue from clicks.
@@ -125,13 +125,16 @@ The foundational connection is stored in `meta_marketing_connections`.
 Read-only reporting adds two backend-only snapshot tables:
 
 - `meta_marketing_campaign_snapshots`: current campaign catalogue joined with
-  aggregate `last_30d` campaign Insights;
+  aggregate campaign Insights, keyed by connection and period;
 - `meta_marketing_daily_insights`: account-level daily rows for the current
-  `last_30d` snapshot.
+  snapshot, keyed by connection and period.
 
 Canonical account totals and synchronization state live under
-`meta_marketing_connections.metadata.marketing_sync`. This avoids pretending
-that additive campaign values produce valid account reach or frequency.
+`meta_marketing_connections.metadata.marketing_sync_periods.<period>`. This
+retains independent 7-, 30- and 90-day snapshots and avoids pretending that
+additive campaign values produce valid account reach or frequency. The period
+migration moves the pre-existing `marketing_sync` payload to
+`marketing_sync_periods.last_30d`.
 
 The replacement RPC validates all three payloads and replaces campaign and daily
 rows in one database transaction. A failed provider read or invalid payload
@@ -147,6 +150,7 @@ Migrations, in deployment order:
 
 - `supabase/migrations/20261006100000_meta_marketing_campaign_insights.sql`
 - `supabase/migrations/20261006110000_meta_marketing_daily_insights.sql`
+- `supabase/migrations/20261007150000_meta_marketing_period_snapshots.sql`
 
 Migration files are append-only after they reach any shared environment. Do not
 extend an already-recorded timestamp with new tables or RPC signatures: create
@@ -166,6 +170,7 @@ Main source map:
 | Responsibility | File |
 | --- | --- |
 | Marketing page and semantic reading | `src/app/(dashboard)/[tenantId]/marketing/page.tsx` |
+| Reporting period selector | `src/app/(dashboard)/[tenantId]/marketing/marketing-period-selector.tsx` |
 | Interactive daily chart | `src/app/(dashboard)/[tenantId]/marketing/marketing-trend-chart.tsx` |
 | Campaign comparison, status filter and exact table | `src/app/(dashboard)/[tenantId]/marketing/marketing-campaign-comparison.tsx` |
 | Manual refresh action | `src/app/(dashboard)/[tenantId]/marketing/sync-actions.ts` |
@@ -192,10 +197,11 @@ table preserves every campaign matching the active status filter and remains
 the exact-value surface. Status filtering is local to the current snapshot and
 does not trigger a provider read.
 
-Do not add a global period selector until account totals, daily points and
-campaign Insights can all be fetched and persisted for the same requested
-range. Slicing only the daily series while leaving KPI cards and campaigns at
-`last_30d` would create a misleading mixed-period reading.
+The global period selector changes account totals, daily points and campaign
+Insights together. Each period has an independent persisted snapshot. A period
+that has never been refreshed shows its own empty state; TALIA never presents a
+snapshot from another period as an equivalent fallback. Custom dates remain out
+of scope until their timezone, maximum-span and retention semantics are defined.
 
 ### Development-only dashboard fixture
 
@@ -253,7 +259,9 @@ npx vitest run \
   src/lib/marketing/insights-service.test.ts \
   src/lib/marketing/oauth-session.test.ts \
   src/lib/marketing/oauth.test.ts \
+  src/lib/marketing/periods.test.ts \
   src/lib/marketing/sync-service.test.ts \
+  'src/app/(dashboard)/[tenantId]/marketing/marketing-period-selector.test.tsx' \
   'src/app/(dashboard)/[tenantId]/marketing/marketing-trend-chart.test.tsx' \
   'src/app/(dashboard)/[tenantId]/marketing/marketing-campaign-comparison.test.tsx'
 ```
@@ -290,10 +298,9 @@ When extending Marketing:
 
 ## Next likely slices
 
-1. Explicit date-range controls and snapshot/history retention design.
-2. A scheduler with freshness policy, rate-limit handling and retry controls.
-3. Supervised creation of campaign, ad set and ad objects in `PAUSED`.
-4. App Review, advanced access and Business Verification for customer pilots.
+1. A scheduler with freshness policy, rate-limit handling and retry controls.
+2. Supervised creation of campaign, ad set and ad objects in `PAUSED`.
+3. App Review, advanced access and Business Verification for customer pilots.
 
 Each slice should remain independently deployable and retain the read-only
 dashboard when later write capabilities are unavailable.

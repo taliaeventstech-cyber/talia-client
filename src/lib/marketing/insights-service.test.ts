@@ -15,6 +15,9 @@ describe('fetchMetaMarketingSnapshot', () => {
       const url = new URL(input instanceof Request ? input.url : input.toString())
       expect(init?.headers).toEqual({ Authorization: 'Bearer sensitive-token' })
       expect(url.searchParams.has('access_token')).toBe(false)
+      if (url.pathname.endsWith('/insights')) {
+        expect(url.searchParams.get('date_preset')).toBe('last_30d')
+      }
 
       if (url.pathname.endsWith('/campaigns')) {
         if (url.searchParams.get('after') === 'one') return jsonResponse({ data: [] })
@@ -134,6 +137,7 @@ describe('fetchMetaMarketingSnapshot', () => {
     await expect(fetchMetaMarketingSnapshot('act_123', 'token', {
       fetcher: fetcher as typeof fetch,
     })).resolves.toEqual({
+      period: 'last_30d',
       summary: {
         spend: 0,
         impressions: 0,
@@ -147,6 +151,59 @@ describe('fetchMetaMarketingSnapshot', () => {
       },
       campaigns: [],
       daily_insights: [],
+    })
+  })
+
+  it('uses the selected preset for every Insights level', async () => {
+    const requestedPresets: string[] = []
+    const fetcher = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(input instanceof Request ? input.url : input.toString())
+      if (url.pathname.endsWith('/insights')) {
+        requestedPresets.push(url.searchParams.get('date_preset') ?? '')
+      }
+      return jsonResponse({ data: [] })
+    })
+
+    await expect(fetchMetaMarketingSnapshot('act_123', 'token', {
+      fetcher: fetcher as typeof fetch,
+      period: 'last_90d',
+    })).resolves.toMatchObject({ period: 'last_90d' })
+
+    expect(requestedPresets).toEqual(['last_90d', 'last_90d', 'last_90d'])
+  })
+
+  it('accepts a complete 90-day daily series for last_90d', async () => {
+    const start = new Date('2026-07-10T00:00:00.000Z')
+    const daily = Array.from({ length: 90 }, (_, index) => {
+      const date = new Date(start)
+      date.setUTCDate(date.getUTCDate() + index)
+      const value = date.toISOString().slice(0, 10)
+      return { spend: '1.00', date_start: value, date_stop: value }
+    })
+    const fetcher = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(input instanceof Request ? input.url : input.toString())
+      if (url.pathname.endsWith('/campaigns')) return jsonResponse({ data: [] })
+      if (url.searchParams.get('time_increment') === '1') {
+        return jsonResponse({ data: daily })
+      }
+      if (url.searchParams.get('level') === 'account') {
+        return jsonResponse({ data: [{
+          spend: '90.00',
+          date_start: daily[0].date_start,
+          date_stop: daily.at(-1)?.date_stop,
+        }] })
+      }
+      return jsonResponse({ data: [] })
+    })
+
+    await expect(fetchMetaMarketingSnapshot('act_123', 'token', {
+      fetcher: fetcher as typeof fetch,
+      period: 'last_90d',
+    })).resolves.toMatchObject({
+      period: 'last_90d',
+      daily_insights: expect.arrayContaining([
+        expect.objectContaining({ date: '2026-10-07' }),
+      ]),
     })
   })
 
