@@ -1,4 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
+import type { MetaMarketingPeriod } from '@/types/marketing'
 import {
   getMetaMarketingSyncContext,
   recordMetaMarketingSyncFailure,
@@ -26,7 +27,11 @@ export class MetaMarketingSyncError extends Error {
 
 export async function syncMetaMarketingSnapshot(
   admin: AdminClient,
-  input: { tenantId: string; actorUserId: string },
+  input: {
+    tenantId: string
+    actorUserId: string
+    period?: MetaMarketingPeriod
+  },
   options: { fetcher?: typeof fetch; now?: number } = {},
 ): Promise<MetaMarketingProviderSnapshot> {
   let context: MetaMarketingSyncContext | null = null
@@ -47,11 +52,15 @@ export async function syncMetaMarketingSnapshot(
     const snapshot = await fetchMetaMarketingSnapshot(
       context.ad_account_id,
       credentials.accessToken,
-      { fetcher: options.fetcher },
+      {
+        fetcher: options.fetcher,
+        period: input.period ?? 'last_30d',
+      },
     )
     await replaceMetaMarketingCampaignSnapshot(admin, {
       ...input,
       connectionId: context.connection_id,
+      period: snapshot.period,
       summary: snapshot.summary,
       campaigns: snapshot.campaigns,
       dailyInsights: snapshot.daily_insights,
@@ -64,6 +73,7 @@ export async function syncMetaMarketingSnapshot(
         await recordMetaMarketingSyncFailure(admin, {
           ...input,
           connectionId: context.connection_id,
+          period: input.period ?? 'last_30d',
           errorCode: normalized.code,
         })
       } catch {

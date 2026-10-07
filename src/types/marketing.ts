@@ -1,5 +1,24 @@
 import { z } from 'zod'
 
+export const metaMarketingPeriodSchema = z.enum([
+  'last_7d',
+  'last_30d',
+  'last_90d',
+])
+
+export type MetaMarketingPeriod = z.infer<typeof metaMarketingPeriodSchema>
+
+export const metaMarketingPeriodDays: Record<MetaMarketingPeriod, number> = {
+  last_7d: 7,
+  last_30d: 30,
+  last_90d: 90,
+}
+
+export function parseMetaMarketingPeriod(value: unknown): MetaMarketingPeriod {
+  const parsed = metaMarketingPeriodSchema.safeParse(value)
+  return parsed.success ? parsed.data : 'last_30d'
+}
+
 export const metaMarketingConnectionSummarySchema = z.object({
   id: z.uuid(),
   status: z.enum(['connected', 'error', 'revoked', 'disabled']),
@@ -66,13 +85,14 @@ export const metaMarketingDailyInsightSchema = z.object({
 })
 
 export const metaMarketingDashboardSnapshotSchema = z.object({
+  period: metaMarketingPeriodSchema.default('last_30d'),
   status: z.enum(['never', 'success', 'error']),
   last_attempted_at: nullableDateTimeSchema,
   last_synced_at: nullableDateTimeSchema,
   error_code: z.string().nullable(),
   summary: metaMarketingAccountInsightSchema.nullable(),
   campaigns: z.array(metaMarketingCampaignSnapshotSchema).max(500),
-  daily_insights: z.array(metaMarketingDailyInsightSchema).max(31).default([]),
+  daily_insights: z.array(metaMarketingDailyInsightSchema).max(90).default([]),
 })
 
 export type MetaMarketingAccountInsight = z.infer<

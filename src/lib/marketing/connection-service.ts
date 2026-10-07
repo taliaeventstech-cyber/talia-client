@@ -7,11 +7,13 @@ import {
   metaMarketingConnectionSummarySchema,
   metaMarketingDailyInsightSchema,
   metaMarketingDashboardSnapshotSchema,
+  metaMarketingPeriodSchema,
   type MetaMarketingAccountInsight,
   type MetaMarketingCampaignSnapshot,
   type MetaMarketingConnectionSummary,
   type MetaMarketingDailyInsight,
   type MetaMarketingDashboardSnapshot,
+  type MetaMarketingPeriod,
 } from '@/types/marketing'
 import { buildMetaMarketingCredentialMetadata } from './credentials'
 
@@ -97,11 +99,17 @@ export async function getMetaMarketingSyncContext(
 
 export async function getMetaMarketingDashboardSnapshot(
   admin: AdminClient,
-  input: { tenantId: string; actorUserId: string },
+  input: {
+    tenantId: string
+    actorUserId: string
+    period?: MetaMarketingPeriod
+  },
 ): Promise<MetaMarketingDashboardSnapshot | null> {
+  const period = metaMarketingPeriodSchema.parse(input.period ?? 'last_30d')
   const { data, error } = await admin.rpc('get_meta_marketing_dashboard_snapshot', {
     p_theatre_id: input.tenantId,
     p_actor_user_id: input.actorUserId,
+    p_period: period,
   })
 
   if (error) throw new Error('meta_marketing_dashboard_snapshot_failed')
@@ -117,6 +125,7 @@ export async function replaceMetaMarketingCampaignSnapshot(
     tenantId: string
     actorUserId: string
     connectionId: string
+    period?: MetaMarketingPeriod
     summary: MetaMarketingAccountInsight
     campaigns: MetaMarketingCampaignSnapshot[]
     dailyInsights: MetaMarketingDailyInsight[]
@@ -124,11 +133,13 @@ export async function replaceMetaMarketingCampaignSnapshot(
 ) {
   const summary = metaMarketingAccountInsightSchema.parse(input.summary)
   const campaigns = z.array(metaMarketingCampaignSnapshotSchema).max(500).parse(input.campaigns)
-  const dailyInsights = z.array(metaMarketingDailyInsightSchema).max(31).parse(input.dailyInsights)
+  const period = metaMarketingPeriodSchema.parse(input.period ?? 'last_30d')
+  const dailyInsights = z.array(metaMarketingDailyInsightSchema).max(90).parse(input.dailyInsights)
   const { data, error } = await admin.rpc('replace_meta_marketing_campaign_snapshot', {
     p_theatre_id: input.tenantId,
     p_actor_user_id: input.actorUserId,
     p_connection_id: input.connectionId,
+    p_period: period,
     p_summary: summary as unknown as Json,
     p_campaigns: campaigns as unknown as Json,
     p_daily_insights: dailyInsights as unknown as Json,
@@ -146,6 +157,7 @@ export async function recordMetaMarketingSyncFailure(
     tenantId: string
     actorUserId: string
     connectionId: string
+    period?: MetaMarketingPeriod
     errorCode: string
   },
 ) {
@@ -153,6 +165,7 @@ export async function recordMetaMarketingSyncFailure(
     p_theatre_id: input.tenantId,
     p_actor_user_id: input.actorUserId,
     p_connection_id: input.connectionId,
+    p_period: metaMarketingPeriodSchema.parse(input.period ?? 'last_30d'),
     p_error_code: input.errorCode,
   })
   if (error || data !== true) throw new Error('meta_marketing_sync_failure_record_failed')

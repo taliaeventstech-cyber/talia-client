@@ -1,6 +1,7 @@
 'use client'
 
 import type { MarketingCopy } from '@/lib/i18n/marketing-copy'
+import type { MetaMarketingPeriod } from '@/types/marketing'
 import { useActionState } from 'react'
 import {
   syncMetaMarketingAction,
@@ -9,12 +10,14 @@ import {
 
 export function MetaMarketingSyncButton({
   tenantId,
+  period,
   copy,
 }: {
   tenantId: string
+  period: MetaMarketingPeriod
   copy: MarketingCopy
 }) {
-  const action = syncMetaMarketingAction.bind(null, tenantId)
+  const action = syncMetaMarketingAction.bind(null, tenantId, period)
   const [state, formAction, pending] = useActionState<MetaMarketingSyncActionState, FormData>(
     action,
     null,

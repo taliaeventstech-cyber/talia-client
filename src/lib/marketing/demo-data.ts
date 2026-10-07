@@ -50,6 +50,7 @@ const connection: MetaMarketingConnectionSummary = {
 }
 
 const snapshot: MetaMarketingDashboardSnapshot = {
+  period: 'last_30d',
   status: 'success',
   last_attempted_at: '2026-10-07T09:15:00.000Z',
   last_synced_at: '2026-10-07T09:15:00.000Z',

@@ -3,12 +3,13 @@ import type {
   MetaMarketingAccountInsight,
   MetaMarketingCampaignSnapshot,
   MetaMarketingDailyInsight,
+  MetaMarketingPeriod,
 } from '@/types/marketing'
+import { metaMarketingPeriodDays, metaMarketingPeriodSchema } from '@/types/marketing'
 import { getMetaMarketingOAuthConfig } from './oauth'
 
 const MAX_GRAPH_PAGES = 5
 const MAX_CAMPAIGNS = 500
-const MAX_DAILY_INSIGHTS = 31
 
 const campaignSchema = z.object({
   id: z.string().min(1).max(200),
@@ -35,9 +36,14 @@ const insightSchema = z.object({
   date_stop: z.string().date().optional(),
 })
 
-type FetchOptions = { fetcher?: typeof fetch; timeoutMs?: number }
+type FetchOptions = {
+  fetcher?: typeof fetch
+  timeoutMs?: number
+  period?: MetaMarketingPeriod
+}
 
 export type MetaMarketingProviderSnapshot = {
+  period: MetaMarketingPeriod
   summary: MetaMarketingAccountInsight
   campaigns: MetaMarketingCampaignSnapshot[]
   daily_insights: MetaMarketingDailyInsight[]
@@ -58,6 +64,10 @@ export async function fetchMetaMarketingSnapshot(
   accessToken: string,
   options: FetchOptions = {},
 ): Promise<MetaMarketingProviderSnapshot> {
+  const parsedPeriod = metaMarketingPeriodSchema.safeParse(options.period ?? 'last_30d')
+  if (!parsedPeriod.success) {
+    throw new MetaMarketingInsightsError('meta_marketing_insights_period_invalid')
+  }
   const normalizedAccountId = normalizeAdAccountId(adAccountId)
   const campaignUrl = graphUrl(`/${encodeURIComponent(normalizedAccountId)}/campaigns`)
   campaignUrl.searchParams.set(
@@ -67,14 +77,14 @@ export async function fetchMetaMarketingSnapshot(
   campaignUrl.searchParams.set('limit', '100')
 
   const accountInsightsUrl = graphUrl(`/${encodeURIComponent(normalizedAccountId)}/insights`)
-  setInsightParameters(accountInsightsUrl, 'account')
+  setInsightParameters(accountInsightsUrl, 'account', parsedPeriod.data)
 
   const dailyInsightsUrl = graphUrl(`/${encodeURIComponent(normalizedAccountId)}/insights`)
-  setInsightParameters(dailyInsightsUrl, 'account')
+  setInsightParameters(dailyInsightsUrl, 'account', parsedPeriod.data)
   dailyInsightsUrl.searchParams.set('time_increment', '1')
 
   const campaignInsightsUrl = graphUrl(`/${encodeURIComponent(normalizedAccountId)}/insights`)
-  setInsightParameters(campaignInsightsUrl, 'campaign')
+  setInsightParameters(campaignInsightsUrl, 'campaign', parsedPeriod.data)
 
   const [campaigns, accountInsights, dailyInsights, campaignInsights] = await Promise.all([
     requestCollection(
@@ -119,11 +129,13 @@ export async function fetchMetaMarketingSnapshot(
 
   const summary = mapInsight(accountInsights[0])
   return {
+    period: parsedPeriod.data,
     summary,
     daily_insights: normalizeDailyInsights(
       dailyInsights.map(mapDailyInsight),
       summary.date_start,
       summary.date_stop,
+      metaMarketingPeriodDays[parsedPeriod.data],
     ),
     campaigns: campaigns.map((campaign) => {
       const insight = mapInsight(insightByCampaign.get(campaign.id))
@@ -155,6 +167,7 @@ function normalizeDailyInsights(
   insights: MetaMarketingDailyInsight[],
   periodStart: string | null,
   periodStop: string | null,
+  maximumDays: number,
 ) {
   if (insights.length === 0) return []
   const insightByDate = new Map<string, MetaMarketingDailyInsight>()
@@ -175,7 +188,7 @@ function normalizeDailyInsights(
   const end = new Date(`${stop}T00:00:00Z`)
   const normalized: MetaMarketingDailyInsight[] = []
 
-  while (cursor <= end && normalized.length < MAX_DAILY_INSIGHTS) {
+  while (cursor <= end && normalized.length < maximumDays) {
     const date = cursor.toISOString().slice(0, 10)
     normalized.push(insightByDate.get(date) ?? {
       date,
@@ -215,9 +228,13 @@ function mapDailyInsight(
   }
 }
 
-function setInsightParameters(url: URL, level: 'account' | 'campaign') {
+function setInsightParameters(
+  url: URL,
+  level: 'account' | 'campaign',
+  period: MetaMarketingPeriod,
+) {
   url.searchParams.set('level', level)
-  url.searchParams.set('date_preset', 'last_30d')
+  url.searchParams.set('date_preset', period)
   url.searchParams.set(
     'fields',
     level === 'campaign'

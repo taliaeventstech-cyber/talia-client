@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   getMetaMarketingConnectionSummary,
   getMetaMarketingDashboardSnapshot,
+  replaceMetaMarketingCampaignSnapshot,
   saveMetaMarketingConnection,
 } from './connection-service'
 
@@ -86,6 +87,7 @@ describe('getMetaMarketingConnectionSummary', () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {
         status: 'success',
+        period: 'last_90d',
         last_attempted_at: '2026-10-06T10:00:00.000Z',
         last_synced_at: '2026-10-06T10:00:00.000Z',
         error_code: null,
@@ -117,10 +119,15 @@ describe('getMetaMarketingConnectionSummary', () => {
 
     await expect(getMetaMarketingDashboardSnapshot(
       { rpc } as never,
-      { tenantId: 'tenant-1', actorUserId: 'user-1' },
-    )).resolves.toMatchObject({ status: 'success', campaigns: [], daily_insights: [{
+      { tenantId: 'tenant-1', actorUserId: 'user-1', period: 'last_90d' },
+    )).resolves.toMatchObject({ period: 'last_90d', status: 'success', campaigns: [], daily_insights: [{
       date: '2026-10-06',
     }] })
+    expect(rpc).toHaveBeenCalledWith('get_meta_marketing_dashboard_snapshot', {
+      p_theatre_id: 'tenant-1',
+      p_actor_user_id: 'user-1',
+      p_period: 'last_90d',
+    })
   })
 
   it('keeps the dashboard available while the daily Insights migration rolls out', async () => {
@@ -150,6 +157,36 @@ describe('getMetaMarketingConnectionSummary', () => {
       { rpc } as never,
       { tenantId: 'tenant-1', actorUserId: 'user-1' },
     )).resolves.toMatchObject({ status: 'success', daily_insights: [] })
+  })
+
+  it('replaces only the requested period snapshot', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: 0, error: null })
+
+    await expect(replaceMetaMarketingCampaignSnapshot(
+      { rpc } as never,
+      {
+        tenantId: 'tenant-1',
+        actorUserId: 'user-1',
+        connectionId: '657c9c3e-bf4a-45ce-868d-45a2f48db2fb',
+        period: 'last_7d',
+        summary: {
+          spend: 0,
+          impressions: 0,
+          reach: 0,
+          link_clicks: 0,
+          ctr: 0,
+          cpc: null,
+          frequency: 0,
+          date_start: null,
+          date_stop: null,
+        },
+        campaigns: [],
+        dailyInsights: [],
+      },
+    )).resolves.toBe(0)
+
+    expect(rpc).toHaveBeenCalledWith('replace_meta_marketing_campaign_snapshot',
+      expect.objectContaining({ p_period: 'last_7d' }))
   })
 })
 

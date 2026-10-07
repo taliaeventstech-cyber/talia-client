@@ -5660,6 +5660,41 @@ textarea {
   font-size: 13px;
 }
 
+.marketing-insights-actions {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.marketing-period-selector {
+  display: inline-flex;
+  gap: 3px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  padding: 3px;
+}
+
+.marketing-period-selector a {
+  border-radius: 7px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  padding: 8px 11px;
+  text-decoration: none;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.marketing-period-selector a:hover {
+  color: var(--color-text-primary);
+}
+
+.marketing-period-selector a.is-active {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent);
+}
+
 .marketing-sync-control {
   display: flex;
   align-items: center;
@@ -6059,6 +6094,17 @@ textarea {
   .marketing-insights-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .marketing-insights-actions,
+  .marketing-period-selector {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .marketing-period-selector a {
+    flex: 1 1 0;
+    text-align: center;
   }
 
   .marketing-trend-header {

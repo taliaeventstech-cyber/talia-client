@@ -14,8 +14,14 @@ import type {
   MetaMarketingCampaignSnapshot,
   MetaMarketingConnectionSummary,
   MetaMarketingDashboardSnapshot,
+  MetaMarketingPeriod,
 } from '@/types/marketing'
+import { parseMetaMarketingPeriod } from '@/types/marketing'
 import { MarketingCampaignComparison } from './marketing-campaign-comparison'
+import {
+  getMarketingPeriodLabel,
+  MarketingPeriodSelector,
+} from './marketing-period-selector'
 import { MarketingTrendChart } from './marketing-trend-chart'
 import { MetaMarketingSyncButton } from './sync-button'
 
@@ -23,6 +29,7 @@ interface Props {
   params: Promise<{ tenantId: string }>
   searchParams: Promise<{
     marketing_demo?: string
+    marketing_period?: string
     meta_connected?: string
     meta_error?: string
   }>
@@ -38,6 +45,7 @@ export default async function MarketingPage({ params, searchParams }: Props) {
     )),
   ])
   const copy = getMarketingCopy(locale)
+  const requestedPeriod = parseMetaMarketingPeriod(query.marketing_period)
   const admin = createAdminClient()
   const [connection, snapshot] = await Promise.all([
     getMetaMarketingConnectionSummary(admin, {
@@ -47,11 +55,13 @@ export default async function MarketingPage({ params, searchParams }: Props) {
     getMetaMarketingDashboardSnapshot(admin, {
       tenantId,
       actorUserId: access.userId,
+      period: requestedPeriod,
     }),
   ])
   const demo = getMarketingDemoData(query.marketing_demo)
   const insightsConnection = demo?.connection ?? connection
   const insightsSnapshot = demo?.snapshot ?? snapshot
+  const selectedPeriod = demo?.snapshot.period ?? requestedPeriod
   const presentation = getConnectionPresentation(connection, copy)
 
   return (
@@ -79,6 +89,7 @@ export default async function MarketingPage({ params, searchParams }: Props) {
           copy={copy}
           isDemo={demo !== null}
           locale={getIntlLocale(locale)}
+          period={selectedPeriod}
           snapshot={insightsSnapshot}
           tenantId={tenantId}
         />
@@ -109,30 +120,43 @@ export default async function MarketingPage({ params, searchParams }: Props) {
   )
 }
 
-function MarketingInsights({ connection, copy, isDemo, locale, snapshot, tenantId }: {
+function MarketingInsights({ connection, copy, isDemo, locale, period, snapshot, tenantId }: {
   connection: MetaMarketingConnectionSummary
   copy: MarketingCopy
   isDemo: boolean
   locale: string
+  period: MetaMarketingPeriod
   snapshot: MetaMarketingDashboardSnapshot
   tenantId: string
 }) {
   const currency = connection.ad_account_currency ?? 'EUR'
   const hasSnapshot = snapshot.summary !== null
+  const periodLabel = getMarketingPeriodLabel(copy, period)
 
   return (
     <section className="marketing-insights-section stack">
       <div className="marketing-insights-header">
         <div>
           <p className="section-label">{copy.insightsEyebrow}</p>
-          <h2>{copy.insightsTitle}</h2>
+          <h2>{fillTemplate(copy.insightsTitle, { period: periodLabel })}</h2>
           <p className="muted marketing-sync-time">
             {snapshot.last_synced_at ? (
               <>{copy.lastUpdated}{' '}<LocalDateTime value={snapshot.last_synced_at} locale={locale} /></>
             ) : copy.neverSynced}
           </p>
         </div>
-        {isDemo ? null : <MetaMarketingSyncButton copy={copy} tenantId={tenantId} />}
+        <div className="marketing-insights-actions">
+          {isDemo ? null : (
+            <MarketingPeriodSelector
+              copy={copy}
+              period={period}
+              tenantId={tenantId}
+            />
+          )}
+          {isDemo ? null : (
+            <MetaMarketingSyncButton copy={copy} period={period} tenantId={tenantId} />
+          )}
+        </div>
       </div>
 
       {isDemo ? (
@@ -146,10 +170,21 @@ function MarketingInsights({ connection, copy, isDemo, locale, snapshot, tenantI
       <p className="notice notice-info" role="status">{copy.readOnlyNotice}</p>
 
       {!hasSnapshot ? (
-        <MarketingEmptyState title={copy.neverSyncedTitle} description={copy.neverSyncedDescription} />
+        <MarketingEmptyState
+          title={copy.neverSyncedTitle}
+          description={fillTemplate(copy.neverSyncedDescription, {
+            period: periodLabel,
+          })}
+        />
       ) : (
         <>
-          <MarketingMetrics copy={copy} currency={currency} locale={locale} summary={snapshot.summary!} />
+          <MarketingMetrics
+            copy={copy}
+            currency={currency}
+            locale={locale}
+            periodLabel={periodLabel}
+            summary={snapshot.summary!}
+          />
           <MarketingTrendChart
             currency={currency}
             data={snapshot.daily_insights}
@@ -181,7 +216,9 @@ function MarketingInsights({ connection, copy, isDemo, locale, snapshot, tenantI
               currency={currency}
               labels={{
                 title: copy.campaignComparisonTitle,
-                description: copy.campaignComparisonDescription,
+                description: fillTemplate(copy.campaignComparisonDescription, {
+                  period: periodLabel,
+                }),
                 compareBy: copy.compareBy,
                 filterByStatus: copy.filterByStatus,
                 allStatuses: copy.allStatuses,
@@ -209,10 +246,11 @@ function MarketingInsights({ connection, copy, isDemo, locale, snapshot, tenantI
   )
 }
 
-function MarketingMetrics({ copy, currency, locale, summary }: {
+function MarketingMetrics({ copy, currency, locale, periodLabel, summary }: {
   copy: MarketingCopy
   currency: string
   locale: string
+  periodLabel: string
   summary: MetaMarketingAccountInsight
 }) {
   const metrics = [
@@ -231,7 +269,7 @@ function MarketingMetrics({ copy, currency, locale, summary }: {
         <article className="marketing-metric-card" key={label}>
           <span>{label}</span>
           <strong>{value}</strong>
-          <small>{copy.last30Days}</small>
+          <small>{periodLabel}</small>
         </article>
       ))}
     </div>
