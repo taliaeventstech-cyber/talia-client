@@ -63,6 +63,9 @@ export type MarketingCopy = {
   trendTitle: string
   trendDescription: string
   trendAccessibleTable: string
+  trendEmptyTitle: string
+  trendEmptyDescription: string
+  demoDataNotice: string
   whatHappened: string
   whatWorks: string
   whatReview: string
@@ -78,6 +81,16 @@ export type MarketingCopy = {
   neverSyncedDescription: string
   noCampaignsTitle: string
   noCampaignsDescription: string
+  campaignComparisonTitle: string
+  campaignComparisonDescription: string
+  compareBy: string
+  filterByStatus: string
+  allStatuses: string
+  activeCampaigns: string
+  pausedCampaigns: string
+  otherCampaigns: string
+  noMatchingCampaigns: string
+  showingTopCampaigns: string
   campaignsTitle: string
   campaignsDescription: string
   campaign: string
@@ -153,6 +166,9 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     trendTitle: 'Evolución diaria',
     trendDescription: 'Selecciona una métrica para entender cómo cambió el rendimiento durante el periodo.',
     trendAccessibleTable: 'Datos diarios de inversión, clics en enlace y CTR.',
+    trendEmptyTitle: 'Todavía no hay actividad que representar',
+    trendEmptyDescription: 'El gráfico aparecerá cuando Meta devuelva actividad diaria para esta cuenta y periodo.',
+    demoDataNotice: 'Vista de desarrollo con datos de demostración. No son resultados reales de Meta.',
     whatHappened: 'Qué pasó',
     whatWorks: 'Qué funciona',
     whatReview: 'Qué revisar',
@@ -168,6 +184,16 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     neverSyncedDescription: 'Haz la primera actualización para traer campañas y resultados de los últimos 30 días. TALIA solo realizará lecturas.',
     noCampaignsTitle: 'La cuenta está conectada, pero todavía no tiene campañas',
     noCampaignsDescription: 'La conexión funciona correctamente. Cuando existan campañas en Meta, aparecerán aquí después de actualizar.',
+    campaignComparisonTitle: 'Comparación de campañas',
+    campaignComparisonDescription: 'Compara y filtra el rendimiento de las campañas durante los últimos 30 días.',
+    compareBy: 'Comparar por',
+    filterByStatus: 'Filtrar por estado',
+    allStatuses: 'Todos los estados',
+    activeCampaigns: 'Activas',
+    pausedCampaigns: 'Pausadas',
+    otherCampaigns: 'Otros estados',
+    noMatchingCampaigns: 'No hay campañas con este estado en el periodo analizado.',
+    showingTopCampaigns: 'El gráfico muestra las 8 campañas con mayor resultado; la tabla conserva todas.',
     campaignsTitle: 'Campañas',
     campaignsDescription: 'Estado y rendimiento por campaña durante el mismo periodo.',
     campaign: 'Campaña',
@@ -241,6 +267,9 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     trendTitle: 'Evolució diària',
     trendDescription: 'Selecciona una mètrica per entendre com va canviar el rendiment durant el període.',
     trendAccessibleTable: 'Dades diàries d’inversió, clics a l’enllaç i CTR.',
+    trendEmptyTitle: 'Encara no hi ha activitat per representar',
+    trendEmptyDescription: 'El gràfic apareixerà quan Meta retorni activitat diària per a aquest compte i període.',
+    demoDataNotice: 'Vista de desenvolupament amb dades de demostració. No són resultats reals de Meta.',
     whatHappened: 'Què va passar',
     whatWorks: 'Què funciona',
     whatReview: 'Què revisar',
@@ -256,6 +285,16 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     neverSyncedDescription: 'Fes la primera actualització per portar campanyes i resultats dels últims 30 dies. TALIA només farà lectures.',
     noCampaignsTitle: 'El compte està connectat, però encara no té campanyes',
     noCampaignsDescription: 'La connexió funciona correctament. Quan hi hagi campanyes a Meta, apareixeran aquí després d’actualitzar.',
+    campaignComparisonTitle: 'Comparació de campanyes',
+    campaignComparisonDescription: 'Compara i filtra el rendiment de les campanyes durant els últims 30 dies.',
+    compareBy: 'Comparar per',
+    filterByStatus: 'Filtrar per estat',
+    allStatuses: 'Tots els estats',
+    activeCampaigns: 'Actives',
+    pausedCampaigns: 'Pausades',
+    otherCampaigns: 'Altres estats',
+    noMatchingCampaigns: 'No hi ha campanyes amb aquest estat en el període analitzat.',
+    showingTopCampaigns: 'El gràfic mostra les 8 campanyes amb més resultat; la taula les conserva totes.',
     campaignsTitle: 'Campanyes',
     campaignsDescription: 'Estat i rendiment per campanya durant el mateix període.',
     campaign: 'Campanya',
@@ -329,6 +368,9 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     trendTitle: 'Daily trend',
     trendDescription: 'Select a metric to understand how performance changed during the period.',
     trendAccessibleTable: 'Daily spend, link click, and CTR data.',
+    trendEmptyTitle: 'There is no activity to chart yet',
+    trendEmptyDescription: 'The chart will appear when Meta returns daily activity for this account and period.',
+    demoDataNotice: 'Development view with demonstration data. These are not real Meta results.',
     whatHappened: 'What happened',
     whatWorks: 'What works',
     whatReview: 'What to review',
@@ -344,6 +386,16 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     neverSyncedDescription: 'Run the first refresh to import campaigns and results from the last 30 days. TALIA will only read data.',
     noCampaignsTitle: 'The account is connected but has no campaigns yet',
     noCampaignsDescription: 'The connection works correctly. Campaigns will appear here after a refresh once they exist in Meta.',
+    campaignComparisonTitle: 'Campaign comparison',
+    campaignComparisonDescription: 'Compare and filter campaign performance over the last 30 days.',
+    compareBy: 'Compare by',
+    filterByStatus: 'Filter by status',
+    allStatuses: 'All statuses',
+    activeCampaigns: 'Active',
+    pausedCampaigns: 'Paused',
+    otherCampaigns: 'Other statuses',
+    noMatchingCampaigns: 'There are no campaigns with this status in the analyzed period.',
+    showingTopCampaigns: 'The chart shows the 8 highest-result campaigns; the table keeps them all.',
     campaignsTitle: 'Campaigns',
     campaignsDescription: 'Campaign status and performance over the same period.',
     campaign: 'Campaign',
@@ -417,6 +469,9 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     trendTitle: 'Evolução diária',
     trendDescription: 'Selecione uma métrica para entender como o desempenho mudou durante o período.',
     trendAccessibleTable: 'Dados diários de investimento, cliques no link e CTR.',
+    trendEmptyTitle: 'Ainda não há atividade para representar',
+    trendEmptyDescription: 'O gráfico aparecerá quando a Meta retornar atividade diária para esta conta e período.',
+    demoDataNotice: 'Visualização de desenvolvimento com dados de demonstração. Não são resultados reais da Meta.',
     whatHappened: 'O que aconteceu',
     whatWorks: 'O que funciona',
     whatReview: 'O que revisar',
@@ -432,6 +487,16 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     neverSyncedDescription: 'Faça a primeira atualização para importar campanhas e resultados dos últimos 30 dias. A TALIA fará apenas leituras.',
     noCampaignsTitle: 'A conta está conectada, mas ainda não tem campanhas',
     noCampaignsDescription: 'A conexão funciona corretamente. Quando houver campanhas na Meta, elas aparecerão aqui após a atualização.',
+    campaignComparisonTitle: 'Comparação de campanhas',
+    campaignComparisonDescription: 'Compare e filtre o desempenho das campanhas nos últimos 30 dias.',
+    compareBy: 'Comparar por',
+    filterByStatus: 'Filtrar por status',
+    allStatuses: 'Todos os status',
+    activeCampaigns: 'Ativas',
+    pausedCampaigns: 'Pausadas',
+    otherCampaigns: 'Outros status',
+    noMatchingCampaigns: 'Não há campanhas com este status no período analisado.',
+    showingTopCampaigns: 'O gráfico mostra as 8 campanhas com maior resultado; a tabela mantém todas.',
     campaignsTitle: 'Campanhas',
     campaignsDescription: 'Status e desempenho por campanha durante o mesmo período.',
     campaign: 'Campanha',

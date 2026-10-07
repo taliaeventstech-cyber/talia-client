@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: October 6, 2026
+Last updated: October 7, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -233,7 +233,13 @@ Implemented:
   needs review, and handles both a first sync and an account without campaigns.
 - Account-level daily Insights use Meta's `time_increment=1` and feed a compact
   Recharts view where operators can inspect spend, link clicks or CTR without
-  mixing incompatible units on a dual axis.
+  mixing incompatible units on a dual axis. Accounts without delivery retain a
+  visible, explicit chart empty state instead of making the visualization
+  disappear.
+- Campaign comparison ranks the current `last_30d` snapshot by link clicks,
+  spend or CTR, filters it by delivery status and keeps exact values in the
+  campaign table. A global period selector remains pending until every metric
+  can use the same requested range.
 - Backend-only, venue-scoped campaign snapshots. Account-level reach and
   frequency and the daily account series remain separate from campaign rows to
   avoid invalid aggregation.
