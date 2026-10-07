@@ -1,6 +1,6 @@
 # Marketing module
 
-Last updated: October 6, 2026
+Last updated: October 7, 2026
 
 This is the engineering onboarding document for TALIA Marketing. Read it before
 changing the Marketing product surface, Meta integration, data model or
@@ -158,8 +158,8 @@ write RPC and persistence contract atomically.
 ## UI composition
 
 The page remains a Server Component. It loads the authorized connection and
-snapshot, formats the plain-language reading and passes serializable daily rows
-to a narrow Client Component that owns Recharts and the metric selector.
+snapshot, formats the plain-language reading and passes serializable daily and
+campaign rows to narrow Client Components that own Recharts and their filters.
 
 Main source map:
 
@@ -167,6 +167,7 @@ Main source map:
 | --- | --- |
 | Marketing page and semantic reading | `src/app/(dashboard)/[tenantId]/marketing/page.tsx` |
 | Interactive daily chart | `src/app/(dashboard)/[tenantId]/marketing/marketing-trend-chart.tsx` |
+| Campaign comparison, status filter and exact table | `src/app/(dashboard)/[tenantId]/marketing/marketing-campaign-comparison.tsx` |
 | Manual refresh action | `src/app/(dashboard)/[tenantId]/marketing/sync-actions.ts` |
 | Meta provider reads and validation | `src/lib/marketing/insights-service.ts` |
 | Sync orchestration and error classification | `src/lib/marketing/sync-service.ts` |
@@ -180,6 +181,32 @@ have different units, so overlaying them or using an unlabeled dual axis would
 make comparisons harder. KPI cards remain the source for exact period totals;
 the chart shows shape and timing. A screen-reader-only table exposes the same
 daily values without relying on SVG interpretation.
+
+When Meta returns no daily rows, keep the chart card visible with an explicit
+empty state. Hiding the whole visualization makes a healthy empty account look
+like an incomplete implementation.
+
+Campaign comparison also exposes one metric at a time: link clicks, spend or
+CTR. The graph ranks at most eight campaigns for legibility, while the adjacent
+table preserves every campaign matching the active status filter and remains
+the exact-value surface. Status filtering is local to the current snapshot and
+does not trigger a provider read.
+
+Do not add a global period selector until account totals, daily points and
+campaign Insights can all be fetched and persisted for the same requested
+range. Slicing only the daily series while leaving KPI cards and campaigns at
+`last_30d` would create a misleading mixed-period reading.
+
+### Development-only dashboard fixture
+
+Append `?marketing_demo=1` to the Marketing route in a non-production
+environment to render a deterministic, schema-valid reporting fixture. This is
+intended for visual QA of KPI cards, the daily chart, interpretations and the
+campaign table when the developer does not have an ad account with delivery.
+
+The fixture is rejected whenever `NODE_ENV=production`, is clearly labelled in
+the UI and disables the Meta refresh action. Never persist it or use it to
+populate production snapshots.
 
 ## Dashboard states
 
@@ -222,10 +249,13 @@ npx vitest run \
   src/lib/marketing/connection-foundation-migration.test.ts \
   src/lib/marketing/campaign-insights-migration.test.ts \
   src/lib/marketing/connection-service.test.ts \
+  src/lib/marketing/demo-data.test.ts \
   src/lib/marketing/insights-service.test.ts \
   src/lib/marketing/oauth-session.test.ts \
   src/lib/marketing/oauth.test.ts \
-  src/lib/marketing/sync-service.test.ts
+  src/lib/marketing/sync-service.test.ts \
+  'src/app/(dashboard)/[tenantId]/marketing/marketing-trend-chart.test.tsx' \
+  'src/app/(dashboard)/[tenantId]/marketing/marketing-campaign-comparison.test.tsx'
 ```
 
 Before handoff, also run:
@@ -260,12 +290,10 @@ When extending Marketing:
 
 ## Next likely slices
 
-1. A campaign comparison visualization with a deliberately chosen outcome
-   metric.
+1. Explicit date-range controls and snapshot/history retention design.
 2. A scheduler with freshness policy, rate-limit handling and retry controls.
-3. Explicit date-range controls and snapshot/history retention design.
-4. Supervised creation of campaign, ad set and ad objects in `PAUSED`.
-5. App Review, advanced access and Business Verification for customer pilots.
+3. Supervised creation of campaign, ad set and ad objects in `PAUSED`.
+4. App Review, advanced access and Business Verification for customer pilots.
 
 Each slice should remain independently deployable and retain the read-only
 dashboard when later write capabilities are unavailable.
