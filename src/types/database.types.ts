@@ -2012,6 +2012,23 @@ export type Database = {
       }
     }
     Functions: {
+      claim_meta_marketing_ad_set_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_age_max: number
+          p_age_min: number
+          p_countries: string[]
+          p_daily_budget_minor: number
+          p_end_time: string
+          p_expected_currency: string
+          p_name: string
+          p_provider_campaign_id: string
+          p_request_id: string
+          p_start_time: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
       claim_meta_marketing_campaign_creation: {
         Args: {
           p_actor_user_id: string
@@ -2022,6 +2039,15 @@ export type Database = {
           p_theatre_id: string
         }
         Returns: Json
+      }
+      complete_meta_marketing_ad_set_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_provider_ad_set_id: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
       }
       complete_meta_marketing_campaign_creation: {
         Args: {
@@ -2255,6 +2281,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      fail_meta_marketing_ad_set_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_error_code: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
+      }
       get_instagram_connection_credentials: {
         Args: {
           p_instagram_user_id: string
@@ -2300,6 +2335,13 @@ export type Database = {
         Returns: Json
       }
       get_meta_marketing_sync_context: {
+        Args: {
+          p_actor_user_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      list_meta_marketing_eligible_traffic_campaigns: {
         Args: {
           p_actor_user_id: string
           p_theatre_id: string

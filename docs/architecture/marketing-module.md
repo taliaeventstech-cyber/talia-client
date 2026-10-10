@@ -1,6 +1,6 @@
 # Marketing module
 
-Last updated: October 7, 2026
+Last updated: October 10, 2026
 
 This is the engineering onboarding document for TALIA Marketing. Read it before
 changing the Marketing product surface, Meta integration, data model or
@@ -36,22 +36,25 @@ Implemented:
 - a compact daily chart for spend, link clicks and CTR;
 - plain-language interpretation and explicit empty/error states;
 - supervised creation of a top-level campaign container for traffic,
-  engagement or awareness, always in `PAUSED`.
+  engagement or awareness, always in `PAUSED`;
+- supervised traffic ad-set creation with daily budget, UTC schedule and basic
+  country/age targeting, always in `PAUSED`.
 
 Not implemented:
 
 - scheduled synchronization;
 - custom date ranges;
-- ad-set, creative or ad creation;
-- campaign budget, schedule, audience, destination or special-ad-category flows;
+- engagement/awareness ad sets, creative or ad creation;
+- lifetime budgets, manual placements, detailed audience interests, destination
+  or special-ad-category flows;
 - conversion attribution, purchases, revenue or ROAS;
 - automated recommendations or automatic budget changes;
 - cross-venue or account-level aggregation.
 
-Hard guardrail: every object created through TALIA starts in `PAUSED`. The only
-current write calls `/{act_id}/campaigns` and creates an incomplete campaign
-container. No current path creates an ad set or ad, publishes an object, changes
-status to `ACTIVE` or activates spend.
+Hard guardrail: every object created through TALIA starts in `PAUSED`. Current
+writes call `/{act_id}/campaigns` and `/{act_id}/adsets`; status, billing event,
+optimization goal and bid strategy are server-owned. No current path creates an
+ad, publishes an object, changes status to `ACTIVE` or activates spend.
 
 ## Access and tenancy
 
@@ -87,6 +90,15 @@ Supervised creation
   -> server-side Meta campaign POST forced to PAUSED
   -> durable completion + audit event
   -> operator reviews the object in Ads Manager
+
+Traffic ad-set creation
+  -> select an authorized OUTCOME_TRAFFIC campaign
+  -> enter account-currency daily budget + local schedule + countries/age
+  -> convert schedule to UTC and budget to the currency's minor unit
+  -> authorized, rollout-gated idempotency claim
+  -> server derives LINK_CLICKS / IMPRESSIONS / LOWEST_COST_WITHOUT_CAP
+  -> Meta ad-set POST forced to PAUSED with automatic placements
+  -> durable completion + audit event
 ```
 
 OAuth state is short-lived and signed. The asset-selection session is encrypted.
@@ -170,12 +182,22 @@ Successful and failed attempts emit `marketing.meta_campaign_created` and
 `marketing.meta_campaign_create_failed` audit events without tokens or raw
 provider responses.
 
+Traffic ad sets follow the same pattern through
+`meta_marketing_ad_set_creation_requests`. Eligibility is re-derived in the
+claim RPC from the current connection's campaign snapshot or a completed TALIA
+campaign request; a client-supplied campaign ID alone is never authoritative.
+The connection currency is rechecked during the claim to prevent an account
+change from reinterpreting the submitted budget. Only countries and age range
+are accepted as targeting; no PII, customer lists, interests or manual
+placements enter this slice.
+
 Migrations, in deployment order:
 
 - `supabase/migrations/20261006100000_meta_marketing_campaign_insights.sql`
 - `supabase/migrations/20261006110000_meta_marketing_daily_insights.sql`
 - `supabase/migrations/20261007150000_meta_marketing_period_snapshots.sql`
 - `supabase/migrations/20261007193000_meta_marketing_paused_campaign_creation.sql`
+- `supabase/migrations/20261010120000_meta_marketing_paused_traffic_ad_sets.sql`
 
 Migration files are append-only after they reach any shared environment. Do not
 extend an already-recorded timestamp with new tables or RPC signatures: create
@@ -201,6 +223,8 @@ Main source map:
 | Manual refresh action | `src/app/(dashboard)/[tenantId]/marketing/sync-actions.ts` |
 | Supervised campaign form/action | `src/app/(dashboard)/[tenantId]/marketing/marketing-campaign-create-form.tsx` and `campaign-create-actions.ts` |
 | Campaign write orchestration and Meta POST | `src/lib/marketing/campaign-creation-service.ts` |
+| Traffic ad-set form/action | `src/app/(dashboard)/[tenantId]/marketing/marketing-ad-set-create-form.tsx` and `ad-set-create-actions.ts` |
+| Traffic ad-set orchestration and Meta POST | `src/lib/marketing/ad-set-creation-service.ts` |
 | Meta provider reads and validation | `src/lib/marketing/insights-service.ts` |
 | Sync orchestration and error classification | `src/lib/marketing/sync-service.ts` |
 | Authorized persistence RPC adapter | `src/lib/marketing/connection-service.ts` |
@@ -287,6 +311,8 @@ npx vitest run \
   src/lib/marketing/campaign-insights-migration.test.ts \
   src/lib/marketing/campaign-creation-migration.test.ts \
   src/lib/marketing/campaign-creation-service.test.ts \
+  src/lib/marketing/ad-set-creation-migration.test.ts \
+  src/lib/marketing/ad-set-creation-service.test.ts \
   src/lib/marketing/connection-service.test.ts \
   src/lib/marketing/demo-data.test.ts \
   src/lib/marketing/insights-service.test.ts \
@@ -331,10 +357,11 @@ When extending Marketing:
 
 ## Next likely slices
 
-1. Supervised creation of ad set, creative and ad objects in `PAUSED`, including
-   budget, dates, audience and destination validation.
-2. A scheduler with freshness policy, rate-limit handling and retry controls.
-3. App Review, advanced access and Business Verification for customer pilots.
+1. Supervised creative and ad creation in `PAUSED`, including destination and
+   media validation.
+2. Page/promoted-object selection for engagement and awareness ad sets.
+3. A scheduler with freshness policy, rate-limit handling and retry controls.
+4. App Review, advanced access and Business Verification for customer pilots.
 
 Each slice should remain independently deployable and retain the read-only
 dashboard when later write capabilities are unavailable.

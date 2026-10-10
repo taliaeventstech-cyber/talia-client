@@ -7,6 +7,7 @@ import { getLocale } from '@/lib/i18n/dictionaries'
 import {
   getMetaMarketingConnectionSummary,
   getMetaMarketingDashboardSnapshot,
+  listMetaMarketingEligibleTrafficCampaigns,
 } from '@/lib/marketing/connection-service'
 import { getMetaAdsManagerCampaignsUrl } from '@/lib/marketing/campaign-creation-service'
 import { getMarketingDemoData } from '@/lib/marketing/demo-data'
@@ -20,6 +21,7 @@ import type {
 } from '@/types/marketing'
 import { parseMetaMarketingPeriod } from '@/types/marketing'
 import { MarketingCampaignComparison } from './marketing-campaign-comparison'
+import { MarketingAdSetCreateForm } from './marketing-ad-set-create-form'
 import { MarketingCampaignCreateForm } from './marketing-campaign-create-form'
 import {
   getMarketingPeriodLabel,
@@ -50,7 +52,7 @@ export default async function MarketingPage({ params, searchParams }: Props) {
   const copy = getMarketingCopy(locale)
   const requestedPeriod = parseMetaMarketingPeriod(query.marketing_period)
   const admin = createAdminClient()
-  const [connection, snapshot] = await Promise.all([
+  const [connection, snapshot, eligibleTrafficCampaigns] = await Promise.all([
     getMetaMarketingConnectionSummary(admin, {
       tenantId,
       actorUserId: access.userId,
@@ -60,6 +62,10 @@ export default async function MarketingPage({ params, searchParams }: Props) {
       actorUserId: access.userId,
       period: requestedPeriod,
     }),
+    listMetaMarketingEligibleTrafficCampaigns(admin, {
+      tenantId,
+      actorUserId: access.userId,
+    }).catch(() => []),
   ])
   const demo = getMarketingDemoData(query.marketing_demo)
   const insightsConnection = demo?.connection ?? connection
@@ -106,15 +112,28 @@ export default async function MarketingPage({ params, searchParams }: Props) {
       />
 
       {connection ? (
-        <MarketingCampaignCreateForm
-          adsManagerUrl={getSafeAdsManagerUrl(connection.ad_account_id)}
-          canCreate={connection.status === 'connected'
-            && connection.rollout_enabled
-            && connection.scopes.includes('ads_management')}
-          copy={copy}
-          initialRequestId={randomUUID()}
-          tenantId={tenantId}
-        />
+        <>
+          <MarketingCampaignCreateForm
+            adsManagerUrl={getSafeAdsManagerUrl(connection.ad_account_id)}
+            canCreate={connection.status === 'connected'
+              && connection.rollout_enabled
+              && connection.scopes.includes('ads_management')}
+            copy={copy}
+            initialRequestId={randomUUID()}
+            tenantId={tenantId}
+          />
+          <MarketingAdSetCreateForm
+            adsManagerUrl={getSafeAdsManagerUrl(connection.ad_account_id)}
+            campaigns={eligibleTrafficCampaigns}
+            canCreate={connection.status === 'connected'
+              && connection.rollout_enabled
+              && connection.scopes.includes('ads_management')}
+            copy={copy}
+            currency={connection.ad_account_currency}
+            initialRequestId={randomUUID()}
+            tenantId={tenantId}
+          />
+        </>
       ) : null}
 
       {!connection ? (

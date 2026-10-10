@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   getMetaMarketingConnectionSummary,
   getMetaMarketingDashboardSnapshot,
+  listMetaMarketingEligibleTrafficCampaigns,
   replaceMetaMarketingCampaignSnapshot,
   saveMetaMarketingConnection,
 } from './connection-service'
@@ -187,6 +188,28 @@ describe('getMetaMarketingConnectionSummary', () => {
 
     expect(rpc).toHaveBeenCalledWith('replace_meta_marketing_campaign_snapshot',
       expect.objectContaining({ p_period: 'last_7d' }))
+  })
+
+  it('returns only validated eligible traffic campaign options', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [{
+        campaign_id: '123456',
+        name: 'Traffic · Autumn',
+        configured_status: 'PAUSED',
+        source: 'talia',
+      }],
+      error: null,
+    })
+
+    await expect(listMetaMarketingEligibleTrafficCampaigns(
+      { rpc } as never,
+      { tenantId: 'tenant-1', actorUserId: 'user-1' },
+    )).resolves.toEqual([expect.objectContaining({ campaign_id: '123456', source: 'talia' })])
+
+    expect(rpc).toHaveBeenCalledWith('list_meta_marketing_eligible_traffic_campaigns', {
+      p_theatre_id: 'tenant-1',
+      p_actor_user_id: 'user-1',
+    })
   })
 })
 

@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: October 7, 2026
+Last updated: October 10, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -21,9 +21,9 @@ Current state:
   venue-scoped connection metadata, encrypted backend-only credentials and an
   Agora pilot surface. A supervised OAuth flow now lets an authorized operator
   choose a Business Portfolio and ad account. Manual read-only synchronization
-  stores independent 7-, 30- and 90-day campaign and Insights snapshots;
-  campaign creation is not yet implemented, and the rollout remains disabled
-  by default.
+  stores independent 7-, 30- and 90-day campaign and Insights snapshots. Gated
+  write flows create paused campaign containers and paused traffic ad sets;
+  rollout remains disabled by default.
 - Client dashboard: **Agora**, per venue.
 - Internal panel: **Backstage**.
 - Current commercial model: 7-day free trial, upgrade to paid plans and add-ons.
@@ -249,20 +249,24 @@ Implemented:
   objectives. The server always sends `status=PAUSED` and
   `special_ad_categories=[]`; creation is idempotent, audited and unavailable
   until the venue connection has `rollout_enabled=true` and `ads_management`.
+- Supervised traffic ad-set creation for an eligible campaign, with exact
+  account-currency budget conversion, UTC schedule, country/age targeting,
+  automatic placements and server-owned delivery settings. Requests are
+  idempotent and always reach Meta as `PAUSED`.
 - Marketing credentials and lifecycle are separate from Instagram direct
   messages and WhatsApp.
 
 Pending:
 
-- Creation of the ad set, creative and ad objects, always starting in `PAUSED`,
-  plus budget, schedule, audience and destination validation.
+- Creation of engagement/awareness ad sets once Page/promoted-object selection
+  is defined, plus creative and ad objects, always starting in `PAUSED`.
 - Meta App Review, advanced access and Business Verification before a customer
   pilot.
 
 Current guardrail:
 
-- TALIA cannot activate advertising spend. The only current write creates an
-  incomplete top-level campaign container in `PAUSED`.
+- TALIA cannot activate advertising spend. Current writes create incomplete
+  campaign and traffic ad-set objects in `PAUSED`; no ad is created.
 
 Reference:
 

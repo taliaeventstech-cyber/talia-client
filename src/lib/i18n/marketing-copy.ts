@@ -124,6 +124,33 @@ export type MarketingCopy = {
   createInProgress: string
   createProviderError: string
   createSaveError: string
+  adSetEyebrow: string
+  adSetTitle: string
+  adSetDescription: string
+  adSetLockedTitle: string
+  adSetLockedDescription: string
+  adSetNoCampaignTitle: string
+  adSetNoCampaignDescription: string
+  adSetCampaign: string
+  adSetName: string
+  adSetNamePlaceholder: string
+  adSetDailyBudget: string
+  adSetStart: string
+  adSetEnd: string
+  adSetCountries: string
+  adSetCountriesPlaceholder: string
+  adSetCountriesHelp: string
+  adSetAgeMin: string
+  adSetAgeMax: string
+  adSetCreate: string
+  adSetCreating: string
+  adSetGuardrail: string
+  adSetSuccess: string
+  adSetInvalid: string
+  adSetConnectionError: string
+  adSetInProgress: string
+  adSetProviderError: string
+  adSetSaveError: string
 }
 
 const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
@@ -253,6 +280,33 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     createInProgress: 'Esta creación ya está en curso. Espera antes de volver a intentarlo.',
     createProviderError: 'Meta no ha podido crear la campaña. Revisa la configuración e inténtalo de nuevo.',
     createSaveError: 'Meta pudo recibir la solicitud, pero TALIA no pudo confirmarla. No repitas la creación y revisa el incidente.',
+    adSetEyebrow: 'Presupuesto y audiencia · Tráfico',
+    adSetTitle: 'Configurar un conjunto de anuncios',
+    adSetDescription: 'Añade presupuesto diario, calendario y audiencia básica a una campaña de tráfico. Las ubicaciones serán automáticas.',
+    adSetLockedTitle: 'Configuración todavía bloqueada.',
+    adSetLockedDescription: 'Necesitas una conexión piloto activa, ads_management y una moneda válida en la cuenta publicitaria.',
+    adSetNoCampaignTitle: 'No hay campañas de tráfico disponibles.',
+    adSetNoCampaignDescription: 'Crea una campaña con objetivo Tráfico o actualiza los datos desde Meta antes de continuar.',
+    adSetCampaign: 'Campaña de tráfico',
+    adSetName: 'Nombre del conjunto de anuncios',
+    adSetNamePlaceholder: 'Ej. España · 18–45 · Venta anticipada',
+    adSetDailyBudget: 'Presupuesto diario',
+    adSetStart: 'Inicio · tu hora local',
+    adSetEnd: 'Fin · tu hora local',
+    adSetCountries: 'Países de la audiencia',
+    adSetCountriesPlaceholder: 'ES, PT',
+    adSetCountriesHelp: 'Usa códigos ISO de dos letras separados por comas. No se admiten listas de clientes ni PII.',
+    adSetAgeMin: 'Edad mínima',
+    adSetAgeMax: 'Edad máxima',
+    adSetCreate: 'Crear conjunto pausado',
+    adSetCreating: 'Creando en Meta…',
+    adSetGuardrail: 'Meta recibirá PAUSED; TALIA no puede activar entrega ni gasto.',
+    adSetSuccess: 'El conjunto de anuncios se ha creado en Meta en estado PAUSED.',
+    adSetInvalid: 'Revisa campaña, presupuesto, fechas, países y rango de edad.',
+    adSetConnectionError: 'La conexión o la campaña ya no están disponibles para esta creación. Actualiza o vuelve a conectar Meta.',
+    adSetInProgress: 'Esta creación ya está en curso. Espera antes de volver a intentarlo.',
+    adSetProviderError: 'Meta ha rechazado el conjunto de anuncios. Revisa los requisitos de presupuesto y audiencia.',
+    adSetSaveError: 'Meta pudo recibir el conjunto, pero TALIA no pudo confirmarlo. No repitas la creación y revisa el incidente.',
   },
   ca: {
     eyebrow: 'Màrqueting · Meta Ads',
@@ -380,6 +434,33 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     createInProgress: 'Aquesta creació ja està en curs. Espera abans de tornar-ho a provar.',
     createProviderError: 'Meta no ha pogut crear la campanya. Revisa la configuració i torna-ho a provar.',
     createSaveError: 'Meta pot haver rebut la sol·licitud, però TALIA no l’ha pogut confirmar. No repeteixis la creació i revisa l’incident.',
+    adSetEyebrow: 'Pressupost i audiència · Trànsit',
+    adSetTitle: 'Configurar un conjunt d’anuncis',
+    adSetDescription: 'Afegeix pressupost diari, calendari i audiència bàsica a una campanya de trànsit. Les ubicacions seran automàtiques.',
+    adSetLockedTitle: 'Configuració encara bloquejada.',
+    adSetLockedDescription: 'Necessites una connexió pilot activa, ads_management i una moneda vàlida al compte publicitari.',
+    adSetNoCampaignTitle: 'No hi ha campanyes de trànsit disponibles.',
+    adSetNoCampaignDescription: 'Crea una campanya amb objectiu Trànsit o actualitza les dades des de Meta abans de continuar.',
+    adSetCampaign: 'Campanya de trànsit',
+    adSetName: 'Nom del conjunt d’anuncis',
+    adSetNamePlaceholder: 'Ex. Espanya · 18–45 · Venda anticipada',
+    adSetDailyBudget: 'Pressupost diari',
+    adSetStart: 'Inici · la teva hora local',
+    adSetEnd: 'Fi · la teva hora local',
+    adSetCountries: 'Països de l’audiència',
+    adSetCountriesPlaceholder: 'ES, PT',
+    adSetCountriesHelp: 'Utilitza codis ISO de dues lletres separats per comes. No s’admeten llistes de clients ni PII.',
+    adSetAgeMin: 'Edat mínima',
+    adSetAgeMax: 'Edat màxima',
+    adSetCreate: 'Crear conjunt pausat',
+    adSetCreating: 'Creant a Meta…',
+    adSetGuardrail: 'Meta rebrà PAUSED; TALIA no pot activar lliurament ni despesa.',
+    adSetSuccess: 'El conjunt d’anuncis s’ha creat a Meta en estat PAUSED.',
+    adSetInvalid: 'Revisa campanya, pressupost, dates, països i rang d’edat.',
+    adSetConnectionError: 'La connexió o la campanya ja no estan disponibles per a aquesta creació. Actualitza o torna a connectar Meta.',
+    adSetInProgress: 'Aquesta creació ja està en curs. Espera abans de tornar-ho a provar.',
+    adSetProviderError: 'Meta ha rebutjat el conjunt d’anuncis. Revisa els requisits de pressupost i audiència.',
+    adSetSaveError: 'Meta pot haver rebut el conjunt, però TALIA no l’ha pogut confirmar. No repeteixis la creació i revisa l’incident.',
   },
   en: {
     eyebrow: 'Marketing · Meta Ads',
@@ -507,6 +588,33 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     createInProgress: 'This creation is already in progress. Wait before trying again.',
     createProviderError: 'Meta could not create the campaign. Review the configuration and try again.',
     createSaveError: 'Meta may have received the request, but TALIA could not confirm it. Do not repeat the creation; review the incident.',
+    adSetEyebrow: 'Budget and audience · Traffic',
+    adSetTitle: 'Configure an ad set',
+    adSetDescription: 'Add a daily budget, schedule and basic audience to a traffic campaign. Placements remain automatic.',
+    adSetLockedTitle: 'Configuration is still locked.',
+    adSetLockedDescription: 'You need an active pilot connection, ads_management and a valid ad-account currency.',
+    adSetNoCampaignTitle: 'No traffic campaigns are available.',
+    adSetNoCampaignDescription: 'Create a campaign with the Traffic objective or refresh data from Meta before continuing.',
+    adSetCampaign: 'Traffic campaign',
+    adSetName: 'Ad set name',
+    adSetNamePlaceholder: 'E.g. Spain · 18–45 · Early bird',
+    adSetDailyBudget: 'Daily budget',
+    adSetStart: 'Start · your local time',
+    adSetEnd: 'End · your local time',
+    adSetCountries: 'Audience countries',
+    adSetCountriesPlaceholder: 'ES, PT',
+    adSetCountriesHelp: 'Use comma-separated two-letter ISO codes. Customer lists and PII are not supported.',
+    adSetAgeMin: 'Minimum age',
+    adSetAgeMax: 'Maximum age',
+    adSetCreate: 'Create paused ad set',
+    adSetCreating: 'Creating in Meta…',
+    adSetGuardrail: 'Meta receives PAUSED; TALIA cannot activate delivery or spend.',
+    adSetSuccess: 'The ad set was created in Meta with PAUSED status.',
+    adSetInvalid: 'Review the campaign, budget, dates, countries and age range.',
+    adSetConnectionError: 'The connection or campaign is no longer available for this creation. Refresh or reconnect Meta.',
+    adSetInProgress: 'This creation is already in progress. Wait before trying again.',
+    adSetProviderError: 'Meta rejected the ad set. Review its budget and audience requirements.',
+    adSetSaveError: 'Meta may have received the ad set, but TALIA could not confirm it. Do not repeat the creation; review the incident.',
   },
   pt: {
     eyebrow: 'Marketing · Meta Ads',
@@ -634,6 +742,33 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     createInProgress: 'Esta criação já está em andamento. Aguarde antes de tentar novamente.',
     createProviderError: 'A Meta não conseguiu criar a campanha. Revise a configuração e tente novamente.',
     createSaveError: 'A Meta pode ter recebido a solicitação, mas a TALIA não conseguiu confirmá-la. Não repita a criação; revise o incidente.',
+    adSetEyebrow: 'Orçamento e público · Tráfego',
+    adSetTitle: 'Configurar um conjunto de anúncios',
+    adSetDescription: 'Adicione orçamento diário, calendário e público básico a uma campanha de tráfego. Os posicionamentos serão automáticos.',
+    adSetLockedTitle: 'A configuração ainda está bloqueada.',
+    adSetLockedDescription: 'Você precisa de uma conexão piloto ativa, ads_management e uma moeda válida na conta de anúncios.',
+    adSetNoCampaignTitle: 'Não há campanhas de tráfego disponíveis.',
+    adSetNoCampaignDescription: 'Crie uma campanha com objetivo Tráfego ou atualize os dados da Meta antes de continuar.',
+    adSetCampaign: 'Campanha de tráfego',
+    adSetName: 'Nome do conjunto de anúncios',
+    adSetNamePlaceholder: 'Ex. Espanha · 18–45 · Venda antecipada',
+    adSetDailyBudget: 'Orçamento diário',
+    adSetStart: 'Início · seu horário local',
+    adSetEnd: 'Fim · seu horário local',
+    adSetCountries: 'Países do público',
+    adSetCountriesPlaceholder: 'ES, PT',
+    adSetCountriesHelp: 'Use códigos ISO de duas letras separados por vírgulas. Listas de clientes e PII não são suportadas.',
+    adSetAgeMin: 'Idade mínima',
+    adSetAgeMax: 'Idade máxima',
+    adSetCreate: 'Criar conjunto pausado',
+    adSetCreating: 'Criando na Meta…',
+    adSetGuardrail: 'A Meta receberá PAUSED; a TALIA não pode ativar entrega nem gastos.',
+    adSetSuccess: 'O conjunto de anúncios foi criado na Meta com status PAUSED.',
+    adSetInvalid: 'Revise campanha, orçamento, datas, países e faixa etária.',
+    adSetConnectionError: 'A conexão ou campanha não está mais disponível para esta criação. Atualize ou reconecte a Meta.',
+    adSetInProgress: 'Esta criação já está em andamento. Aguarde antes de tentar novamente.',
+    adSetProviderError: 'A Meta rejeitou o conjunto de anúncios. Revise os requisitos de orçamento e público.',
+    adSetSaveError: 'A Meta pode ter recebido o conjunto, mas a TALIA não conseguiu confirmá-lo. Não repita a criação; revise o incidente.',
   },
 }
 
