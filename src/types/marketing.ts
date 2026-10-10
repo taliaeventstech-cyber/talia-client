@@ -29,6 +29,17 @@ export type MetaMarketingCampaignObjective = z.infer<
   typeof metaMarketingCampaignObjectiveSchema
 >
 
+export const metaMarketingEligibleTrafficCampaignSchema = z.object({
+  campaign_id: z.string().min(1).max(200),
+  name: z.string().min(1).max(500),
+  configured_status: z.string().min(1).max(100),
+  source: z.enum(['snapshot', 'talia']),
+})
+
+export type MetaMarketingEligibleTrafficCampaign = z.infer<
+  typeof metaMarketingEligibleTrafficCampaignSchema
+>
+
 export const metaMarketingConnectionSummarySchema = z.object({
   id: z.uuid(),
   status: z.enum(['connected', 'error', 'revoked', 'disabled']),

@@ -85,7 +85,8 @@ advanced access, App Review and Business Verification in Meta.
    `20261006100000_meta_marketing_campaign_insights.sql`, followed by
    `20261006110000_meta_marketing_daily_insights.sql`,
    `20261007150000_meta_marketing_period_snapshots.sql` and
-   `20261007193000_meta_marketing_paused_campaign_creation.sql`.
+   `20261007193000_meta_marketing_paused_campaign_creation.sql`, then
+   `20261010120000_meta_marketing_paused_traffic_ad_sets.sql`.
 2. Configure the server environment and the matching Meta redirect URI.
 3. Connect with an app-role user from Agora and select one Business Portfolio
    and one ad account.
@@ -105,12 +106,22 @@ account-level daily Insights (`time_increment=1`) plus campaign-level Insights
 for the selected `last_7d`, `last_30d` or `last_90d` preset, then atomically
 replaces only that backend-only period snapshot.
 
-When rollout is enabled, the supervised creation form calls only the selected
-ad account's `/campaigns` edge. The server—not the browser—forces
+When rollout is enabled, the supervised campaign form calls the selected ad
+account's `/campaigns` edge. The server—not the browser—forces
 `status=PAUSED` and `special_ad_categories=[]`. This creates only the top-level
-campaign container: it does not create an ad set, budget, audience, creative or
-ad, and therefore cannot deliver or spend. Never add an `ACTIVE` option to the
-form or accept status from client input.
+campaign container.
+
+The traffic ad-set form then calls `/{act_id}/adsets` for an authorized
+`OUTCOME_TRAFFIC` campaign. TALIA converts the visible daily budget to the
+account currency's minor unit, converts browser-local dates to UTC and derives
+`billing_event=IMPRESSIONS`, `optimization_goal=LINK_CLICKS` and
+`bid_strategy=LOWEST_COST_WITHOUT_CAP` on the server. Targeting is restricted to
+country codes and an age range; omission of manual placement fields leaves Meta
+placements automatic. The request is always `PAUSED` and still cannot deliver
+because this slice creates no ad or creative.
+
+Never add an `ACTIVE` option, accept delivery settings from client input or use
+a fixed `×100` conversion for every currency.
 
 Every submission has a UUID idempotency key recorded before Meta is called.
 Do not manually retry a request whose local state remains `processing`: Meta may
