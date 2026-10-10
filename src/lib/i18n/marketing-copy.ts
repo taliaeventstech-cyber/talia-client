@@ -101,6 +101,29 @@ export type MarketingCopy = {
   readOnlyNotice: string
   staleDataNotice: string
   firstSyncErrorNotice: string
+  createEyebrow: string
+  createTitle: string
+  createDescription: string
+  campaignName: string
+  campaignNamePlaceholder: string
+  campaignObjective: string
+  objectiveTraffic: string
+  objectiveEngagement: string
+  objectiveAwareness: string
+  noSpecialCategoryLabel: string
+  noSpecialCategoryHelp: string
+  createCampaign: string
+  creatingCampaign: string
+  createGuardrail: string
+  createSuccess: string
+  viewAdsManager: string
+  createLockedTitle: string
+  createLockedDescription: string
+  createInvalid: string
+  createConnectionError: string
+  createInProgress: string
+  createProviderError: string
+  createSaveError: string
 }
 
 const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
@@ -207,6 +230,29 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     readOnlyNotice: 'Vista de solo lectura. Actualizar datos no crea ni modifica campañas en Meta.',
     staleDataNotice: 'La última actualización falló. Se muestran los datos anteriores mientras vuelves a intentarlo.',
     firstSyncErrorNotice: 'La primera actualización no se completó. Vuelve a intentarlo; la conexión permanece intacta.',
+    createEyebrow: 'Creación supervisada',
+    createTitle: 'Preparar una campaña en Meta',
+    createDescription: 'Crea el contenedor inicial de la campaña. Los conjuntos de anuncios, presupuesto, audiencia y creatividad se añadirán en los siguientes pasos del MVP.',
+    campaignName: 'Nombre de la campaña',
+    campaignNamePlaceholder: 'Ej. Venta anticipada · Primavera 2027',
+    campaignObjective: 'Objetivo',
+    objectiveTraffic: 'Tráfico',
+    objectiveEngagement: 'Interacción',
+    objectiveAwareness: 'Reconocimiento',
+    noSpecialCategoryLabel: 'Confirmo que esta campaña no pertenece a una categoría especial de anuncios.',
+    noSpecialCategoryHelp: 'No uses este flujo para vivienda, empleo, crédito, temas sociales, elecciones o política.',
+    createCampaign: 'Crear campaña pausada',
+    creatingCampaign: 'Creando en Meta…',
+    createGuardrail: 'Se creará siempre en PAUSED y no podrá generar gasto.',
+    createSuccess: 'La campaña se ha creado en Meta en estado PAUSED.',
+    viewAdsManager: 'Abrir Ads Manager',
+    createLockedTitle: 'Creación todavía bloqueada.',
+    createLockedDescription: 'La conexión debe estar activa, incluir ads_management y tener habilitado el rollout del piloto.',
+    createInvalid: 'Revisa el nombre, objetivo y la confirmación de categoría especial.',
+    createConnectionError: 'La conexión no está autorizada para crear campañas. Revisa el rollout o vuelve a conectarla.',
+    createInProgress: 'Esta creación ya está en curso. Espera antes de volver a intentarlo.',
+    createProviderError: 'Meta no ha podido crear la campaña. Revisa la configuración e inténtalo de nuevo.',
+    createSaveError: 'Meta pudo recibir la solicitud, pero TALIA no pudo confirmarla. No repitas la creación y revisa el incidente.',
   },
   ca: {
     eyebrow: 'Màrqueting · Meta Ads',
@@ -311,6 +357,29 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     readOnlyNotice: 'Vista només de lectura. Actualitzar dades no crea ni modifica campanyes a Meta.',
     staleDataNotice: 'L’última actualització ha fallat. Es mostren les dades anteriors mentre ho tornes a provar.',
     firstSyncErrorNotice: 'La primera actualització no s’ha completat. Torna-ho a provar; la connexió continua intacta.',
+    createEyebrow: 'Creació supervisada',
+    createTitle: 'Preparar una campanya a Meta',
+    createDescription: 'Crea el contenidor inicial de la campanya. Els conjunts d’anuncis, pressupost, audiència i creativitat s’afegiran als passos següents de l’MVP.',
+    campaignName: 'Nom de la campanya',
+    campaignNamePlaceholder: 'Ex. Venda anticipada · Primavera 2027',
+    campaignObjective: 'Objectiu',
+    objectiveTraffic: 'Trànsit',
+    objectiveEngagement: 'Interacció',
+    objectiveAwareness: 'Reconeixement',
+    noSpecialCategoryLabel: 'Confirmo que aquesta campanya no pertany a una categoria especial d’anuncis.',
+    noSpecialCategoryHelp: 'No facis servir aquest flux per habitatge, ocupació, crèdit, temes socials, eleccions o política.',
+    createCampaign: 'Crear campanya pausada',
+    creatingCampaign: 'Creant a Meta…',
+    createGuardrail: 'Sempre es crearà en PAUSED i no podrà generar despesa.',
+    createSuccess: 'La campanya s’ha creat a Meta en estat PAUSED.',
+    viewAdsManager: 'Obrir Ads Manager',
+    createLockedTitle: 'Creació encara bloquejada.',
+    createLockedDescription: 'La connexió ha d’estar activa, incloure ads_management i tenir habilitat el rollout del pilot.',
+    createInvalid: 'Revisa el nom, l’objectiu i la confirmació de categoria especial.',
+    createConnectionError: 'La connexió no està autoritzada per crear campanyes. Revisa el rollout o torna-la a connectar.',
+    createInProgress: 'Aquesta creació ja està en curs. Espera abans de tornar-ho a provar.',
+    createProviderError: 'Meta no ha pogut crear la campanya. Revisa la configuració i torna-ho a provar.',
+    createSaveError: 'Meta pot haver rebut la sol·licitud, però TALIA no l’ha pogut confirmar. No repeteixis la creació i revisa l’incident.',
   },
   en: {
     eyebrow: 'Marketing · Meta Ads',
@@ -415,6 +484,29 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     readOnlyNotice: 'Read-only view. Refreshing data does not create or modify campaigns in Meta.',
     staleDataNotice: 'The latest refresh failed. Previous data remains visible while you try again.',
     firstSyncErrorNotice: 'The first refresh did not complete. Try again; the connection remains intact.',
+    createEyebrow: 'Supervised creation',
+    createTitle: 'Prepare a campaign in Meta',
+    createDescription: 'Create the initial campaign container. Ad sets, budget, audience and creative will be added in the next MVP steps.',
+    campaignName: 'Campaign name',
+    campaignNamePlaceholder: 'E.g. Early bird · Spring 2027',
+    campaignObjective: 'Objective',
+    objectiveTraffic: 'Traffic',
+    objectiveEngagement: 'Engagement',
+    objectiveAwareness: 'Awareness',
+    noSpecialCategoryLabel: 'I confirm this campaign does not belong to a special ad category.',
+    noSpecialCategoryHelp: 'Do not use this flow for housing, employment, credit, social issues, elections or politics.',
+    createCampaign: 'Create paused campaign',
+    creatingCampaign: 'Creating in Meta…',
+    createGuardrail: 'It will always be created as PAUSED and cannot spend.',
+    createSuccess: 'The campaign was created in Meta with PAUSED status.',
+    viewAdsManager: 'Open Ads Manager',
+    createLockedTitle: 'Creation is still locked.',
+    createLockedDescription: 'The connection must be active, include ads_management and have pilot rollout enabled.',
+    createInvalid: 'Review the name, objective and special-category confirmation.',
+    createConnectionError: 'The connection is not authorized to create campaigns. Check rollout or reconnect it.',
+    createInProgress: 'This creation is already in progress. Wait before trying again.',
+    createProviderError: 'Meta could not create the campaign. Review the configuration and try again.',
+    createSaveError: 'Meta may have received the request, but TALIA could not confirm it. Do not repeat the creation; review the incident.',
   },
   pt: {
     eyebrow: 'Marketing · Meta Ads',
@@ -519,6 +611,29 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     readOnlyNotice: 'Visualização somente leitura. Atualizar dados não cria nem modifica campanhas na Meta.',
     staleDataNotice: 'A atualização mais recente falhou. Os dados anteriores continuam visíveis enquanto você tenta novamente.',
     firstSyncErrorNotice: 'A primeira atualização não foi concluída. Tente novamente; a conexão continua intacta.',
+    createEyebrow: 'Criação supervisionada',
+    createTitle: 'Preparar uma campanha na Meta',
+    createDescription: 'Crie o contêiner inicial da campanha. Conjuntos de anúncios, orçamento, público e criativo serão adicionados nas próximas etapas do MVP.',
+    campaignName: 'Nome da campanha',
+    campaignNamePlaceholder: 'Ex. Venda antecipada · Primavera 2027',
+    campaignObjective: 'Objetivo',
+    objectiveTraffic: 'Tráfego',
+    objectiveEngagement: 'Engajamento',
+    objectiveAwareness: 'Reconhecimento',
+    noSpecialCategoryLabel: 'Confirmo que esta campanha não pertence a uma categoria especial de anúncios.',
+    noSpecialCategoryHelp: 'Não use este fluxo para moradia, emprego, crédito, temas sociais, eleições ou política.',
+    createCampaign: 'Criar campanha pausada',
+    creatingCampaign: 'Criando na Meta…',
+    createGuardrail: 'Ela sempre será criada como PAUSED e não poderá gerar gastos.',
+    createSuccess: 'A campanha foi criada na Meta com status PAUSED.',
+    viewAdsManager: 'Abrir o Ads Manager',
+    createLockedTitle: 'A criação ainda está bloqueada.',
+    createLockedDescription: 'A conexão deve estar ativa, incluir ads_management e ter o rollout do piloto habilitado.',
+    createInvalid: 'Revise o nome, o objetivo e a confirmação de categoria especial.',
+    createConnectionError: 'A conexão não está autorizada a criar campanhas. Revise o rollout ou reconecte-a.',
+    createInProgress: 'Esta criação já está em andamento. Aguarde antes de tentar novamente.',
+    createProviderError: 'A Meta não conseguiu criar a campanha. Revise a configuração e tente novamente.',
+    createSaveError: 'A Meta pode ter recebido a solicitação, mas a TALIA não conseguiu confirmá-la. Não repita a criação; revise o incidente.',
   },
 }
 

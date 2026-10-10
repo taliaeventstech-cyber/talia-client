@@ -34,19 +34,24 @@ Implemented:
 - daily account-level time series using `time_increment=1`;
 - campaign status and aggregate performance for the same period;
 - a compact daily chart for spend, link clicks and CTR;
-- plain-language interpretation and explicit empty/error states.
+- plain-language interpretation and explicit empty/error states;
+- supervised creation of a top-level campaign container for traffic,
+  engagement or awareness, always in `PAUSED`.
 
 Not implemented:
 
 - scheduled synchronization;
 - custom date ranges;
-- campaign, ad-set, creative or ad creation;
+- ad-set, creative or ad creation;
+- campaign budget, schedule, audience, destination or special-ad-category flows;
 - conversion attribution, purchases, revenue or ROAS;
 - automated recommendations or automatic budget changes;
 - cross-venue or account-level aggregation.
 
-Hard guardrail: any future object created through TALIA must start in `PAUSED`.
-The current code does not call Meta write endpoints and cannot activate spend.
+Hard guardrail: every object created through TALIA starts in `PAUSED`. The only
+current write calls `/{act_id}/campaigns` and creates an incomplete campaign
+container. No current path creates an ad set or ad, publishes an object, changes
+status to `ACTIVE` or activates spend.
 
 ## Access and tenancy
 
@@ -74,6 +79,14 @@ Agora operator
   -> validation and atomic snapshot replacement
   -> server-rendered dashboard
   -> isolated client chart
+
+Supervised creation
+  -> operator enters name + supported objective
+  -> explicit declaration that no special ad category applies
+  -> authorized, rollout-gated idempotency claim
+  -> server-side Meta campaign POST forced to PAUSED
+  -> durable completion + audit event
+  -> operator reviews the object in Ads Manager
 ```
 
 OAuth state is short-lived and signed. The asset-selection session is encrypted.
@@ -146,11 +159,23 @@ Both snapshot tables have RLS enabled and no direct grants for `anon` or
 authorization. Successful refreshes emit `marketing.meta_snapshot_synced` audit
 events without credentials or campaign contents.
 
+Campaign creation uses the backend-only
+`meta_marketing_campaign_creation_requests` table. A client-generated UUID is
+claimed before the provider call. Replaying a completed UUID returns the saved
+provider campaign ID without another Meta request; a processing UUID is never
+replayed. Provider failures retain only a bounded error code. If Meta accepts a
+campaign but local completion fails, the request deliberately remains
+`processing` so an automatic retry cannot duplicate the provider object.
+Successful and failed attempts emit `marketing.meta_campaign_created` and
+`marketing.meta_campaign_create_failed` audit events without tokens or raw
+provider responses.
+
 Migrations, in deployment order:
 
 - `supabase/migrations/20261006100000_meta_marketing_campaign_insights.sql`
 - `supabase/migrations/20261006110000_meta_marketing_daily_insights.sql`
 - `supabase/migrations/20261007150000_meta_marketing_period_snapshots.sql`
+- `supabase/migrations/20261007193000_meta_marketing_paused_campaign_creation.sql`
 
 Migration files are append-only after they reach any shared environment. Do not
 extend an already-recorded timestamp with new tables or RPC signatures: create
@@ -174,6 +199,8 @@ Main source map:
 | Interactive daily chart | `src/app/(dashboard)/[tenantId]/marketing/marketing-trend-chart.tsx` |
 | Campaign comparison, status filter and exact table | `src/app/(dashboard)/[tenantId]/marketing/marketing-campaign-comparison.tsx` |
 | Manual refresh action | `src/app/(dashboard)/[tenantId]/marketing/sync-actions.ts` |
+| Supervised campaign form/action | `src/app/(dashboard)/[tenantId]/marketing/marketing-campaign-create-form.tsx` and `campaign-create-actions.ts` |
+| Campaign write orchestration and Meta POST | `src/lib/marketing/campaign-creation-service.ts` |
 | Meta provider reads and validation | `src/lib/marketing/insights-service.ts` |
 | Sync orchestration and error classification | `src/lib/marketing/sync-service.ts` |
 | Authorized persistence RPC adapter | `src/lib/marketing/connection-service.ts` |
@@ -228,6 +255,10 @@ The product must distinguish these states explicitly:
   label it as stale.
 - **Refresh failure without prior data:** show a retryable first-sync error.
 - **Expired/revoked Meta authorization:** direct the operator to reconnect.
+- **Creation locked:** retain read-only reporting and explain that connected
+  status, `ads_management` and venue rollout are all required.
+- **Campaign created:** confirm `PAUSED` and link to the selected account in Ads
+  Manager; do not imply that an ad, audience or budget already exists.
 
 Never treat an empty Meta account as a broken connection.
 
@@ -254,6 +285,8 @@ The focused test suite is:
 npx vitest run \
   src/lib/marketing/connection-foundation-migration.test.ts \
   src/lib/marketing/campaign-insights-migration.test.ts \
+  src/lib/marketing/campaign-creation-migration.test.ts \
+  src/lib/marketing/campaign-creation-service.test.ts \
   src/lib/marketing/connection-service.test.ts \
   src/lib/marketing/demo-data.test.ts \
   src/lib/marketing/insights-service.test.ts \
@@ -298,8 +331,9 @@ When extending Marketing:
 
 ## Next likely slices
 
-1. A scheduler with freshness policy, rate-limit handling and retry controls.
-2. Supervised creation of campaign, ad set and ad objects in `PAUSED`.
+1. Supervised creation of ad set, creative and ad objects in `PAUSED`, including
+   budget, dates, audience and destination validation.
+2. A scheduler with freshness policy, rate-limit handling and retry controls.
 3. App Review, advanced access and Business Verification for customer pilots.
 
 Each slice should remain independently deployable and retain the read-only

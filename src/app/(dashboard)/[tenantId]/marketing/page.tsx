@@ -1,4 +1,5 @@
 import { LocalDateTime } from '@/components/local-date-time'
+import { randomUUID } from 'node:crypto'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getMarketingCopy, type MarketingCopy } from '@/lib/i18n/marketing-copy'
 import { getIntlLocale } from '@/lib/i18n/config'
@@ -7,6 +8,7 @@ import {
   getMetaMarketingConnectionSummary,
   getMetaMarketingDashboardSnapshot,
 } from '@/lib/marketing/connection-service'
+import { getMetaAdsManagerCampaignsUrl } from '@/lib/marketing/campaign-creation-service'
 import { getMarketingDemoData } from '@/lib/marketing/demo-data'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type {
@@ -18,6 +20,7 @@ import type {
 } from '@/types/marketing'
 import { parseMetaMarketingPeriod } from '@/types/marketing'
 import { MarketingCampaignComparison } from './marketing-campaign-comparison'
+import { MarketingCampaignCreateForm } from './marketing-campaign-create-form'
 import {
   getMarketingPeriodLabel,
   MarketingPeriodSelector,
@@ -101,6 +104,18 @@ export default async function MarketingPage({ params, searchParams }: Props) {
         presentation={presentation}
         tenantId={tenantId}
       />
+
+      {connection ? (
+        <MarketingCampaignCreateForm
+          adsManagerUrl={getSafeAdsManagerUrl(connection.ad_account_id)}
+          canCreate={connection.status === 'connected'
+            && connection.rollout_enabled
+            && connection.scopes.includes('ads_management')}
+          copy={copy}
+          initialRequestId={randomUUID()}
+          tenantId={tenantId}
+        />
+      ) : null}
 
       {!connection ? (
         <section className="card stack marketing-requirements-card">
@@ -426,4 +441,12 @@ function fillTemplate(template: string, values: Record<string, string>) {
     (result, [key, value]) => result.replaceAll(`{${key}}`, value),
     template,
   )
+}
+
+function getSafeAdsManagerUrl(adAccountId: string) {
+  try {
+    return getMetaAdsManagerCampaignsUrl(adAccountId)
+  } catch {
+    return 'https://business.facebook.com/adsmanager/manage/campaigns'
+  }
 }

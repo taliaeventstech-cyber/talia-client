@@ -5713,6 +5713,72 @@ textarea {
   color: var(--color-error);
 }
 
+.marketing-create-card {
+  gap: 20px;
+}
+
+.marketing-create-heading {
+  align-items: flex-start;
+}
+
+.marketing-create-heading h2 {
+  margin-top: 4px;
+}
+
+.marketing-create-heading .muted {
+  max-width: 760px;
+  margin: 6px 0 0;
+}
+
+.marketing-create-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.6fr);
+  gap: 18px;
+}
+
+.marketing-create-confirmation,
+.marketing-create-actions {
+  grid-column: 1 / -1;
+}
+
+.marketing-create-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-2);
+  padding: 14px;
+  cursor: pointer;
+}
+
+.marketing-create-confirmation input {
+  margin-top: 3px;
+}
+
+.marketing-create-confirmation span {
+  display: grid;
+  gap: 4px;
+}
+
+.marketing-create-confirmation small,
+.marketing-create-actions .muted {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.marketing-create-actions,
+.marketing-create-result {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.marketing-create-result {
+  justify-content: space-between;
+}
+
 .marketing-metrics-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -6146,6 +6212,15 @@ textarea {
 
   .marketing-sync-control {
     justify-content: flex-start;
+  }
+
+  .marketing-create-form {
+    grid-template-columns: 1fr;
+  }
+
+  .marketing-create-confirmation,
+  .marketing-create-actions {
+    grid-column: auto;
   }
 
   .marketing-metrics-grid,
