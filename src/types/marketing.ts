@@ -40,6 +40,35 @@ export type MetaMarketingEligibleTrafficCampaign = z.infer<
   typeof metaMarketingEligibleTrafficCampaignSchema
 >
 
+export const metaMarketingEligibleTrafficAdSetSchema = z.object({
+  ad_set_id: z.string().regex(/^\d{1,30}$/),
+  campaign_id: z.string().regex(/^\d{1,30}$/),
+  name: z.string().min(1).max(200),
+  status: z.literal('PAUSED'),
+})
+
+export type MetaMarketingEligibleTrafficAdSet = z.infer<
+  typeof metaMarketingEligibleTrafficAdSetSchema
+>
+
+export const metaMarketingPromotablePageSchema = z.object({
+  id: z.string().regex(/^\d{1,30}$/),
+  name: z.string().min(1).max(500),
+})
+
+export type MetaMarketingPromotablePage = z.infer<
+  typeof metaMarketingPromotablePageSchema
+>
+
+export const metaMarketingAdCallToActionSchema = z.enum([
+  'LEARN_MORE',
+  'BUY_TICKETS',
+])
+
+export type MetaMarketingAdCallToAction = z.infer<
+  typeof metaMarketingAdCallToActionSchema
+>
+
 export const metaMarketingConnectionSummarySchema = z.object({
   id: z.uuid(),
   status: z.enum(['connected', 'error', 'revoked', 'disabled']),
