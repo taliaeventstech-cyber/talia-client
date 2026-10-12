@@ -5660,6 +5660,41 @@ textarea {
   font-size: 13px;
 }
 
+.marketing-insights-actions {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.marketing-period-selector {
+  display: inline-flex;
+  gap: 3px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  padding: 3px;
+}
+
+.marketing-period-selector a {
+  border-radius: 7px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  padding: 8px 11px;
+  text-decoration: none;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.marketing-period-selector a:hover {
+  color: var(--color-text-primary);
+}
+
+.marketing-period-selector a.is-active {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent);
+}
+
 .marketing-sync-control {
   display: flex;
   align-items: center;
@@ -5676,6 +5711,87 @@ textarea {
 
 .marketing-sync-feedback-error {
   color: var(--color-error);
+}
+
+.marketing-create-card {
+  gap: 20px;
+}
+
+.marketing-create-heading {
+  align-items: flex-start;
+}
+
+.marketing-create-heading h2 {
+  margin-top: 4px;
+}
+
+.marketing-create-heading .muted {
+  max-width: 760px;
+  margin: 6px 0 0;
+}
+
+.marketing-create-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.6fr);
+  gap: 18px;
+}
+
+.marketing-ad-set-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.marketing-ad-set-wide {
+  grid-column: 1 / -1;
+}
+
+.marketing-ad-set-form .field small {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.marketing-create-confirmation,
+.marketing-create-actions {
+  grid-column: 1 / -1;
+}
+
+.marketing-create-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 0.5px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-2);
+  padding: 14px;
+  cursor: pointer;
+}
+
+.marketing-create-confirmation input {
+  margin-top: 3px;
+}
+
+.marketing-create-confirmation span {
+  display: grid;
+  gap: 4px;
+}
+
+.marketing-create-confirmation small,
+.marketing-create-actions .muted {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.marketing-create-actions,
+.marketing-create-result {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.marketing-create-result {
+  justify-content: space-between;
 }
 
 .marketing-metrics-grid {
@@ -5781,6 +5897,61 @@ textarea {
   height: 300px;
 }
 
+.marketing-trend-empty {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  min-height: 220px;
+  border: 0.5px dashed var(--color-border-strong);
+  border-radius: 10px;
+  padding: 24px;
+  background: var(--color-surface-2);
+}
+
+.marketing-trend-empty strong {
+  color: var(--color-text-primary);
+}
+
+.marketing-trend-empty p {
+  max-width: 620px;
+  margin: 6px 0 0;
+}
+
+.marketing-trend-empty-visual {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  width: 72px;
+  height: 58px;
+  border-bottom: 1px solid var(--color-border-strong);
+  padding: 8px 10px;
+  color: var(--color-brand);
+}
+
+.marketing-trend-empty-visual span {
+  flex: 1 1 0;
+  border-radius: 3px 3px 0 0;
+  background: currentColor;
+  opacity: 0.24;
+}
+
+.marketing-trend-empty-visual span:nth-child(1) {
+  height: 32%;
+}
+
+.marketing-trend-empty-visual span:nth-child(2) {
+  height: 54%;
+}
+
+.marketing-trend-empty-visual span:nth-child(3) {
+  height: 42%;
+}
+
+.marketing-trend-empty-visual span:nth-child(4) {
+  height: 68%;
+}
+
 .marketing-reading-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -5832,6 +6003,84 @@ textarea {
   color: var(--color-ia);
   font-family: var(--font-display), Syne, sans-serif;
   font-size: 24px;
+}
+
+.marketing-campaign-comparison-card h2,
+.marketing-campaign-comparison-card h3,
+.marketing-campaign-comparison-card p {
+  margin: 0;
+}
+
+.marketing-campaign-comparison-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.marketing-campaign-comparison-header p {
+  margin-top: 5px;
+}
+
+.marketing-campaign-status-filter {
+  display: grid;
+  flex: 0 0 220px;
+  gap: 6px;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.marketing-campaign-status-filter select {
+  min-height: 38px;
+  padding-block: 7px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.marketing-campaign-comparison-metrics {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.marketing-campaign-comparison-metrics > span {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.marketing-campaign-comparison-chart {
+  width: 100%;
+  min-height: 250px;
+}
+
+.marketing-campaign-comparison-empty {
+  border: 0.5px dashed var(--color-border-strong);
+  border-radius: 10px;
+  padding: 28px;
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.marketing-campaign-comparison-limit {
+  font-size: 12px;
+}
+
+.marketing-campaigns-table-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 4px;
 }
 
 .marketing-campaigns-table-wrap {
@@ -5928,6 +6177,17 @@ textarea {
     flex-direction: column;
   }
 
+  .marketing-insights-actions,
+  .marketing-period-selector {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .marketing-period-selector a {
+    flex: 1 1 0;
+    text-align: center;
+  }
+
   .marketing-trend-header {
     flex-direction: column;
   }
@@ -5944,8 +6204,43 @@ textarea {
     height: 250px;
   }
 
+  .marketing-trend-empty {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .marketing-campaign-comparison-header,
+  .marketing-campaign-comparison-metrics {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .marketing-campaign-status-filter {
+    flex-basis: auto;
+    width: 100%;
+  }
+
+  .marketing-campaign-comparison-chart {
+    margin-left: -8px;
+    width: calc(100% + 8px);
+  }
+
   .marketing-sync-control {
     justify-content: flex-start;
+  }
+
+  .marketing-create-form {
+    grid-template-columns: 1fr;
+  }
+
+  .marketing-ad-set-form {
+    grid-template-columns: 1fr;
+  }
+
+  .marketing-create-confirmation,
+  .marketing-create-actions,
+  .marketing-ad-set-wide {
+    grid-column: auto;
   }
 
   .marketing-metrics-grid,

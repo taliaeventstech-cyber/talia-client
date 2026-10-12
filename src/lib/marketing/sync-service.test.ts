@@ -42,7 +42,7 @@ describe('syncMetaMarketingSnapshot', () => {
 
     await expect(syncMetaMarketingSnapshot(
       { rpc } as never,
-      { tenantId, actorUserId },
+      { tenantId, actorUserId, period: 'last_7d' },
       { fetcher: fetcher as typeof fetch, now: Date.parse('2026-10-06T10:00:00.000Z') },
     )).resolves.toMatchObject({ campaigns: [], daily_insights: [], summary: { spend: 0 } })
 
@@ -50,6 +50,7 @@ describe('syncMetaMarketingSnapshot', () => {
       expect.objectContaining({
         p_theatre_id: tenantId,
         p_connection_id: connectionId,
+        p_period: 'last_7d',
         p_campaigns: [],
         p_daily_insights: [],
       }))
@@ -88,6 +89,7 @@ describe('syncMetaMarketingSnapshot', () => {
     expect(fetcher).not.toHaveBeenCalled()
     expect(rpc).toHaveBeenCalledWith('record_meta_marketing_sync_failure', expect.objectContaining({
       p_error_code: 'meta_marketing_sync_token_expired',
+      p_period: 'last_30d',
     }))
   })
 })

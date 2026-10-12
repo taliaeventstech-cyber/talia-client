@@ -1,0 +1,140 @@
+import type {
+  MetaMarketingConnectionSummary,
+  MetaMarketingDashboardSnapshot,
+  MetaMarketingDailyInsight,
+} from '@/types/marketing'
+
+const dailyInsights: MetaMarketingDailyInsight[] = [
+  ['2026-09-24', 42.5, 18, 1.31],
+  ['2026-09-25', 55.1, 21, 1.42],
+  ['2026-09-26', 68.4, 29, 1.67],
+  ['2026-09-27', 74.2, 31, 1.71],
+  ['2026-09-28', 91.8, 36, 1.76],
+  ['2026-09-29', 105.3, 44, 1.91],
+  ['2026-09-30', 88.6, 39, 1.82],
+  ['2026-10-01', 112.4, 48, 1.96],
+  ['2026-10-02', 98.7, 41, 1.77],
+  ['2026-10-03', 125.5, 55, 2.03],
+  ['2026-10-04', 116.2, 51, 1.89],
+  ['2026-10-05', 132.8, 62, 2.16],
+  ['2026-10-06', 104.4, 49, 1.83],
+  ['2026-10-07', 109.3, 53, 1.94],
+].map(([date, spend, linkClicks, ctr], index) => {
+  const impressions = 10_400 + index * 650
+  const reach = Math.round(impressions / 1.58)
+  return {
+    date: String(date),
+    spend: Number(spend),
+    impressions,
+    reach,
+    link_clicks: Number(linkClicks),
+    ctr: Number(ctr),
+    cpc: Number((Number(spend) / Number(linkClicks)).toFixed(2)),
+    frequency: 1.58,
+  }
+})
+
+const connection: MetaMarketingConnectionSummary = {
+  id: '11111111-1111-4111-8111-111111111111',
+  status: 'connected',
+  business_id: 'demo-business',
+  business_name: 'Espacio Cultural Demo',
+  ad_account_id: 'act_demo',
+  ad_account_name: 'Programación cultural 2026',
+  ad_account_currency: 'EUR',
+  rollout_enabled: false,
+  scopes: ['ads_read', 'ads_management', 'business_management'],
+  connected_at: '2026-09-01T09:00:00.000Z',
+  token_expires_at: '2026-12-01T09:00:00.000Z',
+  updated_at: '2026-10-07T09:15:00.000Z',
+}
+
+const snapshot: MetaMarketingDashboardSnapshot = {
+  period: 'last_30d',
+  status: 'success',
+  last_attempted_at: '2026-10-07T09:15:00.000Z',
+  last_synced_at: '2026-10-07T09:15:00.000Z',
+  error_code: null,
+  summary: {
+    spend: 1325.2,
+    impressions: 205_000,
+    reach: 128_000,
+    link_clicks: 577,
+    ctr: 1.84,
+    cpc: 2.3,
+    frequency: 1.6,
+    date_start: '2026-09-08',
+    date_stop: '2026-10-07',
+  },
+  campaigns: [
+    {
+      campaign_id: 'demo-season',
+      name: 'Abonos de temporada',
+      configured_status: 'ACTIVE',
+      effective_status: 'ACTIVE',
+      objective: 'OUTCOME_TRAFFIC',
+      campaign_created_at: '2026-09-01T08:00:00.000Z',
+      campaign_updated_at: '2026-10-06T11:30:00.000Z',
+      starts_at: '2026-09-08T00:00:00.000Z',
+      ends_at: null,
+      spend: 612.4,
+      impressions: 88_000,
+      reach: 61_000,
+      link_clicks: 282,
+      ctr: 2.12,
+      cpc: 2.17,
+      frequency: 1.44,
+      insights_date_start: '2026-09-08',
+      insights_date_stop: '2026-10-07',
+    },
+    {
+      campaign_id: 'demo-family',
+      name: 'Programación familiar',
+      configured_status: 'ACTIVE',
+      effective_status: 'ACTIVE',
+      objective: 'OUTCOME_ENGAGEMENT',
+      campaign_created_at: '2026-09-05T10:00:00.000Z',
+      campaign_updated_at: '2026-10-05T14:10:00.000Z',
+      starts_at: '2026-09-10T00:00:00.000Z',
+      ends_at: null,
+      spend: 438.8,
+      impressions: 71_000,
+      reach: 49_000,
+      link_clicks: 193,
+      ctr: 1.73,
+      cpc: 2.27,
+      frequency: 1.45,
+      insights_date_start: '2026-09-08',
+      insights_date_stop: '2026-10-07',
+    },
+    {
+      campaign_id: 'demo-opening',
+      name: 'Estreno de otoño',
+      configured_status: 'PAUSED',
+      effective_status: 'PAUSED',
+      objective: 'OUTCOME_AWARENESS',
+      campaign_created_at: '2026-09-12T09:00:00.000Z',
+      campaign_updated_at: '2026-10-01T16:20:00.000Z',
+      starts_at: '2026-09-15T00:00:00.000Z',
+      ends_at: '2026-10-01T23:59:59.000Z',
+      spend: 274,
+      impressions: 46_000,
+      reach: 33_000,
+      link_clicks: 102,
+      ctr: 1.39,
+      cpc: 2.69,
+      frequency: 1.39,
+      insights_date_start: '2026-09-08',
+      insights_date_stop: '2026-10-07',
+    },
+  ],
+  daily_insights: dailyInsights,
+}
+
+export function getMarketingDemoData(
+  requested: string | undefined,
+  environment: string | undefined = process.env.NODE_ENV,
+) {
+  if (environment === 'production' || requested !== '1') return null
+  return { connection, snapshot }
+}

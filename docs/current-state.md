@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: October 6, 2026
+Last updated: October 11, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -21,8 +21,9 @@ Current state:
   venue-scoped connection metadata, encrypted backend-only credentials and an
   Agora pilot surface. A supervised OAuth flow now lets an authorized operator
   choose a Business Portfolio and ad account. Manual read-only synchronization
-  now stores a last-30-day campaign and Insights snapshot; campaign creation is
-  not yet implemented, and the rollout remains disabled by default.
+  stores independent 7-, 30- and 90-day campaign and Insights snapshots. Gated
+  write flows create paused campaign containers and paused traffic ad sets;
+  rollout remains disabled by default.
 - Client dashboard: **Agora**, per venue.
 - Internal panel: **Backstage**.
 - Current commercial model: 7-day free trial, upgrade to paid plans and add-ons.
@@ -229,26 +230,49 @@ Implemented:
 - Supervised Meta OAuth flow with signed state, short-lived encrypted selection
   session and server-verified Business Portfolio/ad-account selection.
 - Manual read-only synchronization of account totals and per-campaign Insights
-  for the last 30 days. Agora separates what happened, what is working and what
-  needs review, and handles both a first sync and an account without campaigns.
+  for selectable 7-, 30- and 90-day periods. Agora separates what happened,
+  what is working and what needs review, and handles both a first sync and an
+  account without campaigns.
 - Account-level daily Insights use Meta's `time_increment=1` and feed a compact
   Recharts view where operators can inspect spend, link clicks or CTR without
-  mixing incompatible units on a dual axis.
+  mixing incompatible units on a dual axis. Accounts without delivery retain a
+  visible, explicit chart empty state instead of making the visualization
+  disappear.
+- Campaign comparison ranks the selected period by link clicks, spend or CTR,
+  filters it by delivery status and keeps exact values in the campaign table.
+  The global period selector always changes KPI cards, daily evolution and
+  campaign Insights together; it never slices only one visualization.
 - Backend-only, venue-scoped campaign snapshots. Account-level reach and
   frequency and the daily account series remain separate from campaign rows to
   avoid invalid aggregation.
+- Supervised creation of the top-level Meta campaign object for three supported
+  objectives. The server always sends `status=PAUSED` and
+  `special_ad_categories=[]`; creation is idempotent, audited and unavailable
+  until the venue connection has `rollout_enabled=true` and `ads_management`.
+- Supervised traffic ad-set creation for an eligible campaign, with exact
+  account-currency budget conversion, UTC schedule, country/age targeting,
+  automatic placements and server-owned delivery settings. Requests are
+  idempotent and always reach Meta as `PAUSED`.
+- Supervised static traffic-ad creation for an ad set previously created by
+  TALIA. The operator selects a Page promotable by the connected ad account and
+  supplies bounded copy, destination and public HTTPS image URLs. TALIA creates
+  the Page-backed creative and final ad idempotently; the ad is always sent as
+  `PAUSED`.
 - Marketing credentials and lifecycle are separate from Instagram direct
   messages and WhatsApp.
 
 Pending:
 
-- Creation of campaign, ad set and ad objects, always starting in `PAUSED`.
+- Creation of engagement/awareness ad sets once their promoted-object contract
+  is defined, plus binary media upload, video and multi-asset creatives.
 - Meta App Review, advanced access and Business Verification before a customer
   pilot.
 
 Current guardrail:
 
-- TALIA cannot activate advertising spend from this foundation.
+- TALIA cannot activate advertising spend. Current writes can assemble a
+  complete static traffic campaign, but campaign, ad set and final ad all remain
+  `PAUSED`; no path changes provider status to `ACTIVE`.
 
 Reference:
 

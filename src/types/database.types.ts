@@ -2012,6 +2012,78 @@ export type Database = {
       }
     }
     Functions: {
+      claim_meta_marketing_ad_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_call_to_action: string
+          p_destination_url: string
+          p_headline: string
+          p_image_url: string
+          p_name: string
+          p_page_id: string
+          p_primary_text: string
+          p_provider_ad_set_id: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      claim_meta_marketing_ad_set_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_age_max: number
+          p_age_min: number
+          p_countries: string[]
+          p_daily_budget_minor: number
+          p_end_time: string
+          p_expected_currency: string
+          p_name: string
+          p_provider_campaign_id: string
+          p_request_id: string
+          p_start_time: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      claim_meta_marketing_campaign_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_name: string
+          p_no_special_ad_category_confirmed: boolean
+          p_objective: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      complete_meta_marketing_ad_set_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_provider_ad_set_id: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
+      }
+      complete_meta_marketing_ad_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_provider_ad_id: string
+          p_provider_creative_id: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
+      }
+      complete_meta_marketing_campaign_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_provider_campaign_id: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
+      }
       apply_chat_message_top_up: {
         Args: {
           p_checkout_session_id: string
@@ -2226,6 +2298,33 @@ export type Database = {
         }
         Returns: Json
       }
+      fail_meta_marketing_campaign_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_error_code: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
+      }
+      fail_meta_marketing_ad_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_error_code: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
+      }
+      fail_meta_marketing_ad_set_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_error_code: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
+      }
       get_instagram_connection_credentials: {
         Args: {
           p_instagram_user_id: string
@@ -2265,11 +2364,26 @@ export type Database = {
       get_meta_marketing_dashboard_snapshot: {
         Args: {
           p_actor_user_id: string
+          p_period: string
           p_theatre_id: string
         }
         Returns: Json
       }
       get_meta_marketing_sync_context: {
+        Args: {
+          p_actor_user_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      list_meta_marketing_eligible_traffic_campaigns: {
+        Args: {
+          p_actor_user_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      list_meta_marketing_eligible_traffic_ad_sets: {
         Args: {
           p_actor_user_id: string
           p_theatre_id: string
@@ -2380,6 +2494,7 @@ export type Database = {
           p_campaigns: Json
           p_connection_id: string
           p_daily_insights: Json
+          p_period: string
           p_summary: Json
           p_theatre_id: string
         }
@@ -2390,6 +2505,7 @@ export type Database = {
           p_actor_user_id: string
           p_connection_id: string
           p_error_code: string
+          p_period: string
           p_theatre_id: string
         }
         Returns: boolean

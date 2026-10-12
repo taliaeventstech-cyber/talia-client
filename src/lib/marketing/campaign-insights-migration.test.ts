@@ -10,6 +10,10 @@ const dailyInsightsMigration = readFileSync(
   join(process.cwd(), 'supabase/migrations/20261006110000_meta_marketing_daily_insights.sql'),
   'utf8',
 )
+const periodSnapshotsMigration = readFileSync(
+  join(process.cwd(), 'supabase/migrations/20261007150000_meta_marketing_period_snapshots.sql'),
+  'utf8',
+)
 
 describe('Meta Marketing campaign Insights migration', () => {
   it('keeps campaign data backend-only and venue scoped', () => {
@@ -60,5 +64,33 @@ describe('Meta Marketing campaign Insights migration', () => {
     expect(dailyInsightsMigration).toContain('delete from public.meta_marketing_campaign_snapshots')
     expect(dailyInsightsMigration).toContain('delete from public.meta_marketing_daily_insights')
     expect(dailyInsightsMigration).toContain("new.metadata := new.metadata - 'marketing_sync'")
+  })
+
+  it('adds bounded snapshots for each supported reporting period', () => {
+    expect(periodSnapshotsMigration).toContain(
+      "check (period in ('last_7d', 'last_30d', 'last_90d'))",
+    )
+    expect(periodSnapshotsMigration).toContain(
+      'unique (connection_id, period, campaign_id)',
+    )
+    expect(periodSnapshotsMigration).toContain(
+      'unique (connection_id, period, insight_date)',
+    )
+    expect(periodSnapshotsMigration).toContain("when 'last_90d' then 90")
+    expect(periodSnapshotsMigration).toContain(
+      "array['marketing_sync_periods', p_period]",
+    )
+  })
+
+  it('migrates the existing snapshot to last_30d without editing deployed migrations', () => {
+    expect(periodSnapshotsMigration).toContain(
+      "jsonb_build_object('last_30d', metadata -> 'marketing_sync')",
+    )
+    expect(periodSnapshotsMigration).toContain(
+      "'period', p_period",
+    )
+    expect(periodSnapshotsMigration).toContain(
+      "new.metadata := new.metadata - 'marketing_sync' - 'marketing_sync_periods'",
+    )
   })
 })

@@ -1,6 +1,6 @@
 # Marketing module
 
-Last updated: October 6, 2026
+Last updated: October 11, 2026
 
 This is the engineering onboarding document for TALIA Marketing. Read it before
 changing the Marketing product surface, Meta integration, data model or
@@ -30,23 +30,34 @@ Implemented:
 - venue-scoped Meta OAuth connection;
 - supervised Business Portfolio and ad-account selection;
 - manual, read-only synchronization;
-- account totals for Meta's `last_30d` period;
+- account totals for Meta's `last_7d`, `last_30d` and `last_90d` periods;
 - daily account-level time series using `time_increment=1`;
 - campaign status and aggregate performance for the same period;
 - a compact daily chart for spend, link clicks and CTR;
-- plain-language interpretation and explicit empty/error states.
+- plain-language interpretation and explicit empty/error states;
+- supervised creation of a top-level campaign container for traffic,
+  engagement or awareness, always in `PAUSED`;
+- supervised traffic ad-set creation with daily budget, UTC schedule and basic
+  country/age targeting, always in `PAUSED`.
+- supervised static image-ad creation using a promotable Facebook Page, bounded
+  copy and public HTTPS destination/image URLs, always in `PAUSED`.
 
 Not implemented:
 
 - scheduled synchronization;
-- date-range selection;
-- campaign, ad-set, creative or ad creation;
+- custom date ranges;
+- engagement/awareness ad sets, binary media upload, video or multi-asset ads;
+- lifetime budgets, manual placements, detailed audience interests, destination
+  or special-ad-category flows;
 - conversion attribution, purchases, revenue or ROAS;
 - automated recommendations or automatic budget changes;
 - cross-venue or account-level aggregation.
 
-Hard guardrail: any future object created through TALIA must start in `PAUSED`.
-The current code does not call Meta write endpoints and cannot activate spend.
+Hard guardrail: every delivery object created through TALIA starts in `PAUSED`.
+Current writes call `/{act_id}/campaigns`, `/{act_id}/adsets`,
+`/{act_id}/adcreatives` and `/{act_id}/ads`; status, billing event, optimization
+goal and bid strategy are server-owned. No current path changes status to
+`ACTIVE` or activates spend.
 
 ## Access and tenancy
 
@@ -74,6 +85,32 @@ Agora operator
   -> validation and atomic snapshot replacement
   -> server-rendered dashboard
   -> isolated client chart
+
+Supervised creation
+  -> operator enters name + supported objective
+  -> explicit declaration that no special ad category applies
+  -> authorized, rollout-gated idempotency claim
+  -> server-side Meta campaign POST forced to PAUSED
+  -> durable completion + audit event
+  -> operator reviews the object in Ads Manager
+
+Traffic ad-set creation
+  -> select an authorized OUTCOME_TRAFFIC campaign
+  -> enter account-currency daily budget + local schedule + countries/age
+  -> convert schedule to UTC and budget to the currency's minor unit
+  -> authorized, rollout-gated idempotency claim
+  -> server derives LINK_CLICKS / IMPRESSIONS / LOWEST_COST_WITHOUT_CAP
+  -> Meta ad-set POST forced to PAUSED with automatic placements
+  -> durable completion + audit event
+
+Static traffic-ad creation
+  -> select an ad set completed by TALIA and a provider-authorized promotable Page
+  -> enter bounded copy, HTTPS destination/image URL and a supported CTA
+  -> authorized, rollout-gated idempotency claim
+  -> server revalidates the Page against the connected ad account
+  -> create Page-backed link creative
+  -> create final ad forced to PAUSED
+  -> durable completion + audit event
 ```
 
 OAuth state is short-lived and signed. The asset-selection session is encrypted.
@@ -83,14 +120,14 @@ only immediately before a server-side provider request.
 ## Provider reads
 
 One manual synchronization requests four logical datasets from the selected ad
-account:
+account for one validated period (`last_7d`, `last_30d` or `last_90d`):
 
 | Dataset | Meta edge | Level | Period/granularity | Purpose |
 | --- | --- | --- | --- | --- |
 | Campaign catalogue | `/{act_id}/campaigns` | campaign | current objects | Names, status and lifecycle |
-| Account totals | `/{act_id}/insights` | account | `last_30d` | Canonical KPI cards |
-| Daily account trend | `/{act_id}/insights` | account | `last_30d`, `time_increment=1` | Time-series chart |
-| Campaign performance | `/{act_id}/insights` | campaign | `last_30d` | Campaign comparison table |
+| Account totals | `/{act_id}/insights` | account | selected preset | Canonical KPI cards |
+| Daily account trend | `/{act_id}/insights` | account | selected preset, `time_increment=1` | Time-series chart |
+| Campaign performance | `/{act_id}/insights` | campaign | selected preset | Campaign comparison table |
 
 Requests use the `Authorization: Bearer` header. Tokens are removed from Meta
 pagination URLs before they are followed. Fetches use `cache: no-store`, a
@@ -111,10 +148,10 @@ bounded timeout, a five-page ceiling and a 500-campaign ceiling.
 Account totals are fetched directly from Meta and are not calculated by summing
 campaign rows. Reach is non-additive across campaigns, and therefore derived
 frequency would also be wrong. Daily rows are likewise fetched at account level;
-they are for trend visualization, not a replacement for the canonical 30-day
-account total. When Meta omits an inactive date between the reported period
-bounds, TALIA inserts a zero-valued daily point so the category axis preserves
-calendar spacing instead of visually compressing inactive days.
+they are for trend visualization, not a replacement for the canonical account
+total for the selected period. When Meta omits an inactive date between the
+reported period bounds, TALIA inserts a zero-valued daily point so the category
+axis preserves calendar spacing instead of visually compressing inactive days.
 
 ROAS, sales and conversions must remain absent until TALIA has a documented,
 validated attribution source. Do not infer revenue from clicks.
@@ -125,13 +162,16 @@ The foundational connection is stored in `meta_marketing_connections`.
 Read-only reporting adds two backend-only snapshot tables:
 
 - `meta_marketing_campaign_snapshots`: current campaign catalogue joined with
-  aggregate `last_30d` campaign Insights;
+  aggregate campaign Insights, keyed by connection and period;
 - `meta_marketing_daily_insights`: account-level daily rows for the current
-  `last_30d` snapshot.
+  snapshot, keyed by connection and period.
 
 Canonical account totals and synchronization state live under
-`meta_marketing_connections.metadata.marketing_sync`. This avoids pretending
-that additive campaign values produce valid account reach or frequency.
+`meta_marketing_connections.metadata.marketing_sync_periods.<period>`. This
+retains independent 7-, 30- and 90-day snapshots and avoids pretending that
+additive campaign values produce valid account reach or frequency. The period
+migration moves the pre-existing `marketing_sync` payload to
+`marketing_sync_periods.last_30d`.
 
 The replacement RPC validates all three payloads and replaces campaign and daily
 rows in one database transaction. A failed provider read or invalid payload
@@ -143,10 +183,43 @@ Both snapshot tables have RLS enabled and no direct grants for `anon` or
 authorization. Successful refreshes emit `marketing.meta_snapshot_synced` audit
 events without credentials or campaign contents.
 
+Campaign creation uses the backend-only
+`meta_marketing_campaign_creation_requests` table. A client-generated UUID is
+claimed before the provider call. Replaying a completed UUID returns the saved
+provider campaign ID without another Meta request; a processing UUID is never
+replayed. Provider failures retain only a bounded error code. If Meta accepts a
+campaign but local completion fails, the request deliberately remains
+`processing` so an automatic retry cannot duplicate the provider object.
+Successful and failed attempts emit `marketing.meta_campaign_created` and
+`marketing.meta_campaign_create_failed` audit events without tokens or raw
+provider responses.
+
+Traffic ad sets follow the same pattern through
+`meta_marketing_ad_set_creation_requests`. Eligibility is re-derived in the
+claim RPC from the current connection's campaign snapshot or a completed TALIA
+campaign request; a client-supplied campaign ID alone is never authoritative.
+The connection currency is rechecked during the claim to prevent an account
+change from reinterpreting the submitted budget. Only countries and age range
+are accepted as targeting; no PII, customer lists, interests or manual
+placements enter this slice.
+
+Static traffic ads use `meta_marketing_ad_creation_requests`. Eligible ad sets
+come only from completed TALIA ad-set requests for the current connection. A
+Page selected in the browser is revalidated against the ad account's
+`promote_pages` edge before any creative is created. The request persists its
+bounded input for idempotency but audit metadata excludes creative copy and the
+image URL. If Meta creates the creative and a later step fails, the request stays
+`processing`; automatic retry is deliberately blocked to avoid duplicate
+provider objects.
+
 Migrations, in deployment order:
 
 - `supabase/migrations/20261006100000_meta_marketing_campaign_insights.sql`
 - `supabase/migrations/20261006110000_meta_marketing_daily_insights.sql`
+- `supabase/migrations/20261007150000_meta_marketing_period_snapshots.sql`
+- `supabase/migrations/20261007193000_meta_marketing_paused_campaign_creation.sql`
+- `supabase/migrations/20261010120000_meta_marketing_paused_traffic_ad_sets.sql`
+- `supabase/migrations/20261011123000_meta_marketing_paused_image_ads.sql`
 
 Migration files are append-only after they reach any shared environment. Do not
 extend an already-recorded timestamp with new tables or RPC signatures: create
@@ -158,16 +231,24 @@ write RPC and persistence contract atomically.
 ## UI composition
 
 The page remains a Server Component. It loads the authorized connection and
-snapshot, formats the plain-language reading and passes serializable daily rows
-to a narrow Client Component that owns Recharts and the metric selector.
+snapshot, formats the plain-language reading and passes serializable daily and
+campaign rows to narrow Client Components that own Recharts and their filters.
 
 Main source map:
 
 | Responsibility | File |
 | --- | --- |
 | Marketing page and semantic reading | `src/app/(dashboard)/[tenantId]/marketing/page.tsx` |
+| Reporting period selector | `src/app/(dashboard)/[tenantId]/marketing/marketing-period-selector.tsx` |
 | Interactive daily chart | `src/app/(dashboard)/[tenantId]/marketing/marketing-trend-chart.tsx` |
+| Campaign comparison, status filter and exact table | `src/app/(dashboard)/[tenantId]/marketing/marketing-campaign-comparison.tsx` |
 | Manual refresh action | `src/app/(dashboard)/[tenantId]/marketing/sync-actions.ts` |
+| Supervised campaign form/action | `src/app/(dashboard)/[tenantId]/marketing/marketing-campaign-create-form.tsx` and `campaign-create-actions.ts` |
+| Campaign write orchestration and Meta POST | `src/lib/marketing/campaign-creation-service.ts` |
+| Traffic ad-set form/action | `src/app/(dashboard)/[tenantId]/marketing/marketing-ad-set-create-form.tsx` and `ad-set-create-actions.ts` |
+| Traffic ad-set orchestration and Meta POST | `src/lib/marketing/ad-set-creation-service.ts` |
+| Static traffic-ad form/action | `src/app/(dashboard)/[tenantId]/marketing/marketing-ad-create-form.tsx` and `ad-create-actions.ts` |
+| Static creative/ad orchestration and Meta POSTs | `src/lib/marketing/ad-creation-service.ts` |
 | Meta provider reads and validation | `src/lib/marketing/insights-service.ts` |
 | Sync orchestration and error classification | `src/lib/marketing/sync-service.ts` |
 | Authorized persistence RPC adapter | `src/lib/marketing/connection-service.ts` |
@@ -180,6 +261,33 @@ have different units, so overlaying them or using an unlabeled dual axis would
 make comparisons harder. KPI cards remain the source for exact period totals;
 the chart shows shape and timing. A screen-reader-only table exposes the same
 daily values without relying on SVG interpretation.
+
+When Meta returns no daily rows, keep the chart card visible with an explicit
+empty state. Hiding the whole visualization makes a healthy empty account look
+like an incomplete implementation.
+
+Campaign comparison also exposes one metric at a time: link clicks, spend or
+CTR. The graph ranks at most eight campaigns for legibility, while the adjacent
+table preserves every campaign matching the active status filter and remains
+the exact-value surface. Status filtering is local to the current snapshot and
+does not trigger a provider read.
+
+The global period selector changes account totals, daily points and campaign
+Insights together. Each period has an independent persisted snapshot. A period
+that has never been refreshed shows its own empty state; TALIA never presents a
+snapshot from another period as an equivalent fallback. Custom dates remain out
+of scope until their timezone, maximum-span and retention semantics are defined.
+
+### Development-only dashboard fixture
+
+Append `?marketing_demo=1` to the Marketing route in a non-production
+environment to render a deterministic, schema-valid reporting fixture. This is
+intended for visual QA of KPI cards, the daily chart, interpretations and the
+campaign table when the developer does not have an ad account with delivery.
+
+The fixture is rejected whenever `NODE_ENV=production`, is clearly labelled in
+the UI and disables the Meta refresh action. Never persist it or use it to
+populate production snapshots.
 
 ## Dashboard states
 
@@ -195,6 +303,14 @@ The product must distinguish these states explicitly:
   label it as stale.
 - **Refresh failure without prior data:** show a retryable first-sync error.
 - **Expired/revoked Meta authorization:** direct the operator to reconnect.
+- **Creation locked:** retain read-only reporting and explain that connected
+  status, `ads_management` and venue rollout are all required.
+- **Campaign created:** confirm `PAUSED` and link to the selected account in Ads
+  Manager; do not imply that an ad, audience or budget already exists.
+- **Ad set created:** confirm `PAUSED`; explain that the final creative/ad is
+  still required.
+- **Ad created:** confirm that both creative and final ad exist and that the ad
+  remains `PAUSED` pending manual review in Ads Manager.
 
 Never treat an empty Meta account as a broken connection.
 
@@ -221,11 +337,23 @@ The focused test suite is:
 npx vitest run \
   src/lib/marketing/connection-foundation-migration.test.ts \
   src/lib/marketing/campaign-insights-migration.test.ts \
+  src/lib/marketing/campaign-creation-migration.test.ts \
+  src/lib/marketing/campaign-creation-service.test.ts \
+  src/lib/marketing/ad-set-creation-migration.test.ts \
+  src/lib/marketing/ad-set-creation-service.test.ts \
+  src/lib/marketing/ad-creation-migration.test.ts \
+  src/lib/marketing/ad-creation-service.test.ts \
   src/lib/marketing/connection-service.test.ts \
+  src/lib/marketing/demo-data.test.ts \
   src/lib/marketing/insights-service.test.ts \
   src/lib/marketing/oauth-session.test.ts \
   src/lib/marketing/oauth.test.ts \
-  src/lib/marketing/sync-service.test.ts
+  src/lib/marketing/periods.test.ts \
+  src/lib/marketing/sync-service.test.ts \
+  'src/app/(dashboard)/[tenantId]/marketing/marketing-ad-create-form.test.tsx' \
+  'src/app/(dashboard)/[tenantId]/marketing/marketing-period-selector.test.tsx' \
+  'src/app/(dashboard)/[tenantId]/marketing/marketing-trend-chart.test.tsx' \
+  'src/app/(dashboard)/[tenantId]/marketing/marketing-campaign-comparison.test.tsx'
 ```
 
 Before handoff, also run:
@@ -260,12 +388,10 @@ When extending Marketing:
 
 ## Next likely slices
 
-1. A campaign comparison visualization with a deliberately chosen outcome
-   metric.
-2. A scheduler with freshness policy, rate-limit handling and retry controls.
-3. Explicit date-range controls and snapshot/history retention design.
-4. Supervised creation of campaign, ad set and ad objects in `PAUSED`.
-5. App Review, advanced access and Business Verification for customer pilots.
+1. Binary media upload plus video and multi-asset creative formats.
+2. Page/promoted-object selection for engagement and awareness ad sets.
+3. A scheduler with freshness policy, rate-limit handling and retry controls.
+4. App Review, advanced access and Business Verification for customer pilots.
 
 Each slice should remain independently deployable and retain the read-only
 dashboard when later write capabilities are unavailable.

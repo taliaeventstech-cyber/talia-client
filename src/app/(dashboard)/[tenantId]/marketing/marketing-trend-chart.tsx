@@ -26,6 +26,8 @@ type Props = {
     linkClicks: string
     ctr: string
     accessibleTable: string
+    emptyTitle: string
+    emptyDescription: string
   }
 }
 
@@ -37,6 +39,7 @@ export function MarketingTrendChart({ currency, data, labels, locale }: Props) {
     ctr: labels.ctr,
   }
   const selectedLabel = metricLabels[metric]
+  const hasData = data.length > 0
 
   return (
     <section className="card marketing-trend-card">
@@ -45,97 +48,116 @@ export function MarketingTrendChart({ currency, data, labels, locale }: Props) {
           <h2>{labels.title}</h2>
           <p className="muted">{labels.description}</p>
         </div>
-        <div className="marketing-trend-controls" role="group" aria-label={labels.title}>
-          {(Object.keys(metricLabels) as MetricKey[]).map((key) => (
-            <button
-              aria-pressed={metric === key}
-              className="marketing-trend-control"
-              key={key}
-              onClick={() => setMetric(key)}
-              type="button"
-            >
-              {metricLabels[key]}
-            </button>
-          ))}
+        {hasData ? (
+          <div className="marketing-trend-controls" role="group" aria-label={labels.title}>
+            {(Object.keys(metricLabels) as MetricKey[]).map((key) => (
+              <button
+                aria-pressed={metric === key}
+                className="marketing-trend-control"
+                key={key}
+                onClick={() => setMetric(key)}
+                type="button"
+              >
+                {metricLabels[key]}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {hasData ? (
+        <div
+          aria-label={`${labels.title}: ${selectedLabel}`}
+          className="marketing-trend-chart"
+          role="img"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 12, right: 12, bottom: 0, left: 0 }}>
+              <defs>
+                <linearGradient id="marketingTrendFill" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor="var(--color-brand)" stopOpacity={0.28} />
+                  <stop offset="100%" stopColor="var(--color-brand)" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 5" vertical={false} />
+              <XAxis
+                axisLine={false}
+                dataKey="date"
+                minTickGap={24}
+                tick={{ fill: 'var(--color-text-tertiary)', fontSize: 11 }}
+                tickFormatter={(value: string) => formatDate(value, locale, 'short')}
+                tickLine={false}
+              />
+              <YAxis
+                axisLine={false}
+                tick={{ fill: 'var(--color-text-tertiary)', fontSize: 11 }}
+                tickFormatter={(value: number) => formatMetric(value, metric, currency, locale, true)}
+                tickLine={false}
+                width={70}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: 'var(--color-surface)',
+                  border: '0.5px solid var(--color-border-strong)',
+                  borderRadius: '8px',
+                  color: 'var(--color-text-primary)',
+                }}
+                formatter={(value) => [
+                  formatMetric(Number(value), metric, currency, locale),
+                  selectedLabel,
+                ]}
+                labelFormatter={(value) => formatDate(String(value), locale, 'long')}
+              />
+              <Area
+                activeDot={{ r: 5, fill: 'var(--color-brand)' }}
+                dataKey={metric}
+                fill="url(#marketingTrendFill)"
+                isAnimationActive={false}
+                stroke="var(--color-brand)"
+                strokeWidth={2.5}
+                type="monotone"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
-      </div>
+      ) : (
+        <div className="marketing-trend-empty" data-state="empty">
+          <div className="marketing-trend-empty-visual" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+          <div>
+            <strong>{labels.emptyTitle}</strong>
+            <p className="muted">{labels.emptyDescription}</p>
+          </div>
+        </div>
+      )}
 
-      <div
-        aria-label={`${labels.title}: ${selectedLabel}`}
-        className="marketing-trend-chart"
-        role="img"
-      >
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 12, right: 12, bottom: 0, left: 0 }}>
-            <defs>
-              <linearGradient id="marketingTrendFill" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="var(--color-brand)" stopOpacity={0.28} />
-                <stop offset="100%" stopColor="var(--color-brand)" stopOpacity={0.02} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 5" vertical={false} />
-            <XAxis
-              axisLine={false}
-              dataKey="date"
-              minTickGap={24}
-              tick={{ fill: 'var(--color-text-tertiary)', fontSize: 11 }}
-              tickFormatter={(value: string) => formatDate(value, locale, 'short')}
-              tickLine={false}
-            />
-            <YAxis
-              axisLine={false}
-              tick={{ fill: 'var(--color-text-tertiary)', fontSize: 11 }}
-              tickFormatter={(value: number) => formatMetric(value, metric, currency, locale, true)}
-              tickLine={false}
-              width={70}
-            />
-            <Tooltip
-              contentStyle={{
-                background: 'var(--color-surface)',
-                border: '0.5px solid var(--color-border-strong)',
-                borderRadius: '8px',
-                color: 'var(--color-text-primary)',
-              }}
-              formatter={(value) => [
-                formatMetric(Number(value), metric, currency, locale),
-                selectedLabel,
-              ]}
-              labelFormatter={(value) => formatDate(String(value), locale, 'long')}
-            />
-            <Area
-              activeDot={{ r: 5, fill: 'var(--color-brand)' }}
-              dataKey={metric}
-              fill="url(#marketingTrendFill)"
-              isAnimationActive={false}
-              stroke="var(--color-brand)"
-              strokeWidth={2.5}
-              type="monotone"
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-
-      <table className="sr-only">
-        <caption>{labels.accessibleTable}</caption>
-        <thead>
-          <tr>
-            <th>{labels.date}</th>
-            <th>{labels.spend}</th>
-            <th>{labels.linkClicks}</th>
-            <th>{labels.ctr}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((insight) => (
-            <tr key={insight.date}>
-              <td>{formatDate(insight.date, locale, 'long')}</td>
-              <td>{formatMetric(insight.spend, 'spend', currency, locale)}</td>
-              <td>{formatMetric(insight.link_clicks, 'link_clicks', currency, locale)}</td>
-              <td>{formatMetric(insight.ctr, 'ctr', currency, locale)}</td>
+      {hasData ? (
+        <table className="sr-only">
+          <caption>{labels.accessibleTable}</caption>
+          <thead>
+            <tr>
+              <th>{labels.date}</th>
+              <th>{labels.spend}</th>
+              <th>{labels.linkClicks}</th>
+              <th>{labels.ctr}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.map((insight) => (
+              <tr key={insight.date}>
+                <td>{formatDate(insight.date, locale, 'long')}</td>
+                <td>{formatMetric(insight.spend, 'spend', currency, locale)}</td>
+                <td>{formatMetric(insight.link_clicks, 'link_clicks', currency, locale)}</td>
+                <td>{formatMetric(insight.ctr, 'ctr', currency, locale)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
     </section>
   )
 }

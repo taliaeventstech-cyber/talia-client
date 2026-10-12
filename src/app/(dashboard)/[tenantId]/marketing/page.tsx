@@ -1,4 +1,5 @@
 import { LocalDateTime } from '@/components/local-date-time'
+import { randomUUID } from 'node:crypto'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getMarketingCopy, type MarketingCopy } from '@/lib/i18n/marketing-copy'
 import { getIntlLocale } from '@/lib/i18n/config'
@@ -6,20 +7,40 @@ import { getLocale } from '@/lib/i18n/dictionaries'
 import {
   getMetaMarketingConnectionSummary,
   getMetaMarketingDashboardSnapshot,
+  listMetaMarketingEligibleTrafficAdSets,
+  listMetaMarketingEligibleTrafficCampaigns,
 } from '@/lib/marketing/connection-service'
+import { listMetaMarketingPromotablePages } from '@/lib/marketing/ad-creation-service'
+import { getMetaAdsManagerCampaignsUrl } from '@/lib/marketing/campaign-creation-service'
+import { getMarketingDemoData } from '@/lib/marketing/demo-data'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type {
   MetaMarketingAccountInsight,
   MetaMarketingCampaignSnapshot,
   MetaMarketingConnectionSummary,
   MetaMarketingDashboardSnapshot,
+  MetaMarketingPeriod,
 } from '@/types/marketing'
+import { parseMetaMarketingPeriod } from '@/types/marketing'
+import { MarketingCampaignComparison } from './marketing-campaign-comparison'
+import { MarketingAdSetCreateForm } from './marketing-ad-set-create-form'
+import { MarketingAdCreateForm } from './marketing-ad-create-form'
+import { MarketingCampaignCreateForm } from './marketing-campaign-create-form'
+import {
+  getMarketingPeriodLabel,
+  MarketingPeriodSelector,
+} from './marketing-period-selector'
 import { MarketingTrendChart } from './marketing-trend-chart'
 import { MetaMarketingSyncButton } from './sync-button'
 
 interface Props {
   params: Promise<{ tenantId: string }>
-  searchParams: Promise<{ meta_connected?: string; meta_error?: string }>
+  searchParams: Promise<{
+    marketing_demo?: string
+    marketing_period?: string
+    meta_connected?: string
+    meta_error?: string
+  }>
 }
 
 export default async function MarketingPage({ params, searchParams }: Props) {
@@ -32,8 +53,15 @@ export default async function MarketingPage({ params, searchParams }: Props) {
     )),
   ])
   const copy = getMarketingCopy(locale)
+  const requestedPeriod = parseMetaMarketingPeriod(query.marketing_period)
   const admin = createAdminClient()
-  const [connection, snapshot] = await Promise.all([
+  const [
+    connection,
+    snapshot,
+    eligibleTrafficCampaigns,
+    eligibleTrafficAdSets,
+    promotablePages,
+  ] = await Promise.all([
     getMetaMarketingConnectionSummary(admin, {
       tenantId,
       actorUserId: access.userId,
@@ -41,8 +69,25 @@ export default async function MarketingPage({ params, searchParams }: Props) {
     getMetaMarketingDashboardSnapshot(admin, {
       tenantId,
       actorUserId: access.userId,
+      period: requestedPeriod,
     }),
+    listMetaMarketingEligibleTrafficCampaigns(admin, {
+      tenantId,
+      actorUserId: access.userId,
+    }).catch(() => []),
+    listMetaMarketingEligibleTrafficAdSets(admin, {
+      tenantId,
+      actorUserId: access.userId,
+    }).catch(() => []),
+    listMetaMarketingPromotablePages(admin, {
+      tenantId,
+      actorUserId: access.userId,
+    }).catch(() => []),
   ])
+  const demo = getMarketingDemoData(query.marketing_demo)
+  const insightsConnection = demo?.connection ?? connection
+  const insightsSnapshot = demo?.snapshot ?? snapshot
+  const selectedPeriod = demo?.snapshot.period ?? requestedPeriod
   const presentation = getConnectionPresentation(connection, copy)
 
   return (
@@ -64,12 +109,14 @@ export default async function MarketingPage({ params, searchParams }: Props) {
         </p>
       ) : null}
 
-      {connection && snapshot ? (
+      {insightsConnection && insightsSnapshot ? (
         <MarketingInsights
-          connection={connection}
+          connection={insightsConnection}
           copy={copy}
+          isDemo={demo !== null}
           locale={getIntlLocale(locale)}
-          snapshot={snapshot}
+          period={selectedPeriod}
+          snapshot={insightsSnapshot}
           tenantId={tenantId}
         />
       ) : null}
@@ -80,6 +127,42 @@ export default async function MarketingPage({ params, searchParams }: Props) {
         presentation={presentation}
         tenantId={tenantId}
       />
+
+      {connection ? (
+        <>
+          <MarketingCampaignCreateForm
+            adsManagerUrl={getSafeAdsManagerUrl(connection.ad_account_id)}
+            canCreate={connection.status === 'connected'
+              && connection.rollout_enabled
+              && connection.scopes.includes('ads_management')}
+            copy={copy}
+            initialRequestId={randomUUID()}
+            tenantId={tenantId}
+          />
+          <MarketingAdSetCreateForm
+            adsManagerUrl={getSafeAdsManagerUrl(connection.ad_account_id)}
+            campaigns={eligibleTrafficCampaigns}
+            canCreate={connection.status === 'connected'
+              && connection.rollout_enabled
+              && connection.scopes.includes('ads_management')}
+            copy={copy}
+            currency={connection.ad_account_currency}
+            initialRequestId={randomUUID()}
+            tenantId={tenantId}
+          />
+          <MarketingAdCreateForm
+            adSets={eligibleTrafficAdSets}
+            adsManagerUrl={getSafeAdsManagerUrl(connection.ad_account_id)}
+            canCreate={connection.status === 'connected'
+              && connection.rollout_enabled
+              && connection.scopes.includes('ads_management')}
+            copy={copy}
+            initialRequestId={randomUUID()}
+            pages={promotablePages}
+            tenantId={tenantId}
+          />
+        </>
+      ) : null}
 
       {!connection ? (
         <section className="card stack marketing-requirements-card">
@@ -99,31 +182,48 @@ export default async function MarketingPage({ params, searchParams }: Props) {
   )
 }
 
-function MarketingInsights({ connection, copy, locale, snapshot, tenantId }: {
+function MarketingInsights({ connection, copy, isDemo, locale, period, snapshot, tenantId }: {
   connection: MetaMarketingConnectionSummary
   copy: MarketingCopy
+  isDemo: boolean
   locale: string
+  period: MetaMarketingPeriod
   snapshot: MetaMarketingDashboardSnapshot
   tenantId: string
 }) {
   const currency = connection.ad_account_currency ?? 'EUR'
   const hasSnapshot = snapshot.summary !== null
+  const periodLabel = getMarketingPeriodLabel(copy, period)
 
   return (
     <section className="marketing-insights-section stack">
       <div className="marketing-insights-header">
         <div>
           <p className="section-label">{copy.insightsEyebrow}</p>
-          <h2>{copy.insightsTitle}</h2>
+          <h2>{fillTemplate(copy.insightsTitle, { period: periodLabel })}</h2>
           <p className="muted marketing-sync-time">
             {snapshot.last_synced_at ? (
               <>{copy.lastUpdated}{' '}<LocalDateTime value={snapshot.last_synced_at} locale={locale} /></>
             ) : copy.neverSynced}
           </p>
         </div>
-        <MetaMarketingSyncButton copy={copy} tenantId={tenantId} />
+        <div className="marketing-insights-actions">
+          {isDemo ? null : (
+            <MarketingPeriodSelector
+              copy={copy}
+              period={period}
+              tenantId={tenantId}
+            />
+          )}
+          {isDemo ? null : (
+            <MetaMarketingSyncButton copy={copy} period={period} tenantId={tenantId} />
+          )}
+        </div>
       </div>
 
+      {isDemo ? (
+        <p className="notice notice-warning" role="status">{copy.demoDataNotice}</p>
+      ) : null}
       {snapshot.status === 'error' ? (
         <p className="notice notice-warning" role="status">
           {snapshot.last_synced_at ? copy.staleDataNotice : copy.firstSyncErrorNotice}
@@ -132,26 +232,37 @@ function MarketingInsights({ connection, copy, locale, snapshot, tenantId }: {
       <p className="notice notice-info" role="status">{copy.readOnlyNotice}</p>
 
       {!hasSnapshot ? (
-        <MarketingEmptyState title={copy.neverSyncedTitle} description={copy.neverSyncedDescription} />
+        <MarketingEmptyState
+          title={copy.neverSyncedTitle}
+          description={fillTemplate(copy.neverSyncedDescription, {
+            period: periodLabel,
+          })}
+        />
       ) : (
         <>
-          <MarketingMetrics copy={copy} currency={currency} locale={locale} summary={snapshot.summary!} />
-          {snapshot.daily_insights.length > 0 ? (
-            <MarketingTrendChart
-              currency={currency}
-              data={snapshot.daily_insights}
-              labels={{
-                title: copy.trendTitle,
-                description: copy.trendDescription,
-                date: copy.date,
-                spend: copy.spend,
-                linkClicks: copy.linkClicks,
-                ctr: copy.ctr,
-                accessibleTable: copy.trendAccessibleTable,
-              }}
-              locale={locale}
-            />
-          ) : null}
+          <MarketingMetrics
+            copy={copy}
+            currency={currency}
+            locale={locale}
+            periodLabel={periodLabel}
+            summary={snapshot.summary!}
+          />
+          <MarketingTrendChart
+            currency={currency}
+            data={snapshot.daily_insights}
+            labels={{
+              title: copy.trendTitle,
+              description: copy.trendDescription,
+              date: copy.date,
+              spend: copy.spend,
+              linkClicks: copy.linkClicks,
+              ctr: copy.ctr,
+              accessibleTable: copy.trendAccessibleTable,
+              emptyTitle: copy.trendEmptyTitle,
+              emptyDescription: copy.trendEmptyDescription,
+            }}
+            locale={locale}
+          />
           <MarketingReading
             campaigns={snapshot.campaigns}
             copy={copy}
@@ -162,7 +273,34 @@ function MarketingInsights({ connection, copy, locale, snapshot, tenantId }: {
           {snapshot.campaigns.length === 0 ? (
             <MarketingEmptyState title={copy.noCampaignsTitle} description={copy.noCampaignsDescription} />
           ) : (
-            <CampaignTable campaigns={snapshot.campaigns} copy={copy} currency={currency} locale={locale} />
+            <MarketingCampaignComparison
+              campaigns={snapshot.campaigns}
+              currency={currency}
+              labels={{
+                title: copy.campaignComparisonTitle,
+                description: fillTemplate(copy.campaignComparisonDescription, {
+                  period: periodLabel,
+                }),
+                compareBy: copy.compareBy,
+                filterByStatus: copy.filterByStatus,
+                allStatuses: copy.allStatuses,
+                activeCampaigns: copy.activeCampaigns,
+                pausedCampaigns: copy.pausedCampaigns,
+                otherCampaigns: copy.otherCampaigns,
+                noMatchingCampaigns: copy.noMatchingCampaigns,
+                showingTopCampaigns: copy.showingTopCampaigns,
+                campaignsTitle: copy.campaignsTitle,
+                campaign: copy.campaign,
+                delivery: copy.delivery,
+                spend: copy.spend,
+                reach: copy.reach,
+                linkClicks: copy.linkClicks,
+                ctr: copy.ctr,
+                cpc: copy.cpc,
+                frequency: copy.frequency,
+              }}
+              locale={locale}
+            />
           )}
         </>
       )}
@@ -170,10 +308,11 @@ function MarketingInsights({ connection, copy, locale, snapshot, tenantId }: {
   )
 }
 
-function MarketingMetrics({ copy, currency, locale, summary }: {
+function MarketingMetrics({ copy, currency, locale, periodLabel, summary }: {
   copy: MarketingCopy
   currency: string
   locale: string
+  periodLabel: string
   summary: MetaMarketingAccountInsight
 }) {
   const metrics = [
@@ -192,7 +331,7 @@ function MarketingMetrics({ copy, currency, locale, summary }: {
         <article className="marketing-metric-card" key={label}>
           <span>{label}</span>
           <strong>{value}</strong>
-          <small>{copy.last30Days}</small>
+          <small>{periodLabel}</small>
         </article>
       ))}
     </div>
@@ -244,56 +383,6 @@ function MarketingReading({ campaigns, copy, currency, locale, summary }: {
         <p>{review}</p>
       </article>
     </div>
-  )
-}
-
-function CampaignTable({ campaigns, copy, currency, locale }: {
-  campaigns: MetaMarketingCampaignSnapshot[]
-  copy: MarketingCopy
-  currency: string
-  locale: string
-}) {
-  return (
-    <section className="card stack marketing-campaigns-card">
-      <div>
-        <h2>{copy.campaignsTitle}</h2>
-        <p className="muted">{copy.campaignsDescription}</p>
-      </div>
-      <div className="marketing-campaigns-table-wrap">
-        <table className="data-table marketing-campaigns-table">
-          <thead>
-            <tr>
-              <th>{copy.campaign}</th>
-              <th>{copy.delivery}</th>
-              <th>{copy.spend}</th>
-              <th>{copy.reach}</th>
-              <th>{copy.linkClicks}</th>
-              <th>{copy.ctr}</th>
-              <th>{copy.cpc}</th>
-              <th>{copy.frequency}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {campaigns.map((campaign) => (
-              <tr key={campaign.campaign_id}>
-                <td><strong>{campaign.name}</strong></td>
-                <td>
-                  <span className={`status-pill ${getCampaignStatusClass(campaign.effective_status)}`}>
-                    {formatCampaignStatus(campaign.effective_status)}
-                  </span>
-                </td>
-                <td>{formatCurrency(campaign.spend, currency, locale)}</td>
-                <td>{formatInteger(campaign.reach, locale)}</td>
-                <td>{formatInteger(campaign.link_clicks, locale)}</td>
-                <td>{formatPercentage(campaign.ctr, locale)}</td>
-                <td>{campaign.cpc === null ? '—' : formatCurrency(campaign.cpc, currency, locale)}</td>
-                <td>{formatDecimal(campaign.frequency, locale)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
   )
 }
 
@@ -401,13 +490,10 @@ function fillTemplate(template: string, values: Record<string, string>) {
   )
 }
 
-function formatCampaignStatus(value: string) {
-  return value.toLowerCase().replaceAll('_', ' ')
-}
-
-function getCampaignStatusClass(value: string) {
-  if (value === 'ACTIVE') return 'status-pill-active'
-  if (['DISAPPROVED', 'WITH_ISSUES'].includes(value)) return 'status-pill-danger'
-  if (['PAUSED', 'PENDING_REVIEW', 'IN_PROCESS'].includes(value)) return 'status-pill-soon'
-  return 'status-pill-muted'
+function getSafeAdsManagerUrl(adAccountId: string) {
+  try {
+    return getMetaAdsManagerCampaignsUrl(adAccountId)
+  } catch {
+    return 'https://business.facebook.com/adsmanager/manage/campaigns'
+  }
 }

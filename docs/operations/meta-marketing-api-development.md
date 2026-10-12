@@ -72,7 +72,7 @@ ${NEXT_PUBLIC_APP_URL}/api/marketing/meta/callback
 The MVP requests:
 
 - `ads_read` to read campaigns and Insights;
-- `ads_management` to prepare campaign objects in `PAUSED` in a later slice;
+- `ads_management` to prepare campaign objects in `PAUSED`;
 - `business_management` to list the operator's Business Portfolios and ad
   accounts.
 
@@ -83,22 +83,63 @@ advanced access, App Review and Business Verification in Meta.
 
 1. Apply the Meta Marketing migrations to the target Supabase project in order:
    `20261006100000_meta_marketing_campaign_insights.sql`, followed by
-   `20261006110000_meta_marketing_daily_insights.sql`. The second migration must
-   be present before enabling refreshes that send `daily_insights`.
+   `20261006110000_meta_marketing_daily_insights.sql`,
+   `20261007150000_meta_marketing_period_snapshots.sql` and
+   `20261007193000_meta_marketing_paused_campaign_creation.sql`, then
+   `20261010120000_meta_marketing_paused_traffic_ad_sets.sql` and
+   `20261011123000_meta_marketing_paused_image_ads.sql`.
 2. Configure the server environment and the matching Meta redirect URI.
 3. Connect with an app-role user from Agora and select one Business Portfolio
    and one ad account.
 4. Confirm the connection card shows the selected assets and that
    `rollout_enabled` remains `false`.
+5. Complete a read-only refresh and verify the selected ad account before
+   enabling campaign creation for that venue.
+6. Enable `rollout_enabled` only for the approved canary connection through an
+   audited operator procedure. Reconnecting resets it to `false`, so repeat the
+   verification after every account change.
 
 The connection flow never activates advertising spend. Reconnecting replaces
 the venue's selected account and resets rollout to disabled.
 
 The Agora dashboard refresh is manual in this MVP. It reads account totals and
 account-level daily Insights (`time_increment=1`) plus campaign-level Insights
-for Meta's `last_30d` period, then atomically replaces the backend-only
-snapshot. It does not call any campaign creation or update edge in the
-Marketing API.
+for the selected `last_7d`, `last_30d` or `last_90d` preset, then atomically
+replaces only that backend-only period snapshot.
+
+When rollout is enabled, the supervised campaign form calls the selected ad
+account's `/campaigns` edge. The server—not the browser—forces
+`status=PAUSED` and `special_ad_categories=[]`. This creates only the top-level
+campaign container.
+
+The traffic ad-set form then calls `/{act_id}/adsets` for an authorized
+`OUTCOME_TRAFFIC` campaign. TALIA converts the visible daily budget to the
+account currency's minor unit, converts browser-local dates to UTC and derives
+`billing_event=IMPRESSIONS`, `optimization_goal=LINK_CLICKS` and
+`bid_strategy=LOWEST_COST_WITHOUT_CAP` on the server. Targeting is restricted to
+country codes and an age range; omission of manual placement fields leaves Meta
+placements automatic. The ad set request is always `PAUSED` and cannot deliver
+until a final ad exists.
+
+The static traffic-ad form is available after TALIA has completed an eligible
+ad set. It reads the account's `/{act_id}/promote_pages` edge, sends bounded
+copy plus public HTTPS destination/image URLs to `/{act_id}/adcreatives`, then
+creates the final object through `/{act_id}/ads`. The server revalidates the
+selected Page and forces the final ad to `PAUSED`. Video, carousel, binary media
+upload and Instagram identity remain outside this slice.
+
+If the creative is accepted but ad creation or local completion fails, do not
+repeat the request. The idempotency row remains `processing`; reconcile the
+creative/ad in Ads Manager before any manual recovery.
+
+Never add an `ACTIVE` option, accept delivery settings from client input or use
+a fixed `×100` conversion for every currency.
+
+Every submission has a UUID idempotency key recorded before Meta is called.
+Do not manually retry a request whose local state remains `processing`: Meta may
+have accepted it even if TALIA could not persist completion. Reconcile the
+campaign in Ads Manager first. Logs and tickets may contain the bounded internal
+error code and request UUID, but never the token or raw Meta response.
 
 Account totals are canonical. Do not calculate account reach or frequency by
 summing campaign or daily rows because those values are not additive across
@@ -113,6 +154,8 @@ audiences or time buckets.
 - Daily chart data appears only after a successful refresh returns daily
   account-level Insights.
 - A failed refresh preserves the last successful snapshot and marks it stale.
+- A newly selected period remains pending until its first manual refresh; data
+  from another period is never shown as a substitute.
 
 ## Troubleshooting
 
