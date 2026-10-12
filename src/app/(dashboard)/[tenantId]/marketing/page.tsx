@@ -7,8 +7,10 @@ import { getLocale } from '@/lib/i18n/dictionaries'
 import {
   getMetaMarketingConnectionSummary,
   getMetaMarketingDashboardSnapshot,
+  listMetaMarketingEligibleTrafficAdSets,
   listMetaMarketingEligibleTrafficCampaigns,
 } from '@/lib/marketing/connection-service'
+import { listMetaMarketingPromotablePages } from '@/lib/marketing/ad-creation-service'
 import { getMetaAdsManagerCampaignsUrl } from '@/lib/marketing/campaign-creation-service'
 import { getMarketingDemoData } from '@/lib/marketing/demo-data'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -22,6 +24,7 @@ import type {
 import { parseMetaMarketingPeriod } from '@/types/marketing'
 import { MarketingCampaignComparison } from './marketing-campaign-comparison'
 import { MarketingAdSetCreateForm } from './marketing-ad-set-create-form'
+import { MarketingAdCreateForm } from './marketing-ad-create-form'
 import { MarketingCampaignCreateForm } from './marketing-campaign-create-form'
 import {
   getMarketingPeriodLabel,
@@ -52,7 +55,13 @@ export default async function MarketingPage({ params, searchParams }: Props) {
   const copy = getMarketingCopy(locale)
   const requestedPeriod = parseMetaMarketingPeriod(query.marketing_period)
   const admin = createAdminClient()
-  const [connection, snapshot, eligibleTrafficCampaigns] = await Promise.all([
+  const [
+    connection,
+    snapshot,
+    eligibleTrafficCampaigns,
+    eligibleTrafficAdSets,
+    promotablePages,
+  ] = await Promise.all([
     getMetaMarketingConnectionSummary(admin, {
       tenantId,
       actorUserId: access.userId,
@@ -63,6 +72,14 @@ export default async function MarketingPage({ params, searchParams }: Props) {
       period: requestedPeriod,
     }),
     listMetaMarketingEligibleTrafficCampaigns(admin, {
+      tenantId,
+      actorUserId: access.userId,
+    }).catch(() => []),
+    listMetaMarketingEligibleTrafficAdSets(admin, {
+      tenantId,
+      actorUserId: access.userId,
+    }).catch(() => []),
+    listMetaMarketingPromotablePages(admin, {
       tenantId,
       actorUserId: access.userId,
     }).catch(() => []),
@@ -131,6 +148,17 @@ export default async function MarketingPage({ params, searchParams }: Props) {
             copy={copy}
             currency={connection.ad_account_currency}
             initialRequestId={randomUUID()}
+            tenantId={tenantId}
+          />
+          <MarketingAdCreateForm
+            adSets={eligibleTrafficAdSets}
+            adsManagerUrl={getSafeAdsManagerUrl(connection.ad_account_id)}
+            canCreate={connection.status === 'connected'
+              && connection.rollout_enabled
+              && connection.scopes.includes('ads_management')}
+            copy={copy}
+            initialRequestId={randomUUID()}
+            pages={promotablePages}
             tenantId={tenantId}
           />
         </>

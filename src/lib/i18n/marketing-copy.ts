@@ -151,6 +151,39 @@ export type MarketingCopy = {
   adSetInProgress: string
   adSetProviderError: string
   adSetSaveError: string
+  adEyebrow: string
+  adTitle: string
+  adDescription: string
+  adLockedTitle: string
+  adLockedDescription: string
+  adNoAdSetTitle: string
+  adNoAdSetDescription: string
+  adNoPageTitle: string
+  adNoPageDescription: string
+  adAdSet: string
+  adPage: string
+  adPageHelp: string
+  adName: string
+  adNamePlaceholder: string
+  adHeadline: string
+  adHeadlinePlaceholder: string
+  adPrimaryText: string
+  adPrimaryTextPlaceholder: string
+  adDestinationUrl: string
+  adImageUrl: string
+  adImageUrlHelp: string
+  adCallToAction: string
+  adCtaLearnMore: string
+  adCtaBuyTickets: string
+  adCreate: string
+  adCreating: string
+  adGuardrail: string
+  adSuccess: string
+  adInvalid: string
+  adConnectionError: string
+  adInProgress: string
+  adProviderError: string
+  adSaveError: string
 }
 
 const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
@@ -307,6 +340,39 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     adSetInProgress: 'Esta creación ya está en curso. Espera antes de volver a intentarlo.',
     adSetProviderError: 'Meta ha rechazado el conjunto de anuncios. Revisa los requisitos de presupuesto y audiencia.',
     adSetSaveError: 'Meta pudo recibir el conjunto, pero TALIA no pudo confirmarlo. No repitas la creación y revisa el incidente.',
+    adEyebrow: 'Creatividad y anuncio · Tráfico',
+    adTitle: 'Preparar el anuncio final',
+    adDescription: 'Combina identidad, imagen, mensaje y destino en un anuncio listo para revisar en Ads Manager.',
+    adLockedTitle: 'Creación todavía bloqueada.',
+    adLockedDescription: 'Necesitas una conexión piloto activa con ads_management.',
+    adNoAdSetTitle: 'No hay conjuntos de anuncios disponibles.',
+    adNoAdSetDescription: 'Crea primero un conjunto de anuncios de tráfico desde TALIA.',
+    adNoPageTitle: 'No hay una Página autorizada disponible.',
+    adNoPageDescription: 'Asigna una Página de Facebook a esta cuenta publicitaria en Meta Business Suite y vuelve a cargar.',
+    adAdSet: 'Conjunto de anuncios',
+    adPage: 'Identidad de la Página',
+    adPageHelp: 'Meta mostrará esta Página como identidad del anuncio.',
+    adName: 'Nombre interno del anuncio',
+    adNamePlaceholder: 'Ej. Venta anticipada · Imagen principal',
+    adHeadline: 'Titular',
+    adHeadlinePlaceholder: 'Entradas ya disponibles',
+    adPrimaryText: 'Texto principal',
+    adPrimaryTextPlaceholder: 'Presenta la propuesta y explica por qué visitar el enlace.',
+    adDestinationUrl: 'URL de destino',
+    adImageUrl: 'URL pública de la imagen',
+    adImageUrlHelp: 'Debe ser una URL HTTPS pública accesible por Meta. La carga de archivos llegará en una iteración posterior.',
+    adCallToAction: 'Llamada a la acción',
+    adCtaLearnMore: 'Más información',
+    adCtaBuyTickets: 'Comprar entradas',
+    adCreate: 'Crear anuncio pausado',
+    adCreating: 'Creando creatividad y anuncio…',
+    adGuardrail: 'El anuncio se enviará como PAUSED; TALIA no puede activar entrega ni gasto.',
+    adSuccess: 'La creatividad y el anuncio se han creado en Meta en estado PAUSED.',
+    adInvalid: 'Revisa el conjunto, la Página, el texto y las URLs HTTPS.',
+    adConnectionError: 'La conexión, el conjunto o la Página ya no están disponibles. Actualiza la página o revisa Meta Business Suite.',
+    adInProgress: 'Esta creación ya está en curso. No la repitas.',
+    adProviderError: 'Meta ha rechazado la creatividad o el anuncio. Revisa la identidad, las URLs y el contenido.',
+    adSaveError: 'Meta pudo crear parte del anuncio, pero TALIA no pudo confirmarlo. No repitas la creación y revisa Ads Manager.',
   },
   ca: {
     eyebrow: 'Màrqueting · Meta Ads',
@@ -461,6 +527,39 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     adSetInProgress: 'Aquesta creació ja està en curs. Espera abans de tornar-ho a provar.',
     adSetProviderError: 'Meta ha rebutjat el conjunt d’anuncis. Revisa els requisits de pressupost i audiència.',
     adSetSaveError: 'Meta pot haver rebut el conjunt, però TALIA no l’ha pogut confirmar. No repeteixis la creació i revisa l’incident.',
+    adEyebrow: 'Creativitat i anunci · Trànsit',
+    adTitle: 'Preparar l’anunci final',
+    adDescription: 'Combina identitat, imatge, missatge i destinació en un anunci llest per revisar a Ads Manager.',
+    adLockedTitle: 'Creació encara bloquejada.',
+    adLockedDescription: 'Necessites una connexió pilot activa amb ads_management.',
+    adNoAdSetTitle: 'No hi ha conjunts d’anuncis disponibles.',
+    adNoAdSetDescription: 'Crea primer un conjunt d’anuncis de trànsit des de TALIA.',
+    adNoPageTitle: 'No hi ha cap Pàgina autoritzada disponible.',
+    adNoPageDescription: 'Assigna una Pàgina de Facebook a aquest compte publicitari a Meta Business Suite i torna a carregar.',
+    adAdSet: 'Conjunt d’anuncis',
+    adPage: 'Identitat de la Pàgina',
+    adPageHelp: 'Meta mostrarà aquesta Pàgina com a identitat de l’anunci.',
+    adName: 'Nom intern de l’anunci',
+    adNamePlaceholder: 'Ex. Venda anticipada · Imatge principal',
+    adHeadline: 'Titular',
+    adHeadlinePlaceholder: 'Entrades ja disponibles',
+    adPrimaryText: 'Text principal',
+    adPrimaryTextPlaceholder: 'Presenta la proposta i explica per què visitar l’enllaç.',
+    adDestinationUrl: 'URL de destinació',
+    adImageUrl: 'URL pública de la imatge',
+    adImageUrlHelp: 'Ha de ser una URL HTTPS pública accessible per Meta. La càrrega d’arxius arribarà en una iteració posterior.',
+    adCallToAction: 'Crida a l’acció',
+    adCtaLearnMore: 'Més informació',
+    adCtaBuyTickets: 'Comprar entrades',
+    adCreate: 'Crear anunci pausat',
+    adCreating: 'Creant creativitat i anunci…',
+    adGuardrail: 'L’anunci s’enviarà com a PAUSED; TALIA no pot activar lliurament ni despesa.',
+    adSuccess: 'La creativitat i l’anunci s’han creat a Meta en estat PAUSED.',
+    adInvalid: 'Revisa el conjunt, la Pàgina, el text i les URL HTTPS.',
+    adConnectionError: 'La connexió, el conjunt o la Pàgina ja no estan disponibles. Actualitza la pàgina o revisa Meta Business Suite.',
+    adInProgress: 'Aquesta creació ja està en curs. No la repeteixis.',
+    adProviderError: 'Meta ha rebutjat la creativitat o l’anunci. Revisa la identitat, les URL i el contingut.',
+    adSaveError: 'Meta pot haver creat part de l’anunci, però TALIA no l’ha pogut confirmar. No repeteixis la creació i revisa Ads Manager.',
   },
   en: {
     eyebrow: 'Marketing · Meta Ads',
@@ -615,6 +714,39 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     adSetInProgress: 'This creation is already in progress. Wait before trying again.',
     adSetProviderError: 'Meta rejected the ad set. Review its budget and audience requirements.',
     adSetSaveError: 'Meta may have received the ad set, but TALIA could not confirm it. Do not repeat the creation; review the incident.',
+    adEyebrow: 'Creative and ad · Traffic',
+    adTitle: 'Prepare the final ad',
+    adDescription: 'Combine identity, image, message and destination in an ad ready for review in Ads Manager.',
+    adLockedTitle: 'Creation is still locked.',
+    adLockedDescription: 'You need an active pilot connection with ads_management.',
+    adNoAdSetTitle: 'No ad sets are available.',
+    adNoAdSetDescription: 'Create a traffic ad set from TALIA first.',
+    adNoPageTitle: 'No authorized Page is available.',
+    adNoPageDescription: 'Assign a Facebook Page to this ad account in Meta Business Suite, then reload.',
+    adAdSet: 'Ad set',
+    adPage: 'Page identity',
+    adPageHelp: 'Meta will display this Page as the ad identity.',
+    adName: 'Internal ad name',
+    adNamePlaceholder: 'E.g. Early bird · Main image',
+    adHeadline: 'Headline',
+    adHeadlinePlaceholder: 'Tickets now available',
+    adPrimaryText: 'Primary text',
+    adPrimaryTextPlaceholder: 'Present the offer and explain why people should visit the link.',
+    adDestinationUrl: 'Destination URL',
+    adImageUrl: 'Public image URL',
+    adImageUrlHelp: 'It must be a public HTTPS URL that Meta can access. File upload will arrive in a later iteration.',
+    adCallToAction: 'Call to action',
+    adCtaLearnMore: 'Learn more',
+    adCtaBuyTickets: 'Buy tickets',
+    adCreate: 'Create paused ad',
+    adCreating: 'Creating creative and ad…',
+    adGuardrail: 'The ad is sent as PAUSED; TALIA cannot activate delivery or spend.',
+    adSuccess: 'The creative and ad were created in Meta with PAUSED status.',
+    adInvalid: 'Review the ad set, Page, copy and HTTPS URLs.',
+    adConnectionError: 'The connection, ad set or Page is no longer available. Reload or review Meta Business Suite.',
+    adInProgress: 'This creation is already in progress. Do not repeat it.',
+    adProviderError: 'Meta rejected the creative or ad. Review identity, URLs and content.',
+    adSaveError: 'Meta may have created part of the ad, but TALIA could not confirm it. Do not repeat the creation; review Ads Manager.',
   },
   pt: {
     eyebrow: 'Marketing · Meta Ads',
@@ -769,6 +901,39 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     adSetInProgress: 'Esta criação já está em andamento. Aguarde antes de tentar novamente.',
     adSetProviderError: 'A Meta rejeitou o conjunto de anúncios. Revise os requisitos de orçamento e público.',
     adSetSaveError: 'A Meta pode ter recebido o conjunto, mas a TALIA não conseguiu confirmá-lo. Não repita a criação; revise o incidente.',
+    adEyebrow: 'Criativo e anúncio · Tráfego',
+    adTitle: 'Preparar o anúncio final',
+    adDescription: 'Combine identidade, imagem, mensagem e destino em um anúncio pronto para revisão no Ads Manager.',
+    adLockedTitle: 'A criação ainda está bloqueada.',
+    adLockedDescription: 'Você precisa de uma conexão piloto ativa com ads_management.',
+    adNoAdSetTitle: 'Não há conjuntos de anúncios disponíveis.',
+    adNoAdSetDescription: 'Crie primeiro um conjunto de anúncios de tráfego pela TALIA.',
+    adNoPageTitle: 'Não há uma Página autorizada disponível.',
+    adNoPageDescription: 'Atribua uma Página do Facebook a esta conta de anúncios no Meta Business Suite e recarregue.',
+    adAdSet: 'Conjunto de anúncios',
+    adPage: 'Identidade da Página',
+    adPageHelp: 'A Meta mostrará esta Página como identidade do anúncio.',
+    adName: 'Nome interno do anúncio',
+    adNamePlaceholder: 'Ex. Venda antecipada · Imagem principal',
+    adHeadline: 'Título',
+    adHeadlinePlaceholder: 'Ingressos já disponíveis',
+    adPrimaryText: 'Texto principal',
+    adPrimaryTextPlaceholder: 'Apresente a proposta e explique por que visitar o link.',
+    adDestinationUrl: 'URL de destino',
+    adImageUrl: 'URL pública da imagem',
+    adImageUrlHelp: 'Deve ser uma URL HTTPS pública acessível pela Meta. O upload de arquivos chegará em uma iteração posterior.',
+    adCallToAction: 'Chamada para ação',
+    adCtaLearnMore: 'Saiba mais',
+    adCtaBuyTickets: 'Comprar ingressos',
+    adCreate: 'Criar anúncio pausado',
+    adCreating: 'Criando criativo e anúncio…',
+    adGuardrail: 'O anúncio será enviado como PAUSED; a TALIA não pode ativar entrega nem gastos.',
+    adSuccess: 'O criativo e o anúncio foram criados na Meta com status PAUSED.',
+    adInvalid: 'Revise o conjunto, a Página, o texto e as URLs HTTPS.',
+    adConnectionError: 'A conexão, o conjunto ou a Página não estão mais disponíveis. Recarregue ou revise o Meta Business Suite.',
+    adInProgress: 'Esta criação já está em andamento. Não a repita.',
+    adProviderError: 'A Meta rejeitou o criativo ou anúncio. Revise identidade, URLs e conteúdo.',
+    adSaveError: 'A Meta pode ter criado parte do anúncio, mas a TALIA não conseguiu confirmar. Não repita a criação; revise o Ads Manager.',
   },
 }
 

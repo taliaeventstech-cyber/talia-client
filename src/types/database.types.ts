@@ -2012,6 +2012,22 @@ export type Database = {
       }
     }
     Functions: {
+      claim_meta_marketing_ad_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_call_to_action: string
+          p_destination_url: string
+          p_headline: string
+          p_image_url: string
+          p_name: string
+          p_page_id: string
+          p_primary_text: string
+          p_provider_ad_set_id: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
       claim_meta_marketing_ad_set_creation: {
         Args: {
           p_actor_user_id: string
@@ -2044,6 +2060,16 @@ export type Database = {
         Args: {
           p_actor_user_id: string
           p_provider_ad_set_id: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
+      }
+      complete_meta_marketing_ad_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_provider_ad_id: string
+          p_provider_creative_id: string
           p_request_id: string
           p_theatre_id: string
         }
@@ -2281,6 +2307,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      fail_meta_marketing_ad_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_error_code: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
+      }
       fail_meta_marketing_ad_set_creation: {
         Args: {
           p_actor_user_id: string
@@ -2342,6 +2377,13 @@ export type Database = {
         Returns: Json
       }
       list_meta_marketing_eligible_traffic_campaigns: {
+        Args: {
+          p_actor_user_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
+      list_meta_marketing_eligible_traffic_ad_sets: {
         Args: {
           p_actor_user_id: string
           p_theatre_id: string

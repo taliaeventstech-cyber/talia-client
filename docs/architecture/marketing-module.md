@@ -1,6 +1,6 @@
 # Marketing module
 
-Last updated: October 10, 2026
+Last updated: October 11, 2026
 
 This is the engineering onboarding document for TALIA Marketing. Read it before
 changing the Marketing product surface, Meta integration, data model or
@@ -39,22 +39,25 @@ Implemented:
   engagement or awareness, always in `PAUSED`;
 - supervised traffic ad-set creation with daily budget, UTC schedule and basic
   country/age targeting, always in `PAUSED`.
+- supervised static image-ad creation using a promotable Facebook Page, bounded
+  copy and public HTTPS destination/image URLs, always in `PAUSED`.
 
 Not implemented:
 
 - scheduled synchronization;
 - custom date ranges;
-- engagement/awareness ad sets, creative or ad creation;
+- engagement/awareness ad sets, binary media upload, video or multi-asset ads;
 - lifetime budgets, manual placements, detailed audience interests, destination
   or special-ad-category flows;
 - conversion attribution, purchases, revenue or ROAS;
 - automated recommendations or automatic budget changes;
 - cross-venue or account-level aggregation.
 
-Hard guardrail: every object created through TALIA starts in `PAUSED`. Current
-writes call `/{act_id}/campaigns` and `/{act_id}/adsets`; status, billing event,
-optimization goal and bid strategy are server-owned. No current path creates an
-ad, publishes an object, changes status to `ACTIVE` or activates spend.
+Hard guardrail: every delivery object created through TALIA starts in `PAUSED`.
+Current writes call `/{act_id}/campaigns`, `/{act_id}/adsets`,
+`/{act_id}/adcreatives` and `/{act_id}/ads`; status, billing event, optimization
+goal and bid strategy are server-owned. No current path changes status to
+`ACTIVE` or activates spend.
 
 ## Access and tenancy
 
@@ -98,6 +101,15 @@ Traffic ad-set creation
   -> authorized, rollout-gated idempotency claim
   -> server derives LINK_CLICKS / IMPRESSIONS / LOWEST_COST_WITHOUT_CAP
   -> Meta ad-set POST forced to PAUSED with automatic placements
+  -> durable completion + audit event
+
+Static traffic-ad creation
+  -> select an ad set completed by TALIA and a provider-authorized promotable Page
+  -> enter bounded copy, HTTPS destination/image URL and a supported CTA
+  -> authorized, rollout-gated idempotency claim
+  -> server revalidates the Page against the connected ad account
+  -> create Page-backed link creative
+  -> create final ad forced to PAUSED
   -> durable completion + audit event
 ```
 
@@ -191,6 +203,15 @@ change from reinterpreting the submitted budget. Only countries and age range
 are accepted as targeting; no PII, customer lists, interests or manual
 placements enter this slice.
 
+Static traffic ads use `meta_marketing_ad_creation_requests`. Eligible ad sets
+come only from completed TALIA ad-set requests for the current connection. A
+Page selected in the browser is revalidated against the ad account's
+`promote_pages` edge before any creative is created. The request persists its
+bounded input for idempotency but audit metadata excludes creative copy and the
+image URL. If Meta creates the creative and a later step fails, the request stays
+`processing`; automatic retry is deliberately blocked to avoid duplicate
+provider objects.
+
 Migrations, in deployment order:
 
 - `supabase/migrations/20261006100000_meta_marketing_campaign_insights.sql`
@@ -198,6 +219,7 @@ Migrations, in deployment order:
 - `supabase/migrations/20261007150000_meta_marketing_period_snapshots.sql`
 - `supabase/migrations/20261007193000_meta_marketing_paused_campaign_creation.sql`
 - `supabase/migrations/20261010120000_meta_marketing_paused_traffic_ad_sets.sql`
+- `supabase/migrations/20261011123000_meta_marketing_paused_image_ads.sql`
 
 Migration files are append-only after they reach any shared environment. Do not
 extend an already-recorded timestamp with new tables or RPC signatures: create
@@ -225,6 +247,8 @@ Main source map:
 | Campaign write orchestration and Meta POST | `src/lib/marketing/campaign-creation-service.ts` |
 | Traffic ad-set form/action | `src/app/(dashboard)/[tenantId]/marketing/marketing-ad-set-create-form.tsx` and `ad-set-create-actions.ts` |
 | Traffic ad-set orchestration and Meta POST | `src/lib/marketing/ad-set-creation-service.ts` |
+| Static traffic-ad form/action | `src/app/(dashboard)/[tenantId]/marketing/marketing-ad-create-form.tsx` and `ad-create-actions.ts` |
+| Static creative/ad orchestration and Meta POSTs | `src/lib/marketing/ad-creation-service.ts` |
 | Meta provider reads and validation | `src/lib/marketing/insights-service.ts` |
 | Sync orchestration and error classification | `src/lib/marketing/sync-service.ts` |
 | Authorized persistence RPC adapter | `src/lib/marketing/connection-service.ts` |
@@ -283,6 +307,10 @@ The product must distinguish these states explicitly:
   status, `ads_management` and venue rollout are all required.
 - **Campaign created:** confirm `PAUSED` and link to the selected account in Ads
   Manager; do not imply that an ad, audience or budget already exists.
+- **Ad set created:** confirm `PAUSED`; explain that the final creative/ad is
+  still required.
+- **Ad created:** confirm that both creative and final ad exist and that the ad
+  remains `PAUSED` pending manual review in Ads Manager.
 
 Never treat an empty Meta account as a broken connection.
 
@@ -313,6 +341,8 @@ npx vitest run \
   src/lib/marketing/campaign-creation-service.test.ts \
   src/lib/marketing/ad-set-creation-migration.test.ts \
   src/lib/marketing/ad-set-creation-service.test.ts \
+  src/lib/marketing/ad-creation-migration.test.ts \
+  src/lib/marketing/ad-creation-service.test.ts \
   src/lib/marketing/connection-service.test.ts \
   src/lib/marketing/demo-data.test.ts \
   src/lib/marketing/insights-service.test.ts \
@@ -320,6 +350,7 @@ npx vitest run \
   src/lib/marketing/oauth.test.ts \
   src/lib/marketing/periods.test.ts \
   src/lib/marketing/sync-service.test.ts \
+  'src/app/(dashboard)/[tenantId]/marketing/marketing-ad-create-form.test.tsx' \
   'src/app/(dashboard)/[tenantId]/marketing/marketing-period-selector.test.tsx' \
   'src/app/(dashboard)/[tenantId]/marketing/marketing-trend-chart.test.tsx' \
   'src/app/(dashboard)/[tenantId]/marketing/marketing-campaign-comparison.test.tsx'
@@ -357,8 +388,7 @@ When extending Marketing:
 
 ## Next likely slices
 
-1. Supervised creative and ad creation in `PAUSED`, including destination and
-   media validation.
+1. Binary media upload plus video and multi-asset creative formats.
 2. Page/promoted-object selection for engagement and awareness ad sets.
 3. A scheduler with freshness policy, rate-limit handling and retry controls.
 4. App Review, advanced access and Business Verification for customer pilots.

@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: October 10, 2026
+Last updated: October 11, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -253,20 +253,26 @@ Implemented:
   account-currency budget conversion, UTC schedule, country/age targeting,
   automatic placements and server-owned delivery settings. Requests are
   idempotent and always reach Meta as `PAUSED`.
+- Supervised static traffic-ad creation for an ad set previously created by
+  TALIA. The operator selects a Page promotable by the connected ad account and
+  supplies bounded copy, destination and public HTTPS image URLs. TALIA creates
+  the Page-backed creative and final ad idempotently; the ad is always sent as
+  `PAUSED`.
 - Marketing credentials and lifecycle are separate from Instagram direct
   messages and WhatsApp.
 
 Pending:
 
-- Creation of engagement/awareness ad sets once Page/promoted-object selection
-  is defined, plus creative and ad objects, always starting in `PAUSED`.
+- Creation of engagement/awareness ad sets once their promoted-object contract
+  is defined, plus binary media upload, video and multi-asset creatives.
 - Meta App Review, advanced access and Business Verification before a customer
   pilot.
 
 Current guardrail:
 
-- TALIA cannot activate advertising spend. Current writes create incomplete
-  campaign and traffic ad-set objects in `PAUSED`; no ad is created.
+- TALIA cannot activate advertising spend. Current writes can assemble a
+  complete static traffic campaign, but campaign, ad set and final ad all remain
+  `PAUSED`; no path changes provider status to `ACTIVE`.
 
 Reference:
 

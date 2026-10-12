@@ -86,7 +86,8 @@ advanced access, App Review and Business Verification in Meta.
    `20261006110000_meta_marketing_daily_insights.sql`,
    `20261007150000_meta_marketing_period_snapshots.sql` and
    `20261007193000_meta_marketing_paused_campaign_creation.sql`, then
-   `20261010120000_meta_marketing_paused_traffic_ad_sets.sql`.
+   `20261010120000_meta_marketing_paused_traffic_ad_sets.sql` and
+   `20261011123000_meta_marketing_paused_image_ads.sql`.
 2. Configure the server environment and the matching Meta redirect URI.
 3. Connect with an app-role user from Agora and select one Business Portfolio
    and one ad account.
@@ -117,8 +118,19 @@ account currency's minor unit, converts browser-local dates to UTC and derives
 `billing_event=IMPRESSIONS`, `optimization_goal=LINK_CLICKS` and
 `bid_strategy=LOWEST_COST_WITHOUT_CAP` on the server. Targeting is restricted to
 country codes and an age range; omission of manual placement fields leaves Meta
-placements automatic. The request is always `PAUSED` and still cannot deliver
-because this slice creates no ad or creative.
+placements automatic. The ad set request is always `PAUSED` and cannot deliver
+until a final ad exists.
+
+The static traffic-ad form is available after TALIA has completed an eligible
+ad set. It reads the account's `/{act_id}/promote_pages` edge, sends bounded
+copy plus public HTTPS destination/image URLs to `/{act_id}/adcreatives`, then
+creates the final object through `/{act_id}/ads`. The server revalidates the
+selected Page and forces the final ad to `PAUSED`. Video, carousel, binary media
+upload and Instagram identity remain outside this slice.
+
+If the creative is accepted but ad creation or local completion fails, do not
+repeat the request. The idempotency row remains `processing`; reconcile the
+creative/ad in Ads Manager before any manual recovery.
 
 Never add an `ACTIVE` option, accept delivery settings from client input or use
 a fixed `×100` conversion for every currency.
