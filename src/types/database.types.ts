@@ -2012,6 +2012,24 @@ export type Database = {
       }
     }
     Functions: {
+      claim_meta_marketing_ad_upload_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_call_to_action: string
+          p_destination_url: string
+          p_headline: string
+          p_image_mime_type: string
+          p_image_sha256: string
+          p_image_size_bytes: number
+          p_name: string
+          p_page_id: string
+          p_primary_text: string
+          p_provider_ad_set_id: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
       claim_meta_marketing_ad_creation: {
         Args: {
           p_actor_user_id: string
@@ -2060,6 +2078,17 @@ export type Database = {
         Args: {
           p_actor_user_id: string
           p_provider_ad_set_id: string
+          p_request_id: string
+          p_theatre_id: string
+        }
+        Returns: boolean
+      }
+      complete_meta_marketing_ad_upload_creation: {
+        Args: {
+          p_actor_user_id: string
+          p_provider_ad_id: string
+          p_provider_creative_id: string
+          p_provider_image_hash: string
           p_request_id: string
           p_theatre_id: string
         }

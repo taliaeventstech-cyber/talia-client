@@ -87,7 +87,8 @@ advanced access, App Review and Business Verification in Meta.
    `20261007150000_meta_marketing_period_snapshots.sql` and
    `20261007193000_meta_marketing_paused_campaign_creation.sql`, then
    `20261010120000_meta_marketing_paused_traffic_ad_sets.sql` and
-   `20261011123000_meta_marketing_paused_image_ads.sql`.
+   `20261011123000_meta_marketing_paused_image_ads.sql`, followed by
+   `20261012100000_meta_marketing_ad_image_uploads.sql`.
 2. Configure the server environment and the matching Meta redirect URI.
 3. Connect with an app-role user from Agora and select one Business Portfolio
    and one ad account.
@@ -123,14 +124,24 @@ until a final ad exists.
 
 The static traffic-ad form is available after TALIA has completed an eligible
 ad set. It reads the account's `/{act_id}/promote_pages` edge, sends bounded
-copy plus public HTTPS destination/image URLs to `/{act_id}/adcreatives`, then
-creates the final object through `/{act_id}/ads`. The server revalidates the
-selected Page and forces the final ad to `PAUSED`. Video, carousel, binary media
-upload and Instagram identity remain outside this slice.
+copy plus a public HTTPS destination and one JPEG or PNG image of at most 3 MB.
+The server verifies the image signature, uploads Base64 bytes to
+`/{act_id}/adimages`, and sends the returned `image_hash` to
+`/{act_id}/adcreatives` before creating the final object through
+`/{act_id}/ads`. TALIA never persists the image bytes or original filename. The
+server revalidates the selected Page and forces the final ad to `PAUSED`. Video,
+carousel and Instagram identity remain outside this slice.
 
-If the creative is accepted but ad creation or local completion fails, do not
-repeat the request. The idempotency row remains `processing`; reconcile the
-creative/ad in Ads Manager before any manual recovery.
+Next.js Server Actions default to a 1 MB request limit. `next.config.ts` raises
+that limit to 5 MB so the 3 MB product limit plus multipart metadata can reach
+the server. Keep the explicit 3 MB server validation even if the framework
+limit changes; the framework limit is transport protection, not product
+validation.
+
+If the image or creative is accepted but a later provider call or local
+completion fails, do not repeat the request. The idempotency row remains
+`processing`; reconcile the image/creative/ad in Ads Manager before any manual
+recovery.
 
 Never add an `ACTIVE` option, accept delivery settings from client input or use
 a fixed `×100` conversion for every currency.

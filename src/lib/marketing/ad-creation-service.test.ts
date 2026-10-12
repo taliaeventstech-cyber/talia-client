@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createPausedMetaMarketingTrafficAd,
+  postMetaMarketingAdImage,
   postMetaMarketingLinkCreative,
   postPausedMetaMarketingAd,
 } from './ad-creation-service'
@@ -10,6 +11,7 @@ const tenantId = '657c9c3e-bf4a-45ce-868d-45a2f48db2fb'
 const actorUserId = '0d423c31-f1cb-49a4-9b23-6876c1f06e19'
 const requestId = '8ced31cc-e703-42f2-aa38-e657f1c484f4'
 const connectionId = 'cf3e88d4-af56-4b67-a31e-ce4378b2a444'
+const imageHash = '0123456789abcdef0123456789abcdef'
 
 describe('Meta Marketing paused traffic ad creation', () => {
   beforeEach(() => {
@@ -27,7 +29,7 @@ describe('Meta Marketing paused traffic ad creation', () => {
     await expect(postMetaMarketingLinkCreative(
       'act_123456',
       'sensitive-token',
-      validInput(),
+      { ...validInput(), imageHash },
       { fetcher: fetcher as typeof fetch },
     )).resolves.toEqual({ id: '222333444' })
 
@@ -42,13 +44,32 @@ describe('Meta Marketing paused traffic ad creation', () => {
         message: 'Book before Sunday.',
         link: 'https://example.org/tickets',
         name: 'Tickets now available',
-        picture: 'https://cdn.example.org/campaign.jpg',
+        image_hash: imageHash,
         call_to_action: {
           type: 'BUY_TICKETS',
           value: { link: 'https://example.org/tickets' },
         },
       },
     })
+  })
+
+  it('uploads image bytes to the connected ad account and returns Meta image_hash', async () => {
+    const fetcher = vi.fn().mockResolvedValue(jsonResponse({
+      images: { bytes: { hash: imageHash } },
+    }))
+
+    await expect(postMetaMarketingAdImage(
+      'act_123456',
+      'sensitive-token',
+      pngBytes(),
+      { fetcher: fetcher as typeof fetch },
+    )).resolves.toEqual({ hash: imageHash })
+
+    const [url, init] = fetcher.mock.calls[0] as [URL, RequestInit]
+    const body = init.body as URLSearchParams
+    expect(url.toString()).toBe('https://graph.facebook.com/v26.0/act_123456/adimages')
+    expect(init.headers).toMatchObject({ Authorization: 'Bearer sensitive-token' })
+    expect(Buffer.from(body.get('bytes') ?? '', 'base64')).toEqual(Buffer.from(pngBytes()))
   })
 
   it('forces PAUSED when creating the final ad', async () => {
@@ -77,6 +98,7 @@ describe('Meta Marketing paused traffic ad creation', () => {
     const rpc = createRpc()
     const fetcher = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ data: [{ id: '444555666', name: 'TALIA' }] }))
+      .mockResolvedValueOnce(jsonResponse({ images: { bytes: { hash: imageHash } } }))
       .mockResolvedValueOnce(jsonResponse({ id: '222333444' }))
       .mockResolvedValueOnce(jsonResponse({ id: '777888999' }))
 
@@ -87,13 +109,15 @@ describe('Meta Marketing paused traffic ad creation', () => {
     )).resolves.toEqual({
       providerCreativeId: '222333444',
       providerAdId: '777888999',
+      providerImageHash: imageHash,
       deduplicated: false,
     })
 
-    expect(rpc).toHaveBeenCalledWith('complete_meta_marketing_ad_creation', {
+    expect(rpc).toHaveBeenCalledWith('complete_meta_marketing_ad_upload_creation', {
       p_theatre_id: tenantId,
       p_actor_user_id: actorUserId,
       p_request_id: requestId,
+      p_provider_image_hash: imageHash,
       p_provider_creative_id: '222333444',
       p_provider_ad_id: '777888999',
     })
@@ -146,6 +170,7 @@ describe('Meta Marketing paused traffic ad creation', () => {
     const rpc = createRpc()
     const fetcher = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ data: [{ id: '444555666', name: 'TALIA' }] }))
+      .mockResolvedValueOnce(jsonResponse({ images: { bytes: { hash: imageHash } } }))
       .mockResolvedValueOnce(jsonResponse({ id: '222333444' }))
       .mockResolvedValueOnce(jsonResponse({ error: { message: 'private detail' } }, 400))
 
@@ -162,6 +187,42 @@ describe('Meta Marketing paused traffic ad creation', () => {
       expect.anything(),
     )
   })
+
+  it('rejects a spoofed image type before claiming or calling Meta', async () => {
+    const rpc = createRpc()
+    const fetcher = vi.fn()
+
+    await expect(createPausedMetaMarketingTrafficAd(
+      { rpc } as never,
+      { ...validInput(), imageBytes: new Uint8Array([1, 2, 3]) },
+      { fetcher: fetcher as typeof fetch },
+    )).rejects.toMatchObject({
+      code: 'meta_marketing_ad_image_invalid',
+      kind: 'invalid',
+    })
+    expect(rpc).not.toHaveBeenCalled()
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('keeps the request claimed when Meta accepts an image but returns an invalid body', async () => {
+    const rpc = createRpc()
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ data: [{ id: '444555666', name: 'TALIA' }] }))
+      .mockResolvedValueOnce(jsonResponse({ images: {} }))
+
+    await expect(createPausedMetaMarketingTrafficAd(
+      { rpc } as never,
+      validInput(),
+      { fetcher: fetcher as typeof fetch, now: Date.parse('2026-10-11T10:00:00.000Z') },
+    )).rejects.toMatchObject({
+      code: 'meta_marketing_ad_image_response_invalid',
+      kind: 'save',
+    })
+    expect(rpc).not.toHaveBeenCalledWith(
+      'fail_meta_marketing_ad_creation',
+      expect.anything(),
+    )
+  })
 })
 
 function createRpc() {
@@ -170,7 +231,7 @@ function createRpc() {
     expiresAt: '2030-12-04T10:00:00.000Z',
   })
   return vi.fn(async (name: string) => {
-    if (name === 'claim_meta_marketing_ad_creation') {
+    if (name === 'claim_meta_marketing_ad_upload_creation') {
       return {
         data: {
           outcome: 'claimed',
@@ -182,7 +243,7 @@ function createRpc() {
         error: null,
       }
     }
-    if (name === 'complete_meta_marketing_ad_creation') return { data: true, error: null }
+    if (name === 'complete_meta_marketing_ad_upload_creation') return { data: true, error: null }
     if (name === 'fail_meta_marketing_ad_creation') return { data: true, error: null }
     return { data: null, error: new Error('unexpected_rpc') }
   })
@@ -199,9 +260,14 @@ function validInput() {
     primaryText: 'Book before Sunday.',
     headline: 'Tickets now available',
     destinationUrl: 'https://example.org/tickets',
-    imageUrl: 'https://cdn.example.org/campaign.jpg',
+    imageBytes: pngBytes(),
+    imageMimeType: 'image/png',
     callToAction: 'BUY_TICKETS' as const,
   }
+}
+
+function pngBytes() {
+  return new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00])
 }
 
 function jsonResponse(value: unknown, status = 200) {
