@@ -628,6 +628,15 @@ Implemented:
 - Managed public URLs are the primary Agora web-source flow. Installed-widget
   capture remains an optional fallback for pages the managed worker cannot read
   reliably.
+- A website whose `robots.txt` blocks TALIA now keeps the specific
+  `robots_disallowed` diagnosis. Agora offers two explicit resolutions instead
+  of presenting the generic no-pages-discovered failure: authorize
+  `TALIA-AI-KnowledgeSync` in `robots.txt`, or verify ownership with a widget
+  heartbeat from the same origin and record revocable owner consent for that
+  source. The latter may ignore only `robots.txt`; same-origin discovery,
+  public-network validation, excluded private routes, HTTP access controls and
+  all quotas remain enforced. Consent and revocation are written to
+  `audit_events`, and a successful authorization queues a retry.
 - Managed page refreshes preserve secure ticket, booking, reservation and
   checkout links as source-scoped chunk metadata for verified chatbot purchase
   actions. Existing sources need their normal refresh/reprocess cycle to gain
