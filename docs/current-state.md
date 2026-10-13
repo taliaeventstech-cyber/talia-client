@@ -956,7 +956,8 @@ Implemented:
 
 - 7-day free trial.
 - After the trial, access to the Web Agent is replaced by an upgrade prompt.
-- `/upgrade` screen with the public Web Agent plan and compatible add-ons.
+- `/upgrade` screen with the two public Web Agent plans: Basic at EUR 60/month
+  and Premium at EUR 120/month for the Spanish market.
 - The current commercial plan is read-only in chatbot settings. Subscription
   changes go through the billing flow and cannot be written by the widget settings
   server action.
@@ -964,14 +965,10 @@ Implemented:
   billing or confirm cancellation. Scheduled cancellations remain active until
   the paid period ends, and webhook metadata makes that state visible in Agora.
 - Stripe Checkout.
-- Localized EUR, MXN and BRL prices selected from the onboarding market, with
-  monthly and annual Web Agent subscriptions. Annual billing preserves a
-  monthly 1,000-message usage window anchored to the subscription start.
+- Monthly Stripe prices selected from the onboarding market. Spain has approved
+  EUR prices; Mexico and Brazil remain price-on-request pending local amounts.
 - Documented Stripe webhook.
-- Add-ons:
-  - white label;
-  - +2,000 messages as a non-renewing top-up for the current usage period;
-  - premium onboarding.
+- The former public add-ons and annual cadence are not part of the current offer.
 
 Pending:
 

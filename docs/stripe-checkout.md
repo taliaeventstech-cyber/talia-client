@@ -53,10 +53,11 @@ Existing accounts remain in EUR. Checkout must use the Stripe Price configured
 for that currency; the billing country and tax details are collected by Stripe
 at payment time, rather than being assumed from the product interface language.
 
-The public offer has two monthly plans: `basic` (2,000 web messages) and
-`premium` (10,000 web messages). Their Stripe Price IDs are intentionally kept
-in environment variables, so the commercial amount can be set directly in
-Stripe without exposing a provisional price in Àgora.
+The public offer has two monthly plans in Spain: `basic` at EUR 60/month
+(2,000 web messages) and `premium` at EUR 120/month (10,000 web messages).
+Their Stripe Price IDs are intentionally kept in environment variables. Mexico
+and Brazil retain independent Price IDs and remain price-on-request until their
+local commercial amounts are approved.
 
 ## Checkout endpoints
 

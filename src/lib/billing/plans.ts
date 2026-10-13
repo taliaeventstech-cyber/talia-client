@@ -47,7 +47,7 @@ export const BILLING_PLANS: BillingPlan[] = [
   {
     key: 'basic',
     title: 'Básico',
-    priceMonthly: null,
+    priceMonthly: 60,
     includedLabel: '2.000 mensajes al mes',
     description: 'Plan esencial para gestionar las conversaciones del Agente Web.',
     features: [
@@ -64,7 +64,7 @@ export const BILLING_PLANS: BillingPlan[] = [
   {
     key: 'premium',
     title: 'Premium',
-    priceMonthly: null,
+    priceMonthly: 120,
     includedLabel: '10.000 mensajes al mes',
     description: 'Plan completo con acompañamiento y análisis continuo.',
     features: [
@@ -100,12 +100,12 @@ export function getBillingAddon(_addonKey: string | null | undefined): BillingAd
 
 const PLAN_PRICES: Record<BillingPlanKey, Partial<Record<CommercialMarketCountry, Partial<Record<BillingCadence, CommercialPrice>>>>> = {
   basic: {
-    ES: { monthly: price(null, 'ES', 'STRIPE_BASIC_PRICE_ID') },
+    ES: { monthly: price(60, 'ES', 'STRIPE_BASIC_PRICE_ID') },
     MX: { monthly: price(null, 'MX', 'STRIPE_BASIC_MEXICO_PRICE_ID') },
     BR: { monthly: price(null, 'BR', 'STRIPE_BASIC_BRAZIL_PRICE_ID') },
   },
   premium: {
-    ES: { monthly: price(null, 'ES', 'STRIPE_PREMIUM_PRICE_ID') },
+    ES: { monthly: price(120, 'ES', 'STRIPE_PREMIUM_PRICE_ID') },
     MX: { monthly: price(null, 'MX', 'STRIPE_PREMIUM_MEXICO_PRICE_ID') },
     BR: { monthly: price(null, 'BR', 'STRIPE_PREMIUM_BRAZIL_PRICE_ID') },
   },

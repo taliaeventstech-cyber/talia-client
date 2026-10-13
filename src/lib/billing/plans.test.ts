@@ -3,6 +3,7 @@ import {
   getBillingCadenceByPriceId,
   getBillingPlan,
   getBillingPlanByPriceId,
+  getBillingPlanPrice,
   getStripePriceIdForPlan,
   isPublicBillingPlan,
 } from './plans'
@@ -13,6 +14,11 @@ describe('public billing plans', () => {
   it('exposes Basic and Premium', () => {
     expect(isPublicBillingPlan('basic')).toBe(true)
     expect(isPublicBillingPlan('premium')).toBe(true)
+  })
+
+  it('publishes the Spanish monthly prices', () => {
+    expect(getBillingPlanPrice(getBillingPlan('basic')!, 'ES', 'monthly')).toMatchObject({ amount: 60, currency: 'EUR' })
+    expect(getBillingPlanPrice(getBillingPlan('premium')!, 'ES', 'monthly')).toMatchObject({ amount: 120, currency: 'EUR' })
   })
 
   it('maps retired plan keys so existing subscriptions retain their allowance', () => {
