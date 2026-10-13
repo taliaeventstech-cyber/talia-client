@@ -12,6 +12,7 @@ type PlanView = {
   features: readonly string[]
   highlighted?: boolean
   monthlyConfigured: boolean
+  priceLabel: string
 }
 
 export function BillingConfigurator({
@@ -23,6 +24,7 @@ export function BillingConfigurator({
   currentPlanKey,
   isPaid,
   locale,
+  monthlyLabel,
   planDetailsLabel,
   plans,
   popularLabel,
@@ -53,6 +55,7 @@ export function BillingConfigurator({
   currentPlanKey: BillingPlanKey
   isPaid: boolean
   locale: string
+  monthlyLabel: string
   planDetailsLabel: string
   plans: PlanView[]
   popularLabel: string
@@ -131,6 +134,10 @@ export function BillingConfigurator({
           >
             {plan.highlighted ? <span className="pricing-badge">{popularLabel}</span> : null}
             <h2>{plan.title}</h2>
+            <p className="pricing-price">
+              <strong>{plan.priceLabel}</strong>
+              {plan.priceLabel !== pricePendingLabel ? <span>{monthlyLabel}</span> : null}
+            </p>
             <p className="pricing-included">{plan.includedLabel}</p>
             <ul className="pricing-feature-list">
               {plan.features.map((feature) => (
@@ -150,7 +157,7 @@ export function BillingConfigurator({
           <h2>{selectedPlan.title}</h2>
           <div className="billing-summary-row">
             <span>{selectedPlan.includedLabel}</span>
-            <strong>{pricePendingLabel}</strong>
+            <strong>{selectedPlan.priceLabel}{selectedPlan.priceLabel !== pricePendingLabel ? ` ${monthlyLabel}` : ''}</strong>
           </div>
           <button className="button-primary pricing-action" type="button" disabled={pending || hasDisabledSelection || !canManageBilling} onClick={submit}>
             {!canManageBilling
