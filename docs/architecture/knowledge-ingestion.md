@@ -137,9 +137,13 @@ Capture uses a controlled waterfall:
 3. installed-widget or explicit manual browser capture when direct capture is blocked;
 4. CMS/provider API when a deterministic integration exists.
 
-No worker may bypass CAPTCHA, authentication, explicit access controls, robots
-rules, or provider terms. Checkout, account, authentication, form, and private
-routes are excluded by default. The installed widget remains a first-party
+No worker may bypass CAPTCHA, authentication, explicit access controls or
+provider terms. Checkout, account, authentication, form, and private routes are
+excluded by default. `robots.txt` is respected unless an administrator has
+explicitly authorized public-page capture for that exact source origin after a
+recent, domain-validated installed-widget heartbeat. That consent is stored on
+the source, audited and revocable; it does not relax any network, origin, route,
+quota or HTTP access-control guard. The installed widget remains a first-party
 fallback rather than being removed.
 
 Operational reference:

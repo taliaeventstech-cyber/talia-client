@@ -46,6 +46,11 @@ import {
   hasUsableTenantKnowledge,
   shouldBlockChatbotActivation,
 } from '@/lib/knowledge/availability'
+import {
+  findFreshWidgetInstallation,
+  getOwnerAuthorizedWebCapture,
+  withOwnerAuthorizedWebCapture,
+} from '@/lib/knowledge/owner-authorized-web-capture'
 
 export type SettingsFormState = {
   ok: boolean
@@ -543,6 +548,158 @@ export async function requestManagedWebSourceSync(
 
   revalidatePath(`/${tenantId}/knowledge`)
   return { ok: true, message: 'Actualización añadida a la cola.' }
+}
+
+export async function updateManagedWebOwnerAuthorization(
+  tenantId: string,
+  sourceId: string,
+  enabled: boolean,
+): Promise<SettingsFormState> {
+  await requireTenantProductAccess(tenantId, 'manage_knowledge', 'data')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const admin = createAdminClient()
+  if (!await assertTenantAdmin(admin, user.id, tenantId)) {
+    return { ok: false, message: 'No tienes permisos para autorizar esta captura.' }
+  }
+
+  const [{ data: source, error: sourceError }, { data: theatre, error: theatreError }] = await Promise.all([
+    admin
+      .from('knowledge_sources')
+      .select('id, type, source_url, config, sync_enabled')
+      .eq('id', sourceId)
+      .eq('theatre_id', tenantId)
+      .maybeSingle(),
+    admin
+      .from('theatres')
+      .select('account_id')
+      .eq('id', tenantId)
+      .maybeSingle(),
+  ])
+
+  if (sourceError || !source || !isManagedWebSourceType(source.type) || !source.source_url) {
+    return { ok: false, message: 'Fuente web no encontrada.' }
+  }
+  if (theatreError || !theatre) {
+    return { ok: false, message: 'No se pudo validar el espacio.' }
+  }
+
+  let installation: { origin: string; lastSeenAt: string } | undefined
+  if (enabled) {
+    const { data: installations, error: installationError } = await admin
+      .from('widget_installations')
+      .select('origin, last_seen_at')
+      .eq('theatre_id', tenantId)
+      .order('last_seen_at', { ascending: false })
+      .limit(25)
+
+    if (installationError) {
+      return { ok: false, message: 'No se pudo comprobar la instalación del widget.' }
+    }
+    installation = findFreshWidgetInstallation(
+      source.source_url,
+      (installations ?? []).map((item) => ({ origin: item.origin, lastSeenAt: item.last_seen_at })),
+    ) ?? undefined
+    if (!installation) {
+      return {
+        ok: false,
+        message: 'No hemos detectado el widget en este dominio durante las últimas 24 horas. Abre la web publicada y vuelve a intentarlo.',
+      }
+    }
+  } else {
+    const current = getOwnerAuthorizedWebCapture(source.config, source.source_url)
+    if (!current?.enabled) {
+      return { ok: true, message: 'La autorización ya estaba revocada.' }
+    }
+  }
+
+  const updatedConfig = withOwnerAuthorizedWebCapture(source.config, {
+    enabled,
+    sourceUrl: source.source_url,
+    actorUserId: user.id,
+    installation,
+  })
+  const updated = await admin
+    .from('knowledge_sources')
+    .update({ config: updatedConfig })
+    .eq('id', sourceId)
+    .eq('theatre_id', tenantId)
+
+  if (updated.error) {
+    return { ok: false, message: `No se pudo guardar la autorización: ${updated.error.message}` }
+  }
+
+  const audit = await admin.from('audit_events').insert({
+    account_id: theatre.account_id,
+    theatre_id: tenantId,
+    actor_user_id: user.id,
+    action: enabled
+      ? 'knowledge.owner_authorized_capture_enabled'
+      : 'knowledge.owner_authorized_capture_disabled',
+    target_type: 'knowledge_source',
+    target_id: sourceId,
+    metadata: enabled && installation
+      ? {
+        verification_method: 'installed_widget',
+        authorized_origin: installation.origin,
+        widget_last_seen_at: installation.lastSeenAt,
+      }
+      : { verification_method: 'installed_widget' },
+  })
+
+  if (audit.error) {
+    const rollback = await admin
+      .from('knowledge_sources')
+      .update({ config: source.config })
+      .eq('id', sourceId)
+      .eq('theatre_id', tenantId)
+    console.error('[knowledge-owner-authorization] failed to record audit event', {
+      tenantId,
+      sourceId,
+      auditError: audit.error.message,
+      rollbackError: rollback.error?.message,
+    })
+    return { ok: false, message: 'No se pudo registrar la autorización de forma segura.' }
+  }
+
+  let queued = false
+  if (enabled && source.sync_enabled) {
+    const { data: activeRun } = await admin
+      .from('knowledge_sync_runs')
+      .select('id')
+      .eq('source_id', sourceId)
+      .in('status', ['queued', 'running'])
+      .maybeSingle()
+    if (!activeRun) {
+      const retry = await admin.from('knowledge_sync_runs').insert({
+        theatre_id: tenantId,
+        source_id: sourceId,
+        trigger: 'retry',
+        status: 'queued',
+        idempotency_key: `owner-authorization:${sourceId}:${randomUUID()}`,
+      })
+      queued = !retry.error
+    }
+    await admin
+      .from('knowledge_sources')
+      .update({ next_sync_at: new Date().toISOString() })
+      .eq('id', sourceId)
+      .eq('theatre_id', tenantId)
+  }
+
+  revalidatePath(`/${tenantId}/knowledge`)
+  return enabled
+    ? {
+      ok: true,
+      message: source.sync_enabled
+        ? queued
+          ? 'Dominio verificado y captura autorizada. La actualización ya está en cola.'
+          : 'Dominio verificado y captura autorizada. La actualización ya estaba en curso o se programará automáticamente.'
+        : 'Dominio verificado y captura autorizada. La fuente sigue pausada.',
+    }
+    : { ok: true, message: 'Autorización revocada. Las próximas capturas volverán a respetar robots.txt.' }
 }
 
 export async function requestKnowledgeSourceSupport(

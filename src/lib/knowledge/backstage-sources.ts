@@ -81,7 +81,7 @@ function getHumanizedSyncIssue(errorCode: string | null, fallback: string | null
   }
 
   if (errorCode === 'robots_disallowed') {
-    return 'La web impide el acceso automático mediante su configuración de rastreo.'
+    return 'El archivo robots.txt impide que TALIA lea la web. El responsable del sitio debe autorizar TALIA-AI-KnowledgeSync y volver a actualizar la fuente.'
   }
 
   if (errorCode === 'http_forbidden' || errorCode === 'challenge_detected') {

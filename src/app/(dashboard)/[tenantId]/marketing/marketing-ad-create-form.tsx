@@ -34,6 +34,8 @@ export function MarketingAdCreateForm({
     FormData
   >(action, null)
   const available = canCreate && adSets.length > 0 && pages.length > 0
+  const retryBlocked = state?.ok === false
+    && (state.code === 'in_progress' || state.code === 'save')
 
   return (
     <section className="card stack marketing-create-card">
@@ -64,7 +66,11 @@ export function MarketingAdCreateForm({
           className="marketing-ad-set-form"
           onSubmit={(event) => {
             const requestId = event.currentTarget.elements.namedItem('requestId')
-            if (state?.ok === false && requestId instanceof HTMLInputElement) {
+            if (
+              state?.ok === false
+              && !retryBlocked
+              && requestId instanceof HTMLInputElement
+            ) {
               requestId.value = crypto.randomUUID()
             }
           }}
@@ -134,16 +140,14 @@ export function MarketingAdCreateForm({
             />
           </label>
           <label className="field marketing-ad-set-wide">
-            <span>{copy.adImageUrl}</span>
+            <span>{copy.adImage}</span>
             <input
-              inputMode="url"
-              maxLength={2048}
-              name="imageUrl"
-              placeholder="https://example.org/campaign.jpg"
+              accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+              name="image"
               required
-              type="url"
+              type="file"
             />
-            <small>{copy.adImageUrlHelp}</small>
+            <small>{copy.adImageHelp}</small>
           </label>
           <label className="field marketing-ad-set-wide">
             <span>{copy.adCallToAction}</span>
@@ -155,7 +159,7 @@ export function MarketingAdCreateForm({
           <div className="marketing-create-actions marketing-ad-set-wide">
             <button
               className="button-primary button-fit"
-              disabled={pending || state?.ok === true || !available}
+              disabled={pending || state?.ok === true || retryBlocked || !available}
               type="submit"
             >
               {pending ? copy.adCreating : copy.adCreate}

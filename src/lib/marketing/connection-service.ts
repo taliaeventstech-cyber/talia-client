@@ -444,11 +444,15 @@ export async function claimMetaMarketingAdCreation(
     primaryText: string
     headline: string
     destinationUrl: string
-    imageUrl: string
+    image: {
+      sha256: string
+      mimeType: 'image/jpeg' | 'image/png'
+      sizeBytes: number
+    }
     callToAction: MetaMarketingAdCallToAction
   },
 ): Promise<MetaMarketingAdCreationClaim> {
-  const { data, error } = await admin.rpc('claim_meta_marketing_ad_creation', {
+  const { data, error } = await admin.rpc('claim_meta_marketing_ad_upload_creation', {
     p_theatre_id: input.tenantId,
     p_actor_user_id: input.actorUserId,
     p_request_id: input.requestId,
@@ -458,7 +462,9 @@ export async function claimMetaMarketingAdCreation(
     p_primary_text: input.primaryText,
     p_headline: input.headline,
     p_destination_url: input.destinationUrl,
-    p_image_url: input.imageUrl,
+    p_image_sha256: input.image.sha256,
+    p_image_mime_type: input.image.mimeType,
+    p_image_size_bytes: input.image.sizeBytes,
     p_call_to_action: metaMarketingAdCallToActionSchema.parse(input.callToAction),
   })
   if (error) throw new Error('meta_marketing_ad_creation_claim_failed')
@@ -474,14 +480,16 @@ export async function completeMetaMarketingAdCreation(
     tenantId: string
     actorUserId: string
     requestId: string
+    providerImageHash: string
     providerCreativeId: string
     providerAdId: string
   },
 ) {
-  const { data, error } = await admin.rpc('complete_meta_marketing_ad_creation', {
+  const { data, error } = await admin.rpc('complete_meta_marketing_ad_upload_creation', {
     p_theatre_id: input.tenantId,
     p_actor_user_id: input.actorUserId,
     p_request_id: input.requestId,
+    p_provider_image_hash: input.providerImageHash,
     p_provider_creative_id: input.providerCreativeId,
     p_provider_ad_id: input.providerAdId,
   })

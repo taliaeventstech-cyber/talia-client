@@ -104,9 +104,12 @@ code for this condition is `discovery_incomplete`.
 3. Installed-widget or explicit manual browser capture for blocked public pages.
 4. CMS/provider API where available.
 
-Do not bypass CAPTCHA, login, paywalls, explicit access controls, robots rules,
-or provider terms. Resolve DNS and reject private, loopback, link-local, metadata,
-and redirect-to-private targets on every network hop.
+Do not bypass CAPTCHA, login, paywalls, explicit access controls or provider
+terms. Respect robots rules by default. The sole exception is a source-scoped,
+revocable owner authorization backed by a widget heartbeat from the same origin
+within the previous 24 hours. This exception affects only the robots check.
+Resolve DNS and reject private, loopback, link-local, metadata, and
+redirect-to-private targets on every network hop regardless of authorization.
 
 ## Scheduling And Scale
 
@@ -126,8 +129,13 @@ automatically so a crashed worker cannot block a domain indefinitely.
 
 Transient network failures, HTTP 408/425/429 and HTTP 5xx responses may be
 retried with bounded exponential backoff. `Retry-After` takes precedence when it
-fits inside the configured retry window. Authentication failures, CAPTCHA,
-robots exclusions and other explicit blocks are never retried or bypassed.
+fits inside the configured retry window. Authentication failures, CAPTCHA and
+other explicit blocks are never retried or bypassed. Robots exclusions are not
+retried unless the source carries valid owner authorization as described above.
+When `robots.txt` blocks the root of a managed website, the worker persists
+`robots_disallowed` so Agora can offer either a crawler rule or the verified
+owner-authorization flow. Enabling that flow records an audit event and queues a
+`retry` run; revoking it makes the next run respect `robots.txt` again.
 
 ## Universal Tenant Quotas
 

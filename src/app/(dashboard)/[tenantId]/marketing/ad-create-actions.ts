@@ -3,6 +3,7 @@
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import {
   createPausedMetaMarketingTrafficAd,
+  META_MARKETING_AD_IMAGE_MAX_BYTES,
   MetaMarketingAdCreationError,
 } from '@/lib/marketing/ad-creation-service'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -18,7 +19,6 @@ const inputSchema = z.object({
   primaryText: z.string().trim().min(1).max(500),
   headline: z.string().trim().min(1).max(200),
   destinationUrl: z.url().max(2048),
-  imageUrl: z.url().max(2048),
   callToAction: metaMarketingAdCallToActionSchema,
 })
 
@@ -39,6 +39,7 @@ export async function createMetaMarketingAdAction(
   void _previousState
   if (!z.uuid().safeParse(tenantId).success) return { ok: false, code: 'invalid' }
 
+  const image = formData.get('image')
   const parsed = inputSchema.safeParse({
     requestId: formData.get('requestId'),
     providerAdSetId: formData.get('providerAdSetId'),
@@ -47,10 +48,15 @@ export async function createMetaMarketingAdAction(
     primaryText: formData.get('primaryText'),
     headline: formData.get('headline'),
     destinationUrl: formData.get('destinationUrl'),
-    imageUrl: formData.get('imageUrl'),
     callToAction: formData.get('callToAction'),
   })
-  if (!parsed.success) return { ok: false, code: 'invalid' }
+  if (
+    !parsed.success
+    || !(image instanceof File)
+    || !['image/jpeg', 'image/png'].includes(image.type)
+    || image.size === 0
+    || image.size > META_MARKETING_AD_IMAGE_MAX_BYTES
+  ) return { ok: false, code: 'invalid' }
 
   const access = await requireTenantProductAccess(
     tenantId,
@@ -59,10 +65,13 @@ export async function createMetaMarketingAdAction(
   )
 
   try {
+    const imageBytes = new Uint8Array(await image.arrayBuffer())
     const result = await createPausedMetaMarketingTrafficAd(createAdminClient(), {
       tenantId,
       actorUserId: access.userId,
       ...parsed.data,
+      imageBytes,
+      imageMimeType: image.type,
     })
     revalidatePath(`/${tenantId}/marketing`)
     return {

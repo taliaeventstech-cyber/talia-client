@@ -170,8 +170,8 @@ export type MarketingCopy = {
   adPrimaryText: string
   adPrimaryTextPlaceholder: string
   adDestinationUrl: string
-  adImageUrl: string
-  adImageUrlHelp: string
+  adImage: string
+  adImageHelp: string
   adCallToAction: string
   adCtaLearnMore: string
   adCtaBuyTickets: string
@@ -359,8 +359,8 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     adPrimaryText: 'Texto principal',
     adPrimaryTextPlaceholder: 'Presenta la propuesta y explica por qué visitar el enlace.',
     adDestinationUrl: 'URL de destino',
-    adImageUrl: 'URL pública de la imagen',
-    adImageUrlHelp: 'Debe ser una URL HTTPS pública accesible por Meta. La carga de archivos llegará en una iteración posterior.',
+    adImage: 'Imagen del anuncio',
+    adImageHelp: 'Sube un archivo JPEG o PNG de hasta 3 MB. TALIA lo enviará directamente a Meta y no conservará el archivo.',
     adCallToAction: 'Llamada a la acción',
     adCtaLearnMore: 'Más información',
     adCtaBuyTickets: 'Comprar entradas',
@@ -368,7 +368,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     adCreating: 'Creando creatividad y anuncio…',
     adGuardrail: 'El anuncio se enviará como PAUSED; TALIA no puede activar entrega ni gasto.',
     adSuccess: 'La creatividad y el anuncio se han creado en Meta en estado PAUSED.',
-    adInvalid: 'Revisa el conjunto, la Página, el texto y las URLs HTTPS.',
+    adInvalid: 'Revisa el conjunto, la Página, el texto, la URL HTTPS y la imagen JPEG o PNG (máximo 3 MB).',
     adConnectionError: 'La conexión, el conjunto o la Página ya no están disponibles. Actualiza la página o revisa Meta Business Suite.',
     adInProgress: 'Esta creación ya está en curso. No la repitas.',
     adProviderError: 'Meta ha rechazado la creatividad o el anuncio. Revisa la identidad, las URLs y el contenido.',
@@ -546,8 +546,8 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     adPrimaryText: 'Text principal',
     adPrimaryTextPlaceholder: 'Presenta la proposta i explica per què visitar l’enllaç.',
     adDestinationUrl: 'URL de destinació',
-    adImageUrl: 'URL pública de la imatge',
-    adImageUrlHelp: 'Ha de ser una URL HTTPS pública accessible per Meta. La càrrega d’arxius arribarà en una iteració posterior.',
+    adImage: 'Imatge de l’anunci',
+    adImageHelp: 'Puja un arxiu JPEG o PNG de fins a 3 MB. TALIA l’enviarà directament a Meta i no conservarà l’arxiu.',
     adCallToAction: 'Crida a l’acció',
     adCtaLearnMore: 'Més informació',
     adCtaBuyTickets: 'Comprar entrades',
@@ -555,7 +555,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     adCreating: 'Creant creativitat i anunci…',
     adGuardrail: 'L’anunci s’enviarà com a PAUSED; TALIA no pot activar lliurament ni despesa.',
     adSuccess: 'La creativitat i l’anunci s’han creat a Meta en estat PAUSED.',
-    adInvalid: 'Revisa el conjunt, la Pàgina, el text i les URL HTTPS.',
+    adInvalid: 'Revisa el conjunt, la Pàgina, el text, la URL HTTPS i la imatge JPEG o PNG (màxim 3 MB).',
     adConnectionError: 'La connexió, el conjunt o la Pàgina ja no estan disponibles. Actualitza la pàgina o revisa Meta Business Suite.',
     adInProgress: 'Aquesta creació ja està en curs. No la repeteixis.',
     adProviderError: 'Meta ha rebutjat la creativitat o l’anunci. Revisa la identitat, les URL i el contingut.',
@@ -733,8 +733,8 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     adPrimaryText: 'Primary text',
     adPrimaryTextPlaceholder: 'Present the offer and explain why people should visit the link.',
     adDestinationUrl: 'Destination URL',
-    adImageUrl: 'Public image URL',
-    adImageUrlHelp: 'It must be a public HTTPS URL that Meta can access. File upload will arrive in a later iteration.',
+    adImage: 'Ad image',
+    adImageHelp: 'Upload one JPEG or PNG file up to 3 MB. TALIA sends it directly to Meta and does not retain the file.',
     adCallToAction: 'Call to action',
     adCtaLearnMore: 'Learn more',
     adCtaBuyTickets: 'Buy tickets',
@@ -742,7 +742,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     adCreating: 'Creating creative and ad…',
     adGuardrail: 'The ad is sent as PAUSED; TALIA cannot activate delivery or spend.',
     adSuccess: 'The creative and ad were created in Meta with PAUSED status.',
-    adInvalid: 'Review the ad set, Page, copy and HTTPS URLs.',
+    adInvalid: 'Review the ad set, Page, copy, HTTPS URL and JPEG or PNG image (3 MB maximum).',
     adConnectionError: 'The connection, ad set or Page is no longer available. Reload or review Meta Business Suite.',
     adInProgress: 'This creation is already in progress. Do not repeat it.',
     adProviderError: 'Meta rejected the creative or ad. Review identity, URLs and content.',
@@ -920,8 +920,8 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     adPrimaryText: 'Texto principal',
     adPrimaryTextPlaceholder: 'Apresente a proposta e explique por que visitar o link.',
     adDestinationUrl: 'URL de destino',
-    adImageUrl: 'URL pública da imagem',
-    adImageUrlHelp: 'Deve ser uma URL HTTPS pública acessível pela Meta. O upload de arquivos chegará em uma iteração posterior.',
+    adImage: 'Imagem do anúncio',
+    adImageHelp: 'Envie um arquivo JPEG ou PNG de até 3 MB. A TALIA o enviará diretamente para a Meta e não conservará o arquivo.',
     adCallToAction: 'Chamada para ação',
     adCtaLearnMore: 'Saiba mais',
     adCtaBuyTickets: 'Comprar ingressos',
@@ -929,7 +929,7 @@ const copies: Record<'es' | 'ca' | 'en' | 'pt', MarketingCopy> = {
     adCreating: 'Criando criativo e anúncio…',
     adGuardrail: 'O anúncio será enviado como PAUSED; a TALIA não pode ativar entrega nem gastos.',
     adSuccess: 'O criativo e o anúncio foram criados na Meta com status PAUSED.',
-    adInvalid: 'Revise o conjunto, a Página, o texto e as URLs HTTPS.',
+    adInvalid: 'Revise o conjunto, a Página, o texto, a URL HTTPS e a imagem JPEG ou PNG (máximo de 3 MB).',
     adConnectionError: 'A conexão, o conjunto ou a Página não estão mais disponíveis. Recarregue ou revise o Meta Business Suite.',
     adInProgress: 'Esta criação já está em andamento. Não a repita.',
     adProviderError: 'A Meta rejeitou o criativo ou anúncio. Revise identidade, URLs e conteúdo.',

@@ -38,15 +38,16 @@ Implemented:
 - supervised creation of a top-level campaign container for traffic,
   engagement or awareness, always in `PAUSED`;
 - supervised traffic ad-set creation with daily budget, UTC schedule and basic
-  country/age targeting, always in `PAUSED`.
+  country/age targeting, always in `PAUSED`;
 - supervised static image-ad creation using a promotable Facebook Page, bounded
-  copy and public HTTPS destination/image URLs, always in `PAUSED`.
+  copy, a public HTTPS destination and a directly uploaded JPEG or PNG image,
+  always in `PAUSED`.
 
 Not implemented:
 
 - scheduled synchronization;
 - custom date ranges;
-- engagement/awareness ad sets, binary media upload, video or multi-asset ads;
+- engagement/awareness ad sets, video or multi-asset ads;
 - lifetime budgets, manual placements, detailed audience interests, destination
   or special-ad-category flows;
 - conversion attribution, purchases, revenue or ROAS;
@@ -55,9 +56,9 @@ Not implemented:
 
 Hard guardrail: every delivery object created through TALIA starts in `PAUSED`.
 Current writes call `/{act_id}/campaigns`, `/{act_id}/adsets`,
-`/{act_id}/adcreatives` and `/{act_id}/ads`; status, billing event, optimization
-goal and bid strategy are server-owned. No current path changes status to
-`ACTIVE` or activates spend.
+`/{act_id}/adimages`, `/{act_id}/adcreatives` and `/{act_id}/ads`; status,
+billing event, optimization goal and bid strategy are server-owned. No current
+path changes status to `ACTIVE` or activates spend.
 
 ## Access and tenancy
 
@@ -105,10 +106,12 @@ Traffic ad-set creation
 
 Static traffic-ad creation
   -> select an ad set completed by TALIA and a provider-authorized promotable Page
-  -> enter bounded copy, HTTPS destination/image URL and a supported CTA
+  -> enter bounded copy, an HTTPS destination and a supported CTA
+  -> select one JPEG or PNG image of at most 3 MB
   -> authorized, rollout-gated idempotency claim
   -> server revalidates the Page against the connected ad account
-  -> create Page-backed link creative
+  -> validate signature, upload bytes to Meta and receive image_hash
+  -> create Page-backed link creative using image_hash
   -> create final ad forced to PAUSED
   -> durable completion + audit event
 ```
@@ -206,11 +209,15 @@ placements enter this slice.
 Static traffic ads use `meta_marketing_ad_creation_requests`. Eligible ad sets
 come only from completed TALIA ad-set requests for the current connection. A
 Page selected in the browser is revalidated against the ad account's
-`promote_pages` edge before any creative is created. The request persists its
-bounded input for idempotency but audit metadata excludes creative copy and the
-image URL. If Meta creates the creative and a later step fails, the request stays
-`processing`; automatic retry is deliberately blocked to avoid duplicate
-provider objects.
+`promote_pages` edge before any provider write. The browser sends one JPEG or
+PNG file of at most 3 MB. The server verifies its signature, computes a SHA-256
+digest and uploads its Base64 bytes to the ad account's `adimages` edge. Only
+the digest, MIME type, byte count and returned Meta image hash are persisted;
+TALIA does not retain the image body or original filename. The creative uses
+the returned `image_hash`, not a client-controlled public image URL. Audit
+metadata excludes the digest and creative copy. If Meta creates an image or
+creative and a later step fails, the request stays `processing`; automatic
+retry is deliberately blocked to avoid duplicate provider objects.
 
 Migrations, in deployment order:
 
@@ -220,6 +227,7 @@ Migrations, in deployment order:
 - `supabase/migrations/20261007193000_meta_marketing_paused_campaign_creation.sql`
 - `supabase/migrations/20261010120000_meta_marketing_paused_traffic_ad_sets.sql`
 - `supabase/migrations/20261011123000_meta_marketing_paused_image_ads.sql`
+- `supabase/migrations/20261012100000_meta_marketing_ad_image_uploads.sql`
 
 Migration files are append-only after they reach any shared environment. Do not
 extend an already-recorded timestamp with new tables or RPC signatures: create
@@ -388,7 +396,7 @@ When extending Marketing:
 
 ## Next likely slices
 
-1. Binary media upload plus video and multi-asset creative formats.
+1. Video and multi-asset creative formats.
 2. Page/promoted-object selection for engagement and awareness ad sets.
 3. A scheduler with freshness policy, rate-limit handling and retry controls.
 4. App Review, advanced access and Business Verification for customer pilots.

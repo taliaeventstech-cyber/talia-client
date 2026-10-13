@@ -6,16 +6,18 @@ import {
   type ClearViewRequest,
 } from './clear-view'
 
-const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses'
+const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1'
 
 export class OpenAIClearViewProvider implements ClearViewProvider {
   constructor(
     private readonly apiKey: string,
     private readonly model: string,
+    private readonly baseUrl: string = DEFAULT_OPENAI_BASE_URL,
+    private readonly fetcher: typeof fetch = fetch,
   ) {}
 
   async generate(input: ClearViewRequest) {
-    const response = await fetch(OPENAI_RESPONSES_URL, {
+    const response = await this.fetcher(`${this.baseUrl.replace(/\/+$/, '')}/responses`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.apiKey}`,
@@ -23,6 +25,7 @@ export class OpenAIClearViewProvider implements ClearViewProvider {
       },
       body: JSON.stringify({
         model: this.model,
+        store: false,
         input: [
           {
             role: 'system',
@@ -87,6 +90,7 @@ export function createClearViewProviderFromEnv() {
   return new OpenAIClearViewProvider(
     apiKey,
     process.env.OPENAI_ACCESSIBILITY_MODEL || 'gpt-5.5',
+    process.env.OPENAI_BASE_URL || DEFAULT_OPENAI_BASE_URL,
   )
 }
 

@@ -1,4 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
+import { createHash } from 'node:crypto'
 import {
   metaMarketingAdCallToActionSchema,
   metaMarketingPromotablePageSchema,
@@ -27,8 +28,17 @@ const adInputSchema = z.object({
   primaryText: z.string().trim().min(1).max(500),
   headline: z.string().trim().min(1).max(200),
   destinationUrl: z.string().trim().max(2048),
-  imageUrl: z.string().trim().max(2048),
+  imageBytes: z.instanceof(Uint8Array),
+  imageMimeType: z.string().trim(),
   callToAction: metaMarketingAdCallToActionSchema,
+})
+
+export const META_MARKETING_AD_IMAGE_MAX_BYTES = 3 * 1024 * 1024
+
+const imageUploadResponseSchema = z.object({
+  images: z.record(z.string(), z.object({
+    hash: z.string().regex(/^[0-9a-fA-F]{32}$/),
+  })),
 })
 
 const providerIdResponseSchema = z.object({
@@ -85,7 +95,10 @@ export async function createPausedMetaMarketingTrafficAd(
   const input = {
     ...parsed.data,
     destinationUrl: requirePublicHttpsUrl(parsed.data.destinationUrl),
-    imageUrl: requirePublicHttpsUrl(parsed.data.imageUrl),
+    image: validateMetaMarketingAdImage(
+      parsed.data.imageBytes,
+      parsed.data.imageMimeType,
+    ),
   }
 
   let claim
@@ -140,13 +153,20 @@ export async function createPausedMetaMarketingTrafficAd(
       )
     }
 
-    const creative = await postMetaMarketingLinkCreative(
+    const image = await postMetaMarketingAdImage(
       claim.ad_account_id,
       credentials.accessToken,
-      input,
+      input.image.bytes,
       options,
     )
     providerCreated = true
+
+    const creative = await postMetaMarketingLinkCreative(
+      claim.ad_account_id,
+      credentials.accessToken,
+      { ...input, imageHash: image.hash },
+      options,
+    )
 
     const ad = await postPausedMetaMarketingAd(
       claim.ad_account_id,
@@ -163,6 +183,7 @@ export async function createPausedMetaMarketingTrafficAd(
       tenantId: input.tenantId,
       actorUserId: input.actorUserId,
       requestId: input.requestId,
+      providerImageHash: image.hash,
       providerCreativeId: creative.id,
       providerAdId: ad.id,
     })
@@ -170,11 +191,12 @@ export async function createPausedMetaMarketingTrafficAd(
     return {
       providerCreativeId: creative.id,
       providerAdId: ad.id,
+      providerImageHash: image.hash,
       deduplicated: false,
     }
   } catch (error) {
     const normalized = normalizeAdCreationError(error, providerCreated)
-    if (!providerCreated) {
+    if (!providerCreated && normalized.kind !== 'save') {
       try {
         await failMetaMarketingAdCreation(admin, {
           tenantId: input.tenantId,
@@ -188,6 +210,35 @@ export async function createPausedMetaMarketingTrafficAd(
     }
     throw normalized
   }
+}
+
+export async function postMetaMarketingAdImage(
+  adAccountId: string,
+  accessToken: string,
+  imageBytes: Uint8Array,
+  options: { fetcher?: typeof fetch; timeoutMs?: number } = {},
+) {
+  const accountId = requireAdAccountId(adAccountId)
+  const config = getMetaMarketingOAuthConfig()
+  const url = new URL(
+    `https://graph.facebook.com/${config.graphVersion}/${encodeURIComponent(accountId)}/adimages`,
+  )
+  const body = new URLSearchParams({
+    bytes: Buffer.from(imageBytes).toString('base64'),
+  })
+  const payload = await providerJsonRequest(url, accessToken, body, {
+    ...options,
+    timeoutMs: options.timeoutMs ?? 30_000,
+  })
+  const parsed = imageUploadResponseSchema.safeParse(payload)
+  const firstImage = parsed.success ? Object.values(parsed.data.images)[0] : undefined
+  if (!firstImage) {
+    throw new MetaMarketingAdCreationError(
+      'meta_marketing_ad_image_response_invalid',
+      'save',
+    )
+  }
+  return { hash: firstImage.hash.toLowerCase() }
 }
 
 export async function fetchMetaMarketingPromotablePages(
@@ -223,7 +274,7 @@ export async function postMetaMarketingLinkCreative(
     primaryText: string
     headline: string
     destinationUrl: string
-    imageUrl: string
+    imageHash: string
     callToAction: MetaMarketingAdCallToAction
   },
   options: { fetcher?: typeof fetch; timeoutMs?: number } = {},
@@ -241,7 +292,7 @@ export async function postMetaMarketingLinkCreative(
         message: input.primaryText.trim(),
         link: requirePublicHttpsUrl(input.destinationUrl),
         name: input.headline.trim(),
-        picture: requirePublicHttpsUrl(input.imageUrl),
+        image_hash: requireImageHash(input.imageHash),
         call_to_action: {
           type: metaMarketingAdCallToActionSchema.parse(input.callToAction),
           value: { link: requirePublicHttpsUrl(input.destinationUrl) },
@@ -365,6 +416,62 @@ function requireProviderId(value: string) {
     throw new MetaMarketingAdCreationError('meta_marketing_ad_context_invalid', 'invalid')
   }
   return normalized
+}
+
+function requireImageHash(value: string) {
+  const normalized = value.trim().toLowerCase()
+  if (!/^[0-9a-f]{32}$/.test(normalized)) {
+    throw new MetaMarketingAdCreationError('meta_marketing_ad_image_hash_invalid', 'invalid')
+  }
+  return normalized
+}
+
+export function validateMetaMarketingAdImage(
+  imageBytes: Uint8Array,
+  declaredMimeType: string,
+) {
+  if (
+    imageBytes.byteLength === 0
+    || imageBytes.byteLength > META_MARKETING_AD_IMAGE_MAX_BYTES
+  ) {
+    throw new MetaMarketingAdCreationError('meta_marketing_ad_image_invalid', 'invalid')
+  }
+
+  const detectedMimeType = detectImageMimeType(imageBytes)
+  const normalizedMimeType = declaredMimeType.trim().toLowerCase()
+  if (!detectedMimeType || detectedMimeType !== normalizedMimeType) {
+    throw new MetaMarketingAdCreationError('meta_marketing_ad_image_invalid', 'invalid')
+  }
+
+  return {
+    bytes: imageBytes,
+    mimeType: detectedMimeType,
+    sizeBytes: imageBytes.byteLength,
+    sha256: createHash('sha256').update(imageBytes).digest('hex'),
+  }
+}
+
+function detectImageMimeType(bytes: Uint8Array): 'image/jpeg' | 'image/png' | null {
+  if (
+    bytes.length >= 8
+    && bytes[0] === 0x89
+    && bytes[1] === 0x50
+    && bytes[2] === 0x4e
+    && bytes[3] === 0x47
+    && bytes[4] === 0x0d
+    && bytes[5] === 0x0a
+    && bytes[6] === 0x1a
+    && bytes[7] === 0x0a
+  ) return 'image/png'
+
+  if (
+    bytes.length >= 3
+    && bytes[0] === 0xff
+    && bytes[1] === 0xd8
+    && bytes[2] === 0xff
+  ) return 'image/jpeg'
+
+  return null
 }
 
 function normalizeAdCreationError(error: unknown, providerCreated: boolean) {

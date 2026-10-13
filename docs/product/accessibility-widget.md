@@ -103,7 +103,9 @@ Implemented:
 
 - Local extraction of title, summary, actions, and visible sections.
 - Endpoint `POST /api/accessibility/clear-view`.
-- AI generation when `OPENAI_API_KEY` is available.
+- AI generation when `OPENAI_API_KEY` is available. `OPENAI_BASE_URL` selects
+  the approved regional OpenAI endpoint; use `https://eu.api.openai.com/v1`
+  only with an EU-enabled project and its project-scoped key.
 - Local fallback if AI is not configured or fails.
 - Strict schema for the response.
 - Sanitization of actions to prevent the AI from inventing new links.

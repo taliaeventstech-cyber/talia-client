@@ -1,6 +1,6 @@
 # Current State of TALIA
 
-Last updated: October 11, 2026
+Last updated: October 12, 2026
 
 This document is the quick reference for understanding where the app stands before touching code. For deeper decisions, go to the documents linked at the end.
 
@@ -254,17 +254,18 @@ Implemented:
   automatic placements and server-owned delivery settings. Requests are
   idempotent and always reach Meta as `PAUSED`.
 - Supervised static traffic-ad creation for an ad set previously created by
-  TALIA. The operator selects a Page promotable by the connected ad account and
-  supplies bounded copy, destination and public HTTPS image URLs. TALIA creates
-  the Page-backed creative and final ad idempotently; the ad is always sent as
-  `PAUSED`.
+  TALIA. The operator selects a Page promotable by the connected ad account,
+  supplies bounded copy and destination, and uploads one JPEG or PNG image.
+  TALIA validates the file signature, sends the bytes directly to Meta without
+  retaining them, and uses the returned image hash to create the Page-backed
+  creative and final ad idempotently. The ad is always sent as `PAUSED`.
 - Marketing credentials and lifecycle are separate from Instagram direct
   messages and WhatsApp.
 
 Pending:
 
 - Creation of engagement/awareness ad sets once their promoted-object contract
-  is defined, plus binary media upload, video and multi-asset creatives.
+  is defined, plus video and multi-asset creatives.
 - Meta App Review, advanced access and Business Verification before a customer
   pilot.
 
@@ -627,6 +628,15 @@ Implemented:
 - Managed public URLs are the primary Agora web-source flow. Installed-widget
   capture remains an optional fallback for pages the managed worker cannot read
   reliably.
+- A website whose `robots.txt` blocks TALIA now keeps the specific
+  `robots_disallowed` diagnosis. Agora offers two explicit resolutions instead
+  of presenting the generic no-pages-discovered failure: authorize
+  `TALIA-AI-KnowledgeSync` in `robots.txt`, or verify ownership with a widget
+  heartbeat from the same origin and record revocable owner consent for that
+  source. The latter may ignore only `robots.txt`; same-origin discovery,
+  public-network validation, excluded private routes, HTTP access controls and
+  all quotas remain enforced. Consent and revocation are written to
+  `audit_events`, and a successful authorization queues a retry.
 - Managed page refreshes preserve secure ticket, booking, reservation and
   checkout links as source-scoped chunk metadata for verified chatbot purchase
   actions. Existing sources need their normal refresh/reprocess cycle to gain
