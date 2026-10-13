@@ -44,6 +44,25 @@ describe('managed web source presentation', () => {
     expect(result).toMatchObject({ outcome: 'blocked', actions: ['retry', 'widget', 'support'] })
   })
 
+  it('makes a robots.txt denial explicit without suggesting a blind retry', () => {
+    const result = getManagedWebPresentation({
+      syncEnabled: true,
+      sourceStatus: 'error',
+      run: {
+        ...successfulRun,
+        status: 'failed',
+        changed_count: 0,
+        error_code: 'robots_disallowed',
+      },
+    })
+
+    expect(result).toEqual({
+      outcome: 'robots_blocked',
+      tone: 'danger',
+      actions: ['widget', 'support'],
+    })
+  })
+
   it('does not offer a retry while the source is paused', () => {
     expect(getManagedWebPresentation({
       syncEnabled: false,

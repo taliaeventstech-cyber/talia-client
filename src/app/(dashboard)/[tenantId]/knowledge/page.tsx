@@ -59,7 +59,13 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
     ? sourcesQuery.range(from, to)
     : sourcesQuery
 
-  const [{ data: manualSources }, sourcesResult, managedWebQuota, { data: theatreSettings }] = await Promise.all([
+  const [
+    { data: manualSources },
+    sourcesResult,
+    managedWebQuota,
+    { data: theatreSettings },
+    { data: widgetInstallations },
+  ] = await Promise.all([
     admin
       .from('knowledge_sources')
       .select('id')
@@ -72,6 +78,14 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
       .select('widget_config')
       .eq('id', tenantId)
       .maybeSingle(),
+    activeTab === 'installed'
+      ? admin
+        .from('widget_installations')
+        .select('origin, last_seen_at')
+        .eq('theatre_id', tenantId)
+        .order('last_seen_at', { ascending: false })
+        .limit(25)
+      : Promise.resolve({ data: [] }),
   ])
   const manualSourceIds = (manualSources ?? []).map((source) => source.id)
   const knowledgeItemsQuery = admin
@@ -191,6 +205,10 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
           items={knowledgeItems ?? []}
           managedWebQuota={managedWebQuota}
           installedWebCapture={getInstalledWebCaptureSettingsFromWidgetConfig(theatreSettings?.widget_config)}
+          widgetInstallations={(widgetInstallations ?? []).map((installation) => ({
+            origin: installation.origin,
+            lastSeenAt: installation.last_seen_at,
+          }))}
           pagination={
             <KnowledgePagination
               tenantId={tenantId}

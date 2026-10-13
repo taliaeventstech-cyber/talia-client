@@ -70,6 +70,7 @@ Variables:
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `OPENAI_API_KEY`
+- `OPENAI_BASE_URL` (`https://eu.api.openai.com/v1` for an enabled EU-resident project)
 - `OPENAI_CHAT_MODEL`
 - `OPENAI_EMBEDDING_MODEL`
 - `LOG_LEVEL`

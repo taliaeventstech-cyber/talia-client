@@ -9,6 +9,7 @@ export type ManagedWebOutcome =
   | 'partial_discovery'
   | 'partial_capture'
   | 'quota'
+  | 'robots_blocked'
   | 'blocked'
   | 'failed'
   | 'pending'
@@ -52,6 +53,10 @@ export function getManagedWebPresentation(input: {
 
   if (run?.error_code?.includes('quota_exceeded')) {
     return presentation('quota', 'danger', ['support'])
+  }
+
+  if (run?.error_code === 'robots_disallowed') {
+    return presentation('robots_blocked', 'danger', ['widget', 'support'])
   }
 
   if (run?.status === 'partial') {

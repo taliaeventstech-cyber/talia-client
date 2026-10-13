@@ -11,7 +11,12 @@ import { getManagedWebPresentation, type ManagedWebOutcome } from '@/lib/knowled
 import type { InstalledWebCaptureSettings } from '@/lib/knowledge/installed-web-capture-settings'
 import { getKnowledgeSyncActivity } from '@/lib/knowledge/sync-activity'
 import { formatPdfUploadSize, getPdfUploadCandidateError } from '@/lib/knowledge/pdf-upload'
-import { createKnowledgeItem, createManagedWebKnowledgeSource, uploadKnowledgeExcel, uploadKnowledgePdf, updateKnowledgeItem, deleteKnowledgeItem, deleteKnowledgeSource, requestKnowledgeSourceSupport, requestManagedWebSourceSync, retryKnowledgeSourceEmbeddings, updateManagedWebSourceSchedule, updateInstalledWebCaptureSettings, type SettingsFormState, type ExcelUploadState, type PdfUploadState, type InstalledWebCaptureSettingsState, type ManagedWebSourceState } from './actions'
+import {
+  findFreshWidgetInstallation,
+  getOwnerAuthorizedWebCapture,
+  type WidgetInstallationEvidence,
+} from '@/lib/knowledge/owner-authorized-web-capture'
+import { createKnowledgeItem, createManagedWebKnowledgeSource, uploadKnowledgeExcel, uploadKnowledgePdf, updateKnowledgeItem, deleteKnowledgeItem, deleteKnowledgeSource, requestKnowledgeSourceSupport, requestManagedWebSourceSync, retryKnowledgeSourceEmbeddings, updateManagedWebSourceSchedule, updateInstalledWebCaptureSettings, updateManagedWebOwnerAuthorization, type SettingsFormState, type ExcelUploadState, type PdfUploadState, type InstalledWebCaptureSettingsState, type ManagedWebSourceState } from './actions'
 
 type KnowledgeItem = {
   id: string
@@ -65,6 +70,7 @@ type KnowledgeFormProps = {
   items: KnowledgeItem[]
   managedWebQuota: ManagedWebQuotaUsage | null
   installedWebCapture: InstalledWebCaptureSettings
+  widgetInstallations: WidgetInstallationEvidence[]
   pagination?: ReactNode
   labels: {
     officialAnswers: string
@@ -154,6 +160,7 @@ type KnowledgeFormProps = {
     sourceOutcomePartialDiscovery: string
     sourceOutcomePartialCapture: string
     sourceOutcomeQuota: string
+    sourceOutcomeRobotsBlocked: string
     sourceOutcomeBlocked: string
     sourceOutcomeFailed: string
     sourceOutcomePending: string
@@ -164,6 +171,17 @@ type KnowledgeFormProps = {
     sourceUseWidget: string
     sourceResolutionTitle: string
     sourceResolutionPartialDiscovery: string
+    sourceResolutionRobotsBlocked: string
+    sourceResolutionRobotsHint: string
+    sourceOwnerAuthorizationActive: string
+    sourceOwnerAuthorizationConsent: string
+    sourceOwnerWidgetVerified: string
+    sourceOwnerWidgetRequired: string
+    sourceOwnerAuthorize: string
+    sourceOwnerAuthorizing: string
+    sourceOwnerRevoke: string
+    sourceOwnerRevoking: string
+    sourceOwnerOpenSettings: string
     sourceResolutionBlocked: string
     sourceResolutionDefault: string
     sourceResolutionHint: string
@@ -267,7 +285,7 @@ const installedWebCaptureInitialState: InstalledWebCaptureSettingsState = {
   message: '',
 }
 
-export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQuota, installedWebCapture, pagination, labels }: KnowledgeFormProps) {
+export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQuota, installedWebCapture, widgetInstallations, pagination, labels }: KnowledgeFormProps) {
   const router = useRouter()
   const [state, formAction, pending] = useActionState(createKnowledgeItem.bind(null, tenantId), initialState)
   const [excelState, excelFormAction, excelPending] = useActionState(uploadKnowledgeExcel.bind(null, tenantId), excelInitialState)
@@ -720,6 +738,7 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
                     tenantId={tenantId}
                     source={source}
                     labels={labels}
+                    widgetInstallations={widgetInstallations}
                     onNavigateToResolutionTarget={navigateToResolutionTarget}
                   />
                 ))}
@@ -891,11 +910,13 @@ function ManagedWebSourceRow({
   tenantId,
   source,
   labels,
+  widgetInstallations,
   onNavigateToResolutionTarget,
 }: {
   tenantId: string
   source: KnowledgeSource
   labels: KnowledgeFormProps['labels']
+  widgetInstallations: WidgetInstallationEvidence[]
   onNavigateToResolutionTarget: (target: KnowledgeResolutionTarget) => void
 }) {
   const router = useRouter()
@@ -903,6 +924,7 @@ function ManagedWebSourceRow({
   const [isRetryingEmbeddings, startEmbeddingRetry] = useTransition()
   const [isSavingSchedule, startScheduleSave] = useTransition()
   const [isSendingSupport, startSupport] = useTransition()
+  const [isUpdatingAuthorization, startAuthorizationUpdate] = useTransition()
   const [refreshInterval, setRefreshInterval] = useState(source.refreshInterval || 'manual')
   const [toast, setToast] = useState<{ id: number; message: string; tone: 'success' | 'error' } | null>(null)
   const [supportOpen, setSupportOpen] = useState(false)
@@ -910,6 +932,12 @@ function ManagedWebSourceRow({
   const [supportMessage, setSupportMessage] = useState('')
   const [supportIdempotencyKey, setSupportIdempotencyKey] = useState<string | null>(null)
   const sourceUrlLabel = source.sourceUrl ? formatInstalledSourceUrl(source.sourceUrl) : null
+  const ownerAuthorization = source.sourceUrl
+    ? getOwnerAuthorizedWebCapture(source.config, source.sourceUrl)
+    : null
+  const matchingWidgetInstallation = source.sourceUrl
+    ? findFreshWidgetInstallation(source.sourceUrl, widgetInstallations)
+    : null
   const activeRunStatus = source.latestSyncRun?.status === 'queued' || source.latestSyncRun?.status === 'running'
     ? source.latestSyncRun.status
     : null
@@ -978,6 +1006,14 @@ function ManagedWebSourceRow({
   function handleResolutionNavigation(target: KnowledgeResolutionTarget) {
     setResolutionOpen(false)
     requestAnimationFrame(() => onNavigateToResolutionTarget(target))
+  }
+
+  function handleAuthorizationChange(enabled: boolean) {
+    startAuthorizationUpdate(async () => {
+      const result = await updateManagedWebOwnerAuthorization(tenantId, source.id, enabled)
+      setToast({ id: Date.now(), message: result.message, tone: result.ok ? 'success' : 'error' })
+      router.refresh()
+    })
   }
 
   return (
@@ -1063,6 +1099,19 @@ function ManagedWebSourceRow({
             </button>
           ) : null}
         </div>
+        {ownerAuthorization?.enabled ? (
+          <div className="knowledge-owner-authorization knowledge-owner-authorization-active">
+            <p>{labels.sourceOwnerAuthorizationActive}</p>
+            <button
+              type="button"
+              className="button-outline button-fit"
+              disabled={isUpdatingAuthorization}
+              onClick={() => handleAuthorizationChange(false)}
+            >
+              {isUpdatingAuthorization ? labels.sourceOwnerRevoking : labels.sourceOwnerRevoke}
+            </button>
+          </div>
+        ) : null}
         {presentation.actions.includes('widget') ? (
           <div className="knowledge-managed-resolution">
             <button
@@ -1090,23 +1139,51 @@ function ManagedWebSourceRow({
                   </span>
                 ) : null}
               </div>
-              <p>{labels.sourceResolutionHint}</p>
-              <div className="knowledge-managed-resolution-actions">
-                <button
-                  className="button-outline button-fit"
-                  type="button"
-                  onClick={() => handleResolutionNavigation('managed-web')}
-                >
-                  {labels.sourceAddUrlOrSitemap}
-                </button>
-                <button
-                  className="button-outline button-fit"
-                  type="button"
-                  onClick={() => handleResolutionNavigation('installed-widget')}
-                >
-                  {labels.sourceReviewWidgetCapture}
-                </button>
-              </div>
+              <p>{presentation.outcome === 'robots_blocked'
+                ? labels.sourceResolutionRobotsHint
+                : labels.sourceResolutionHint}</p>
+              {presentation.outcome === 'robots_blocked' && !ownerAuthorization?.enabled ? (
+                <div className="knowledge-owner-authorization">
+                  <strong>
+                    {matchingWidgetInstallation
+                      ? labels.sourceOwnerWidgetVerified
+                      : labels.sourceOwnerWidgetRequired}
+                  </strong>
+                  <p>{labels.sourceOwnerAuthorizationConsent}</p>
+                  {matchingWidgetInstallation ? (
+                    <button
+                      className="button-primary button-fit"
+                      type="button"
+                      disabled={isUpdatingAuthorization}
+                      onClick={() => handleAuthorizationChange(true)}
+                    >
+                      {isUpdatingAuthorization ? labels.sourceOwnerAuthorizing : labels.sourceOwnerAuthorize}
+                    </button>
+                  ) : (
+                    <a className="button-outline button-fit" href={`/${tenantId}/settings`}>
+                      {labels.sourceOwnerOpenSettings}
+                    </a>
+                  )}
+                </div>
+              ) : null}
+              {presentation.outcome !== 'robots_blocked' ? (
+                <div className="knowledge-managed-resolution-actions">
+                  <button
+                    className="button-outline button-fit"
+                    type="button"
+                    onClick={() => handleResolutionNavigation('managed-web')}
+                  >
+                    {labels.sourceAddUrlOrSitemap}
+                  </button>
+                  <button
+                    className="button-outline button-fit"
+                    type="button"
+                    onClick={() => handleResolutionNavigation('installed-widget')}
+                  >
+                    {labels.sourceReviewWidgetCapture}
+                  </button>
+                </div>
+              ) : null}
             </div> : null}
           </div>
         ) : null}
@@ -1208,6 +1285,7 @@ function getManagedOutcomeDescription(outcome: ManagedWebOutcome, labels: Knowle
   if (outcome === 'partial_discovery') return labels.sourceOutcomePartialDiscovery
   if (outcome === 'partial_capture') return labels.sourceOutcomePartialCapture
   if (outcome === 'quota') return labels.sourceOutcomeQuota
+  if (outcome === 'robots_blocked') return labels.sourceOutcomeRobotsBlocked
   if (outcome === 'blocked') return labels.sourceOutcomeBlocked
   if (outcome === 'failed') return labels.sourceOutcomeFailed
   if (outcome === 'paused') return labels.sourceOutcomePaused
@@ -1216,6 +1294,7 @@ function getManagedOutcomeDescription(outcome: ManagedWebOutcome, labels: Knowle
 
 function getManagedResolutionDescription(outcome: ManagedWebOutcome, labels: KnowledgeFormProps['labels']) {
   if (outcome === 'partial_discovery') return labels.sourceResolutionPartialDiscovery
+  if (outcome === 'robots_blocked') return labels.sourceResolutionRobotsBlocked
   if (outcome === 'blocked') return labels.sourceResolutionBlocked
   return labels.sourceResolutionDefault
 }

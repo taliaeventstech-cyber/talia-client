@@ -49,4 +49,20 @@ describe('getBackstageSyncRunPresentation', () => {
       showCounters: true,
     })
   })
+
+  it('explains how to authorize TALIA when robots.txt blocks discovery', () => {
+    expect(getBackstageSyncRunPresentation({
+      run: {
+        status: 'failed',
+        error_code: 'robots_disallowed',
+        error_details: 'robots.txt disallows this page',
+      },
+      sourceLastError: 'robots.txt disallows this page',
+    })).toEqual({
+      statusLabel: 'Actualización fallida',
+      issue: 'El archivo robots.txt impide que TALIA lea la web. El responsable del sitio debe autorizar TALIA-AI-KnowledgeSync y volver a actualizar la fuente.',
+      issueTone: 'danger',
+      showCounters: true,
+    })
+  })
 })
