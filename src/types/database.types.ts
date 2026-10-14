@@ -27,6 +27,7 @@ export type Database = {
           output_usd_micros_per_million: number
           provider: string
           source_url: string
+          web_search_usd_micros_per_call: number
         }
         Insert: {
           cached_input_usd_micros_per_million?: number
@@ -40,6 +41,7 @@ export type Database = {
           output_usd_micros_per_million?: number
           provider: string
           source_url: string
+          web_search_usd_micros_per_call?: number
         }
         Update: {
           cached_input_usd_micros_per_million?: number
@@ -53,6 +55,7 @@ export type Database = {
           output_usd_micros_per_million?: number
           provider?: string
           source_url?: string
+          web_search_usd_micros_per_call?: number
         }
         Relationships: []
       }
@@ -75,6 +78,7 @@ export type Database = {
           request_count: number
           session_id: string | null
           theatre_id: string
+          tool_call_count: number
           usage_event_id: string | null
         }
         Insert: {
@@ -95,6 +99,7 @@ export type Database = {
           request_count?: number
           session_id?: string | null
           theatre_id: string
+          tool_call_count?: number
           usage_event_id?: string | null
         }
         Update: {
@@ -115,6 +120,7 @@ export type Database = {
           request_count?: number
           session_id?: string | null
           theatre_id?: string
+          tool_call_count?: number
           usage_event_id?: string | null
         }
         Relationships: [

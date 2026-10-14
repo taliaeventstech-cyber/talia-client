@@ -6,6 +6,8 @@ type SourceReference = {
   id: string | null
   sourceId: string | null
   sourceType: string | null
+  title?: string
+  url?: string
 }
 
 type KnowledgeSourceRow = {
@@ -23,6 +25,7 @@ type KnowledgeItemRow = {
 export type ResponseSource = {
   label: string
   href: string
+  external?: boolean
 }
 
 export type ResponseSourcesByMessageId = Map<string, {
@@ -104,6 +107,13 @@ export function resolveResponseSourcesByMessageId(
 
   for (const [messageId, references] of referencesByMessageId) {
     const resolved = references.flatMap((reference) => {
+      if (reference.sourceType === 'official_web_search' && reference.url) {
+        return [{
+          label: reference.title ?? new URL(reference.url).hostname.replace(/^www\./, ''),
+          href: reference.url,
+          external: true,
+        }]
+      }
       const directSource = reference.sourceId ? sourceById.get(reference.sourceId) : undefined
       if (directSource) return [toResponseSource(directSource)]
 
@@ -135,7 +145,9 @@ function toSourceReference(value: unknown): SourceReference | null {
   const id = getString(value.id)
   const sourceId = getString(value.source_id)
   const sourceType = getString(value.source_type)
-  return id || sourceId || sourceType ? { id, sourceId, sourceType } : null
+  const title = getString(value.title) ?? undefined
+  const url = sourceType === 'official_web_search' ? getSafeHttpsUrl(value.url) : undefined
+  return id || sourceId || sourceType ? { id, sourceId, sourceType, ...(title ? { title } : {}), ...(url ? { url } : {}) } : null
 }
 
 function toResponseSource(source: KnowledgeSourceRow): ResponseSource {
@@ -166,6 +178,16 @@ function truncate(value: string, length: number) {
 
 function getString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
+function getSafeHttpsUrl(value: unknown) {
+  if (typeof value !== 'string' || value.length > 2_000) return undefined
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && !url.username && !url.password ? url.toString() : undefined
+  } catch {
+    return undefined
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

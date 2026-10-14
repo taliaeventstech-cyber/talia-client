@@ -16,6 +16,7 @@ const runtimeInput: ChatAgentRuntimeInput = {
     systemPrompt: 'Responde como TALIA.',
     fallbackEmail: 'info@example.test',
     fallbackPhone: '+34000000000',
+    websiteUrl: 'https://example.test',
   },
 }
 
@@ -109,15 +110,27 @@ describe('TaliaAiChatAgentProvider', () => {
         provider: 'openai',
         model: 'gpt-4o-mini',
         usage: { input_tokens: 10, output_tokens: 4 },
-        usage_components: [{
-          component: 'answer_agent',
-          provider: 'openai',
-          model: 'gpt-4o-mini',
-          request_count: 1,
-          input_tokens: 10,
-          cached_input_tokens: 3,
-          output_tokens: 4,
-        }],
+        usage_components: [
+          {
+            component: 'answer_agent',
+            provider: 'openai',
+            model: 'gpt-4o-mini',
+            request_count: 1,
+            input_tokens: 10,
+            cached_input_tokens: 3,
+            output_tokens: 4,
+          },
+          {
+            component: 'official_web_search',
+            provider: 'openai',
+            model: 'gpt-5.5',
+            request_count: 1,
+            input_tokens: 20,
+            cached_input_tokens: 0,
+            output_tokens: 6,
+            tool_calls: 2,
+          },
+        ],
         usage_summary: { request_count: 1, input_tokens: 10, cached_input_tokens: 3, output_tokens: 4 },
         metadata: { response_language: 'es' },
         actions: [{
@@ -166,15 +179,27 @@ describe('TaliaAiChatAgentProvider', () => {
       provider: 'talia-ai',
       reply: 'Respuesta desde talia-ai',
       model: 'gpt-4o-mini',
-      usageComponents: [{
-        component: 'answer_agent',
-        provider: 'openai',
-        model: 'gpt-4o-mini',
-        request_count: 1,
-        input_tokens: 10,
-        cached_input_tokens: 3,
-        output_tokens: 4,
-      }],
+      usageComponents: [
+        {
+          component: 'answer_agent',
+          provider: 'openai',
+          model: 'gpt-4o-mini',
+          request_count: 1,
+          input_tokens: 10,
+          cached_input_tokens: 3,
+          output_tokens: 4,
+        },
+        {
+          component: 'official_web_search',
+          provider: 'openai',
+          model: 'gpt-5.5',
+          request_count: 1,
+          input_tokens: 20,
+          cached_input_tokens: 0,
+          output_tokens: 6,
+          tool_calls: 2,
+        },
+      ],
       usageSummary: { request_count: 1, input_tokens: 10, cached_input_tokens: 3, output_tokens: 4 },
       actions: [{
         type: 'whatsapp',
@@ -258,6 +283,7 @@ describe('TaliaAiChatAgentProvider', () => {
           fallbackContacts: true,
           fallbackMessage: 'No podemos confirmar esa información.',
           fallbackWhatsApp: true,
+          officialWebFallback: true,
         },
       },
       relevantKnowledge: [],
@@ -270,6 +296,10 @@ describe('TaliaAiChatAgentProvider', () => {
       fallback: {
         custom_message: 'No podemos confirmar esa información.',
         whatsapp_enabled: true,
+      },
+      official_web: {
+        enabled: true,
+        allowed_domains: ['example.test'],
       },
     })
   })

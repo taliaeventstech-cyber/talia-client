@@ -284,7 +284,7 @@ function formatNumber(value: number) {
 }
 
 function formatBreakdownLabel(value: string) {
-  const labels: Record<string, string> = { answer_agent: 'Answer Agent', language_agent: 'Language Agent', retrieval_embedding: 'Embedding de búsqueda' }
+  const labels: Record<string, string> = { answer_agent: 'Answer Agent', language_agent: 'Language Agent', official_web_search: 'Búsqueda web oficial', retrieval_embedding: 'Embedding de búsqueda' }
   return labels[value] ?? value
 }
 

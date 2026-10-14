@@ -102,6 +102,7 @@ export type TenantChatConfig = {
   systemPrompt: string | null
   fallbackEmail: string | null
   fallbackPhone: string | null
+  websiteUrl: string | null
   aiSettings: ChatbotAiSettings
   suggestedQuestions: SuggestedQuestion[]
 }
@@ -244,7 +245,7 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
 export async function getTenantChatConfig(admin: AdminClient, tenantId: string) {
   const { data, error } = await admin
     .from('theatres')
-    .select('id, name, primary_language, system_prompt, n8n_webhook_url, fallback_email, fallback_phone, widget_config, accounts(status, created_at, metadata)')
+    .select('id, name, primary_language, system_prompt, n8n_webhook_url, fallback_email, fallback_phone, website_url, widget_config, accounts(status, created_at, metadata)')
     .eq('id', tenantId)
     .single()
 
@@ -273,6 +274,7 @@ export async function getTenantChatConfig(admin: AdminClient, tenantId: string) 
       systemPrompt: data.system_prompt,
       fallbackEmail: data.fallback_email,
       fallbackPhone: data.fallback_phone,
+      websiteUrl: data.website_url,
       aiSettings: widgetConfig.aiSettings,
       suggestedQuestions: widgetConfig.suggestedQuestions,
     } satisfies TenantChatConfig,
