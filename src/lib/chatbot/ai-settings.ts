@@ -8,6 +8,7 @@ export type ChatbotAiSettings = {
   fallbackContacts: boolean
   fallbackMessage: string | null
   fallbackWhatsApp: boolean
+  officialWebFallback: boolean
 }
 
 export const defaultChatbotAiSettings: ChatbotAiSettings = {
@@ -18,6 +19,7 @@ export const defaultChatbotAiSettings: ChatbotAiSettings = {
   fallbackContacts: true,
   fallbackMessage: null,
   fallbackWhatsApp: false,
+  officialWebFallback: false,
 }
 
 export function normalizeChatbotAiSettings(value: unknown): ChatbotAiSettings {
@@ -53,6 +55,11 @@ export function normalizeChatbotAiSettings(value: unknown): ChatbotAiSettings {
       : typeof record.fallback_whatsapp === 'boolean'
         ? record.fallback_whatsapp
         : defaultChatbotAiSettings.fallbackWhatsApp,
+    officialWebFallback: typeof record.officialWebFallback === 'boolean'
+      ? record.officialWebFallback
+      : typeof record.official_web_fallback === 'boolean'
+        ? record.official_web_fallback
+        : defaultChatbotAiSettings.officialWebFallback,
   }
 }
 
@@ -65,6 +72,7 @@ export function chatbotAiSettingsToWidgetConfig(settings: ChatbotAiSettings) {
     fallbackContacts: settings.fallbackContacts,
     fallbackMessage: settings.fallbackMessage,
     fallbackWhatsApp: settings.fallbackWhatsApp,
+    officialWebFallback: settings.officialWebFallback,
   }
 }
 

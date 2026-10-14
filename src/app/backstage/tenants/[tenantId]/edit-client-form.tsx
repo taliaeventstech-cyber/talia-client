@@ -528,6 +528,16 @@ function ChatbotOperationsPanel({ client }: { client: Client }) {
           />
           Usar contactos fallback cuando no haya fuentes suficientes
         </label>
+        <label className="checkbox-row checkbox-row-card">
+          <input
+            type="checkbox"
+            name="chatbot_official_web_fallback"
+            defaultChecked={aiSettings.officialWebFallback}
+            disabled={!client.website_url}
+          />
+          Buscar en la web oficial cuando Knowledge no tenga evidencia suficiente
+          <span className="field-hint">Solo consulta el dominio configurado como web oficial y muestra las URLs citadas. No guarda el resultado como Knowledge.</span>
+        </label>
       </div>
 
       <label className="field">
