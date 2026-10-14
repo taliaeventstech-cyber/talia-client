@@ -12,6 +12,7 @@ const pricing = {
   effective_from: '2026-07-16T00:00:00.000Z',
   effective_to: null,
   source_url: 'https://developers.openai.com/api/docs/pricing',
+  web_search_usd_micros_per_call: 0,
   created_at: '2026-07-16T00:00:00.000Z',
 }
 
@@ -26,6 +27,26 @@ describe('AI cost accounting', () => {
       cached_input_tokens: 400_000,
       output_tokens: 100_000,
     }, pricing)).toBe(180_000)
+  })
+
+  it('adds the hosted web-search tool fee for each measured search action', () => {
+    expect(calculateAiCostUsdMicros({
+      component: 'official_web_search',
+      provider: 'openai',
+      model: 'gpt-5.5',
+      request_count: 1,
+      input_tokens: 1_000,
+      cached_input_tokens: 0,
+      output_tokens: 100,
+      tool_calls: 2,
+    }, {
+      ...pricing,
+      model: 'gpt-5.5',
+      input_usd_micros_per_million: 5_000_000,
+      cached_input_usd_micros_per_million: 500_000,
+      output_usd_micros_per_million: 30_000_000,
+      web_search_usd_micros_per_call: 10_000,
+    })).toBe(28_000)
   })
 
   it('retains sub-micro costs instead of rounding every request to a cent', () => {

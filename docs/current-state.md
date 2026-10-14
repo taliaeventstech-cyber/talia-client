@@ -436,8 +436,16 @@ Implemented:
   source for that difference, and the Answer Agent translates or synthesizes
   the evidence into the visitor's language.
 - Agent runtime responses save compact sources (`id`, `source_id`, `source_type`, `score`) in the assistant message metadata, legacy conversation metadata, and usage for auditing.
+- Backstage can opt a venue into an official-site search fallback. TALIA still
+  completes its initial and bounded Knowledge retrieval first; only a final
+  evidence fallback may invoke OpenAI hosted `web_search`, restricted
+  server-side to the hostname in `theatres.website_url`. The visitor receives
+  clickable inline official citations. Citation URLs and titles remain
+  conversation trace metadata; searched page content is never written to
+  Knowledge or embeddings. A missing, external or malformed citation fails
+  closed to the existing controlled fallback.
 - `talia-ai` reports measured usage separately for the Answer Agent, optional
-  Language Agent and retrieval embedding. `talia-client` persists each
+  Language Agent, optional official web search and retrieval embedding. `talia-client` persists each
   component against a versioned OpenAI price in fractional USD microdollars.
 - Backstage includes an AI cost view with current-month measured cost,
   projection, cost per response, token/cache totals and breakdowns by venue,

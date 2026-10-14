@@ -24,6 +24,7 @@ export type ChatAgentRuntimeInput = {
     systemPrompt: string | null
     fallbackEmail: string | null
     fallbackPhone: string | null
+    websiteUrl: string | null
     aiSettings?: ChatbotAiSettings
   }
   relevantKnowledge?: RelevantKnowledgeHint[]
@@ -37,13 +38,14 @@ export type ChatAgentPendingClarification = {
 }
 
 export type ChatAiUsageComponent = {
-  component: 'answer_agent' | 'diagnostic_agent' | 'grounding_review_agent' | 'language_agent' | 'retrieval_embedding'
+  component: 'answer_agent' | 'diagnostic_agent' | 'grounding_review_agent' | 'language_agent' | 'official_web_search' | 'retrieval_embedding'
   provider: string
   model: string
   request_count: number
   input_tokens: number
   cached_input_tokens: number
   output_tokens: number
+  tool_calls?: number
 }
 
 export type ChatAgentRuntimeResult =

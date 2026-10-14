@@ -45,6 +45,8 @@ type AgentSourceSummary = {
   source_id: string | null
   source_type: string | null
   score: number | null
+  title?: string
+  url?: string
 }
 
 export async function POST(
@@ -322,6 +324,7 @@ export async function POST(
       systemPrompt: tenant.config.systemPrompt,
       fallbackEmail: tenant.config.fallbackEmail,
       fallbackPhone: tenant.config.fallbackPhone,
+      websiteUrl: tenant.config.websiteUrl,
       aiSettings: tenant.config.aiSettings,
     },
     relevantKnowledge: shouldDelegateKnowledgeToTaliaAi ? [] : buildRelevantKnowledgeHints(knowledge.matches),
@@ -747,16 +750,32 @@ function summarizeAgentSources(sources: unknown[] | undefined): AgentSourceSumma
       const sourceId = typeof source.source_id === 'string' ? source.source_id : null
       const sourceType = typeof source.source_type === 'string' ? source.source_type : null
       const score = typeof source.score === 'number' && Number.isFinite(source.score) ? source.score : null
+      const title = typeof source.title === 'string' && source.title.trim() ? source.title.trim().slice(0, 160) : undefined
+      const url = normalizeOfficialWebSourceUrl(source.url, sourceType)
       if (!id && !sourceId && !sourceType) return null
       return {
         id,
         source_id: sourceId,
         source_type: sourceType,
         score,
+        ...(title ? { title } : {}),
+        ...(url ? { url } : {}),
       } satisfies AgentSourceSummary
     })
     .filter((source): source is AgentSourceSummary => Boolean(source))
     .slice(0, 8)
+}
+
+function normalizeOfficialWebSourceUrl(value: unknown, sourceType: string | null) {
+  if (sourceType !== 'official_web_search' || typeof value !== 'string') return undefined
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && !url.username && !url.password && value.length <= 2_000
+      ? url.toString()
+      : undefined
+  } catch {
+    return undefined
+  }
 }
 
 function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): Record<string, Json> {

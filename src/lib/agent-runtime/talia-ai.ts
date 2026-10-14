@@ -24,6 +24,9 @@ export class TaliaAiChatAgentProvider implements ChatAgentProvider {
     const apiKey = process.env.TALIA_AI_INTERNAL_API_KEY
     const includeFallbackContacts = !input.relevantKnowledge?.some((item) => item.score >= 4)
     const aiSettings = normalizeChatbotAiSettings(input.tenant.aiSettings)
+    const officialWebDomains = aiSettings.officialWebFallback
+      ? getOfficialWebDomains(input.tenant.websiteUrl)
+      : []
 
     if (!baseUrl || !apiKey) {
       return {
@@ -83,6 +86,10 @@ export class TaliaAiChatAgentProvider implements ChatAgentProvider {
             system_prompt: input.tenant.systemPrompt ?? '',
             response_tone: input.tenant.responseTone,
             ai_settings: chatbotAiSettingsToRuntime(aiSettings),
+            official_web: {
+              enabled: officialWebDomains.length > 0,
+              allowed_domains: officialWebDomains,
+            },
             fallback: {
               ...(aiSettings.fallbackMessage ? { custom_message: aiSettings.fallbackMessage } : {}),
               whatsapp_enabled: aiSettings.fallbackWhatsApp,
@@ -182,6 +189,7 @@ function parseUsageComponents(value: unknown): ChatAiUsageComponent[] {
       component !== 'answer_agent'
       && component !== 'grounding_review_agent'
       && component !== 'language_agent'
+      && component !== 'official_web_search'
       && component !== 'retrieval_embedding'
     ) return []
     if (typeof provider !== 'string' || !provider.trim() || typeof model !== 'string' || !model.trim()) return []
@@ -197,8 +205,21 @@ function parseUsageComponents(value: unknown): ChatAiUsageComponent[] {
         toNonNegativeInteger(item.cached_input_tokens),
       ),
       output_tokens: toNonNegativeInteger(item.output_tokens),
+      ...(item.tool_calls === undefined ? {} : { tool_calls: toNonNegativeInteger(item.tool_calls) }),
     }]
   })
+}
+
+function getOfficialWebDomains(websiteUrl: string | null) {
+  if (!websiteUrl) return []
+  try {
+    const url = new URL(websiteUrl)
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return []
+    const hostname = url.hostname.toLowerCase().replace(/^www\./, '')
+    return hostname && hostname.includes('.') ? [hostname] : []
+  } catch {
+    return []
+  }
 }
 
 function parseUsageSummary(value: unknown) {

@@ -21,7 +21,17 @@ export function ResponseSources({
     <section className="response-sources" aria-label={copy.title}>
       <strong>{copy.title}</strong>
       <div className="response-source-list">
-        {sources.map((source) => canViewKnowledge ? (
+        {sources.map((source) => source.external ? (
+          <a
+            className="response-source-link"
+            href={source.href}
+            key={`${source.href}-${source.label}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {source.label}
+          </a>
+        ) : canViewKnowledge ? (
           <Link
             className="response-source-link"
             href={`/${tenantId}/knowledge?tab=${source.href}`}

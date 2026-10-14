@@ -53,4 +53,26 @@ describe('response sources', () => {
       knowledge_score: 0.98,
     })).toEqual([{ id: 'item-1', sourceId: 'source-1', sourceType: 'manual' }])
   })
+
+  it('keeps verified official web citations as external response sources', () => {
+    const references = getResponseSourceReferences({
+      agent_sources: [{
+        id: 'official-web-programa',
+        source_id: null,
+        source_type: 'official_web_search',
+        title: 'Programa oficial',
+        url: 'https://artphotobcn.com/programa',
+      }],
+    })
+    const result = resolveResponseSourcesByMessageId(new Map([['message-1', references]]), [], [])
+
+    expect(result.get('message-1')).toEqual({
+      sources: [{
+        label: 'Programa oficial',
+        href: 'https://artphotobcn.com/programa',
+        external: true,
+      }],
+      additionalCount: 0,
+    })
+  })
 })

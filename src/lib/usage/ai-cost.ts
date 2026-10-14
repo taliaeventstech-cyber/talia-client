@@ -15,7 +15,11 @@ export function calculateAiCostUsdMicros(component: ChatAiUsageComponent, pricin
     uncachedInputTokens * pricing.input_usd_micros_per_million
     + cachedInputTokens * pricing.cached_input_usd_micros_per_million
     + component.output_tokens * pricing.output_usd_micros_per_million
-  ) / 1_000_000
+  ) / 1_000_000 + (
+    component.component === 'official_web_search'
+      ? (component.tool_calls ?? 0) * pricing.web_search_usd_micros_per_call
+      : 0
+  )
 }
 
 export async function recordMeasuredAiUsage(
@@ -56,6 +60,7 @@ export async function recordMeasuredAiUsage(
       input_tokens: component.input_tokens,
       cached_input_tokens: component.cached_input_tokens,
       output_tokens: component.output_tokens,
+      tool_call_count: component.tool_calls ?? 0,
       cost_usd_micros: pricing ? calculateAiCostUsdMicros(component, pricing) : 0,
       accuracy: 'measured' satisfies AiCostAccuracy,
       idempotency_key: `${input.idempotencyPrefix}:${index}:${component.component}`,
