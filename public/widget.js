@@ -121,6 +121,7 @@
     var form = root.querySelector('[data-form]');
     var input = root.querySelector('[data-input]');
     var messages = root.querySelector('[data-messages]');
+    isolateWidgetScroll(host, root);
     var privacyLink = root.querySelector('[data-privacy]');
     var sessionFeedbackPrompt = null;
     var conversationHasActivity = false;
@@ -1753,7 +1754,7 @@
         .header-button svg { display: block; width: 21px; height: 21px; fill: none; stroke: currentColor; }\
         .close { font-size: 22px; }\
         .ai-disclosure { padding: 9px 16px; border-bottom: .5px solid rgba(26,26,46,.12); background: ' + messagesBackground + '; color: rgba(26,26,46,.62); font: 600 11px/1.35 "Space Grotesk", system-ui; }\
-        .messages { position: relative; padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 11px; background: ' + messagesBackground + '; }\
+        .messages { position: relative; padding: 16px; overflow: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 11px; background: ' + messagesBackground + '; }\
         .message { max-width: 84%; border-radius: 13px; padding: 11px 13px; font: 15px/1.45 "Space Grotesk", system-ui; overflow-wrap: anywhere; white-space: pre-wrap; }\
         .message p { margin: 0; }\
         .message p + p, .message p + ol, .message p + ul, .message ol + p, .message ul + p { margin-top: 10px; }\
@@ -2217,5 +2218,44 @@
     if (position === 'top-right') return nearRight && nearTop;
     if (position === 'top-left') return nearLeft && nearTop;
     return nearRight && nearBottom;
+  }
+
+  // Host sites often run smooth-scroll libraries (Lenis, Locomotive, GSAP ScrollSmoother...)
+  // that listen for wheel/touch on window and call preventDefault(), which blocks native
+  // trackpad scrolling inside our panels. We opt out explicitly and scroll our own containers.
+  function isolateWidgetScroll(host, root) {
+    host.setAttribute('data-lenis-prevent', '');
+    host.setAttribute('data-scroll-lock-scrollable', '');
+
+    root.addEventListener('wheel', function (event) {
+      if (event.ctrlKey) return; // trackpad pinch-zoom
+      var scroller = findWidgetScroller(event, root);
+      if (!scroller) return;
+      var unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scroller.clientHeight : 1;
+      scroller.scrollTop += event.deltaY * unit;
+      scroller.scrollLeft += event.deltaX * unit;
+      event.preventDefault();
+      event.stopPropagation();
+    }, { passive: false });
+
+    ['touchstart', 'touchmove'].forEach(function (type) {
+      root.addEventListener(type, function (event) {
+        if (findWidgetScroller(event, root)) event.stopPropagation();
+      }, { passive: true });
+    });
+  }
+
+  function findWidgetScroller(event, root) {
+    var path = event.composedPath ? event.composedPath() : [];
+    for (var index = 0; index < path.length; index += 1) {
+      var node = path[index];
+      if (node === root) return null;
+      if (!node || node.nodeType !== 1) continue;
+      var style = window.getComputedStyle(node);
+      var scrollsY = /(auto|scroll)/.test(style.overflowY) && node.scrollHeight > node.clientHeight;
+      var scrollsX = /(auto|scroll)/.test(style.overflowX) && node.scrollWidth > node.clientWidth;
+      if (scrollsY || scrollsX) return node;
+    }
+    return null;
   }
 })();
