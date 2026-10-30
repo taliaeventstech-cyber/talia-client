@@ -79,7 +79,7 @@ A project-scoped [`.mcp.json`](.mcp.json) now exists at the repo root:
   1. Plain OAuth failed with `SDK auth failed: Incompatible auth server: does not support dynamic client registration` — that endpoint doesn't support the dynamic client registration (RFC 7591) that Claude Code's generic OAuth flow expects.
   2. Switching to a static `Authorization: Bearer <PAT>` header against the same hosted endpoint failed differently: `Streamable HTTP error: ... bad request: Authorization header is badly formatted` — the endpoint appears to only accept tokens issued by its own OAuth flow, not a raw personal access token, regardless of header formatting.
   - **Fix**: use GitHub's official `github-mcp-server` **locally** instead of the remote endpoint (installed via `brew install github-mcp-server`; also distributable via Docker, see the project's own docs). Running locally in `stdio` mode, it accepts a plain PAT via the `GITHUB_PERSONAL_ACCESS_TOKEN` env var directly — no OAuth involved at all. Config above. Smoke-tested locally (server starts and connects cleanly with the token, no auth error in its logs).
-  - To use it: `brew install github-mcp-server`, create a fine-grained GitHub PAT scoped to `culturactivaxfourdevs/talia-client` (+ `talia-ai`) with Contents, Pull requests and Issues read/write permissions, then export it in your own shell profile (never in the repo):
+  - To use it: `brew install github-mcp-server`, create a fine-grained GitHub PAT scoped to `taliaeventstech-cyber/talia-client` (+ `talia-ai`) with Contents, Pull requests and Issues read/write permissions, then export it in your own shell profile (never in the repo):
     ```bash
     export GITHUB_PERSONAL_ACCESS_TOKEN="github_pat_..."
     ```
