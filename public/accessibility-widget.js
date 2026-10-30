@@ -128,6 +128,7 @@
     var previousFocus = null;
 
     root.innerHTML = getTemplate(copy, config);
+    isolateWidgetScroll(host, root);
 
     var panel = root.querySelector('[data-panel]');
     var toggle = root.querySelector('[data-toggle]');
@@ -713,7 +714,7 @@
         .toggle:active { transform: scale(.96); }\
         .toggle:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid #111827; outline-offset: 3px; box-shadow: 0 0 0 6px rgba(255,255,255,.92), 0 0 0 9px #111827; }\
         .toggle svg { width: ' + toggleIconSize + 'px; height: ' + toggleIconSize + 'px; display: block; }\
-        .panel { position: fixed; ' + panelPosition + ' z-index: 2147483647; width: min(390px, calc(100vw - 32px)); max-height: min(680px, calc(100vh - 136px)); overflow: auto; border: 1px solid #d9dde6; border-radius: 8px; background: #fff; color: #111827; box-shadow: 0 22px 64px rgba(15,23,42,.24); opacity: 0; transform: translateY(10px) scale(.98); transform-origin: ' + transformOrigin + '; pointer-events: none; transition: opacity 180ms ease, transform 180ms ease; }\
+        .panel { position: fixed; ' + panelPosition + ' z-index: 2147483647; width: min(390px, calc(100vw - 32px)); max-height: min(680px, calc(100vh - 136px)); overflow: auto; overscroll-behavior: contain; border: 1px solid #d9dde6; border-radius: 8px; background: #fff; color: #111827; box-shadow: 0 22px 64px rgba(15,23,42,.24); opacity: 0; transform: translateY(10px) scale(.98); transform-origin: ' + transformOrigin + '; pointer-events: none; transition: opacity 180ms ease, transform 180ms ease; }\
         .panel--open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }\
         .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 16px 14px; border-bottom: 1px solid #e7eaf0; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); }\
         .header-main { min-width: 0; display: grid; grid-template-columns: auto 1fr; gap: 11px; align-items: start; }\
@@ -1669,5 +1670,44 @@
 
   function escapeAttribute(value) {
     return escapeHtml(value).replace(/`/g, '&#96;');
+  }
+
+  // Host sites often run smooth-scroll libraries (Lenis, Locomotive, GSAP ScrollSmoother...)
+  // that listen for wheel/touch on window and call preventDefault(), which blocks native
+  // trackpad scrolling inside our panels. We opt out explicitly and scroll our own containers.
+  function isolateWidgetScroll(host, root) {
+    host.setAttribute('data-lenis-prevent', '');
+    host.setAttribute('data-scroll-lock-scrollable', '');
+
+    root.addEventListener('wheel', function (event) {
+      if (event.ctrlKey) return; // trackpad pinch-zoom
+      var scroller = findWidgetScroller(event, root);
+      if (!scroller) return;
+      var unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scroller.clientHeight : 1;
+      scroller.scrollTop += event.deltaY * unit;
+      scroller.scrollLeft += event.deltaX * unit;
+      event.preventDefault();
+      event.stopPropagation();
+    }, { passive: false });
+
+    ['touchstart', 'touchmove'].forEach(function (type) {
+      root.addEventListener(type, function (event) {
+        if (findWidgetScroller(event, root)) event.stopPropagation();
+      }, { passive: true });
+    });
+  }
+
+  function findWidgetScroller(event, root) {
+    var path = event.composedPath ? event.composedPath() : [];
+    for (var index = 0; index < path.length; index += 1) {
+      var node = path[index];
+      if (node === root) return null;
+      if (!node || node.nodeType !== 1) continue;
+      var style = window.getComputedStyle(node);
+      var scrollsY = /(auto|scroll)/.test(style.overflowY) && node.scrollHeight > node.clientHeight;
+      var scrollsX = /(auto|scroll)/.test(style.overflowX) && node.scrollWidth > node.clientWidth;
+      if (scrollsY || scrollsX) return node;
+    }
+    return null;
   }
 })();
