@@ -105,6 +105,43 @@ Full detail: `docs/architecture/accounts-venues-access.md`.
 4. Tests are co-located (`*.test.ts` next to the module it tests) — coverage today is concentrated in `/src/lib/**` (logic, server-side helpers), not component rendering tests. Prioritize testing logic over JSX.
 5. Small, atomic commits. See `CONTRIBUTING.md` for branch naming and PR flow.
 
+## Environments
+
+| Environment | Branch | URL | Database |
+|---|---|---|---|
+| Production | `main` | https://agora.talia.events | Supabase **production** project |
+| Staging | `develop` | https://talia-client-git-develop-talia-intelligence.vercel.app | Supabase **staging** project (separate) |
+| PR previews | any other branch | Vercel preview URL shown on the PR | Supabase **staging** project |
+| Local | any | http://localhost:3000 | Supabase **staging** or local (`npx supabase start`) — never production |
+
+- **Never point local work or a preview at the production database.** If `.env.local` (or any env you're given) contains the production Supabase URL, stop and tell the maintainer instead of continuing.
+- **Never run `npm run db:migrate` / `supabase db push`** unless the maintainer explicitly asks in this session *and* you've confirmed the linked project is staging (`npx supabase projects list` shows the linked one). Applying migrations to production is always the maintainer's job.
+- Vercel crons (`vercel.json`) only run in production. Staging uses Stripe **test mode**; integrations without staging credentials (Google/Microsoft OAuth, Meta, WhatsApp, Instagram, ElevenLabs, n8n) are expected to be unavailable there — that's not a bug to fix.
+- How staging is set up: `docs/operations/staging-environment.md`.
+
+## Git workflow (summary — full rules in `CONTRIBUTING.md`)
+
+1. Branch from an up-to-date `develop`, one branch per Linear issue (`feature/TAL-XX-...`, `fix/TAL-XX-...`, etc.). In a Claude Code cloud session that started on its own `claude/*` branch, keep that branch.
+2. Before opening a PR, run `npm run typecheck`, `npm run lint`, `npm test` and `npm run build`. All must pass.
+3. Open the PR **against `develop`**, with the Linear ID (`Closes TAL-XX`) and a short summary of what changed and how to test it.
+4. **Never merge a PR yourself, and never push directly to `develop` or `main`.** The maintainer (Ricardo) merges after reviewing and once CI is green. `develop` → `main` is a manual release done only by the maintainer.
+5. When the PR is open, share its link and its Vercel preview URL so the change can be checked before merging.
+
+## Changes that need the maintainer's explicit approval first
+
+This is a multi-tenant production app under a Google CASA security assessment. For anything below, **describe the plan and wait for an explicit "go"** before writing code — even if the task seems to require it:
+
+- Database: migrations, RLS policies, schema or seed changes, `src/types/database.types.ts`.
+- Auth and sessions: login, signup, MFA, password reset, cookies, middleware, `src/lib/auth/**` (permissions, membership checks).
+- Anything using `createAdminClient()` / the service role key.
+- Billing: Stripe, pricing, plans, usage limits, `src/app/api/billing/**`.
+- `src/app/api/webhooks/**`, `src/app/api/cron/**`, `src/app/api/internal/**`.
+- OAuth and channel integrations (Google, Microsoft, Meta, WhatsApp, Instagram), token encryption and secrets handling.
+- Data retention and deletion.
+- `vercel.json`, `next.config.ts`, CI (`.github/`), Husky, ESLint config, new dependencies.
+
+If you're unsure whether a change touches one of these areas, ask. UI, copy, i18n and self-contained components inside a feature folder are fine to do directly.
+
 ## What NOT to do
 
 - ❌ Don't use `pages/` router (legacy)
