@@ -7,6 +7,10 @@ import {
   verifyGoogleOAuthState,
 } from './google-oauth'
 
+function tamperLastChar(value: string) {
+  return `${value.slice(0, -1)}${value.endsWith('x') ? 'y' : 'x'}`
+}
+
 const TOKEN_SECRET = 'token-secret-with-at-least-32-characters'
 const STATE_SECRET = 'state-secret-with-at-least-32-characters'
 
@@ -41,7 +45,7 @@ describe('Google OAuth security', () => {
     const state = createGoogleOAuthState({ tenantId: 'tenant', userId: 'user' })
 
     expect(verifyGoogleOAuthState(state)).toMatchObject({ tenantId: 'tenant', userId: 'user' })
-    expect(() => verifyGoogleOAuthState(`${state.slice(0, -1)}x`))
+    expect(() => verifyGoogleOAuthState(tamperLastChar(state)))
       .toThrow('Invalid OAuth state signature')
   })
 

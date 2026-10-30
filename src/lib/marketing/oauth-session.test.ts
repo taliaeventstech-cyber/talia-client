@@ -35,7 +35,9 @@ describe('pending Meta Marketing OAuth session', () => {
   it('rejects a modified encrypted session', () => {
     const cookie = createPendingMetaMarketingOAuthSession(input)
     const encrypted = JSON.parse(Buffer.from(cookie, 'base64url').toString('utf8'))
-    encrypted.ciphertext = `${encrypted.ciphertext.slice(0, -1)}A`
+    const ciphertext = Buffer.from(encrypted.ciphertext, 'base64url')
+    ciphertext[0] ^= 0xff
+    encrypted.ciphertext = ciphertext.toString('base64url')
     const tampered = Buffer.from(JSON.stringify(encrypted), 'utf8').toString('base64url')
 
     expect(() => parsePendingMetaMarketingOAuthSession(tampered)).toThrow()

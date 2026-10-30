@@ -11,6 +11,10 @@ import {
   verifyInstagramOAuthState,
 } from './oauth'
 
+function tamperLastChar(value: string) {
+  return `${value.slice(0, -1)}${value.endsWith('x') ? 'y' : 'x'}`
+}
+
 const STATE_SECRET = 'instagram-state-secret-at-least-32-characters'
 
 describe('Instagram OAuth', () => {
@@ -48,7 +52,7 @@ describe('Instagram OAuth', () => {
     vi.setSystemTime(new Date('2026-09-21T10:00:00.000Z'))
     const state = createInstagramOAuthState({ tenantId: 'venue-1', userId: 'user-1' })
 
-    expect(() => verifyInstagramOAuthState(`${state.slice(0, -1)}x`))
+    expect(() => verifyInstagramOAuthState(tamperLastChar(state)))
       .toThrow('instagram_oauth_state_invalid')
 
     vi.advanceTimersByTime(10 * 60 * 1000 + 1)
