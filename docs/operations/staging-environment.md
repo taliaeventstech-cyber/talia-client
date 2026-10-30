@@ -18,22 +18,30 @@ credentials are never used outside production.
 
 1. In Supabase, create a new project `talia-staging` in the same region as
    production. Store its database password in your password manager.
-2. Link it locally and apply every migration:
+2. In the staging SQL Editor, put the `extensions` schema on the search path,
+   as it is in production. Without this, the migrations that use pgvector fail
+   with `type "vector" does not exist`:
+   ```sql
+   alter database postgres set search_path to "$user", public, extensions;
+   ```
+   (Setting it on the `postgres` role is not enough: the Supabase CLI connects
+   with its own role.)
+3. Link it locally and apply every migration:
    ```bash
    npx supabase link --project-ref <staging-ref>
    npx supabase db push
    ```
    Keep the local CLI **linked to staging** from now on. Production migrations
    are a deliberate, separate step (link to production, push, link back).
-3. Load `supabase/seed.sql` if it's useful, then create a test account and venue
+4. Load `supabase/seed.sql` if it's useful, then create a test account and venue
    through the staging app (not by copying production data).
-4. Auth → URL Configuration:
+5. Auth → URL Configuration:
    - Site URL: the staging URL.
    - Redirect URLs:
      - `https://talia-client-git-develop-talia-intelligence.vercel.app/**`
      - `https://*-talia-intelligence.vercel.app/**` (PR previews)
      - `http://localhost:3000/**`
-5. Auth → Email templates: copy them from production
+6. Auth → Email templates: copy them from production
    (`docs/operations/auth-email-templates.md`).
 
 ## 2. Vercel environment variables
