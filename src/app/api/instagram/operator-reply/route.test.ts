@@ -18,6 +18,7 @@ describe('POST /api/instagram/operator-reply', () => {
     await expect(response.json()).resolves.toEqual({
       outcome: 'invalid_request',
       errorCode: 'IG_REPLY_INVALID_REQUEST',
+      revision: expect.any(String),
     })
   })
 })
