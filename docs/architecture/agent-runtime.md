@@ -52,6 +52,7 @@ and produce inconsistent retrieval, language and analytics behavior.
 Route handler responsibilities:
 
 - validate tenant, session, and limits;
+- pass the widget's validated IANA time zone as trusted request context;
 - log usage of the user's message;
 - retrieve knowledge;
 - respond directly if there is a reliable match;

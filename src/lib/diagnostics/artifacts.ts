@@ -6,6 +6,7 @@ const AGENT_METADATA_KEYS = [
   'answer_agent_failure',
   'clarification_resolution',
   'context_assembly',
+  'current_date',
   'evidence',
   'fallback',
   'grounding_gate',

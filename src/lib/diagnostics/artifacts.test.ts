@@ -29,6 +29,11 @@ describe('response diagnostic artifact', () => {
           }],
         },
         agent_metadata: {
+          current_date: {
+            status: 'resolved',
+            time_zone: 'Europe/Madrid',
+            local_date: '2026-11-02',
+          },
           answer_agent_failure: {
             reason: 'insufficient_evidence',
             authorization: 'Bearer private',
@@ -49,6 +54,11 @@ describe('response diagnostic artifact', () => {
         attempts: [{ retrieved_count: 0, selected_count: 0 }],
       },
       agent_metadata: {
+        current_date: {
+          status: 'resolved',
+          time_zone: 'Europe/Madrid',
+          local_date: '2026-11-02',
+        },
         answer_agent_failure: {
           reason: 'insufficient_evidence',
           authorization: '[redacted]',

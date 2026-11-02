@@ -436,6 +436,7 @@
         session_id: requestSessionId,
         message: text,
         page_url: getCurrentPageUrl(),
+        time_zone: getCurrentTimeZone(),
         suggested_question: suggestedQuestion || undefined,
       }),
     })
@@ -1480,6 +1481,14 @@
     url.searchParams.delete('talia_capture_total');
     removeTrackingParameters(url);
     return url.toString();
+  }
+
+  function getCurrentTimeZone() {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    } catch {
+      return 'UTC';
+    }
   }
 
   function getCanonicalPageUrl() {

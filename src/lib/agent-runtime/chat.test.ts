@@ -8,6 +8,7 @@ const runtimeInput: ChatAgentRuntimeInput = {
   tenantId: 'tenant-1',
   sessionId: 'session-1',
   message: 'Hola',
+  timeZone: 'Europe/Madrid',
   n8nWebhookUrl: 'https://n8n.example.test/webhook/chat',
   tenant: {
     name: 'Sala Test',
@@ -222,6 +223,7 @@ describe('TaliaAiChatAgentProvider', () => {
       tenant_id: 'tenant-1',
       session_id: 'session-1',
       page_url: 'https://talia.events/pricing',
+      time_zone: 'Europe/Madrid',
       conversation_context: [
         { role: 'user', content: '¿Tenéis descuentos?' },
         { role: 'assistant', content: 'Sí. Las personas jubiladas tienen una tarifa de 15 €.' },

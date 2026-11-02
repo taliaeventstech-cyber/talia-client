@@ -112,6 +112,7 @@ Request:
   "tenant_id": "uuid",
   "session_id": "public-session",
   "message": "User's question",
+  "time_zone": "Europe/Madrid",
   "fallback_language": "es",
   "tenant": {
     "name": "Example Venue",

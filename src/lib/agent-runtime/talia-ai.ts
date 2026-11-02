@@ -48,6 +48,7 @@ export class TaliaAiChatAgentProvider implements ChatAgentProvider {
           tenant_id: input.tenantId,
           session_id: input.sessionId,
           message: input.message,
+          time_zone: input.timeZone,
           ...(input.pageUrl ? { page_url: input.pageUrl } : {}),
           ...(input.conversationContext?.length
             ? {
