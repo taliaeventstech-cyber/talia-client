@@ -37,6 +37,8 @@ type ChatPayload = {
   message?: string
   page_url?: string
   pageUrl?: string
+  time_zone?: string
+  timeZone?: string
   suggested_question?: SuggestedQuestionSelectionInput
 }
 
@@ -58,6 +60,7 @@ export async function POST(
   const sessionId = payload.session_id ?? payload.sessionId
   const message = payload.message?.trim()
   const pageUrl = normalizePageUrl(payload.page_url ?? payload.pageUrl)
+  const timeZone = normalizeTimeZone(payload.time_zone ?? payload.timeZone)
 
   if (!sessionId || !message) {
     return corsJson({ error: 'session_id and message are required' }, { status: 400 })
@@ -313,6 +316,7 @@ export async function POST(
     tenantId,
     sessionId,
     message,
+    timeZone,
     pageUrl,
     conversationContext: recentConversation.messages,
     pendingClarification,
@@ -516,6 +520,19 @@ function normalizePageUrl(value: unknown) {
     return url.toString()
   } catch {
     return undefined
+  }
+}
+
+function normalizeTimeZone(value: unknown) {
+  if (typeof value !== 'string') return 'UTC'
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.length > 100) return 'UTC'
+
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: trimmed }).format(0)
+    return trimmed
+  } catch {
+    return 'UTC'
   }
 }
 
@@ -822,6 +839,9 @@ function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): 
   const temporalQuery = summarizeTemporalQueryTrace(metadata.temporal_query)
   if (temporalQuery) result.temporal_query = temporalQuery
 
+  const currentDate = summarizeCurrentDate(metadata.current_date)
+  if (currentDate) result.current_date = currentDate
+
   const analytics = parseChatAnalytics(metadata.analytics)
   if (analytics) {
     result.analytics = {
@@ -834,6 +854,21 @@ function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): 
   }
 
   return result
+}
+
+function summarizeCurrentDate(value: unknown): Json | null {
+  if (!isRecord(value) || value.status !== 'resolved') return null
+  const timeZone = typeof value.time_zone === 'string' ? value.time_zone.trim().slice(0, 100) : ''
+  const localDate = typeof value.local_date === 'string' && /^\d{4}-\d{2}-\d{2}$/u.test(value.local_date)
+    ? value.local_date
+    : ''
+  if (!timeZone || !localDate) return null
+
+  return {
+    status: 'resolved',
+    time_zone: timeZone,
+    local_date: localDate,
+  }
 }
 
 function summarizeConversationResolution(value: unknown): Json | null {

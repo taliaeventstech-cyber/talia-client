@@ -12,6 +12,7 @@ export type ChatAgentRuntimeInput = {
   tenantId: string
   sessionId: string
   message: string
+  timeZone: string
   pageUrl?: string
   conversationContext?: ChatConversationContextMessage[]
   pendingClarification?: ChatAgentPendingClarification
