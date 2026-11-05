@@ -50,3 +50,36 @@ describe('widget voice mode', () => {
     expect(widgetSource.match(/shortcutKeys: 'Alt\+Shift\+V'/g)).toHaveLength(2)
   })
 })
+
+describe('widget voice mode with TALIA (OpenAI) speech', () => {
+  it('prefers TALIA voice when the public config reports the OpenAI provider', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain("configValue.provider === 'openai'")
+    expect(widgetSource).toContain("baseUrl + '/api/chat/' + tenantId + '/transcribe'")
+    expect(widgetSource).toContain("baseUrl + '/api/chat/' + tenantId + '/speech'")
+    expect(widgetSource).toContain('context.decodeAudioData(buffer, resolve, reject)')
+  })
+
+  it('falls back to the browser engine when TALIA voice is unavailable or limited', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain('return status === 402 || status === 429 || status === 503;')
+    expect(widgetSource).toContain('speakWithBrowser(chunks.slice(index).join')
+  })
+
+  it('records only after the ready cue and stops itself after a pause, silence or 30 s', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toMatch(/earcons\.play\('listen', function \(\) \{[\s\S]*?beginRecording\(stream, token\);/)
+    expect(widgetSource).toContain('now - lastVoiceAt > 1500')
+    expect(widgetSource).toContain('now - startedAt > 8000')
+    expect(widgetSource).toContain('now - startedAt > 30000')
+  })
+
+  it('keeps speech chunks under the server cap', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain('splitSpeechChunks(text, 240, 1000)')
+  })
+})

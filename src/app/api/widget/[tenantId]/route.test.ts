@@ -47,4 +47,20 @@ describe('GET /api/widget/[tenantId]', () => {
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ enabled: false })
   })
+
+  it('tells enabled widgets which voice engine to use', async () => {
+    vi.stubEnv('OPENAI_API_KEY', 'sk-test')
+    vi.mocked(getPublicWidgetConfig).mockResolvedValue({
+      ok: true,
+      config: { enabled: true },
+    } as Awaited<ReturnType<typeof getPublicWidgetConfig>>)
+
+    const response = await GET(
+      new Request('https://agora.talia.events/api/widget/tenant-1'),
+      { params: Promise.resolve({ tenantId: 'tenant-1' }) }
+    )
+
+    await expect(response.json()).resolves.toEqual({ enabled: true, voice: { provider: 'openai' } })
+    vi.unstubAllEnvs()
+  })
 })

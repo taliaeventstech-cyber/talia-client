@@ -1954,9 +1954,12 @@
 
   // ---------------------------------------------------------------------------
   // Voice mode: speech-to-text input, spoken replies and audio cues (earcons).
-  // Uses only browser-native APIs (Web Speech + Web Audio): no extra network
-  // requests from the widget, no audio is stored by TALIA. Designed so blind
-  // and low-vision visitors can run a full conversation with Alt+Shift+V.
+  // Preferred engine: TALIA's voice endpoints (OpenAI speech-to-text and
+  // text-to-speech) when the public config reports `voice.provider: 'openai'`.
+  // Fallback engine: the browser's own Web Speech API, used when TALIA voice is
+  // unavailable, rate limited or fails. Audio cues are synthesized locally with
+  // Web Audio. Designed so blind and low-vision visitors can run a full
+  // conversation with Alt+Shift+V.
   // ---------------------------------------------------------------------------
 
   function getVoiceSupport(configValue, attributeValue) {
@@ -1964,12 +1967,25 @@
       || (configValue && typeof configValue === 'object' && configValue.enabled === false)
       || attributeValue === 'off'
       || attributeValue === 'false';
-    var recognition = !disabled && !!getSpeechRecognitionConstructor();
-    var synthesis = !disabled && typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance === 'function';
+    var serverProvider = !disabled && configValue && typeof configValue === 'object' && configValue.provider === 'openai';
+    var hasAudioContext = !!(window.AudioContext || window.webkitAudioContext);
+    var browserRecognition = !disabled && !!getSpeechRecognitionConstructor();
+    var browserSynthesis = !disabled && typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance === 'function';
+    var serverRecognition = !!serverProvider
+      && typeof window.MediaRecorder === 'function'
+      && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+      && hasAudioContext;
+    var serverSynthesis = !!serverProvider && hasAudioContext;
+    var recognition = serverRecognition || browserRecognition;
+    var synthesis = serverSynthesis || browserSynthesis;
     return {
       enabled: recognition || synthesis,
       recognition: recognition,
-      synthesis: synthesis
+      synthesis: synthesis,
+      serverRecognition: serverRecognition,
+      serverSynthesis: serverSynthesis,
+      browserRecognition: browserRecognition,
+      browserSynthesis: browserSynthesis
     };
   }
 
@@ -1990,6 +2006,7 @@
         listening: 'T’escolto. Pots parlar.',
         stopped: 'He deixat d’escoltar.',
         processing: 'Missatge enviat. Preparant la resposta.',
+        transcribing: 'T’he sentit. Un moment.',
         noSpeech: 'No t’he sentit. Prem Alt+Maj+V per tornar-ho a provar.',
         denied: 'No tinc accés al micròfon. Revisa els permisos del navegador o escriu el teu missatge.',
         unsupported: 'Aquest navegador no permet parlar amb l’agent. Pots escriure el teu missatge.',
@@ -2011,6 +2028,7 @@
         listening: 'I’m listening. You can talk now.',
         stopped: 'Stopped listening.',
         processing: 'Message sent. Preparing the answer.',
+        transcribing: 'Got it. One moment.',
         noSpeech: 'I didn’t hear anything. Press Alt+Shift+V to try again.',
         denied: 'I can’t access the microphone. Check your browser permissions or type your message.',
         unsupported: 'This browser doesn’t support talking to the agent. You can type your message.',
@@ -2032,6 +2050,7 @@
         listening: 'Estou ouvindo. Pode falar.',
         stopped: 'Parei de ouvir.',
         processing: 'Mensagem enviada. Preparando a resposta.',
+        transcribing: 'Entendi. Um momento.',
         noSpeech: 'Não ouvi nada. Pressione Alt+Shift+V para tentar de novo.',
         denied: 'Não tenho acesso ao microfone. Verifique as permissões do navegador ou digite sua mensagem.',
         unsupported: 'Este navegador não permite falar com o agente. Você pode digitar sua mensagem.',
@@ -2052,6 +2071,7 @@
       listening: 'Te escucho. Puedes hablar.',
       stopped: 'He dejado de escuchar.',
       processing: 'Mensaje enviado. Preparando la respuesta.',
+      transcribing: 'Te he oído. Un momento.',
       noSpeech: 'No te he oído. Pulsa Alt+Mayús+V para volver a intentarlo.',
       denied: 'No tengo acceso al micrófono. Revisa los permisos del navegador o escribe tu mensaje.',
       unsupported: 'Este navegador no permite hablar con el agente. Puedes escribir tu mensaje.',
@@ -2076,16 +2096,27 @@
     var readAloudKey = 'talia-voice-read-aloud';
     var shortcutAnnouncedKey = 'talia-voice-shortcut-announced';
     var readAloud = getStoredValue(readAloudKey) === 'on';
+    // Engines can be downgraded to the browser at runtime (TALIA voice
+    // unavailable, rate limited, over the usage limit...).
+    var useServerRecognition = support.serverRecognition;
+    var useServerSynthesis = support.serverSynthesis;
+    // Browser recognition state.
     var recognition = null;
     var recognitionStarted = false;
     var recognitionAborted = false;
-    var listening = false;
     var finalTranscript = '';
     var interimTranscript = '';
     var recognitionError = null;
+    // Server recognition state (recording + upload).
+    var capture = null;
+    var captureToken = 0;
+    var transcribing = false;
+    // Shared state.
+    var listening = false;
     var speaking = false;
     var voiceUsed = false;
     var speechToken = 0;
+    var currentSource = null;
     var earcons = createEarconPlayer();
     var noop = function () {};
 
@@ -2113,6 +2144,7 @@
     function updateMicButton() {
       if (!micButton) return;
       micButton.classList.toggle('mic--listening', listening);
+      micButton.classList.toggle('mic--busy', transcribing);
       micButton.setAttribute('aria-pressed', listening ? 'true' : 'false');
       var label = listening ? copy.micStop : copy.micStart;
       micButton.setAttribute('aria-label', label);
@@ -2124,26 +2156,245 @@
       speakerButton.setAttribute('aria-pressed', readAloud ? 'true' : 'false');
     }
 
+    function failListening(message) {
+      listening = false;
+      updateMicButton();
+      earcons.play('error');
+      announce(message);
+    }
+
     function toggleListening() {
       if (speaking) stopSpeaking();
+      if (transcribing) return;
       if (listening) {
-        stopListening();
+        stopListening(false);
         return;
       }
       startListening();
     }
 
     function startListening() {
-      var Recognition = getSpeechRecognitionConstructor();
-      if (!support.recognition || !Recognition) {
-        earcons.play('error');
-        announce(copy.unsupported);
-        speak(copy.unsupported, options.language, false);
-        if (options.input) options.input.focus();
+      voiceUsed = true;
+      if (useServerRecognition) {
+        startServerListening();
+        return;
+      }
+      if (support.browserRecognition) {
+        startBrowserListening();
+        return;
+      }
+      earcons.play('error');
+      announce(copy.unsupported);
+      speak(copy.unsupported, options.language, false);
+      if (options.input) options.input.focus();
+    }
+
+    // --- TALIA (OpenAI) recognition: record, detect end of speech, upload ----
+
+    function startServerListening() {
+      var token = ++captureToken;
+      listening = true;
+      updateMicButton();
+      earcons.prime();
+
+      navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      })
+        .then(function (stream) {
+          if (token !== captureToken || !listening) {
+            stopStream(stream);
+            return;
+          }
+          announce(copy.listening);
+          // Recording starts after the "you can talk" cue so it is never captured.
+          earcons.play('listen', function () {
+            if (token !== captureToken || !listening) {
+              stopStream(stream);
+              return;
+            }
+            beginRecording(stream, token);
+          });
+        })
+        .catch(function (error) {
+          if (token !== captureToken) return;
+          var denied = error && (error.name === 'NotAllowedError' || error.name === 'SecurityError');
+          if (denied) {
+            failListening(copy.denied);
+            speak(copy.denied, options.language, false);
+            return;
+          }
+          listening = false;
+          updateMicButton();
+          if (support.browserRecognition) {
+            useServerRecognition = false;
+            startBrowserListening();
+            return;
+          }
+          failListening(copy.failed);
+        });
+    }
+
+    function beginRecording(stream, token) {
+      var mimeType = getRecorderMimeType();
+      var recorder;
+      try {
+        recorder = mimeType ? new window.MediaRecorder(stream, { mimeType: mimeType }) : new window.MediaRecorder(stream);
+      } catch {
+        stopStream(stream);
+        failListening(copy.failed);
         return;
       }
 
-      voiceUsed = true;
+      var chunks = [];
+      var current = {
+        recorder: recorder,
+        stream: stream,
+        heardSpeech: false,
+        discard: false,
+        stopMeter: noop
+      };
+      capture = current;
+
+      recorder.ondataavailable = function (event) {
+        if (event.data && event.data.size) chunks.push(event.data);
+      };
+
+      recorder.onstop = function () {
+        current.stopMeter();
+        stopStream(stream);
+        if (capture === current) capture = null;
+        listening = false;
+        updateMicButton();
+        if (current.discard || token !== captureToken) return;
+
+        if (!current.heardSpeech || !chunks.length) {
+          earcons.play('cancel');
+          announce(copy.noSpeech);
+          return;
+        }
+
+        var blob = new Blob(chunks, { type: recorder.mimeType || mimeType || 'audio/webm' });
+        earcons.play('captured');
+        announce(copy.transcribing);
+        transcribe(blob, token);
+      };
+
+      try {
+        recorder.start(250);
+      } catch {
+        stopStream(stream);
+        capture = null;
+        failListening(copy.failed);
+        return;
+      }
+      current.stopMeter = watchForEndOfSpeech(stream, current);
+    }
+
+    // Stops automatically after a pause once the visitor has spoken, when no
+    // speech is heard at all, or at the hard 30 s cap.
+    function watchForEndOfSpeech(stream, current) {
+      var context = earcons.getContext();
+      if (!context) return noop;
+      var source;
+      var analyser;
+      try {
+        source = context.createMediaStreamSource(stream);
+        analyser = context.createAnalyser();
+        analyser.fftSize = 1024;
+        source.connect(analyser);
+      } catch {
+        return noop;
+      }
+
+      var samples = new Uint8Array(analyser.fftSize);
+      var startedAt = Date.now();
+      var lastVoiceAt = startedAt;
+      var interval = setInterval(function () {
+        analyser.getByteTimeDomainData(samples);
+        var sum = 0;
+        for (var index = 0; index < samples.length; index += 1) {
+          var value = (samples[index] - 128) / 128;
+          sum += value * value;
+        }
+        var level = Math.sqrt(sum / samples.length);
+        var now = Date.now();
+        if (level > 0.035) {
+          current.heardSpeech = true;
+          lastVoiceAt = now;
+        }
+        var pauseAfterSpeech = current.heardSpeech && now - lastVoiceAt > 1500;
+        var nothingHeard = !current.heardSpeech && now - startedAt > 8000;
+        if (pauseAfterSpeech || nothingHeard || now - startedAt > 30000) {
+          stopRecorder(current);
+        }
+      }, 100);
+
+      return function () {
+        clearInterval(interval);
+        try { source.disconnect(); } catch { /* already disconnected */ }
+      };
+    }
+
+    function stopRecorder(current) {
+      current.stopMeter();
+      current.stopMeter = noop;
+      if (current.recorder.state !== 'inactive') {
+        try { current.recorder.stop(); } catch { /* already stopped */ }
+      }
+    }
+
+    function transcribe(blob, token) {
+      transcribing = true;
+      updateMicButton();
+      var form = new FormData();
+      form.append('audio', blob, 'speech');
+      form.append('session_id', sessionId);
+      form.append('page_url', getCurrentPageUrl());
+      // No language hint: visitors may speak a language other than the page's,
+      // and TALIA answers in the language they use.
+
+      fetch(baseUrl + '/api/chat/' + tenantId + '/transcribe', { method: 'POST', body: form })
+        .then(function (response) {
+          return response.json().catch(function () { return {}; }).then(function (data) {
+            return { ok: response.ok, status: response.status, data: data };
+          });
+        })
+        .then(function (result) {
+          transcribing = false;
+          updateMicButton();
+          if (token !== captureToken) return;
+          var text = result.ok && result.data && typeof result.data.text === 'string' ? result.data.text.trim() : '';
+          if (text) {
+            options.onTranscript(text);
+            return;
+          }
+          if (result.ok) {
+            earcons.play('cancel');
+            announce(copy.noSpeech);
+            return;
+          }
+          if (shouldUseBrowserFallback(result.status) && support.browserRecognition) useServerRecognition = false;
+          earcons.play('error');
+          announce(copy.failed);
+        })
+        .catch(function () {
+          transcribing = false;
+          updateMicButton();
+          if (token !== captureToken) return;
+          earcons.play('error');
+          announce(copy.failed);
+        });
+    }
+
+    // --- Browser recognition (fallback) ---------------------------------------
+
+    function startBrowserListening() {
+      var Recognition = getSpeechRecognitionConstructor();
+      if (!Recognition) {
+        failListening(copy.unsupported);
+        return;
+      }
+
       finalTranscript = '';
       interimTranscript = '';
       recognitionError = null;
@@ -2152,8 +2403,7 @@
       try {
         recognition = new Recognition();
       } catch {
-        earcons.play('error');
-        announce(copy.unsupported);
+        failListening(copy.unsupported);
         return;
       }
       recognition.lang = getRecognitionLanguage(options.language);
@@ -2219,11 +2469,8 @@
           recognition.start();
           recognitionStarted = true;
         } catch {
-          listening = false;
           recognition = null;
-          updateMicButton();
-          earcons.play('error');
-          announce(copy.failed);
+          failListening(copy.failed);
         }
       });
     }
@@ -2232,6 +2479,15 @@
       if (!listening) return;
       listening = false;
       updateMicButton();
+
+      if (capture) {
+        // Server recording in progress: stop() submits it, unless discarded.
+        capture.discard = !!silent;
+        if (silent) captureToken += 1;
+        stopRecorder(capture);
+        return;
+      }
+
       if (recognition && recognitionStarted) {
         if (silent) {
           // Discard what was heard (panel closed, conversation restarted...).
@@ -2243,7 +2499,9 @@
         }
         return;
       }
-      // Stopped during the start cue, before the recognizer was running.
+
+      // Stopped while waiting for the microphone or during the start cue.
+      captureToken += 1;
       recognition = null;
       if (!silent) {
         earcons.play('cancel');
@@ -2251,17 +2509,110 @@
       }
     }
 
+    // --- Spoken replies ---------------------------------------------------------
+
     function speak(text, language, withCue) {
       if (!support.synthesis) return;
       var clean = getSpeakableText(text, copy.link);
       if (!clean) return;
-      var synth = window.speechSynthesis;
       var token = ++speechToken;
+      stopCurrentAudio();
+      speaking = true;
+
+      function start() {
+        if (token !== speechToken) return;
+        if (useServerSynthesis) speakWithServer(clean, language, token);
+        else speakWithBrowser(clean, language, token);
+      }
+
+      if (withCue) earcons.play('reply', start);
+      else start();
+    }
+
+    function speakWithServer(text, language, token) {
+      var context = earcons.getContext();
+      if (!context) {
+        speakWithBrowser(text, language, token);
+        return;
+      }
+      // A short first chunk starts playback sooner; the rest is prefetched.
+      var chunks = splitSpeechChunks(text, 240, 1000);
+      var pending = [];
+
+      function fetchChunk(index) {
+        if (!pending[index]) {
+          pending[index] = fetch(baseUrl + '/api/chat/' + tenantId + '/speech', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              session_id: sessionId,
+              text: chunks[index],
+              language: getSpeechLanguage(language),
+              page_url: getCurrentPageUrl()
+            })
+          })
+            .then(function (response) {
+              if (!response.ok) throw response.status;
+              return response.arrayBuffer();
+            })
+            .then(function (buffer) {
+              return new Promise(function (resolve, reject) {
+                context.decodeAudioData(buffer, resolve, reject);
+              });
+            });
+          // Avoid unhandled rejections for prefetched chunks that never play.
+          pending[index].catch(noop);
+        }
+        return pending[index];
+      }
+
+      function playChunk(index) {
+        if (token !== speechToken) return;
+        if (index >= chunks.length) {
+          speaking = false;
+          return;
+        }
+        fetchChunk(index)
+          .then(function (audioBuffer) {
+            if (token !== speechToken) return;
+            if (index + 1 < chunks.length) fetchChunk(index + 1);
+            if (context.state === 'suspended' && typeof context.resume === 'function') context.resume().catch(noop);
+            var source = context.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(context.destination);
+            currentSource = source;
+            source.onended = function () {
+              if (currentSource === source) currentSource = null;
+              playChunk(index + 1);
+            };
+            source.start();
+          })
+          .catch(function (status) {
+            if (token !== speechToken) return;
+            if (shouldUseBrowserFallback(status)) useServerSynthesis = false;
+            // Finish this reply with the browser voice when possible.
+            if (support.browserSynthesis) {
+              speakWithBrowser(chunks.slice(index).join(' '), language, token);
+              return;
+            }
+            speaking = false;
+            earcons.play('error');
+          });
+      }
+
+      playChunk(0);
+    }
+
+    function speakWithBrowser(text, language, token) {
+      if (!support.browserSynthesis) {
+        speaking = false;
+        return;
+      }
+      var synth = window.speechSynthesis;
       synth.cancel();
-      var chunks = splitSpeechChunks(clean);
+      var chunks = splitSpeechChunks(text, 220, 220);
       var lang = getSpeechLanguage(language);
       var voice = pickSpeechVoice(lang);
-      speaking = true;
 
       function speakChunk(index) {
         if (token !== speechToken) return;
@@ -2280,16 +2631,25 @@
         synth.speak(utterance);
       }
 
-      if (withCue) earcons.play('reply', function () { speakChunk(0); });
-      else speakChunk(0);
+      speakChunk(0);
+    }
+
+    function stopCurrentAudio() {
+      if (currentSource) {
+        var source = currentSource;
+        currentSource = null;
+        source.onended = null;
+        try { source.stop(); } catch { /* already stopped */ }
+      }
+      if (support.browserSynthesis) {
+        try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+      }
     }
 
     function stopSpeaking() {
       speechToken += 1;
       speaking = false;
-      if (support.synthesis) {
-        try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
-      }
+      stopCurrentAudio();
     }
 
     return {
@@ -2303,9 +2663,11 @@
         announce(readAloud ? copy.readAloudOn : copy.readAloudOff);
       },
       stopAll: function (announceStop) {
-        var wasActive = listening || speaking;
+        var wasActive = listening || speaking || transcribing;
         var wasSpeaking = speaking;
         stopListening(true);
+        // Ignore a transcription that is still in flight.
+        captureToken += 1;
         stopSpeaking();
         if (announceStop && wasActive) {
           earcons.play('cancel');
@@ -2313,6 +2675,9 @@
         }
       },
       notifyProcessing: function (fromVoice) {
+        // A typed submit is a user gesture: unlock audio so a later read-aloud
+        // reply can play under browser autoplay rules.
+        if (readAloud) earcons.prime();
         if (!fromVoice) return;
         earcons.play('processing');
         announce(copy.processing);
@@ -2336,8 +2701,30 @@
           if (!voiceUsed) announce(copy.firstOpen);
         }, 600);
       },
-      isActive: function () { return listening || speaking; }
+      isActive: function () { return listening || speaking || transcribing; }
     };
+  }
+
+  // TALIA voice is unavailable, rate limited or over the venue's usage limit:
+  // keep voice working with the browser engine for the rest of the visit.
+  function shouldUseBrowserFallback(status) {
+    return status === 402 || status === 429 || status === 503;
+  }
+
+  function getRecorderMimeType() {
+    var candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+    if (typeof window.MediaRecorder.isTypeSupported !== 'function') return '';
+    for (var index = 0; index < candidates.length; index += 1) {
+      if (window.MediaRecorder.isTypeSupported(candidates[index])) return candidates[index];
+    }
+    return '';
+  }
+
+  function stopStream(stream) {
+    if (!stream || typeof stream.getTracks !== 'function') return;
+    stream.getTracks().forEach(function (track) {
+      try { track.stop(); } catch { /* already stopped */ }
+    });
   }
 
   // Short synthesized tones so no audio files are fetched and the host CSP is
@@ -2365,13 +2752,22 @@
       return context;
     }
 
+    function prime() {
+      var audio = getContext();
+      if (audio && audio.state === 'suspended' && typeof audio.resume === 'function') {
+        audio.resume().catch(function () {});
+      }
+      return audio;
+    }
+
     return {
+      getContext: getContext,
+      prime: prime,
       play: function (name, done) {
         var pattern = patterns[name];
-        var audio = getContext();
+        var audio = prime();
         var duration = 0;
         if (pattern && audio) {
-          if (audio.state === 'suspended' && typeof audio.resume === 'function') audio.resume().catch(function () {});
           var start = audio.currentTime + 0.02;
           pattern.forEach(function (note) {
             var oscillator = audio.createOscillator();
@@ -2451,20 +2847,27 @@
       .trim();
   }
 
-  // Some engines cut long utterances; speak sentence-sized chunks instead.
-  function splitSpeechChunks(text) {
+  // Speak sentence-sized chunks: some browser engines cut long utterances, and
+  // TALIA voice starts sooner when the first chunk is short.
+  function splitSpeechChunks(text, firstMax, max) {
     var sentences = text.match(/[^.!?¿¡…]+[.!?…]*\s*/g) || [text];
     var chunks = [];
     var current = '';
     sentences.forEach(function (sentence) {
-      if ((current + sentence).length > 220 && current) {
+      var limit = chunks.length ? max : firstMax;
+      if ((current + sentence).length > limit && current) {
         chunks.push(current.trim());
         current = '';
+      }
+      // A single very long sentence is hard-split so it never exceeds the API cap.
+      while (sentence.length > max) {
+        chunks.push(sentence.slice(0, max).trim());
+        sentence = sentence.slice(max);
       }
       current += sentence;
     });
     if (current.trim()) chunks.push(current.trim());
-    return chunks;
+    return chunks.filter(function (chunk) { return chunk.length > 0; });
   }
 
   function getMicIcon() {

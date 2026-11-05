@@ -39,33 +39,61 @@ Allow a venue to install TALIA on its website via a script and answer visitor qu
 
 ## Voice Mode (speech to text and spoken replies)
 
-- A microphone button in the composer starts and stops dictation. It is only
-  rendered when the browser supports speech recognition (Chrome, Edge, Safari);
-  elsewhere the visitor keeps the text composer.
+Visitor experience:
+
+- A microphone button in the composer starts and stops voice input.
 - Global keyboard shortcut `Alt+Shift+V` (works before the widget has focus)
   opens the agent and starts listening; pressing it again stops listening and
-  sends what was heard, or interrupts a reply that is being read aloud.
-  `Escape` cancels listening or speech. The launcher and the microphone expose
-  the shortcut through `aria-keyshortcuts` and a screen-reader description; the
-  first time the panel is opened, an accessible tip announces it.
+  sends what was heard, or interrupts a reply that is being spoken. `Escape`
+  cancels listening, a pending transcription or speech. The launcher and the
+  microphone expose the shortcut through `aria-keyshortcuts` and a
+  screen-reader description; the first time the panel is opened, an accessible
+  tip announces it.
 - Every step plays a distinct synthesized audio cue and is announced in an
-  assertive live region: ready to talk, speech captured, message sent, reply
-  ready, cancelled/no speech, and error (microphone denied, unsupported
-  browser, recognition failure). Recognition starts only after the "ready"
-  cue so the cue is never transcribed.
-- Replies to voice turns are read aloud with the browser speech engine in the
-  reply language (`response_language`), with markdown stripped and URLs
-  replaced by a localized "link" word. A header speaker toggle ("read answers
-  aloud", persisted per browser) also reads replies to typed turns.
-- Recognition language: page `<html lang>`, then browser language, then the
-  widget's configured language.
-- Voice uses only browser-native Web Speech and Web Audio APIs: no new network
-  requests from the widget, no audio files, no audio stored by TALIA. The
-  browser's own recognition service may process audio (Google in Chrome/Edge,
-  Apple in Safari); host pages whose `Permissions-Policy` blocks `microphone`
-  get the localized "microphone unavailable" message.
-- Opt-out per installation with `data-voice="off"` on the script tag, or
-  `voice: false` in the public widget configuration.
+  assertive live region: ready to talk, speech captured, transcribing, message
+  sent, reply ready, cancelled/no speech, and error (microphone denied,
+  unsupported browser, transcription failure). Recording starts only after the
+  "ready" cue so the cue is never captured.
+- Recording stops by itself after a 1.5 s pause once the visitor has spoken,
+  after 8 s without speech, or at a 30 s cap.
+- Replies to voice turns are spoken in the reply language
+  (`response_language`), with markdown stripped and URLs replaced by a
+  localized "link" word. A header speaker toggle ("read answers aloud",
+  persisted per browser) also speaks replies to typed turns.
+
+Engines:
+
+- **TALIA voice (default when configured):** the widget records with
+  `MediaRecorder` and uploads to `POST /api/chat/[tenantId]/transcribe`
+  (OpenAI `gpt-4o-mini-transcribe`, language auto-detected); replies are
+  synthesized by `POST /api/chat/[tenantId]/speech` (OpenAI `gpt-4o-mini-tts`,
+  MP3, at most 1,200 characters per request; the widget sends a short first
+  chunk and prefetches the rest) and played through Web Audio, so host pages
+  need no `media-src` changes. The public widget configuration reports
+  `voice.provider: 'openai'` when `OPENAI_API_KEY` is set and
+  `WIDGET_OPENAI_VOICE_ENABLED` is not `false`. Available on all plans.
+- **Browser voice (fallback):** Web Speech recognition and synthesis. Used when
+  TALIA voice is not configured, and for the rest of the visit when an
+  endpoint answers 402, 429 or 503. Not available in Firefox.
+
+Server rules (both endpoints, same order as the chat endpoint): provider
+configured → per-venue and per-IP rate limit (transcribe 15/min and 60/10 min;
+speech 40/min and 160/10 min) → active venue with enabled widget → allowed
+embedding domain → chatbot usage limit (no paid call when answers are
+blocked). Audio is limited to 2 MB and known audio types. Successful calls are
+recorded in `usage_events` as `ai_call` / `call` on the `web` channel with raw
+tokens, bytes, characters and model in metadata (no hardcoded cent estimate).
+Audio is never stored by TALIA. Optional env: `OPENAI_TRANSCRIBE_MODEL`,
+`OPENAI_TTS_MODEL`, `OPENAI_TTS_VOICE`, `OPENAI_BASE_URL`.
+
+Privacy: with TALIA voice, visitor audio and reply text are processed by
+OpenAI; with the browser fallback, by the browser vendor's recognition service
+(Google in Chrome/Edge, Apple in Safari). The public privacy text must reflect
+this before broad launch. Host pages whose `Permissions-Policy` blocks
+`microphone` get the localized "microphone unavailable" message.
+
+Opt-out per installation with `data-voice="off"` on the script tag, or
+`voice: false` in the public widget configuration.
 
 ## Demo Requirements
 

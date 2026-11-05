@@ -325,13 +325,16 @@ Implemented:
 - Interactive, production-sized Agora preview for the launcher, proactive
   greeting, suggested questions and chat panel; message submission stays
   disabled in preview mode.
-- Voice mode in the installed widget: microphone dictation (speech to text),
-  a global `Alt+Shift+V` shortcut for blind and low-vision visitors that opens
+- Voice mode in the installed widget: microphone input (speech to text), a
+  global `Alt+Shift+V` shortcut for blind and low-vision visitors that opens
   the agent and starts listening, distinct audio cues and live-region
   announcements for every step, and spoken replies (automatic for voice turns,
-  optional "read answers aloud" toggle for typed turns). Browser-native Web
-  Speech/Web Audio only; hidden where unsupported. The Agora preview does not
-  show the voice controls yet. Details: `docs/requirements/chatbot.md`.
+  optional "read answers aloud" toggle for typed turns). Speech is handled by
+  OpenAI through `/api/chat/[tenantId]/transcribe` and `/speech` on all plans,
+  rate limited, domain checked and recorded as `ai_call` usage, with the
+  browser's Web Speech engine as fallback. The privacy text does not yet
+  mention OpenAI audio processing, and the Agora preview does not show the
+  voice controls. Details: `docs/requirements/chatbot.md`.
 - Auto-growing chat composer in production and preview, with `Enter` to send,
   `Shift + Enter` for line breaks and a bounded internal scroll for long drafts.
 - Per-response feedback uses a localized TALIA micro-survey with compact
