@@ -147,6 +147,20 @@ export async function recordVoiceUsage(
   }
 }
 
+/**
+ * Maps a talia-ai failure to the public error. When talia-ai is not deployed
+ * yet (404), unreachable, or the provider is overloaded (503), the widget gets
+ * 503 and switches to browser speech for the rest of the visit; other
+ * failures are a one-off 502.
+ */
+export function voiceProviderFailure(status: number | undefined, error: 'transcription_failed' | 'speech_failed') {
+  const unavailable = status === undefined || status === 404 || status === 503
+  return corsJson(
+    { error: unavailable ? 'voice_unavailable' : error },
+    { status: unavailable ? 503 : 502 },
+  )
+}
+
 export function normalizeVoicePageUrl(value: unknown) {
   if (typeof value !== 'string') return undefined
   const trimmed = value.trim()

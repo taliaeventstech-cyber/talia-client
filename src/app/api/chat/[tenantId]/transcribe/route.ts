@@ -1,6 +1,6 @@
 import { corsJson, corsNoContent } from '@/lib/http/cors'
 import { MAX_SPEECH_AUDIO_BYTES, parseTranscriptionForm } from '@/lib/widget/speech'
-import { guardVoiceRequest, normalizeVoicePageUrl, recordVoiceUsage } from '@/lib/widget/voice-request-guard'
+import { guardVoiceRequest, normalizeVoicePageUrl, recordVoiceUsage, voiceProviderFailure } from '@/lib/widget/voice-request-guard'
 
 // Multipart overhead on top of the audio itself.
 const MAX_REQUEST_BYTES = MAX_SPEECH_AUDIO_BYTES + 64_000
@@ -47,7 +47,7 @@ export async function POST(
 
   if (!result.ok) {
     console.warn('[voice] transcription failed', { tenantId, error: result.error })
-    return corsJson({ error: 'transcription_failed' }, { status: 502 })
+    return voiceProviderFailure(result.status, 'transcription_failed')
   }
 
   await recordVoiceUsage(guard.admin, {

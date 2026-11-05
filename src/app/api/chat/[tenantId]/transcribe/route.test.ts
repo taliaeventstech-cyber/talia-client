@@ -169,4 +169,14 @@ describe('POST /api/chat/[tenantId]/transcribe', () => {
     await expect(response.json()).resolves.toEqual({ error: 'transcription_failed' })
     expect(recordUsageEvent).not.toHaveBeenCalled()
   })
+
+  it.each([404, 503, undefined])('asks the widget to fall back to browser speech when talia-ai is unavailable (%s)', async (status) => {
+    provider.transcribe.mockResolvedValue({ ok: false, error: 'talia-ai unavailable', status })
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+
+    const response = await transcribeRequest()
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({ error: 'voice_unavailable' })
+  })
 })

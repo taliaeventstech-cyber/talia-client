@@ -1,6 +1,6 @@
 import { corsHeaders, corsJson, corsNoContent } from '@/lib/http/cors'
 import { speechSynthesisRequestSchema } from '@/lib/widget/speech'
-import { guardVoiceRequest, normalizeVoicePageUrl, recordVoiceUsage } from '@/lib/widget/voice-request-guard'
+import { guardVoiceRequest, normalizeVoicePageUrl, recordVoiceUsage, voiceProviderFailure } from '@/lib/widget/voice-request-guard'
 
 /** Web Agent voice mode: reply text → spoken audio (talia-ai text-to-speech). */
 export async function POST(
@@ -42,7 +42,7 @@ export async function POST(
 
   if (!result.ok) {
     console.warn('[voice] speech synthesis failed', { tenantId, error: result.error })
-    return corsJson({ error: 'speech_failed' }, { status: 502 })
+    return voiceProviderFailure(result.status, 'speech_failed')
   }
 
   await recordVoiceUsage(guard.admin, {
