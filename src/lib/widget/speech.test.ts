@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   MAX_SPEECH_AUDIO_BYTES,
-  buildSpeechInstructions,
   getPublicVoiceConfig,
   getTranscriptionLanguageHint,
   isAllowedAudioMimeType,
@@ -69,15 +68,22 @@ describe('widget speech validation', () => {
     expect(speechSynthesisRequestSchema.safeParse({ session_id: 's', text: '   ' }).success).toBe(false)
   })
 
-  it('asks for a clear delivery in the reply language', () => {
-    expect(buildSpeechInstructions('pt-BR')).toContain('Brazilian Portuguese')
-    expect(buildSpeechInstructions('ca')).toContain('Catalan')
-    expect(buildSpeechInstructions('xx')).not.toContain('Speak in')
+  it('normalizes MIME aliases to the types talia-ai accepts', () => {
+    const result = parseTranscriptionForm(audioForm(new Blob(['x'], { type: 'audio/x-wav' })))
+    expect(result).toMatchObject({ ok: true, value: { mimeType: 'audio/wav', fileName: 'speech.wav' } })
   })
 
-  it('reports OpenAI voice only when a key is configured and the kill switch is not set', () => {
-    expect(getPublicVoiceConfig({ OPENAI_API_KEY: 'sk-test' })).toEqual({ provider: 'openai' })
+  it('defaults speech pace to normal and accepts the slow pace', () => {
+    expect(speechSynthesisRequestSchema.parse({ session_id: 's', text: 'Hola' }).pace).toBe('normal')
+    expect(speechSynthesisRequestSchema.parse({ session_id: 's', text: 'Hola', pace: 'slow' }).pace).toBe('slow')
+    expect(speechSynthesisRequestSchema.safeParse({ session_id: 's', text: 'Hola', pace: 'fast' }).success).toBe(false)
+  })
+
+  it('reports TALIA voice only when talia-ai is configured and the kill switch is not set', () => {
+    const taliaAi = { TALIA_AI_BASE_URL: 'https://talia-ai.example', TALIA_AI_INTERNAL_API_KEY: 'internal-key' }
+    expect(getPublicVoiceConfig(taliaAi)).toEqual({ provider: 'talia' })
     expect(getPublicVoiceConfig({})).toEqual({ provider: 'browser' })
-    expect(getPublicVoiceConfig({ OPENAI_API_KEY: 'sk-test', WIDGET_OPENAI_VOICE_ENABLED: 'false' })).toEqual({ provider: 'browser' })
+    expect(getPublicVoiceConfig({ OPENAI_API_KEY: 'sk-test' })).toEqual({ provider: 'browser' })
+    expect(getPublicVoiceConfig({ ...taliaAi, WIDGET_SERVER_VOICE_ENABLED: 'false' })).toEqual({ provider: 'browser' })
   })
 })

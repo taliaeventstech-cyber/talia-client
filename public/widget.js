@@ -678,7 +678,7 @@
         disclosure: 'Estàs parlant amb un assistent d’IA. Pot cometre errors.',
         privacyLabel: 'Privacitat',
         privacyQuestion: 'Com tracteu les meves dades?',
-        privacySummary: 'Utilitzem els missatges que envies per respondre la teva consulta, supervisar la qualitat i protegir el servei. El contingut de la conversa es conserva durant 90 dies i es pot eliminar abans si ho sol·licites. No venem les teves dades.',
+        privacySummary: 'Utilitzem els missatges que envies per respondre la teva consulta, supervisar la qualitat i protegir el servei. El contingut de la conversa es conserva durant 90 dies i es pot eliminar abans si ho sol·licites. Si parles amb l’agent, la teva veu es transcriu i les respostes es poden llegir en veu alta mitjançant proveïdors d’IA (com OpenAI) o el servei de veu del teu navegador; no desem enregistraments d’àudio. No venem les teves dades.',
         privacyMore: 'Pots consultar tots els detalls i com exercir els teus drets aquí:'
       };
     } else if (language === 'en') {
@@ -687,7 +687,7 @@
         disclosure: 'You are talking to an AI assistant. It can make mistakes.',
         privacyLabel: 'Privacy',
         privacyQuestion: 'How do you use my data?',
-        privacySummary: 'We use the messages you send to answer your question, monitor quality, and protect the service. Conversation content is retained for 90 days and can be deleted sooner if you request it. We do not sell your data.',
+        privacySummary: 'We use the messages you send to answer your question, monitor quality, and protect the service. Conversation content is retained for 90 days and can be deleted sooner if you request it. If you talk to the agent, your voice is transcribed and answers may be read aloud using AI providers (such as OpenAI) or your browser’s speech service; we do not keep audio recordings. We do not sell your data.',
         privacyMore: 'You can read the full details and learn how to exercise your rights here:'
       };
     } else if (language === 'pt-BR') {
@@ -696,7 +696,7 @@
         disclosure: 'Você está falando com um assistente de IA. Ele pode cometer erros.',
         privacyLabel: 'Privacidade',
         privacyQuestion: 'Como vocês tratam meus dados?',
-        privacySummary: 'Usamos as mensagens que você envia para responder à sua solicitação, supervisionar a qualidade e proteger o serviço. O conteúdo da conversa é mantido por 90 dias e pode ser excluído antes se você solicitar. Não vendemos seus dados.',
+        privacySummary: 'Usamos as mensagens que você envia para responder à sua solicitação, supervisionar a qualidade e proteger o serviço. O conteúdo da conversa é mantido por 90 dias e pode ser excluído antes se você solicitar. Se você falar com o agente, sua voz é transcrita e as respostas podem ser lidas em voz alta por provedores de IA (como a OpenAI) ou pelo serviço de voz do seu navegador; não guardamos gravações de áudio. Não vendemos seus dados.',
         privacyMore: 'Você pode consultar todos os detalhes e saber como exercer seus direitos aqui:'
       };
     } else {
@@ -705,7 +705,7 @@
         disclosure: 'Estás hablando con un asistente de IA. Puede cometer errores.',
         privacyLabel: 'Privacidad',
         privacyQuestion: '¿Cómo tratáis mis datos?',
-        privacySummary: 'Usamos los mensajes que envías para responder a tu consulta, supervisar la calidad y proteger el servicio. El contenido de la conversación se conserva durante 90 días y puede eliminarse antes si lo solicitas. No vendemos tus datos.',
+        privacySummary: 'Usamos los mensajes que envías para responder a tu consulta, supervisar la calidad y proteger el servicio. El contenido de la conversación se conserva durante 90 días y puede eliminarse antes si lo solicitas. Si hablas con el agente, tu voz se transcribe y las respuestas pueden leerse en voz alta mediante proveedores de IA (como OpenAI) o el servicio de voz de tu navegador; no guardamos grabaciones de audio. No vendemos tus datos.',
         privacyMore: 'Puedes consultar todos los detalles y cómo ejercer tus derechos aquí:'
       };
     }
@@ -1967,7 +1967,7 @@
       || (configValue && typeof configValue === 'object' && configValue.enabled === false)
       || attributeValue === 'off'
       || attributeValue === 'false';
-    var serverProvider = !disabled && configValue && typeof configValue === 'object' && configValue.provider === 'openai';
+    var serverProvider = !disabled && configValue && typeof configValue === 'object' && configValue.provider === 'talia';
     var hasAudioContext = !!(window.AudioContext || window.webkitAudioContext);
     var browserRecognition = !disabled && !!getSpeechRecognitionConstructor();
     var browserSynthesis = !disabled && typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance === 'function';
@@ -2015,6 +2015,9 @@
         readAloudOn: 'Lectura en veu alta activada.',
         readAloudOff: 'Lectura en veu alta desactivada.',
         speechStopped: 'Lectura aturada.',
+        slower: 'D’acord, parlaré més a poc a poc.',
+        writtenOnly: 'D’acord, et respondré només per escrit. Activa el botó de lectura en veu alta per tornar a escoltar-me.',
+        nothingToRepeat: 'Encara no hi ha cap resposta per repetir.',
         link: 'enllaç',
         shortcutKeys: 'Alt+Maj+V',
         shortcutHint: 'Prem Alt+Maj+V en qualsevol moment per parlar amb l’agent web. Sentiràs un so quan puguis començar a parlar.',
@@ -2037,6 +2040,9 @@
         readAloudOn: 'Reading answers aloud is on.',
         readAloudOff: 'Reading answers aloud is off.',
         speechStopped: 'Reading stopped.',
+        slower: 'Okay, I’ll speak more slowly.',
+        writtenOnly: 'Okay, I’ll answer in writing only. Turn on “read answers aloud” to hear me again.',
+        nothingToRepeat: 'There’s no answer to repeat yet.',
         link: 'link',
         shortcutKeys: 'Alt+Shift+V',
         shortcutHint: 'Press Alt+Shift+V at any time to talk to the web agent. You will hear a sound when you can start talking.',
@@ -2059,6 +2065,9 @@
         readAloudOn: 'Leitura em voz alta ativada.',
         readAloudOff: 'Leitura em voz alta desativada.',
         speechStopped: 'Leitura interrompida.',
+        slower: 'Certo, vou falar mais devagar.',
+        writtenOnly: 'Certo, vou responder só por escrito. Ative “ler respostas em voz alta” para me ouvir de novo.',
+        nothingToRepeat: 'Ainda não há nenhuma resposta para repetir.',
         link: 'link',
         shortcutKeys: 'Alt+Shift+V',
         shortcutHint: 'Pressione Alt+Shift+V a qualquer momento para falar com o agente web. Você ouvirá um som quando puder começar a falar.',
@@ -2080,6 +2089,9 @@
       readAloudOn: 'Lectura en voz alta activada.',
       readAloudOff: 'Lectura en voz alta desactivada.',
       speechStopped: 'Lectura detenida.',
+      slower: 'De acuerdo, hablaré más despacio.',
+      writtenOnly: 'De acuerdo, te responderé solo por escrito. Activa “leer respuestas en voz alta” para volver a escucharme.',
+      nothingToRepeat: 'Todavía no hay ninguna respuesta que repetir.',
       link: 'enlace',
       shortcutKeys: 'Alt+Mayús+V',
       shortcutHint: 'Pulsa Alt+Mayús+V en cualquier momento para hablar con el agente web. Oirás un sonido cuando puedas empezar a hablar.',
@@ -2117,6 +2129,11 @@
     var voiceUsed = false;
     var speechToken = 0;
     var currentSource = null;
+    // Voice commands (TAL-8): "slower" lowers the pace for the rest of the
+    // visit; "write it" stops speaking replies to voice turns.
+    var pace = 'normal';
+    var speakVoiceReplies = true;
+    var lastReply = null;
     var earcons = createEarconPlayer();
     var noop = function () {};
 
@@ -2365,7 +2382,7 @@
           if (token !== captureToken) return;
           var text = result.ok && result.data && typeof result.data.text === 'string' ? result.data.text.trim() : '';
           if (text) {
-            options.onTranscript(text);
+            deliverTranscript(text);
             return;
           }
           if (result.ok) {
@@ -2438,7 +2455,7 @@
         if (recognitionAborted || recognitionError === 'aborted') return;
         if (text) {
           earcons.play('captured');
-          options.onTranscript(text);
+          deliverTranscript(text);
           return;
         }
         options.onInterim('');
@@ -2509,6 +2526,51 @@
       }
     }
 
+    // Short spoken commands are handled locally, without an AI call. Anything
+    // else (including "talk to a person") goes to the agent, whose fallback
+    // policy already offers the venue's human contact options.
+    function deliverTranscript(text) {
+      var command = getVoiceCommand(text);
+      if (!command) {
+        options.onTranscript(text);
+        return;
+      }
+      options.onInterim('');
+      if (command === 'stop') {
+        stopSpeaking();
+        earcons.play('cancel');
+        announce(copy.speechStopped);
+        return;
+      }
+      if (command === 'write') {
+        stopSpeaking();
+        speakVoiceReplies = false;
+        readAloud = false;
+        setStoredValue(readAloudKey, 'off');
+        updateSpeakerButton();
+        earcons.play('captured');
+        announce(copy.writtenOnly);
+        return;
+      }
+      if (command === 'slower') {
+        pace = 'slow';
+        if (lastReply) {
+          speak(copy.slower + ' ' + lastReply.text, lastReply.language, true);
+        } else {
+          speak(copy.slower, options.language, false);
+        }
+        return;
+      }
+      // repeat
+      if (lastReply) {
+        speak(lastReply.text, lastReply.language, true);
+        return;
+      }
+      earcons.play('cancel');
+      announce(copy.nothingToRepeat);
+      speak(copy.nothingToRepeat, options.language, false);
+    }
+
     // --- Spoken replies ---------------------------------------------------------
 
     function speak(text, language, withCue) {
@@ -2548,7 +2610,8 @@
               session_id: sessionId,
               text: chunks[index],
               language: getSpeechLanguage(language),
-              page_url: getCurrentPageUrl()
+              page_url: getCurrentPageUrl(),
+              pace: pace
             })
           })
             .then(function (response) {
@@ -2623,7 +2686,7 @@
         var utterance = new window.SpeechSynthesisUtterance(chunks[index]);
         utterance.lang = lang;
         if (voice) utterance.voice = voice;
-        utterance.rate = 1;
+        utterance.rate = pace === 'slow' ? 0.8 : 1;
         utterance.onend = function () { speakChunk(index + 1); };
         utterance.onerror = function () {
           if (token === speechToken) speaking = false;
@@ -2656,6 +2719,7 @@
       toggleListening: toggleListening,
       toggleReadAloud: function () {
         readAloud = !readAloud;
+        if (readAloud) speakVoiceReplies = true;
         setStoredValue(readAloudKey, readAloud ? 'on' : 'off');
         updateSpeakerButton();
         if (!readAloud) stopSpeaking();
@@ -2683,9 +2747,10 @@
         announce(copy.processing);
       },
       handleReply: function (text, language, fromVoice, failed) {
-        // Replies are spoken for voice turns, or for every turn when the
-        // visitor enabled "read answers aloud".
-        if (!fromVoice && !readAloud) return;
+        if (!failed) lastReply = { text: text, language: language };
+        // Replies are spoken for voice turns (unless the visitor said "write
+        // it"), or for every turn when "read answers aloud" is on.
+        if (!(fromVoice && speakVoiceReplies) && !readAloud) return;
         if (failed) {
           earcons.play('error', function () { speak(text, language, false); });
           return;
@@ -2703,6 +2768,28 @@
       },
       isActive: function () { return listening || speaking || transcribing; }
     };
+  }
+
+  var VOICE_COMMANDS = {
+    stop: ['para', 'parar', 'detente', 'calla', 'callate', 'silencio', 'basta', 'stop', 'be quiet', 'quiet', 'atura', 'atura t', 'prou', 'pare', 'chega', 'silencio por favor'],
+    repeat: ['repite', 'repitelo', 'repitemelo', 'otra vez', 'puedes repetir', 'repeat', 'repeat that', 'say it again', 'again', 'repeteix', 'repeteix ho', 'una altra vegada', 'repete', 'repita', 'de novo', 'pode repetir'],
+    slower: ['mas despacio', 'mas lento', 'habla mas despacio', 'habla mas lento', 'slower', 'more slowly', 'speak slower', 'speak more slowly', 'mes a poc a poc', 'mes lent', 'parla mes a poc a poc', 'mais devagar', 'mais lento', 'fale mais devagar'],
+    write: ['escribelo', 'por escrito', 'escribemelo', 'solo por escrito', 'write it', 'write it down', 'in writing', 'escriu ho', 'per escrit', 'escreva', 'por escrito por favor', 'so por escrito']
+  };
+
+  function getVoiceCommand(text) {
+    var normalized = String(text || '').toLowerCase();
+    if (typeof normalized.normalize === 'function') normalized = normalized.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    normalized = normalized
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\b(por favor|please|si us plau|porfa|talia)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!normalized || normalized.split(' ').length > 6) return null;
+    for (var command in VOICE_COMMANDS) {
+      if (VOICE_COMMANDS[command].indexOf(normalized) >= 0) return command;
+    }
+    return null;
   }
 
   // TALIA voice is unavailable, rate limited or over the venue's usage limit:

@@ -5,7 +5,7 @@ import { guardVoiceRequest, normalizeVoicePageUrl, recordVoiceUsage } from '@/li
 // Multipart overhead on top of the audio itself.
 const MAX_REQUEST_BYTES = MAX_SPEECH_AUDIO_BYTES + 64_000
 
-/** Web Agent voice mode: visitor audio → text (OpenAI speech-to-text). */
+/** Web Agent voice mode: visitor audio → text (talia-ai speech-to-text). */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ tenantId: string }> },
@@ -38,8 +38,10 @@ export async function POST(
   if (!guard.ok) return guard.response
 
   const result = await guard.provider.transcribe({
+    tenantId,
+    sessionId: input.sessionId,
     audio: input.audio,
-    fileName: input.fileName,
+    mimeType: input.mimeType,
     language: input.language,
   })
 
@@ -51,13 +53,9 @@ export async function POST(
   await recordVoiceUsage(guard.admin, {
     tenantId,
     sessionId: input.sessionId,
-    component: 'speech_to_text',
-    model: result.model,
-    inputTokens: result.usage.inputTokens,
-    outputTokens: result.usage.outputTokens,
+    components: result.usageComponents,
     metadata: {
       audio_bytes: input.audio.size,
-      audio_seconds: result.usage.audioSeconds,
       language_hint: input.language,
       empty_transcript: !result.text,
     },

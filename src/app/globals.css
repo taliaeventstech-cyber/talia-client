@@ -12487,6 +12487,25 @@ a.response-source-link:hover {
   opacity: 0.72;
 }
 
+.widget-preview-form .widget-preview-mic {
+  display: grid;
+  width: 44px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(26, 26, 46, 0.25);
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.widget-preview-form .widget-preview-mic svg,
+.widget-preview-voice-control svg {
+  width: 21px;
+  height: 21px;
+}
+
+.widget-preview-voice-control {
+  cursor: not-allowed;
+}
+
 .widget-preview-powered {
   position: relative;
   z-index: 2;

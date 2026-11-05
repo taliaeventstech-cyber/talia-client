@@ -2,7 +2,7 @@ import { corsHeaders, corsJson, corsNoContent } from '@/lib/http/cors'
 import { speechSynthesisRequestSchema } from '@/lib/widget/speech'
 import { guardVoiceRequest, normalizeVoicePageUrl, recordVoiceUsage } from '@/lib/widget/voice-request-guard'
 
-/** Web Agent voice mode: reply text → spoken audio (OpenAI text-to-speech). */
+/** Web Agent voice mode: reply text → spoken audio (talia-ai text-to-speech). */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ tenantId: string }> },
@@ -33,8 +33,11 @@ export async function POST(
   if (!guard.ok) return guard.response
 
   const result = await guard.provider.synthesize({
+    tenantId,
+    sessionId: input.session_id,
     text: input.text,
     language: input.language ?? null,
+    pace: input.pace,
   })
 
   if (!result.ok) {
@@ -45,11 +48,11 @@ export async function POST(
   await recordVoiceUsage(guard.admin, {
     tenantId,
     sessionId: input.session_id,
-    component: 'text_to_speech',
-    model: result.model,
+    components: result.usageComponents,
     metadata: {
       characters: input.text.length,
       voice: result.voice,
+      pace: input.pace,
       language: input.language ?? null,
       audio_bytes: result.audio.byteLength,
     },

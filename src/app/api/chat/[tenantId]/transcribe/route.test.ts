@@ -1,20 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { consumeRateLimit } from '@/lib/auth/security'
 import { getTenantChatConfig } from '@/lib/tenants/service'
+import { recordMeasuredAiUsage } from '@/lib/usage/ai-cost'
 import { checkTenantLimit, recordUsageEvent } from '@/lib/usage/service'
 import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/lib/widget/domain-allowlist'
-import { createSpeechProviderFromEnv, type SpeechProvider } from '@/lib/widget/openai-speech-provider'
+import { createSpeechProviderFromEnv, type SpeechProvider } from '@/lib/widget/talia-ai-speech-provider'
 import { POST } from './route'
 
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn(() => ({})) }))
 vi.mock('@/lib/auth/security', () => ({ consumeRateLimit: vi.fn(), getClientIp: vi.fn(() => '203.0.113.7') }))
 vi.mock('@/lib/tenants/service', () => ({ getTenantChatConfig: vi.fn() }))
 vi.mock('@/lib/usage/service', () => ({ checkTenantLimit: vi.fn(), recordUsageEvent: vi.fn() }))
+vi.mock('@/lib/usage/ai-cost', () => ({ recordMeasuredAiUsage: vi.fn() }))
 vi.mock('@/lib/widget/domain-allowlist', () => ({
   getTenantWidgetDomainSettings: vi.fn(),
   validateWidgetRequestDomain: vi.fn(),
 }))
-vi.mock('@/lib/widget/openai-speech-provider', () => ({ createSpeechProviderFromEnv: vi.fn() }))
+vi.mock('@/lib/widget/talia-ai-speech-provider', () => ({ createSpeechProviderFromEnv: vi.fn() }))
+
+const sttComponent = {
+  component: 'speech_to_text' as const,
+  provider: 'openai',
+  model: 'gpt-4o-mini-transcribe',
+  request_count: 1,
+  input_tokens: 30,
+  cached_input_tokens: 0,
+  output_tokens: 8,
+}
 
 const provider = {
   transcribe: vi.fn(),
@@ -49,12 +61,12 @@ describe('POST /api/chat/[tenantId]/transcribe', () => {
       authorizedHosts: ['venue.example'],
     })
     vi.mocked(checkTenantLimit).mockResolvedValue({ ok: true, allowed: true } as Awaited<ReturnType<typeof checkTenantLimit>>)
-    vi.mocked(recordUsageEvent).mockResolvedValue({ ok: true } as Awaited<ReturnType<typeof recordUsageEvent>>)
+    vi.mocked(recordUsageEvent).mockResolvedValue({ ok: true, duplicate: false, eventId: 'usage-event-1' } as Awaited<ReturnType<typeof recordUsageEvent>>)
+    vi.mocked(recordMeasuredAiUsage).mockResolvedValue({ ok: true, inserted: 1 })
     provider.transcribe.mockResolvedValue({
       ok: true,
       text: '¿Cuánto cuesta la entrada?',
-      model: 'gpt-4o-mini-transcribe',
-      usage: { inputTokens: 30, outputTokens: 8, audioSeconds: null },
+      usageComponents: [sttComponent],
     })
   })
 
@@ -64,7 +76,7 @@ describe('POST /api/chat/[tenantId]/transcribe', () => {
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ text: '¿Cuánto cuesta la entrada?' })
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*')
-    expect(provider.transcribe).toHaveBeenCalledWith(expect.objectContaining({ fileName: 'speech.webm', language: null }))
+    expect(provider.transcribe).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant-1', sessionId: 'session-1', mimeType: 'audio/webm', language: null }))
     expect(validateWidgetRequestDomain).toHaveBeenCalledWith(expect.objectContaining({ pageUrl: 'https://venue.example/agenda' }))
     expect(recordUsageEvent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       tenantId: 'tenant-1',
@@ -74,11 +86,18 @@ describe('POST /api/chat/[tenantId]/transcribe', () => {
       unit: 'call',
       inputTokens: 30,
       outputTokens: 8,
-      metadata: expect.objectContaining({ component: 'speech_to_text', provider: 'openai', session_id: 'session-1' }),
+      idempotencyKey: expect.stringMatching(/^voice:tenant-1:.+:ai_call$/),
+      metadata: expect.objectContaining({ component: 'speech_to_text', accuracy: 'measured', session_id: 'session-1' }),
+    }))
+    expect(recordMeasuredAiUsage).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      tenantId: 'tenant-1',
+      sessionId: 'session-1',
+      usageEventId: 'usage-event-1',
+      components: [sttComponent],
     }))
   })
 
-  it('tells the widget to use browser voice when OpenAI is not configured', async () => {
+  it('tells the widget to use browser voice when talia-ai voice is not configured', async () => {
     vi.mocked(createSpeechProviderFromEnv).mockReturnValue(null)
 
     const response = await transcribeRequest()
@@ -140,8 +159,8 @@ describe('POST /api/chat/[tenantId]/transcribe', () => {
     expect(createSpeechProviderFromEnv).not.toHaveBeenCalled()
   })
 
-  it('returns a generic error and records nothing when OpenAI fails', async () => {
-    provider.transcribe.mockResolvedValue({ ok: false, error: 'OpenAI responded with 500', status: 500 })
+  it('returns a generic error and records nothing when talia-ai fails', async () => {
+    provider.transcribe.mockResolvedValue({ ok: false, error: 'talia-ai responded with 502', status: 502 })
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
     const response = await transcribeRequest()

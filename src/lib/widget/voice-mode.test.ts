@@ -44,18 +44,18 @@ describe('widget voice mode', () => {
   it('speaks voice-initiated replies and localizes every voice string', async () => {
     const widgetSource = await readWidget()
 
-    expect(widgetSource).toContain('if (!fromVoice && !readAloud) return;')
+    expect(widgetSource).toContain('if (!(fromVoice && speakVoiceReplies) && !readAloud) return;')
     expect(widgetSource).toContain("shortcutKeys: 'Alt+Mayús+V'")
     expect(widgetSource).toContain("shortcutKeys: 'Alt+Maj+V'")
     expect(widgetSource.match(/shortcutKeys: 'Alt\+Shift\+V'/g)).toHaveLength(2)
   })
 })
 
-describe('widget voice mode with TALIA (OpenAI) speech', () => {
-  it('prefers TALIA voice when the public config reports the OpenAI provider', async () => {
+describe('widget voice mode with TALIA (talia-ai) speech', () => {
+  it('prefers TALIA voice when the public config reports the talia provider', async () => {
     const widgetSource = await readWidget()
 
-    expect(widgetSource).toContain("configValue.provider === 'openai'")
+    expect(widgetSource).toContain("configValue.provider === 'talia'")
     expect(widgetSource).toContain("baseUrl + '/api/chat/' + tenantId + '/transcribe'")
     expect(widgetSource).toContain("baseUrl + '/api/chat/' + tenantId + '/speech'")
     expect(widgetSource).toContain('context.decodeAudioData(buffer, resolve, reject)')
@@ -81,5 +81,52 @@ describe('widget voice mode with TALIA (OpenAI) speech', () => {
     const widgetSource = await readWidget()
 
     expect(widgetSource).toContain('splitSpeechChunks(text, 240, 1000)')
+  })
+})
+
+async function loadVoiceCommandMatcher() {
+  const widgetSource = await readWidget()
+  const start = widgetSource.indexOf('  var VOICE_COMMANDS')
+  const end = widgetSource.indexOf('  // TALIA voice is unavailable')
+  // Evaluates the real matcher from the shipped widget, not a copy.
+  return new Function(`${widgetSource.slice(start, end)}; return getVoiceCommand;`)() as (text: string) => string | null
+}
+
+describe('widget voice commands (TAL-8)', () => {
+  it.each([
+    ['Para.', 'stop'],
+    ['Stop!', 'stop'],
+    ['Talia, para', 'stop'],
+    ['¡Repite, por favor!', 'repeat'],
+    ['Repeteix-ho', 'repeat'],
+    ['Pode repetir?', 'repeat'],
+    ['Más despacio', 'slower'],
+    ['Speak more slowly please', 'slower'],
+    ['Mais devagar', 'slower'],
+    ['Escríbelo', 'write'],
+    ['Write it down', 'write'],
+    ['Per escrit', 'write'],
+  ])('recognises "%s" as %s in every widget language', async (utterance, command) => {
+    const getVoiceCommand = await loadVoiceCommandMatcher()
+    expect(getVoiceCommand(utterance)).toBe(command)
+  })
+
+  it.each([
+    '¿Cuánto cuesta la entrada?',
+    'Para mañana hay entradas',
+    'Quiero hablar con una persona',
+    'Can you repeat the opening hours for Saturday and Sunday please',
+  ])('sends real questions and handoff requests to the agent: "%s"', async (utterance) => {
+    const getVoiceCommand = await loadVoiceCommandMatcher()
+    expect(getVoiceCommand(utterance)).toBeNull()
+  })
+
+  it('applies the slow pace to TALIA and browser speech and remembers the last reply', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain('pace: pace')
+    expect(widgetSource).toContain("utterance.rate = pace === 'slow' ? 0.8 : 1;")
+    expect(widgetSource).toContain('if (!failed) lastReply = { text: text, language: language };')
+    expect(widgetSource).toContain('if (!(fromVoice && speakVoiceReplies) && !readAloud) return;')
   })
 })

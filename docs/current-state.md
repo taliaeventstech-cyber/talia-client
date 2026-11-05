@@ -328,13 +328,14 @@ Implemented:
 - Voice mode in the installed widget: microphone input (speech to text), a
   global `Alt+Shift+V` shortcut for blind and low-vision visitors that opens
   the agent and starts listening, distinct audio cues and live-region
-  announcements for every step, and spoken replies (automatic for voice turns,
-  optional "read answers aloud" toggle for typed turns). Speech is handled by
-  OpenAI through `/api/chat/[tenantId]/transcribe` and `/speech` on all plans,
-  rate limited, domain checked and recorded as `ai_call` usage, with the
-  browser's Web Speech engine as fallback. The privacy text does not yet
-  mention OpenAI audio processing, and the Agora preview does not show the
-  voice controls. Details: `docs/requirements/chatbot.md`.
+  announcements for every step, spoken replies (automatic for voice turns,
+  optional "read answers aloud" toggle for typed turns) and local voice
+  commands (stop, repeat, slower, write it). Speech goes through the guarded
+  `/api/chat/[tenantId]/transcribe` and `/speech` routes to `talia-ai`
+  (`/v1/voice/*`, OpenAI) on all plans, with measured per-call cost in
+  `ai_usage_events`, and falls back to the browser's Web Speech engine. The
+  widget privacy summary discloses voice processing; the Agora preview shows
+  the voice controls (inert). Details: `docs/requirements/chatbot.md`.
 - Auto-growing chat composer in production and preview, with `Enter` to send,
   `Shift + Enter` for line breaks and a bounded internal scroll for long drafts.
 - Per-response feedback uses a localized TALIA micro-survey with compact

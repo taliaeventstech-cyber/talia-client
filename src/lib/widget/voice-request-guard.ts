@@ -2,9 +2,10 @@ import { consumeRateLimit, getClientIp } from '@/lib/auth/security'
 import { corsJson } from '@/lib/http/cors'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getTenantChatConfig } from '@/lib/tenants/service'
+import { recordMeasuredAiUsage } from '@/lib/usage/ai-cost'
 import { checkTenantLimit, recordUsageEvent } from '@/lib/usage/service'
 import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/lib/widget/domain-allowlist'
-import { createSpeechProviderFromEnv, type SpeechProvider } from './openai-speech-provider'
+import { createSpeechProviderFromEnv, type SpeechProvider, type SpeechUsageComponent } from './talia-ai-speech-provider'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -81,37 +82,69 @@ export async function guardVoiceRequest(
   return { ok: true, admin, provider }
 }
 
+/**
+ * Records a voice call like the chat endpoint records its AI calls: one
+ * `usage_events` row (`ai_call`) plus measured per-component cost rows in
+ * `ai_usage_events`, priced from `ai_model_pricing`.
+ */
 export async function recordVoiceUsage(
   admin: AdminClient,
   input: {
     tenantId: string
     sessionId: string
-    component: 'speech_to_text' | 'text_to_speech'
-    model: string
-    inputTokens?: number
-    outputTokens?: number
+    components: SpeechUsageComponent[]
     metadata: Record<string, string | number | boolean | null>
   },
 ) {
-  // Raw usage is stored for later reconciliation against OpenAI pricing; no
-  // per-call cent estimate is hardcoded here.
-  return recordUsageEvent(admin, {
+  if (!input.components.length) return
+
+  const correlationId = crypto.randomUUID()
+  const totals = input.components.reduce(
+    (sum, component) => ({
+      requestCount: sum.requestCount + component.request_count,
+      inputTokens: sum.inputTokens + component.input_tokens,
+      outputTokens: sum.outputTokens + component.output_tokens,
+    }),
+    { requestCount: 0, inputTokens: 0, outputTokens: 0 },
+  )
+
+  const aiCall = await recordUsageEvent(admin, {
     tenantId: input.tenantId,
     moduleKey: 'web',
     channel: 'web',
     eventType: 'ai_call',
     unit: 'call',
-    quantity: 1,
-    inputTokens: input.inputTokens ?? 0,
-    outputTokens: input.outputTokens ?? 0,
+    quantity: totals.requestCount,
+    inputTokens: totals.inputTokens,
+    outputTokens: totals.outputTokens,
+    idempotencyKey: `voice:${input.tenantId}:${correlationId}:ai_call`,
     metadata: {
       ...input.metadata,
       session_id: input.sessionId,
-      component: input.component,
-      provider: 'openai',
-      model: input.model,
+      accuracy: 'measured',
+      component: input.components[0].component,
+      provider: input.components[0].provider,
+      model: input.components[0].model,
     },
   })
+
+  if (!aiCall.ok || !aiCall.eventId) {
+    console.error('[voice] failed to record usage event', { tenantId: input.tenantId })
+    return
+  }
+
+  const precise = await recordMeasuredAiUsage(admin, {
+    tenantId: input.tenantId,
+    sessionId: input.sessionId,
+    usageEventId: aiCall.eventId,
+    idempotencyPrefix: `voice:${input.tenantId}:${correlationId}:component`,
+    components: input.components,
+    metadata: { channel_feature: 'web_voice' },
+  })
+
+  if (!precise.ok) {
+    console.error('[voice] failed to persist precise AI usage', { tenantId: input.tenantId })
+  }
 }
 
 export function normalizeVoicePageUrl(value: unknown) {

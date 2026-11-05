@@ -10,7 +10,7 @@ import { updateTenantSettings, type SettingsFormState } from './actions'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry } from '@/lib/phone/international'
 import Image from 'next/image'
-import { ArrowDown, ArrowUp, Bot, ChevronLeft, MessageCircle, MessageCircleMore, Plus, RefreshCcw, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bot, ChevronLeft, MessageCircle, MessageCircleMore, Mic, Plus, RefreshCcw, Trash2, Volume2 } from 'lucide-react'
 import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { getSessionFeedbackCopy } from '@/lib/widget/session-feedback-copy'
 import {
@@ -1335,6 +1335,16 @@ function WidgetPreview({
             </span>
           </span>
           <span className="widget-preview-header-actions">
+            {/* Mirrors the installed widget's voice controls (public/widget.js); inert in preview. */}
+            <button
+              type="button"
+              className="widget-preview-icon-button widget-preview-voice-control"
+              aria-label="Leer respuestas en voz alta"
+              title="Leer respuestas en voz alta"
+              aria-disabled="true"
+            >
+              <Volume2 aria-hidden="true" strokeWidth={2} />
+            </button>
             <button
               type="button"
               className="widget-preview-icon-button widget-preview-restart"
@@ -1469,6 +1479,16 @@ function WidgetPreview({
             placeholder="Escribe tu mensaje..."
             onInput={(event) => resizePreviewComposer(event.currentTarget)}
           />
+          <button
+            type="button"
+            className="widget-preview-mic"
+            disabled
+            aria-label="Hablar con el agente (Alt+Mayús+V)"
+            title="Hablar con el agente (Alt+Mayús+V)"
+            style={{ color }}
+          >
+            <Mic aria-hidden="true" strokeWidth={2} />
+          </button>
           <button type="button" disabled style={{ background: color }}>Enviar</button>
         </div>
         <div

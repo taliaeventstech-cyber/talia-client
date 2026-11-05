@@ -49,7 +49,8 @@ describe('GET /api/widget/[tenantId]', () => {
   })
 
   it('tells enabled widgets which voice engine to use', async () => {
-    vi.stubEnv('OPENAI_API_KEY', 'sk-test')
+    vi.stubEnv('TALIA_AI_BASE_URL', 'https://talia-ai.example')
+    vi.stubEnv('TALIA_AI_INTERNAL_API_KEY', 'internal-key')
     vi.mocked(getPublicWidgetConfig).mockResolvedValue({
       ok: true,
       config: { enabled: true },
@@ -60,7 +61,7 @@ describe('GET /api/widget/[tenantId]', () => {
       { params: Promise.resolve({ tenantId: 'tenant-1' }) }
     )
 
-    await expect(response.json()).resolves.toEqual({ enabled: true, voice: { provider: 'openai' } })
+    await expect(response.json()).resolves.toEqual({ enabled: true, voice: { provider: 'talia' } })
     vi.unstubAllEnvs()
   })
 })

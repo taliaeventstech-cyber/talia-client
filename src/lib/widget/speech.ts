@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
-// Web Agent voice mode (server side). The widget records the visitor, TALIA
-// transcribes the audio and, for spoken replies, synthesizes the answer text.
+// Web Agent voice mode (server side). The widget records the visitor; these
+// guarded public routes forward audio/text to talia-ai, which calls OpenAI.
 // Limits are deliberately tight: these are public, unauthenticated endpoints
 // that spend money per call.
 
@@ -23,6 +23,13 @@ const ALLOWED_AUDIO_TYPES = new Set([
   'audio/m4a',
 ])
 
+// Aliases normalized to the MIME types talia-ai's /v1/voice/transcribe accepts.
+const CANONICAL_AUDIO_TYPES: Record<string, string> = {
+  'audio/mp3': 'audio/mpeg',
+  'audio/x-wav': 'audio/wav',
+  'audio/x-m4a': 'audio/m4a',
+}
+
 const AUDIO_FILE_EXTENSIONS: Record<string, string> = {
   'audio/webm': 'webm',
   'audio/ogg': 'ogg',
@@ -43,6 +50,8 @@ export const speechSynthesisRequestSchema = z.object({
   text: z.string().trim().min(1).max(MAX_SPEECH_TEXT_CHARACTERS),
   language: z.string().trim().max(35).optional(),
   page_url: z.string().trim().max(2048).optional(),
+  // "Slower" voice command.
+  pace: z.enum(['normal', 'slow']).default('normal'),
 })
 
 export type SpeechSynthesisRequest = z.infer<typeof speechSynthesisRequestSchema>
@@ -93,10 +102,11 @@ export function parseTranscriptionForm(form: FormData): ParseResult<Transcriptio
     return { ok: false, status: 413, error: 'audio is too large' }
   }
 
-  const mimeType = normalizeAudioMimeType(audio.type)
-  if (!isAllowedAudioMimeType(mimeType)) {
+  const rawMimeType = normalizeAudioMimeType(audio.type)
+  if (!isAllowedAudioMimeType(rawMimeType)) {
     return { ok: false, status: 415, error: 'unsupported audio type' }
   }
+  const mimeType = CANONICAL_AUDIO_TYPES[rawMimeType] ?? rawMimeType
 
   const sessionId = sessionIdSchema.safeParse(form.get('session_id'))
   if (!sessionId.success) {
@@ -119,32 +129,16 @@ export function parseTranscriptionForm(form: FormData): ParseResult<Transcriptio
   }
 }
 
-const SPEECH_LANGUAGE_NAMES: Record<string, string> = {
-  es: 'Spanish',
-  ca: 'Catalan',
-  en: 'English',
-  pt: 'Brazilian Portuguese',
-  fr: 'French',
-  it: 'Italian',
-  de: 'German',
-}
-
-/** Delivery instructions for the TTS model; the text itself is never rewritten. */
-export function buildSpeechInstructions(language: string | null | undefined) {
-  const base = String(language ?? '').trim().toLowerCase().split(/[-_]/)[0]
-  const languageName = SPEECH_LANGUAGE_NAMES[base]
-  const accent = languageName ? ` Speak in ${languageName} with a natural native accent.` : ''
-  return 'You are the friendly front-desk assistant of a cultural venue. '
-    + 'Speak warmly, clearly and at a calm, moderate pace so that blind and older visitors can follow easily. '
-    + 'Read times, dates, prices and addresses carefully.'
-    + accent
-}
-
-/** Whether OpenAI voice is configured; otherwise the widget uses browser speech. */
+/**
+ * Whether TALIA voice (talia-ai → OpenAI) is available; otherwise the widget
+ * uses the browser's own speech engine. `WIDGET_SERVER_VOICE_ENABLED=false`
+ * is the kill switch.
+ */
 export function isServerSpeechConfigured(env: Record<string, string | undefined> = process.env) {
-  return Boolean(env.OPENAI_API_KEY) && env.WIDGET_OPENAI_VOICE_ENABLED !== 'false'
+  return Boolean(env.TALIA_AI_BASE_URL && env.TALIA_AI_INTERNAL_API_KEY)
+    && env.WIDGET_SERVER_VOICE_ENABLED !== 'false'
 }
 
 export function getPublicVoiceConfig(env: Record<string, string | undefined> = process.env) {
-  return { provider: isServerSpeechConfigured(env) ? 'openai' as const : 'browser' as const }
+  return { provider: isServerSpeechConfigured(env) ? 'talia' as const : 'browser' as const }
 }
