@@ -37,6 +37,36 @@ Allow a venue to install TALIA on its website via a script and answer visitor qu
   - color;
   - auto-open.
 
+## Voice Mode (speech to text and spoken replies)
+
+- A microphone button in the composer starts and stops dictation. It is only
+  rendered when the browser supports speech recognition (Chrome, Edge, Safari);
+  elsewhere the visitor keeps the text composer.
+- Global keyboard shortcut `Alt+Shift+V` (works before the widget has focus)
+  opens the agent and starts listening; pressing it again stops listening and
+  sends what was heard, or interrupts a reply that is being read aloud.
+  `Escape` cancels listening or speech. The launcher and the microphone expose
+  the shortcut through `aria-keyshortcuts` and a screen-reader description; the
+  first time the panel is opened, an accessible tip announces it.
+- Every step plays a distinct synthesized audio cue and is announced in an
+  assertive live region: ready to talk, speech captured, message sent, reply
+  ready, cancelled/no speech, and error (microphone denied, unsupported
+  browser, recognition failure). Recognition starts only after the "ready"
+  cue so the cue is never transcribed.
+- Replies to voice turns are read aloud with the browser speech engine in the
+  reply language (`response_language`), with markdown stripped and URLs
+  replaced by a localized "link" word. A header speaker toggle ("read answers
+  aloud", persisted per browser) also reads replies to typed turns.
+- Recognition language: page `<html lang>`, then browser language, then the
+  widget's configured language.
+- Voice uses only browser-native Web Speech and Web Audio APIs: no new network
+  requests from the widget, no audio files, no audio stored by TALIA. The
+  browser's own recognition service may process audio (Google in Chrome/Edge,
+  Apple in Safari); host pages whose `Permissions-Policy` blocks `microphone`
+  get the localized "microphone unavailable" message.
+- Opt-out per installation with `data-voice="off"` on the script tag, or
+  `voice: false` in the public widget configuration.
+
 ## Demo Requirements
 
 - Be able to test with a fictitious landing page.

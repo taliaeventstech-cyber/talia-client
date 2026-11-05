@@ -96,6 +96,8 @@
     var glassTranslucency = getGlassTranslucency(config.glassTranslucency != null ? config.glassTranslucency : script.getAttribute('data-glass-translucency'));
     var compliance = getComplianceConfig(config.compliance, fallbackLanguage);
     var suggestedQuestions = getVisibleSuggestedQuestions(config.suggestedQuestions, getCurrentPageUrl());
+    var voiceSupport = getVoiceSupport(config.voice, script.getAttribute('data-voice'));
+    var voiceCopy = getVoiceCopy(fallbackLanguage);
     var host = document.createElement('div');
     host.id = 'talia-widget-root';
     host.classList.add('notranslate');
@@ -109,7 +111,7 @@
     });
 
     var root = host.attachShadow({ mode: 'open' });
-    root.innerHTML = getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, baseUrl + '/icon.svg', compliance, widgetCopy);
+    root.innerHTML = getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, baseUrl + '/icon.svg', compliance, widgetCopy, voiceSupport, voiceCopy);
 
     var panel = root.querySelector('[data-panel]');
     var welcome = root.querySelector('[data-welcome]');
@@ -126,6 +128,22 @@
     var sessionFeedbackPrompt = null;
     var conversationHasActivity = false;
     var privacyReplyPending = false;
+    var voice = createVoiceController({
+      support: voiceSupport,
+      copy: voiceCopy,
+      language: fallbackLanguage,
+      micButton: root.querySelector('[data-voice-mic]'),
+      speakerButton: root.querySelector('[data-voice-speaker]'),
+      status: root.querySelector('[data-voice-status]'),
+      input: input,
+      onTranscript: function (text) {
+        submitText(text, true);
+      },
+      onInterim: function (text) {
+        input.value = text;
+        resizeComposer();
+      },
+    });
 
     window.addEventListener('talia:page-context-changed', refreshSuggestedQuestions);
     showSuggestedQuestions();
@@ -147,12 +165,14 @@
 
     function openPanel() {
       hideWelcome();
+      voice.announceShortcutOnce();
       panel.classList.add('panel--open');
       toggle.setAttribute('aria-expanded', 'true');
       setTimeout(function () { input.focus(); }, 280);
     }
 
     function closePanel() {
+      voice.stopAll();
       panel.classList.remove('panel--open');
       toggle.setAttribute('aria-expanded', 'false');
     }
@@ -237,6 +257,7 @@
     });
 
     function restartConversation() {
+      voice.stopAll();
       sessionId = createSessionId();
       setStoredValue(sessionKey, sessionId);
       conversationHasActivity = false;
@@ -359,6 +380,10 @@
 
     root.addEventListener('keydown', function (event) {
       if (event.key === 'Escape') {
+        if (voice.isActive()) {
+          voice.stopAll(true);
+          return;
+        }
         if (welcome.classList.contains('welcome--visible')) {
           hideWelcome();
           toggle.focus();
@@ -371,16 +396,49 @@
 
     form.addEventListener('submit', function (event) {
       event.preventDefault();
-      var text = input.value.trim();
+      submitText(input.value, false);
+    });
+
+    function submitText(value, fromVoice) {
+      var text = String(value || '').trim();
       if (!text) return;
       input.value = '';
       resizeComposer();
+      if (!fromVoice) voice.stopAll();
       removeSessionFeedbackPrompt();
       removeSuggestedQuestions(messages);
       appendMessage(messages, text, 'user');
       conversationHasActivity = true;
-      sendMessage(text, messages, undefined, fallbackLanguage);
-    });
+      voice.notifyProcessing(fromVoice);
+      sendMessage(text, messages, undefined, fallbackLanguage, function (reply, replyLanguage, failed) {
+        voice.handleReply(reply, replyLanguage, fromVoice, failed);
+      });
+    }
+
+    if (voiceSupport.enabled) {
+      // Global, screen-reader friendly shortcut: opens the agent and starts
+      // listening (or stops listening / interrupts speech when already active).
+      document.addEventListener('keydown', function (event) {
+        if (!isVoiceShortcut(event)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (!panel.classList.contains('panel--open')) openPanel();
+        voice.toggleListening();
+      }, true);
+
+      var micButton = root.querySelector('[data-voice-mic]');
+      if (micButton) {
+        micButton.addEventListener('click', function () {
+          voice.toggleListening();
+        });
+      }
+      var speakerButton = root.querySelector('[data-voice-speaker]');
+      if (speakerButton) {
+        speakerButton.addEventListener('click', function () {
+          voice.toggleReadAloud();
+        });
+      }
+    }
 
     input.addEventListener('input', resizeComposer);
     input.addEventListener('keydown', function (event) {
@@ -405,6 +463,7 @@
         getSuggestedQuestionsLabel(fallbackLanguage),
         getSuggestedQuestionsPrompt(fallbackLanguage),
         function (question) {
+          voice.stopAll();
           removeSessionFeedbackPrompt();
           removeSuggestedQuestions(messages);
           appendMessage(messages, question.text, 'user');
@@ -426,7 +485,7 @@
     }
   }
 
-  function sendMessage(text, messages, suggestedQuestion, fallbackLanguage) {
+  function sendMessage(text, messages, suggestedQuestion, fallbackLanguage, onReply) {
     var requestSessionId = sessionId;
     appendMessage(messages, '...', 'assistant', true, undefined, undefined, undefined, fallbackLanguage);
     fetch(baseUrl + '/api/chat/' + tenantId, {
@@ -444,9 +503,10 @@
       .then(function (data) {
         if (requestSessionId !== sessionId) return;
         removeTyping(messages);
+        var replyText = data.reply || getChatErrorMessage(data.error, fallbackLanguage);
         appendMessage(
           messages,
-          data.reply || getChatErrorMessage(data.error, fallbackLanguage),
+          replyText,
           'assistant',
           false,
           data.actions,
@@ -455,11 +515,14 @@
           fallbackLanguage,
           getAgentResponseLanguage(data, fallbackLanguage)
         );
+        if (onReply) onReply(replyText, getAgentResponseLanguage(data, fallbackLanguage), !data.reply);
       })
       .catch(function () {
         if (requestSessionId !== sessionId) return;
         removeTyping(messages);
-        appendMessage(messages, getChatUnavailableMessage(fallbackLanguage), 'assistant');
+        var unavailable = getChatUnavailableMessage(fallbackLanguage);
+        appendMessage(messages, unavailable, 'assistant');
+        if (onReply) onReply(unavailable, fallbackLanguage, true);
       });
   }
 
@@ -1653,7 +1716,7 @@
     notice.textContent = message;
   }
 
-  function getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, iconUrl, compliance, widgetCopy) {
+  function getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, iconUrl, compliance, widgetCopy, voiceSupport, voiceCopy) {
     var togglePosition = getTogglePositionCss(position);
     var panelPosition = getPanelPositionCss(position);
     var toggleSize = getWidgetSizePixels(widgetSize);
@@ -1663,6 +1726,18 @@
     var toggleIconSize = Math.round(toggleSize * 0.82);
     var chatIconSize = Math.round(toggleSize * 0.5);
     var launcherIconMarkup = getLauncherIconMarkup(launcherIcon, iconUrl);
+    var voiceMicMarkup = voiceSupport.recognition
+      ? '<button class="mic notranslate" translate="no" data-voice-mic type="button" aria-pressed="false" aria-keyshortcuts="Alt+Shift+V" aria-label="' + escapeHtml(voiceCopy.micStart) + '" title="' + escapeHtml(voiceCopy.micStart + ' (' + voiceCopy.shortcutKeys + ')') + '">' + getMicIcon() + '</button>'
+      : '';
+    var voiceSpeakerMarkup = voiceSupport.synthesis
+      ? '<button class="header-button" data-voice-speaker type="button" aria-pressed="false" aria-label="' + escapeHtml(voiceCopy.readAloud) + '" title="' + escapeHtml(voiceCopy.readAloud) + '">' + getSpeakerIcon() + '</button>'
+      : '';
+    var voiceStatusMarkup = voiceSupport.enabled
+      ? '<div class="sr-only" data-voice-status role="status" aria-live="assertive" aria-atomic="true"></div><p class="sr-only" id="talia-voice-hint">' + escapeHtml(voiceCopy.shortcutHint) + '</p>'
+      : '';
+    var toggleVoiceAttributes = voiceSupport.enabled
+      ? ' aria-keyshortcuts="Alt+Shift+V" aria-describedby="talia-voice-hint"'
+      : '';
     var transformOrigin = position.indexOf('left') >= 0
       ? (position.indexOf('top') >= 0 ? 'top left' : 'bottom left')
       : (position.indexOf('top') >= 0 ? 'top right' : 'bottom right');
@@ -1840,11 +1915,21 @@
         .input { min-width: 0; min-height: 44px; max-height: 120px; flex: 1; resize: none; overflow-y: hidden; border: .5px solid rgba(26,26,46,.25); border-radius: 7px; padding: 11px; color: #1A1A2E; caret-color: ' + primaryColor + '; font: 15px/1.4 "Space Grotesk", system-ui; background: ' + inputBackground + '; box-sizing: border-box; }\
         .input:focus { outline: none; border-color: ' + primaryColor + '; box-shadow: 0 0 0 2px color-mix(in srgb, ' + primaryColor + ' 22%, transparent); }\
         .input::placeholder { color: rgba(26,26,46,.48); }\
+        .mic { position: relative; flex: 0 0 auto; display: grid; width: 44px; height: 44px; place-items: center; border: .5px solid rgba(26,26,46,.25); border-radius: 7px; padding: 0; background: ' + inputBackground + '; color: ' + primaryColor + '; cursor: pointer; }\
+        .mic svg { display: block; width: 21px; height: 21px; fill: none; stroke: currentColor; }\
+        .mic:hover { border-color: ' + primaryColor + '; }\
+        .mic:focus-visible, .send:focus-visible { outline: 2px solid ' + primaryColor + '; outline-offset: 2px; }\
+        .mic--listening { border-color: ' + primaryColor + '; background: ' + primaryColor + '; color: #fff; }\
+        .mic--listening::after { content: ""; position: absolute; inset: -4px; border: 2px solid ' + primaryColor + '; border-radius: 10px; animation: talia-mic-pulse 1.2s ease-out infinite; pointer-events: none; }\
+        .mic--busy { opacity: .6; }\
+        @keyframes talia-mic-pulse { 0% { opacity: .7; transform: scale(.92); } 100% { opacity: 0; transform: scale(1.18); } }\
+        .header-button[aria-pressed="true"] { background: rgba(255,255,255,.22); }\
+        .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }\
         .send { flex: 0 0 auto; height: 44px; border: 0; border-radius: 7px; padding: 0 14px; background: ' + primaryColor + '; color: white; font: 600 14px "Space Grotesk", system-ui; cursor: pointer; }\
         .powered { padding: 0 13px 10px; background: ' + formBackground + '; ' + formFilter + ' color: rgba(26,26,46,.52); text-align: center; font: 600 10px/1.35 "Space Grotesk", system-ui; }\
         .powered a { color: inherit; text-decoration: none; }\
         .powered a:hover { color: ' + primaryColor + '; text-decoration: underline; }\
-        @media (prefers-reduced-motion: reduce) { .panel, .welcome { transition: opacity 120ms ease; } .toggle { transition: none; } .typing-dots span { animation: none; opacity: .62; } }\
+        @media (prefers-reduced-motion: reduce) { .panel, .welcome { transition: opacity 120ms ease; } .toggle { transition: none; } .typing-dots span { animation: none; opacity: .62; } .mic--listening::after { animation: none; opacity: .5; } }\
         ' + reducedTransparencyFallback + '\
       </style>\
       <aside class="welcome notranslate" data-welcome translate="no" aria-hidden="true" aria-label="' + escapeHtml(widgetCopy.greetingLabel) + '">\
@@ -1855,15 +1940,539 @@
         <button class="welcome-close" data-welcome-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button>\
       </aside>\
       <section class="panel notranslate" data-panel translate="no">\
-        <div class="header"><span class="header-brand"><span class="header-mark">' + launcherIconMarkup + '</span><span class="header-identity"><span class="header-name">' + escapeHtml(assistantName) + '</span><small class="header-ai-label">' + escapeHtml(compliance.aiLabel) + '</small></span></span><div class="header-actions"><button class="header-button" data-restart type="button" aria-label="' + escapeHtml(widgetCopy.restart) + '" title="' + escapeHtml(widgetCopy.restart) + '">' + getRestartIcon() + '</button><button class="header-button close" data-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button></div></div>\
+        <div class="header"><span class="header-brand"><span class="header-mark">' + launcherIconMarkup + '</span><span class="header-identity"><span class="header-name">' + escapeHtml(assistantName) + '</span><small class="header-ai-label">' + escapeHtml(compliance.aiLabel) + '</small></span></span><div class="header-actions">' + voiceSpeakerMarkup + '<button class="header-button" data-restart type="button" aria-label="' + escapeHtml(widgetCopy.restart) + '" title="' + escapeHtml(widgetCopy.restart) + '">' + getRestartIcon() + '</button><button class="header-button close" data-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button></div></div>\
         <div class="ai-disclosure" id="talia-ai-disclosure">' + escapeHtml(compliance.disclosure) + '</div>\
         <div class="messages notranslate" data-messages translate="no"><div class="message notranslate assistant" translate="no" data-ai-generated="true" data-ai-provider="talia">' + escapeHtml(initialMessage) + '</div></div>\
-        <form class="form notranslate" data-form translate="no"><textarea class="input notranslate" data-input translate="no" rows="1" placeholder="' + escapeHtml(widgetCopy.inputPlaceholder) + '" autocomplete="off" aria-describedby="talia-ai-disclosure talia-privacy-notice"></textarea><button class="send notranslate" translate="no" type="submit">' + escapeHtml(widgetCopy.send) + '</button></form>\
+        <form class="form notranslate" data-form translate="no"><textarea class="input notranslate" data-input translate="no" rows="1" placeholder="' + escapeHtml(widgetCopy.inputPlaceholder) + '" autocomplete="off" aria-describedby="talia-ai-disclosure talia-privacy-notice"></textarea>' + voiceMicMarkup + '<button class="send notranslate" translate="no" type="submit">' + escapeHtml(widgetCopy.send) + '</button></form>\
         <div class="powered" id="talia-privacy-notice"><a data-privacy href="' + escapeHtml(compliance.privacyUrl) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(compliance.privacyLabel) + '</a><span aria-hidden="true"> · </span><a href="https://talia.events" target="_blank" rel="noopener noreferrer">Powered by TALIA</a></div>\
+        ' + voiceStatusMarkup + '\
       </section>\
-      <button class="toggle" data-toggle aria-label="' + escapeHtml(widgetCopy.openAssistant) + '">\
+      <button class="toggle" data-toggle aria-label="' + escapeHtml(widgetCopy.openAssistant) + '"' + toggleVoiceAttributes + '>\
         ' + launcherIconMarkup + '\
       </button>';
+  }
+
+  // ---------------------------------------------------------------------------
+  // Voice mode: speech-to-text input, spoken replies and audio cues (earcons).
+  // Uses only browser-native APIs (Web Speech + Web Audio): no extra network
+  // requests from the widget, no audio is stored by TALIA. Designed so blind
+  // and low-vision visitors can run a full conversation with Alt+Shift+V.
+  // ---------------------------------------------------------------------------
+
+  function getVoiceSupport(configValue, attributeValue) {
+    var disabled = configValue === false
+      || (configValue && typeof configValue === 'object' && configValue.enabled === false)
+      || attributeValue === 'off'
+      || attributeValue === 'false';
+    var recognition = !disabled && !!getSpeechRecognitionConstructor();
+    var synthesis = !disabled && typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance === 'function';
+    return {
+      enabled: recognition || synthesis,
+      recognition: recognition,
+      synthesis: synthesis
+    };
+  }
+
+  function getSpeechRecognitionConstructor() {
+    return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  }
+
+  function isVoiceShortcut(event) {
+    return event.altKey && event.shiftKey && !event.ctrlKey && !event.metaKey
+      && (event.code === 'KeyV' || String(event.key).toLowerCase() === 'v');
+  }
+
+  function getVoiceCopy(language) {
+    if (language === 'ca') {
+      return {
+        micStart: 'Parlar amb l’agent',
+        micStop: 'Deixar d’escoltar',
+        listening: 'T’escolto. Pots parlar.',
+        stopped: 'He deixat d’escoltar.',
+        processing: 'Missatge enviat. Preparant la resposta.',
+        noSpeech: 'No t’he sentit. Prem Alt+Maj+V per tornar-ho a provar.',
+        denied: 'No tinc accés al micròfon. Revisa els permisos del navegador o escriu el teu missatge.',
+        unsupported: 'Aquest navegador no permet parlar amb l’agent. Pots escriure el teu missatge.',
+        failed: 'No he pogut entendre l’àudio. Torna-ho a provar o escriu el teu missatge.',
+        readAloud: 'Llegir respostes en veu alta',
+        readAloudOn: 'Lectura en veu alta activada.',
+        readAloudOff: 'Lectura en veu alta desactivada.',
+        speechStopped: 'Lectura aturada.',
+        link: 'enllaç',
+        shortcutKeys: 'Alt+Maj+V',
+        shortcutHint: 'Prem Alt+Maj+V en qualsevol moment per parlar amb l’agent web. Sentiràs un so quan puguis començar a parlar.',
+        firstOpen: 'Consell: prem Alt+Maj+V per parlar en comptes d’escriure.'
+      };
+    }
+    if (language === 'en') {
+      return {
+        micStart: 'Talk to the agent',
+        micStop: 'Stop listening',
+        listening: 'I’m listening. You can talk now.',
+        stopped: 'Stopped listening.',
+        processing: 'Message sent. Preparing the answer.',
+        noSpeech: 'I didn’t hear anything. Press Alt+Shift+V to try again.',
+        denied: 'I can’t access the microphone. Check your browser permissions or type your message.',
+        unsupported: 'This browser doesn’t support talking to the agent. You can type your message.',
+        failed: 'I couldn’t understand the audio. Try again or type your message.',
+        readAloud: 'Read answers aloud',
+        readAloudOn: 'Reading answers aloud is on.',
+        readAloudOff: 'Reading answers aloud is off.',
+        speechStopped: 'Reading stopped.',
+        link: 'link',
+        shortcutKeys: 'Alt+Shift+V',
+        shortcutHint: 'Press Alt+Shift+V at any time to talk to the web agent. You will hear a sound when you can start talking.',
+        firstOpen: 'Tip: press Alt+Shift+V to talk instead of typing.'
+      };
+    }
+    if (language === 'pt-BR') {
+      return {
+        micStart: 'Falar com o agente',
+        micStop: 'Parar de ouvir',
+        listening: 'Estou ouvindo. Pode falar.',
+        stopped: 'Parei de ouvir.',
+        processing: 'Mensagem enviada. Preparando a resposta.',
+        noSpeech: 'Não ouvi nada. Pressione Alt+Shift+V para tentar de novo.',
+        denied: 'Não tenho acesso ao microfone. Verifique as permissões do navegador ou digite sua mensagem.',
+        unsupported: 'Este navegador não permite falar com o agente. Você pode digitar sua mensagem.',
+        failed: 'Não consegui entender o áudio. Tente de novo ou digite sua mensagem.',
+        readAloud: 'Ler respostas em voz alta',
+        readAloudOn: 'Leitura em voz alta ativada.',
+        readAloudOff: 'Leitura em voz alta desativada.',
+        speechStopped: 'Leitura interrompida.',
+        link: 'link',
+        shortcutKeys: 'Alt+Shift+V',
+        shortcutHint: 'Pressione Alt+Shift+V a qualquer momento para falar com o agente web. Você ouvirá um som quando puder começar a falar.',
+        firstOpen: 'Dica: pressione Alt+Shift+V para falar em vez de digitar.'
+      };
+    }
+    return {
+      micStart: 'Hablar con el agente',
+      micStop: 'Dejar de escuchar',
+      listening: 'Te escucho. Puedes hablar.',
+      stopped: 'He dejado de escuchar.',
+      processing: 'Mensaje enviado. Preparando la respuesta.',
+      noSpeech: 'No te he oído. Pulsa Alt+Mayús+V para volver a intentarlo.',
+      denied: 'No tengo acceso al micrófono. Revisa los permisos del navegador o escribe tu mensaje.',
+      unsupported: 'Este navegador no permite hablar con el agente. Puedes escribir tu mensaje.',
+      failed: 'No he podido entender el audio. Vuelve a intentarlo o escribe tu mensaje.',
+      readAloud: 'Leer respuestas en voz alta',
+      readAloudOn: 'Lectura en voz alta activada.',
+      readAloudOff: 'Lectura en voz alta desactivada.',
+      speechStopped: 'Lectura detenida.',
+      link: 'enlace',
+      shortcutKeys: 'Alt+Mayús+V',
+      shortcutHint: 'Pulsa Alt+Mayús+V en cualquier momento para hablar con el agente web. Oirás un sonido cuando puedas empezar a hablar.',
+      firstOpen: 'Consejo: pulsa Alt+Mayús+V para hablar en lugar de escribir.'
+    };
+  }
+
+  function createVoiceController(options) {
+    var support = options.support;
+    var copy = options.copy;
+    var micButton = options.micButton;
+    var speakerButton = options.speakerButton;
+    var statusRegion = options.status;
+    var readAloudKey = 'talia-voice-read-aloud';
+    var shortcutAnnouncedKey = 'talia-voice-shortcut-announced';
+    var readAloud = getStoredValue(readAloudKey) === 'on';
+    var recognition = null;
+    var recognitionStarted = false;
+    var recognitionAborted = false;
+    var listening = false;
+    var finalTranscript = '';
+    var interimTranscript = '';
+    var recognitionError = null;
+    var speaking = false;
+    var voiceUsed = false;
+    var speechToken = 0;
+    var earcons = createEarconPlayer();
+    var noop = function () {};
+
+    if (!support.enabled) {
+      return {
+        toggleListening: noop,
+        toggleReadAloud: noop,
+        stopAll: noop,
+        notifyProcessing: noop,
+        handleReply: noop,
+        announceShortcutOnce: noop,
+        isActive: function () { return false; }
+      };
+    }
+
+    updateSpeakerButton();
+
+    function announce(message) {
+      if (!statusRegion) return;
+      // Clear first so identical consecutive messages are announced again.
+      statusRegion.textContent = '';
+      setTimeout(function () { statusRegion.textContent = message; }, 40);
+    }
+
+    function updateMicButton() {
+      if (!micButton) return;
+      micButton.classList.toggle('mic--listening', listening);
+      micButton.setAttribute('aria-pressed', listening ? 'true' : 'false');
+      var label = listening ? copy.micStop : copy.micStart;
+      micButton.setAttribute('aria-label', label);
+      micButton.setAttribute('title', label + ' (' + copy.shortcutKeys + ')');
+    }
+
+    function updateSpeakerButton() {
+      if (!speakerButton) return;
+      speakerButton.setAttribute('aria-pressed', readAloud ? 'true' : 'false');
+    }
+
+    function toggleListening() {
+      if (speaking) stopSpeaking();
+      if (listening) {
+        stopListening();
+        return;
+      }
+      startListening();
+    }
+
+    function startListening() {
+      var Recognition = getSpeechRecognitionConstructor();
+      if (!support.recognition || !Recognition) {
+        earcons.play('error');
+        announce(copy.unsupported);
+        speak(copy.unsupported, options.language, false);
+        if (options.input) options.input.focus();
+        return;
+      }
+
+      voiceUsed = true;
+      finalTranscript = '';
+      interimTranscript = '';
+      recognitionError = null;
+      recognitionStarted = false;
+      recognitionAborted = false;
+      try {
+        recognition = new Recognition();
+      } catch {
+        earcons.play('error');
+        announce(copy.unsupported);
+        return;
+      }
+      recognition.lang = getRecognitionLanguage(options.language);
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+
+      recognition.onresult = function (event) {
+        interimTranscript = '';
+        for (var index = event.resultIndex; index < event.results.length; index += 1) {
+          var result = event.results[index];
+          var transcript = result[0] && result[0].transcript ? result[0].transcript : '';
+          if (result.isFinal) finalTranscript += transcript;
+          else interimTranscript += transcript;
+        }
+        options.onInterim((finalTranscript + interimTranscript).trim());
+      };
+
+      recognition.onerror = function (event) {
+        recognitionError = event && event.error ? event.error : 'unknown';
+      };
+
+      recognition.onend = function () {
+        recognition = null;
+        recognitionStarted = false;
+        listening = false;
+        updateMicButton();
+        var text = (finalTranscript || interimTranscript).trim();
+        finalTranscript = '';
+        interimTranscript = '';
+
+        if (recognitionAborted || recognitionError === 'aborted') return;
+        if (text) {
+          earcons.play('captured');
+          options.onTranscript(text);
+          return;
+        }
+        options.onInterim('');
+        if (recognitionError === 'not-allowed' || recognitionError === 'service-not-allowed') {
+          earcons.play('error');
+          announce(copy.denied);
+          speak(copy.denied, options.language, false);
+        } else if (!recognitionError || recognitionError === 'no-speech') {
+          earcons.play('cancel');
+          announce(copy.noSpeech);
+        } else {
+          earcons.play('error');
+          announce(copy.failed);
+        }
+      };
+
+      listening = true;
+      updateMicButton();
+      announce(copy.listening);
+      // Start the recognizer only after the "you can talk" cue has played so the
+      // cue itself is never transcribed.
+      earcons.play('listen', function () {
+        if (!listening || !recognition) {
+          recognition = null;
+          return;
+        }
+        try {
+          recognition.start();
+          recognitionStarted = true;
+        } catch {
+          listening = false;
+          recognition = null;
+          updateMicButton();
+          earcons.play('error');
+          announce(copy.failed);
+        }
+      });
+    }
+
+    function stopListening(silent) {
+      if (!listening) return;
+      listening = false;
+      updateMicButton();
+      if (recognition && recognitionStarted) {
+        if (silent) {
+          // Discard what was heard (panel closed, conversation restarted...).
+          recognitionAborted = true;
+          try { recognition.abort(); } catch { /* already stopped */ }
+        } else {
+          // stop() keeps what was already said; `onend` submits it.
+          try { recognition.stop(); } catch { /* already stopped */ }
+        }
+        return;
+      }
+      // Stopped during the start cue, before the recognizer was running.
+      recognition = null;
+      if (!silent) {
+        earcons.play('cancel');
+        announce(copy.stopped);
+      }
+    }
+
+    function speak(text, language, withCue) {
+      if (!support.synthesis) return;
+      var clean = getSpeakableText(text, copy.link);
+      if (!clean) return;
+      var synth = window.speechSynthesis;
+      var token = ++speechToken;
+      synth.cancel();
+      var chunks = splitSpeechChunks(clean);
+      var lang = getSpeechLanguage(language);
+      var voice = pickSpeechVoice(lang);
+      speaking = true;
+
+      function speakChunk(index) {
+        if (token !== speechToken) return;
+        if (index >= chunks.length) {
+          speaking = false;
+          return;
+        }
+        var utterance = new window.SpeechSynthesisUtterance(chunks[index]);
+        utterance.lang = lang;
+        if (voice) utterance.voice = voice;
+        utterance.rate = 1;
+        utterance.onend = function () { speakChunk(index + 1); };
+        utterance.onerror = function () {
+          if (token === speechToken) speaking = false;
+        };
+        synth.speak(utterance);
+      }
+
+      if (withCue) earcons.play('reply', function () { speakChunk(0); });
+      else speakChunk(0);
+    }
+
+    function stopSpeaking() {
+      speechToken += 1;
+      speaking = false;
+      if (support.synthesis) {
+        try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+      }
+    }
+
+    return {
+      toggleListening: toggleListening,
+      toggleReadAloud: function () {
+        readAloud = !readAloud;
+        setStoredValue(readAloudKey, readAloud ? 'on' : 'off');
+        updateSpeakerButton();
+        if (!readAloud) stopSpeaking();
+        earcons.play(readAloud ? 'captured' : 'cancel');
+        announce(readAloud ? copy.readAloudOn : copy.readAloudOff);
+      },
+      stopAll: function (announceStop) {
+        var wasActive = listening || speaking;
+        var wasSpeaking = speaking;
+        stopListening(true);
+        stopSpeaking();
+        if (announceStop && wasActive) {
+          earcons.play('cancel');
+          announce(wasSpeaking ? copy.speechStopped : copy.stopped);
+        }
+      },
+      notifyProcessing: function (fromVoice) {
+        if (!fromVoice) return;
+        earcons.play('processing');
+        announce(copy.processing);
+      },
+      handleReply: function (text, language, fromVoice, failed) {
+        // Replies are spoken for voice turns, or for every turn when the
+        // visitor enabled "read answers aloud".
+        if (!fromVoice && !readAloud) return;
+        if (failed) {
+          earcons.play('error', function () { speak(text, language, false); });
+          return;
+        }
+        speak(text, language, true);
+      },
+      announceShortcutOnce: function () {
+        if (!support.recognition) return;
+        if (getStoredValue(shortcutAnnouncedKey)) return;
+        setStoredValue(shortcutAnnouncedKey, '1');
+        setTimeout(function () {
+          // Visitors who already opened with the shortcut don't need the tip.
+          if (!voiceUsed) announce(copy.firstOpen);
+        }, 600);
+      },
+      isActive: function () { return listening || speaking; }
+    };
+  }
+
+  // Short synthesized tones so no audio files are fetched and the host CSP is
+  // unaffected. Each step of the voice flow has a distinct, recognizable cue.
+  function createEarconPlayer() {
+    var context = null;
+    var patterns = {
+      listen: [[660, 0, 0.09], [880, 0.11, 0.13]],
+      captured: [[880, 0, 0.08], [660, 0.1, 0.1]],
+      processing: [[523, 0, 0.07]],
+      reply: [[523, 0, 0.08], [659, 0.09, 0.08], [784, 0.18, 0.14]],
+      cancel: [[440, 0, 0.12]],
+      error: [[330, 0, 0.14], [262, 0.18, 0.2]]
+    };
+
+    function getContext() {
+      if (context) return context;
+      var AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextConstructor) return null;
+      try {
+        context = new AudioContextConstructor();
+      } catch {
+        context = null;
+      }
+      return context;
+    }
+
+    return {
+      play: function (name, done) {
+        var pattern = patterns[name];
+        var audio = getContext();
+        var duration = 0;
+        if (pattern && audio) {
+          if (audio.state === 'suspended' && typeof audio.resume === 'function') audio.resume().catch(function () {});
+          var start = audio.currentTime + 0.02;
+          pattern.forEach(function (note) {
+            var oscillator = audio.createOscillator();
+            var gain = audio.createGain();
+            var noteStart = start + note[1];
+            var noteEnd = noteStart + note[2];
+            oscillator.type = name === 'error' ? 'triangle' : 'sine';
+            oscillator.frequency.setValueAtTime(note[0], noteStart);
+            gain.gain.setValueAtTime(0.0001, noteStart);
+            gain.gain.exponentialRampToValueAtTime(0.18, noteStart + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.0001, noteEnd);
+            oscillator.connect(gain);
+            gain.connect(audio.destination);
+            oscillator.start(noteStart);
+            oscillator.stop(noteEnd + 0.02);
+            duration = Math.max(duration, note[1] + note[2]);
+          });
+        }
+        if (done) setTimeout(done, Math.round((duration + 0.08) * 1000));
+      }
+    };
+  }
+
+  function getRecognitionLanguage(widgetLanguage) {
+    // Prefer the language of the page the visitor is reading (multilingual
+    // venue sites set it per version), then the browser, then the widget.
+    var candidates = [
+      document.documentElement && document.documentElement.lang,
+      navigator.language,
+      getSpeechLanguage(widgetLanguage)
+    ];
+    for (var index = 0; index < candidates.length; index += 1) {
+      var value = typeof candidates[index] === 'string' ? candidates[index].trim() : '';
+      if (/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/i.test(value)) {
+        return value.indexOf('-') > 0 ? value : getSpeechLanguage(value);
+      }
+    }
+    return 'es-ES';
+  }
+
+  function getSpeechLanguage(language) {
+    var value = String(language || '').trim();
+    var base = value.toLowerCase().split(/[-_]/)[0];
+    if (value.indexOf('-') > 0 || value.indexOf('_') > 0) return value.replace('_', '-');
+    if (base === 'es') return 'es-ES';
+    if (base === 'ca') return 'ca-ES';
+    if (base === 'en') return 'en-US';
+    if (base === 'pt') return 'pt-BR';
+    if (base === 'fr') return 'fr-FR';
+    if (base === 'it') return 'it-IT';
+    if (base === 'de') return 'de-DE';
+    return value || 'es-ES';
+  }
+
+  function pickSpeechVoice(lang) {
+    try {
+      var voices = window.speechSynthesis.getVoices() || [];
+      var normalized = lang.toLowerCase();
+      var base = normalized.split('-')[0];
+      return voices.find(function (voice) { return voice.lang && voice.lang.toLowerCase().replace('_', '-') === normalized; })
+        || voices.find(function (voice) { return voice.lang && voice.lang.toLowerCase().split(/[-_]/)[0] === base; })
+        || null;
+    } catch {
+      return null;
+    }
+  }
+
+  function getSpeakableText(text, linkWord) {
+    return String(text || '')
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '$1')
+      .replace(/https?:\/\/\S+/g, linkWord)
+      .replace(/[*_`#>~]+/g, '')
+      .replace(/^\s*[-•]\s+/gm, '')
+      .replace(/\s*\n+\s*/g, '. ')
+      .replace(/\.\s*\./g, '.')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
+  // Some engines cut long utterances; speak sentence-sized chunks instead.
+  function splitSpeechChunks(text) {
+    var sentences = text.match(/[^.!?¿¡…]+[.!?…]*\s*/g) || [text];
+    var chunks = [];
+    var current = '';
+    sentences.forEach(function (sentence) {
+      if ((current + sentence).length > 220 && current) {
+        chunks.push(current.trim());
+        current = '';
+      }
+      current += sentence;
+    });
+    if (current.trim()) chunks.push(current.trim());
+    return chunks;
+  }
+
+  function getMicIcon() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><path d="M12 18v4"></path><path d="M8 22h8"></path></svg>';
+  }
+
+  function getSpeakerIcon() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M19 5a10 10 0 0 1 0 14"></path></svg>';
   }
 
   function getLauncherIconMarkup(launcherIcon, iconUrl) {
