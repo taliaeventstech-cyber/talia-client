@@ -62,7 +62,7 @@ describe('widget voice mode with TALIA (talia-ai) speech', () => {
   it('falls back to the browser engine when TALIA voice is unavailable or limited', async () => {
     const widgetSource = await readWidget()
 
-    expect(widgetSource).toContain('return status === 402 || status === 429 || status === 503;')
+    expect(widgetSource).toContain('return status === 402 || status === 429 || status === 502 || status === 503;')
     expect(widgetSource).toContain('speakWithBrowser(chunks.slice(index).join')
   })
 

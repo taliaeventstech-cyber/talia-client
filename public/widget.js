@@ -2813,10 +2813,11 @@
     return null;
   }
 
-  // TALIA voice is unavailable, rate limited or over the venue's usage limit:
-  // keep voice working with the browser engine for the rest of the visit.
+  // TALIA voice is unavailable, failing, rate limited or over the venue's
+  // usage limit: keep voice working with the browser engine for the rest of
+  // the visit instead of failing on every turn.
   function shouldUseBrowserFallback(status) {
-    return status === 402 || status === 429 || status === 503;
+    return status === 402 || status === 429 || status === 502 || status === 503;
   }
 
   function getRecorderMimeType() {

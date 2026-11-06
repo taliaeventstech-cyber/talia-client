@@ -75,7 +75,7 @@ describe('TaliaAiSpeechProvider', () => {
   it('reports talia-ai errors and malformed responses without throwing', async () => {
     const failing = provider(vi.fn<typeof fetch>(async () => Response.json({ ok: false, error: 'model_unavailable' }, { status: 503 })))
     await expect(failing.synthesize({ tenantId: 't', sessionId: 's', text: 'Hola', language: null, pace: 'normal' }))
-      .resolves.toEqual({ ok: false, error: 'talia-ai responded with 503', status: 503 })
+      .resolves.toEqual({ ok: false, error: 'talia-ai responded with 503 (model_unavailable)', status: 503 })
 
     const malformed = provider(vi.fn<typeof fetch>(async () => Response.json({ ok: true, text: 42 })))
     await expect(malformed.transcribe({ tenantId: 't', sessionId: 's', audio: new Blob(['a']), mimeType: 'audio/webm', language: null }))
@@ -84,6 +84,16 @@ describe('TaliaAiSpeechProvider', () => {
     const offline = provider(vi.fn<typeof fetch>(async () => { throw new Error('offline') }))
     await expect(offline.synthesize({ tenantId: 't', sessionId: 's', text: 'Hola', language: null, pace: 'normal' }))
       .resolves.toEqual({ ok: false, error: 'talia-ai voice request failed' })
+  })
+
+  it('keeps talia-ai error codes and details for diagnosis', async () => {
+    const failing = provider(vi.fn<typeof fetch>(async () => Response.json(
+      { ok: false, error: 'model_unavailable', details: 'OpenAI responded with 404' },
+      { status: 502 },
+    )))
+
+    await expect(failing.transcribe({ tenantId: 't', sessionId: 's', audio: new Blob(['a']), mimeType: 'audio/webm', language: null }))
+      .resolves.toEqual({ ok: false, error: 'talia-ai responded with 502 (model_unavailable: OpenAI responded with 404)', status: 502 })
   })
 
   it('is only created when talia-ai is configured and voice is not switched off', () => {

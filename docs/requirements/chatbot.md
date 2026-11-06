@@ -93,7 +93,7 @@ Engines:
   `false`. Available on all plans.
 - **Browser voice (fallback):** Web Speech recognition and synthesis. Used when
   TALIA voice is not configured, and for the rest of the visit when an
-  endpoint answers 402, 429 or 503. Not available in Firefox.
+  endpoint answers 402, 429, 502 or 503. Not available in Firefox.
 
 Server rules (both endpoints, same order as the chat endpoint): provider
 configured → per-venue and per-IP rate limit (transcribe 15/min and 60/10 min;

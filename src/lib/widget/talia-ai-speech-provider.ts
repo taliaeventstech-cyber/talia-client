@@ -133,7 +133,17 @@ export class TaliaAiSpeechProvider implements SpeechProvider {
 
     const payload: unknown = await response.json().catch(() => null)
     if (!response.ok) {
-      return { ok: false, error: `talia-ai responded with ${response.status}`, status: response.status }
+      // talia-ai errors carry a code and a short, content-free reason (e.g.
+      // "OpenAI responded with 404"); keep them so operators can diagnose.
+      const errorBody = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {}
+      const code = typeof errorBody.error === 'string' ? errorBody.error.slice(0, 64) : null
+      const details = typeof errorBody.details === 'string' ? errorBody.details.slice(0, 200) : null
+      const reason = [code, details].filter(Boolean).join(': ')
+      return {
+        ok: false,
+        error: `talia-ai responded with ${response.status}${reason ? ` (${reason})` : ''}`,
+        status: response.status,
+      }
     }
     return { ok: true, body: payload }
   }
