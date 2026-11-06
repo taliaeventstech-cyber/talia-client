@@ -166,3 +166,50 @@ describe('widget voice shortcut labels per platform', () => {
     expect(widgetSource).toContain("event.code === 'KeyV'")
   })
 })
+
+async function loadWakePhraseMatcher() {
+  const widgetSource = await readWidget()
+  const start = widgetSource.indexOf('  function isWakePhrase(')
+  const end = widgetSource.indexOf('  var VOICE_COMMANDS')
+  return new Function(`${widgetSource.slice(start, end)}; return isWakePhrase;`)() as (text: string, name?: string) => boolean
+}
+
+describe('widget hands-free conversation and wake word', () => {
+  it.each([
+    ['Hola Talia', true],
+    ['hola talía, ¿qué hay hoy?', true],
+    ['Hello TALIA', true],
+    ['Hey Thalia', true],
+    ['Olá Talia', true],
+    ['Bon dia Talia', true],
+    ['Talia', false],
+    ['La Talia de ayer', false],
+    ['Hola, ¿a qué hora abrís?', false],
+  ])('recognises the wake phrase in "%s": %s', async (utterance, expected) => {
+    const isWakePhrase = await loadWakePhraseMatcher()
+    expect(isWakePhrase(utterance, 'TALIA')).toBe(expected)
+  })
+
+  it('also wakes with a single-word custom assistant name', async () => {
+    const isWakePhrase = await loadWakePhraseMatcher()
+    expect(isWakePhrase('Hola Olympia', 'Olympia')).toBe(true)
+  })
+
+  it('keeps the wake word opt-in, visible, browser-only and paused in background tabs', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain("var wakeEnabled = support.browserRecognition && getStoredValue(wakeKey) === 'on';")
+    expect(widgetSource).toContain("var voiceWakeMarkup = voiceSupport.browserRecognition")
+    expect(widgetSource).toContain("options.launcher.classList.toggle('toggle--wake', active);")
+    expect(widgetSource).toContain('if (document.hidden) stopWake();')
+    expect(widgetSource).toContain('if (!wakeEnabled || wakeRecognition || !isIdle() || document.hidden) return;')
+  })
+
+  it('listens again only after a spoken answer to a voice question, and ends after silence', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain('speak(text, language, true, fromVoice ? continueConversation : null);')
+    expect(widgetSource).toContain('startListening(true);')
+    expect(widgetSource).toContain('announce(copy.handsFreeEnded);')
+  })
+})

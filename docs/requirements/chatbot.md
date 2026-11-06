@@ -63,6 +63,27 @@ Visitor experience:
   localized "link" word. A header speaker toggle ("read answers aloud",
   persisted per browser) also speaks replies to typed turns.
 
+Hands-free conversation and wake word:
+
+- After a voice question is answered aloud, the widget automatically listens
+  again (with the "ready" cue) so the visitor can keep talking without
+  pressing anything. Eight seconds of silence, Escape, typing, closing the
+  panel, "para" or "escríbelo" end the conversation ("No he oído nada más…").
+- Opt-in "Hola TALIA" mode (ear button in the widget header, remembered per
+  browser): while on, the browser's speech engine listens for "Hola / Hello /
+  Hey / Olá / Bon dia TALIA" (also "Talía", "Thalia" or a one-word custom
+  assistant name) and then opens the agent and starts listening. It only
+  listens while the agent is idle and the tab is visible, shows a green dot
+  on the launcher (and in its accessible name), restarts with backoff when
+  the browser ends recognition, and is hidden where browser recognition is
+  unsupported (Firefox). Enabling it announces that the browser listens to
+  the microphone while it is on; the privacy texts disclose it.
+
+Agent voice: each venue chooses one of 11 OpenAI voices in Agora (Web Agent
+settings, "Voz del agente", with a listen button per voice). It is stored as
+`widget_config.agentVoice` and sent to `talia-ai` server-side by the speech
+route; visitors cannot change it.
+
 Voice commands (TAL-8), matched locally on short voice utterances in es, ca,
 en and pt-BR without an AI call:
 

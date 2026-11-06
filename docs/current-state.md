@@ -330,7 +330,9 @@ Implemented:
   the agent and starts listening, distinct audio cues and live-region
   announcements for every step, spoken replies (automatic for voice turns,
   optional "read answers aloud" toggle for typed turns) and local voice
-  commands (stop, repeat, slower, write it). Speech goes through the guarded
+  commands (stop, repeat, slower, write it), hands-free follow-up listening
+  after spoken answers, an opt-in "Hola TALIA" wake word, and a per-venue
+  voice chosen in Agora. Speech goes through the guarded
   `/api/chat/[tenantId]/transcribe` and `/speech` routes to `talia-ai`
   (`/v1/voice/*`, OpenAI) on all plans, with measured per-call cost in
   `ai_usage_events`, and falls back to the browser's Web Speech engine. The
