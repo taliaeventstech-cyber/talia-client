@@ -47,4 +47,21 @@ describe('GET /api/widget/[tenantId]', () => {
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ enabled: false })
   })
+
+  it('tells enabled widgets which voice engine to use', async () => {
+    vi.stubEnv('TALIA_AI_BASE_URL', 'https://talia-ai.example')
+    vi.stubEnv('TALIA_AI_INTERNAL_API_KEY', 'internal-key')
+    vi.mocked(getPublicWidgetConfig).mockResolvedValue({
+      ok: true,
+      config: { enabled: true },
+    } as Awaited<ReturnType<typeof getPublicWidgetConfig>>)
+
+    const response = await GET(
+      new Request('https://agora.talia.events/api/widget/tenant-1'),
+      { params: Promise.resolve({ tenantId: 'tenant-1' }) }
+    )
+
+    await expect(response.json()).resolves.toEqual({ enabled: true, voice: { provider: 'talia' } })
+    vi.unstubAllEnvs()
+  })
 })

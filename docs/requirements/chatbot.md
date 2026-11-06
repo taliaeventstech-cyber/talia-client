@@ -37,6 +37,105 @@ Allow a venue to install TALIA on its website via a script and answer visitor qu
   - color;
   - auto-open.
 
+## Voice Mode (speech to text and spoken replies)
+
+Visitor experience:
+
+- A microphone button in the composer starts and stops voice input.
+- Global keyboard shortcut `Alt+Shift+V` — `Option+Shift+V` on macOS/iPadOS, the
+  same physical keys; every visible and spoken mention names the visitor's own
+  keys (e.g. "Opción+Mayús+V" on a Mac) — (works before the widget has focus)
+  opens the agent and starts listening; pressing it again stops listening and
+  sends what was heard, or interrupts a reply that is being spoken. `Escape`
+  cancels listening, a pending transcription or speech. The launcher and the
+  microphone expose the shortcut through `aria-keyshortcuts` and a
+  screen-reader description; the first time the panel is opened, an accessible
+  tip announces it.
+- Every step plays a distinct synthesized audio cue and is announced in an
+  assertive live region: ready to talk, speech captured, transcribing, message
+  sent, reply ready, cancelled/no speech, and error (microphone denied,
+  unsupported browser, transcription failure). Recording starts only after the
+  "ready" cue so the cue is never captured.
+- Recording stops by itself after a 1.5 s pause once the visitor has spoken,
+  after 8 s without speech, or at a 30 s cap.
+- Replies to voice turns are spoken in the reply language
+  (`response_language`), with markdown stripped and URLs replaced by a
+  localized "link" word. A header speaker toggle ("read answers aloud",
+  persisted per browser) also speaks replies to typed turns.
+
+Hands-free conversation and wake word:
+
+- After a voice question is answered aloud, the widget automatically listens
+  again (with the "ready" cue) so the visitor can keep talking without
+  pressing anything. Eight seconds of silence, Escape, typing, closing the
+  panel, "para" or "escríbelo" end the conversation ("No he oído nada más…").
+- Opt-in "Hola TALIA" mode (ear button in the widget header, remembered per
+  browser): while on, the browser's speech engine listens for "Hola / Hello /
+  Hey / Olá / Bon dia TALIA" (also "Talía", "Thalia" or a one-word custom
+  assistant name) and then opens the agent and starts listening. It only
+  listens while the agent is idle and the tab is visible, shows a green dot
+  on the launcher (and in its accessible name), restarts with backoff when
+  the browser ends recognition, and is hidden where browser recognition is
+  unsupported (Firefox). Enabling it announces that the browser listens to
+  the microphone while it is on; the privacy texts disclose it.
+
+Agent voice: each venue chooses one of 11 OpenAI voices in Agora (Web Agent
+settings, "Voz del agente", with a listen button per voice). It is stored as
+`widget_config.agentVoice` and sent to `talia-ai` server-side by the speech
+route; visitors cannot change it.
+
+Voice commands (TAL-8), matched locally on short voice utterances in es, ca,
+en and pt-BR without an AI call:
+
+- "para / stop / atura / pare" stops speech;
+- "repite / repeat / repeteix / repete" replays the last answer;
+- "más despacio / slower / més a poc a poc / mais devagar" switches to a slow
+  pace for the rest of the visit (TALIA voice `pace: slow`, browser rate 0.8)
+  and repeats the last answer;
+- "escríbelo / write it / per escrit / por escrito" stops speaking replies to
+  voice turns (the speaker toggle re-enables it).
+- "Talk to a person" is deliberately not a local command: it is sent to the
+  agent, whose fallback policy offers the venue's verified human contacts.
+
+Engines:
+
+- **TALIA voice (default when configured):** the widget records with
+  `MediaRecorder` and uploads to `POST /api/chat/[tenantId]/transcribe`;
+  replies are synthesized by `POST /api/chat/[tenantId]/speech` (at most 1,200
+  characters per request; the widget sends a short first chunk and prefetches
+  the rest) and played through Web Audio, so host pages need no `media-src`
+  changes. These Next routes are the guarded public gateway (TAL-6): they call
+  `talia-ai` server-to-server (`/v1/voice/transcribe`, `/v1/voice/speech`, with
+  the internal bearer key), and `talia-ai` calls OpenAI (`gpt-4o-mini-transcribe`
+  with language auto-detection, `gpt-4o-mini-tts`). The browser never receives
+  `talia-ai` or OpenAI credentials. The public widget configuration reports
+  `voice.provider: 'talia'` when `TALIA_AI_BASE_URL` and
+  `TALIA_AI_INTERNAL_API_KEY` are set and `WIDGET_SERVER_VOICE_ENABLED` is not
+  `false`. Available on all plans.
+- **Browser voice (fallback):** Web Speech recognition and synthesis. Used when
+  TALIA voice is not configured, and for the rest of the visit when an
+  endpoint answers 402, 429, 502 or 503. Not available in Firefox.
+
+Server rules (both endpoints, same order as the chat endpoint): provider
+configured → per-venue and per-IP rate limit (transcribe 15/min and 60/10 min;
+speech 40/min and 160/10 min) → active venue with enabled widget → allowed
+embedding domain → chatbot usage limit (no paid call when answers are
+blocked). Audio is limited to 2 MB and known audio types. Each successful call
+is recorded like chat AI calls: one `usage_events` row (`ai_call` / `call` on
+the `web` channel, `accuracy: measured`) plus measured `ai_usage_events` rows
+(`speech_to_text` / `text_to_speech`) priced from `ai_model_pricing`, using the
+exact token usage returned by `talia-ai`. Audio is never stored by TALIA.
+
+Privacy: with TALIA voice, visitor audio and reply text are processed by
+OpenAI through `talia-ai`; with the browser fallback, by the browser vendor's
+recognition service (Google in Chrome/Edge, Apple in Safari). The widget's
+privacy summary discloses this in all four languages. Host pages whose
+`Permissions-Policy` blocks `microphone` get the localized "microphone
+unavailable" message.
+
+Opt-out per installation with `data-voice="off"` on the script tag, or
+`voice: false` in the public widget configuration.
+
 ## Demo Requirements
 
 - Be able to test with a fictitious landing page.

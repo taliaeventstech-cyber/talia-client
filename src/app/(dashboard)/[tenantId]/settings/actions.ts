@@ -19,6 +19,7 @@ import { z } from 'zod'
 import { optionalInternationalPhoneSchema } from '@/lib/phone/schema'
 import { getTenantContentHosts } from '@/lib/widget/domain-allowlist'
 import { normalizePrivacyUrl } from '@/lib/widget/compliance'
+import { normalizeAgentVoice } from '@/lib/widget/agent-voices'
 import {
   getNextKnowledgeSyncAt,
   isKnowledgeRefreshInterval,
@@ -251,6 +252,8 @@ export async function updateTenantSettings(
       autoOpenDelay: data.autoOpenDelay,
       proactiveMessage: data.proactiveMessage,
       allowedDomains: normalizeAllowedWidgetDomains(data.allowedDomains ?? ''),
+      // Only known voices are stored; anything else falls back to the default.
+      agentVoice: normalizeAgentVoice(formData.get('agent_voice') ?? existingWidget.agentVoice),
       chatbotAi: chatbotAiSettingsToWidgetConfig({
         ...existingAiSettings,
         fallbackMessage: data.fallbackMessage || null,
