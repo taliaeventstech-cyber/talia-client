@@ -38,6 +38,7 @@ export async function POST(
     text: input.text,
     language: input.language ?? null,
     pace: input.pace,
+    voice: guard.agentVoice,
   })
 
   if (!result.ok) {

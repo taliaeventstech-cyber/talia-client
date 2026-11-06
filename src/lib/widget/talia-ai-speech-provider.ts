@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { ChatAiUsageComponent } from '@/lib/agent-runtime/chat'
+import type { AgentVoice } from './agent-voices'
 import { isServerSpeechConfigured } from './speech'
 
 // talia-ai retries OpenAI audio calls internally (30 s attempts + backoff).
@@ -54,6 +55,7 @@ export interface SpeechProvider {
     text: string
     language: string | null
     pace: 'normal' | 'slow'
+    voice?: AgentVoice
   }): Promise<SynthesisResult>
 }
 
@@ -92,6 +94,7 @@ export class TaliaAiSpeechProvider implements SpeechProvider {
       text: input.text,
       pace: input.pace,
       ...(input.language ? { language: input.language } : {}),
+      ...(input.voice ? { voice: input.voice } : {}),
     }, SPEECH_TIMEOUT_MS)
     if (!result.ok) return result
 

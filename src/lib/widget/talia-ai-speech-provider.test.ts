@@ -59,6 +59,7 @@ describe('TaliaAiSpeechProvider', () => {
       text: 'Hola',
       language: 'es-ES',
       pace: 'slow',
+      voice: 'sage',
     })
 
     expect(result).toMatchObject({ ok: true, contentType: 'audio/mpeg', voice: 'coral', usageComponents: [usage('text_to_speech')] })
@@ -69,6 +70,7 @@ describe('TaliaAiSpeechProvider', () => {
       text: 'Hola',
       pace: 'slow',
       language: 'es-ES',
+      voice: 'sage',
     })
   })
 

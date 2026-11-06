@@ -84,6 +84,7 @@ describe('POST /api/chat/[tenantId]/speech', () => {
       text: 'Abrimos a las 18:00.',
       language: 'es-ES',
       pace: 'normal',
+      voice: 'coral',
     })
     expect(recordUsageEvent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       eventType: 'ai_call',
@@ -98,6 +99,14 @@ describe('POST /api/chat/[tenantId]/speech', () => {
     await speechRequest({ session_id: 'session-1', text: 'Hola', pace: 'slow' })
 
     expect(provider.synthesize).toHaveBeenCalledWith(expect.objectContaining({ pace: 'slow' }))
+  })
+
+  it('speaks with the voice the venue chose in Agora', async () => {
+    vi.mocked(getTenantChatConfig).mockResolvedValue({ ok: true, config: { agentVoice: 'onyx' } } as Awaited<ReturnType<typeof getTenantChatConfig>>)
+
+    await speechRequest({ session_id: 'session-1', text: 'Hola' })
+
+    expect(provider.synthesize).toHaveBeenCalledWith(expect.objectContaining({ voice: 'onyx' }))
   })
 
   it('rejects text above the per-request cap', async () => {

@@ -3,6 +3,7 @@ import { corsJson } from '@/lib/http/cors'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getTenantChatConfig } from '@/lib/tenants/service'
 import { recordMeasuredAiUsage } from '@/lib/usage/ai-cost'
+import { DEFAULT_AGENT_VOICE, type AgentVoice } from '@/lib/widget/agent-voices'
 import { checkTenantLimit, recordUsageEvent } from '@/lib/usage/service'
 import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/lib/widget/domain-allowlist'
 import { createSpeechProviderFromEnv, type SpeechProvider, type SpeechUsageComponent } from './talia-ai-speech-provider'
@@ -12,7 +13,7 @@ type AdminClient = ReturnType<typeof createAdminClient>
 export type VoiceRequestKind = 'transcribe' | 'speech'
 
 export type VoiceGuardResult =
-  | { ok: true; admin: AdminClient; provider: SpeechProvider }
+  | { ok: true; admin: AdminClient; provider: SpeechProvider; agentVoice: AgentVoice }
   | { ok: false; response: Response }
 
 // Speech calls happen at most once per visitor turn (transcription) or per
@@ -79,7 +80,7 @@ export async function guardVoiceRequest(
     return reject({ error: 'usage_limit_reached', code: 'usage_limit_reached' }, 402)
   }
 
-  return { ok: true, admin, provider }
+  return { ok: true, admin, provider, agentVoice: tenant.config.agentVoice ?? DEFAULT_AGENT_VOICE }
 }
 
 /**

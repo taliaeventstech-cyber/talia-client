@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { CopyScriptButton } from '@/components/copy-script-button'
 import { updateTenantSettings, type SettingsFormState } from './actions'
+import { AgentVoicePicker, type AgentVoicePickerLabels } from './agent-voice-picker'
+import type { AgentVoice } from '@/lib/widget/agent-voices'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry } from '@/lib/phone/international'
 import Image from 'next/image'
@@ -27,7 +29,7 @@ import {
   type WidgetInstallationAssistantLabels,
 } from '@/components/widget-installation-assistant'
 
-type SettingsFormLabels = {
+type SettingsFormLabels = AgentVoicePickerLabels & {
   chatbot: string
   widgetAvailability: string
   widgetAvailabilityHint: string
@@ -148,7 +150,9 @@ type SettingsFormProps = {
     allowedDomains: string[]
     fallbackMessage: string | null
     fallbackWhatsApp: boolean
+    agentVoice: AgentVoice
   }
+  voiceOptions: { value: AgentVoice; label: string; description: string }[]
   hasUsableKnowledge: boolean
   labels: SettingsFormLabels
   compliance: WidgetComplianceCopy
@@ -180,7 +184,7 @@ const initialState: SettingsFormState = {
   message: '',
 }
 
-export function SettingsForm({ tenantId, theatre, widgetConfig, hasUsableKnowledge, labels, compliance, previewLabel, integration }: SettingsFormProps) {
+export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, hasUsableKnowledge, labels, compliance, previewLabel, integration }: SettingsFormProps) {
   const router = useRouter()
   const [state, formAction, pending] = useActionState(updateTenantSettings.bind(null, tenantId), initialState)
   const [widgetEnabled, setWidgetEnabled] = useState(widgetConfig.enabled)
@@ -721,6 +725,15 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, hasUsableKnowled
               rows={4}
               className="mono"
               placeholder="staging.example.com&#10;preview.example.com"
+            />
+          </section>
+
+          <section className="card stack">
+            <AgentVoicePicker
+              tenantId={tenantId}
+              defaultVoice={widgetConfig.agentVoice}
+              options={voiceOptions}
+              labels={labels}
             />
           </section>
 
