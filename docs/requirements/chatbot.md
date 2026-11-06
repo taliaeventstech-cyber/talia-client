@@ -42,7 +42,9 @@ Allow a venue to install TALIA on its website via a script and answer visitor qu
 Visitor experience:
 
 - A microphone button in the composer starts and stops voice input.
-- Global keyboard shortcut `Alt+Shift+V` (works before the widget has focus)
+- Global keyboard shortcut `Alt+Shift+V` — `Option+Shift+V` on macOS/iPadOS, the
+  same physical keys; every visible and spoken mention names the visitor's own
+  keys (e.g. "Opción+Mayús+V" on a Mac) — (works before the widget has focus)
   opens the agent and starts listening; pressing it again stops listening and
   sends what was heard, or interrupts a reply that is being spoken. `Escape`
   cancels listening, a pending transcription or speech. The launcher and the

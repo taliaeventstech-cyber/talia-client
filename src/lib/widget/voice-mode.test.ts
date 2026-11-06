@@ -45,9 +45,7 @@ describe('widget voice mode', () => {
     const widgetSource = await readWidget()
 
     expect(widgetSource).toContain('if (!(fromVoice && speakVoiceReplies) && !readAloud) return;')
-    expect(widgetSource).toContain("shortcutKeys: 'Alt+Mayús+V'")
-    expect(widgetSource).toContain("shortcutKeys: 'Alt+Maj+V'")
-    expect(widgetSource.match(/shortcutKeys: 'Alt\+Shift\+V'/g)).toHaveLength(2)
+    expect(widgetSource.match(/shortcutKeys: keys,/g)).toHaveLength(4)
   })
 })
 
@@ -128,5 +126,43 @@ describe('widget voice commands (TAL-8)', () => {
     expect(widgetSource).toContain("utterance.rate = pace === 'slow' ? 0.8 : 1;")
     expect(widgetSource).toContain('if (!failed) lastReply = { text: text, language: language };')
     expect(widgetSource).toContain('if (!(fromVoice && speakVoiceReplies) && !readAloud) return;')
+  })
+})
+
+async function loadVoiceCopy() {
+  const widgetSource = await readWidget()
+  const start = widgetSource.indexOf('  function isApplePlatform()')
+  const end = widgetSource.indexOf('  function createVoiceController(')
+  // Evaluates the shipped copy builder (no browser globals needed when the
+  // platform is passed explicitly).
+  return new Function(`${widgetSource.slice(start, end)}; return getVoiceCopy;`)() as (
+    language: string,
+    apple: boolean,
+  ) => Record<string, string>
+}
+
+describe('widget voice shortcut labels per platform', () => {
+  it.each([
+    ['es', 'Alt+Mayús+V', 'Opción+Mayús+V'],
+    ['ca', 'Alt+Maj+V', 'Opció+Maj+V'],
+    ['en', 'Alt+Shift+V', 'Option+Shift+V'],
+    ['pt-BR', 'Alt+Shift+V', 'Option+Shift+V'],
+  ])('names the keys of the visitor\'s keyboard (%s)', async (language, windowsKeys, macKeys) => {
+    const getVoiceCopy = await loadVoiceCopy()
+
+    for (const [apple, keys] of [[false, windowsKeys], [true, macKeys]] as const) {
+      const copy = getVoiceCopy(language, apple)
+      expect(copy.shortcutKeys).toBe(keys)
+      expect(copy.shortcutHint).toContain(keys)
+      expect(copy.firstOpen).toContain(keys)
+      expect(copy.noSpeech).toContain(keys)
+    }
+  })
+
+  it('listens for the same physical keys on every platform (Option is Alt on a Mac)', async () => {
+    const widgetSource = await readWidget()
+
+    // event.code keeps working on macOS, where Option+Shift+V types "◊".
+    expect(widgetSource).toContain("event.code === 'KeyV'")
   })
 })

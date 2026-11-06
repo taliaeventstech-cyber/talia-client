@@ -1483,8 +1483,8 @@ function WidgetPreview({
             type="button"
             className="widget-preview-mic"
             disabled
-            aria-label="Hablar con el agente (Alt+Mayús+V)"
-            title="Hablar con el agente (Alt+Mayús+V)"
+            aria-label="Hablar con el agente (Alt+Mayús+V; en Mac, Opción+Mayús+V)"
+            title="Hablar con el agente (Alt+Mayús+V; en Mac, Opción+Mayús+V)"
             style={{ color }}
           >
             <Mic aria-hidden="true" strokeWidth={2} />

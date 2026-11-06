@@ -1959,7 +1959,7 @@
   // Fallback engine: the browser's own Web Speech API, used when TALIA voice is
   // unavailable, rate limited or fails. Audio cues are synthesized locally with
   // Web Audio. Designed so blind and low-vision visitors can run a full
-  // conversation with Alt+Shift+V.
+  // conversation with Alt+Shift+V (Option+Shift+V on a Mac).
   // ---------------------------------------------------------------------------
 
   function getVoiceSupport(configValue, attributeValue) {
@@ -1998,7 +1998,28 @@
       && (event.code === 'KeyV' || String(event.key).toLowerCase() === 'v');
   }
 
-  function getVoiceCopy(language) {
+  // The shortcut is the same physical keys everywhere (Alt is Option on a
+  // Mac); only its spoken/visible name changes so Mac users hear their keys.
+  function isApplePlatform() {
+    var platform = ((navigator.userAgentData && navigator.userAgentData.platform) || '') + ' ' + (navigator.platform || '');
+    return /mac|iphone|ipad|ipod/i.test(platform)
+      || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  }
+
+  function getVoiceShortcutLabel(language, apple) {
+    if (apple) {
+      if (language === 'ca') return 'Opció+Maj+V';
+      if (language === 'es') return 'Opción+Mayús+V';
+      return 'Option+Shift+V';
+    }
+    if (language === 'ca') return 'Alt+Maj+V';
+    if (language === 'es') return 'Alt+Mayús+V';
+    return 'Alt+Shift+V';
+  }
+
+  function getVoiceCopy(language, apple) {
+    if (apple === undefined) apple = isApplePlatform();
+    var keys = getVoiceShortcutLabel(language, apple);
     if (language === 'ca') {
       return {
         micStart: 'Parlar amb l’agent',
@@ -2007,7 +2028,7 @@
         stopped: 'He deixat d’escoltar.',
         processing: 'Missatge enviat. Preparant la resposta.',
         transcribing: 'T’he sentit. Un moment.',
-        noSpeech: 'No t’he sentit. Prem Alt+Maj+V per tornar-ho a provar.',
+        noSpeech: 'No t’he sentit. Prem ' + keys + ' per tornar-ho a provar.',
         denied: 'No tinc accés al micròfon. Revisa els permisos del navegador o escriu el teu missatge.',
         unsupported: 'Aquest navegador no permet parlar amb l’agent. Pots escriure el teu missatge.',
         failed: 'No he pogut entendre l’àudio. Torna-ho a provar o escriu el teu missatge.',
@@ -2019,9 +2040,9 @@
         writtenOnly: 'D’acord, et respondré només per escrit. Activa el botó de lectura en veu alta per tornar a escoltar-me.',
         nothingToRepeat: 'Encara no hi ha cap resposta per repetir.',
         link: 'enllaç',
-        shortcutKeys: 'Alt+Maj+V',
-        shortcutHint: 'Prem Alt+Maj+V en qualsevol moment per parlar amb l’agent web. Sentiràs un so quan puguis començar a parlar.',
-        firstOpen: 'Consell: prem Alt+Maj+V per parlar en comptes d’escriure.'
+        shortcutKeys: keys,
+        shortcutHint: 'Prem ' + keys + ' en qualsevol moment per parlar amb l’agent web. Sentiràs un so quan puguis començar a parlar.',
+        firstOpen: 'Consell: prem ' + keys + ' per parlar en comptes d’escriure.'
       };
     }
     if (language === 'en') {
@@ -2032,7 +2053,7 @@
         stopped: 'Stopped listening.',
         processing: 'Message sent. Preparing the answer.',
         transcribing: 'Got it. One moment.',
-        noSpeech: 'I didn’t hear anything. Press Alt+Shift+V to try again.',
+        noSpeech: 'I didn’t hear anything. Press ' + keys + ' to try again.',
         denied: 'I can’t access the microphone. Check your browser permissions or type your message.',
         unsupported: 'This browser doesn’t support talking to the agent. You can type your message.',
         failed: 'I couldn’t understand the audio. Try again or type your message.',
@@ -2044,9 +2065,9 @@
         writtenOnly: 'Okay, I’ll answer in writing only. Turn on “read answers aloud” to hear me again.',
         nothingToRepeat: 'There’s no answer to repeat yet.',
         link: 'link',
-        shortcutKeys: 'Alt+Shift+V',
-        shortcutHint: 'Press Alt+Shift+V at any time to talk to the web agent. You will hear a sound when you can start talking.',
-        firstOpen: 'Tip: press Alt+Shift+V to talk instead of typing.'
+        shortcutKeys: keys,
+        shortcutHint: 'Press ' + keys + ' at any time to talk to the web agent. You will hear a sound when you can start talking.',
+        firstOpen: 'Tip: press ' + keys + ' to talk instead of typing.'
       };
     }
     if (language === 'pt-BR') {
@@ -2057,7 +2078,7 @@
         stopped: 'Parei de ouvir.',
         processing: 'Mensagem enviada. Preparando a resposta.',
         transcribing: 'Entendi. Um momento.',
-        noSpeech: 'Não ouvi nada. Pressione Alt+Shift+V para tentar de novo.',
+        noSpeech: 'Não ouvi nada. Pressione ' + keys + ' para tentar de novo.',
         denied: 'Não tenho acesso ao microfone. Verifique as permissões do navegador ou digite sua mensagem.',
         unsupported: 'Este navegador não permite falar com o agente. Você pode digitar sua mensagem.',
         failed: 'Não consegui entender o áudio. Tente de novo ou digite sua mensagem.',
@@ -2069,9 +2090,9 @@
         writtenOnly: 'Certo, vou responder só por escrito. Ative “ler respostas em voz alta” para me ouvir de novo.',
         nothingToRepeat: 'Ainda não há nenhuma resposta para repetir.',
         link: 'link',
-        shortcutKeys: 'Alt+Shift+V',
-        shortcutHint: 'Pressione Alt+Shift+V a qualquer momento para falar com o agente web. Você ouvirá um som quando puder começar a falar.',
-        firstOpen: 'Dica: pressione Alt+Shift+V para falar em vez de digitar.'
+        shortcutKeys: keys,
+        shortcutHint: 'Pressione ' + keys + ' a qualquer momento para falar com o agente web. Você ouvirá um som quando puder começar a falar.',
+        firstOpen: 'Dica: pressione ' + keys + ' para falar em vez de digitar.'
       };
     }
     return {
@@ -2081,7 +2102,7 @@
       stopped: 'He dejado de escuchar.',
       processing: 'Mensaje enviado. Preparando la respuesta.',
       transcribing: 'Te he oído. Un momento.',
-      noSpeech: 'No te he oído. Pulsa Alt+Mayús+V para volver a intentarlo.',
+      noSpeech: 'No te he oído. Pulsa ' + keys + ' para volver a intentarlo.',
       denied: 'No tengo acceso al micrófono. Revisa los permisos del navegador o escribe tu mensaje.',
       unsupported: 'Este navegador no permite hablar con el agente. Puedes escribir tu mensaje.',
       failed: 'No he podido entender el audio. Vuelve a intentarlo o escribe tu mensaje.',
@@ -2093,9 +2114,9 @@
       writtenOnly: 'De acuerdo, te responderé solo por escrito. Activa “leer respuestas en voz alta” para volver a escucharme.',
       nothingToRepeat: 'Todavía no hay ninguna respuesta que repetir.',
       link: 'enlace',
-      shortcutKeys: 'Alt+Mayús+V',
-      shortcutHint: 'Pulsa Alt+Mayús+V en cualquier momento para hablar con el agente web. Oirás un sonido cuando puedas empezar a hablar.',
-      firstOpen: 'Consejo: pulsa Alt+Mayús+V para hablar en lugar de escribir.'
+      shortcutKeys: keys,
+      shortcutHint: 'Pulsa ' + keys + ' en cualquier momento para hablar con el agente web. Oirás un sonido cuando puedas empezar a hablar.',
+      firstOpen: 'Consejo: pulsa ' + keys + ' para hablar en lugar de escribir.'
     };
   }
 

@@ -326,7 +326,7 @@ Implemented:
   greeting, suggested questions and chat panel; message submission stays
   disabled in preview mode.
 - Voice mode in the installed widget: microphone input (speech to text), a
-  global `Alt+Shift+V` shortcut for blind and low-vision visitors that opens
+  global `Alt+Shift+V` shortcut (`Option+Shift+V` on a Mac) for blind and low-vision visitors that opens
   the agent and starts listening, distinct audio cues and live-region
   announcements for every step, spoken replies (automatic for voice turns,
   optional "read answers aloud" toggle for typed turns) and local voice
