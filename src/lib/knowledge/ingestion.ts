@@ -2,6 +2,12 @@ import { embedKnowledgeSourceWithTaliaAi } from './talia-ai-embeddings'
 import { ingestKnowledgeTextWithTaliaAi } from './talia-ai-ingestion'
 import { normalizeInstalledPageUrl } from './source-url'
 import { getWebPageRejection } from './web-page-validity'
+import {
+  hasReachedDailyNewPageLimit,
+  isArchiveListingUrl,
+  isRetiredInstalledPage,
+  RETIRED_CHUNK_METADATA_KEY,
+} from './installed-web-lifecycle'
 import type { createAdminClient } from '@/lib/supabase/admin'
 import { createHash } from 'node:crypto'
 
@@ -43,6 +49,8 @@ export type TenantKnowledgeReindexResult = {
 const MAX_PDF_SIZE_BYTES = 8 * 1024 * 1024
 const KNOWLEDGE_FILES_BUCKET = process.env.KNOWLEDGE_FILES_BUCKET || 'knowledge-files'
 const INSTALLED_PAGE_TOUCH_INTERVAL_MS = 60 * 60 * 1000
+const ARCHIVE_LISTING_MESSAGE = 'Las páginas de listado (etiquetas, categorías, paginación o búsquedas) no se añaden a Knowledge.'
+const DAILY_NEW_PAGE_LIMIT_MESSAGE = 'Se ha alcanzado el límite diario de páginas nuevas capturadas para esta sala.'
 
 export async function reindexTenantKnowledgeSources({
   admin,
@@ -248,7 +256,9 @@ export async function registerInstalledWebPage({
 
   if (existing.error) return { ok: false, message: existing.error.message }
 
-  const rejection = getWebPageRejection({ httpStatus, title, heading })
+  const rejection = isArchiveListingUrl(normalizedUrl)
+    ? { message: ARCHIVE_LISTING_MESSAGE }
+    : getWebPageRejection({ httpStatus, title, heading })
   if (rejection) {
     if (existing.data) {
       await markInstalledWebPageUnavailable(admin, tenantId, existing.data.id, rejection.message)
@@ -258,6 +268,18 @@ export async function registerInstalledWebPage({
 
   if (existing.data) {
     return touchInstalledWebPage({ admin, tenantId, normalizedUrl, name, pageTitle, now, source: existing.data })
+  }
+
+  const recentPages = await admin
+    .from('knowledge_sources')
+    .select('id', { count: 'exact', head: true })
+    .eq('theatre_id', tenantId)
+    .eq('type', 'web_snapshot')
+    .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+
+  if (recentPages.error) return { ok: false, message: recentPages.error.message }
+  if (hasReachedDailyNewPageLimit(recentPages.count ?? 0)) {
+    return { ok: false, message: DAILY_NEW_PAGE_LIMIT_MESSAGE }
   }
 
   const created = await admin
@@ -373,10 +395,23 @@ export async function ingestWebSnapshotSource({
   const normalizedUrl = normalizeInstalledPageUrl(url)
   if (!normalizedUrl) return { ok: false, message: 'URL no válida.' }
 
-  const rejection = getWebPageRejection({ httpStatus, title, heading })
+  const rejection = isArchiveListingUrl(normalizedUrl)
+    ? { message: ARCHIVE_LISTING_MESSAGE }
+    : getWebPageRejection({ httpStatus, title, heading })
   if (rejection) {
     await markInstalledWebPageUnavailable(admin, tenantId, sourceId, rejection.message)
     return { ok: false, message: rejection.message }
+  }
+
+  const retired = await getInstalledPageRetirement(admin, tenantId, sourceId)
+  if (!retired.ok) return { ok: false, message: retired.message }
+  if (retired.retired) {
+    return {
+      ok: true,
+      count: 0,
+      replaced: false,
+      message: 'La página está retirada de Knowledge; no se ha vuelto a procesar.',
+    }
   }
 
   const cleanText = text.trim()
@@ -1033,6 +1068,39 @@ async function markInstalledWebPageUnavailable(
       .eq('source_id', sourceId)
       .eq('theatre_id', tenantId),
   ])
+}
+
+async function getInstalledPageRetirement(
+  admin: AdminClient,
+  tenantId: string,
+  sourceId: string,
+): Promise<{ ok: true; retired: boolean } | { ok: false; message: string }> {
+  const [active, retired] = await Promise.all([
+    admin
+      .from('knowledge_chunks')
+      .select('id', { count: 'exact', head: true })
+      .eq('theatre_id', tenantId)
+      .eq('source_id', sourceId)
+      .eq('active', true),
+    admin
+      .from('knowledge_chunks')
+      .select('id', { count: 'exact', head: true })
+      .eq('theatre_id', tenantId)
+      .eq('source_id', sourceId)
+      .eq('active', false)
+      .not(`metadata->>${RETIRED_CHUNK_METADATA_KEY}`, 'is', null),
+  ])
+
+  if (active.error) return { ok: false, message: active.error.message }
+  if (retired.error) return { ok: false, message: retired.error.message }
+
+  return {
+    ok: true,
+    retired: isRetiredInstalledPage({
+      activeChunks: active.count ?? 0,
+      retiredChunks: retired.count ?? 0,
+    }),
+  }
 }
 
 const markPdfSourceError = markKnowledgeSourceError
