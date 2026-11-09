@@ -582,6 +582,12 @@ Implemented:
   URLs are admitted directly; other pages require both cultural and explicit
   date signals. Generic pages are marked as evaluated without an extraction
   model call, and each content hash is evaluated at most once.
+- Installed-web capture applies a lifecycle policy: archive listing URLs (tag,
+  category, author, pagination, search, feed and `?s=`/`?paged=`-style
+  parameters) are never registered and existing ones are deactivated when seen
+  again; a venue can register at most 50 new installed pages per rolling 24h;
+  and a page whose chunks an operator retired (`metadata.cleanup`, none
+  active) is not reprocessed, so a recapture cannot silently reactivate it.
 - Installed-web URLs are canonicalized across the widget, API and database. Tracking parameters are discarded, functional query parameters are preserved, duplicate rows are merged before a unique tenant/type/URL index is enforced, and page-presence writes are throttled to once per hour per source.
 - Agora can configure managed single-page, sitemap and bounded-website sources
   with manual, daily, weekly or monthly refresh policies. The persistence model
