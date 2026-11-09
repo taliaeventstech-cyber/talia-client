@@ -80,6 +80,32 @@ For demos and first deployments, the recommended mode is **TALIA-managed number 
 
 The voice number is configured **per venue**, not per account.
 
+An authorized TALIA profile can initiate and manage the connection, but the
+number is not owned by that individual profile. It remains attached to the
+venue when memberships change. In v1, `owner` and `admin` roles with
+`manage_voice` can connect, test, pause and disconnect one active inbound
+number per venue.
+
+### Self-service connection target
+
+Àgora must offer a guided `Voice → Connect phone number` flow. The default
+path provisions a number in a TALIA-managed Twilio subaccount for the customer
+account, then imports and assigns it to the venue's ElevenLabs agent. The user
+does not handle an ElevenLabs Agent ID or provider secret.
+
+Supported product paths:
+
+1. **TALIA-managed number**: self-service after regulatory requirements and
+   commercial acceptance are satisfied.
+2. **Existing public number with forwarding**: TALIA provides the destination;
+   the customer configures forwarding and completes a verification call.
+3. **Bring-your-own Twilio/SIP or porting**: assisted onboarding until a secure
+   provider authorization and ownership-verification flow exists.
+
+Typing a phone number is never sufficient to claim it. Activation requires
+provider provisioning, supported verification, successful porting, or a tested
+forwarding route. Provisioning must be asynchronous, idempotent and resumable.
+
 ### Option A — Number managed by TALIA
 
 TALIA buys/provisions the number and assigns it to the venue's agent.

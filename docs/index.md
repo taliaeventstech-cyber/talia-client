@@ -42,6 +42,7 @@ This directory holds the curated documentation for product, architecture, requir
 ## Operations
 
 - [`operations/client-launch-checklist.md`](operations/client-launch-checklist.md): internal checklist for launching a client.
+- [`operations/voice-channel-activation.md`](operations/voice-channel-activation.md): controlled Voice canary setup for human operators, Twilio, ElevenLabs, TALIA, testing and rollback.
 - [`operations/git-sync-workflow.md`](operations/git-sync-workflow.md): post-merge synchronization for `talia-client` and `talia-ai`, including VS Code Git Graph.
 - [`operations/google-cloud-production-oauth.md`](operations/google-cloud-production-oauth.md): Google OAuth verification for Gmail.
 - [`operations/instagram-api-development.md`](operations/instagram-api-development.md): Instagram Login configuration and pilot runbook.
@@ -67,6 +68,7 @@ This directory holds the curated documentation for product, architecture, requir
 
 ## Other
 
+- [`briefs/voice-channel-reactivation-claude-code.md`](briefs/voice-channel-reactivation-claude-code.md): implementation brief for reactivating the paused Voice channel through a controlled canary.
 - [`backlog.md`](backlog.md): non-blocking debt and improvements.
 - [`stripe-checkout.md`](stripe-checkout.md): Stripe Checkout and webhook configuration.
 
