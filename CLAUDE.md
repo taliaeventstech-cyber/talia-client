@@ -121,7 +121,7 @@ Full detail: `docs/architecture/accounts-venues-access.md`.
 
 ## Git workflow (summary — full rules in `CONTRIBUTING.md`)
 
-1. Branch from an up-to-date `develop`, one branch per Linear issue (`feature/TAL-XX-...`, `fix/TAL-XX-...`, etc.). In a Claude Code cloud session that started on its own `claude/*` branch, keep that branch.
+1. Branch from an up-to-date `develop`, one branch per Linear issue (`feature/TAL-XX-...`, `fix/TAL-XX-...`, `chore/...`, etc.). Never create or push branches named `claude/*` — this applies to Claude Code cloud sessions too, even if the session started on one: create a conventionally named branch from `develop` instead.
 2. Before opening a PR, run `npm run typecheck`, `npm run lint`, `npm test` and `npm run build`. All must pass.
 3. Open the PR **against `develop`**, with the Linear ID (`Closes TAL-XX`) and a short summary of what changed and how to test it.
 4. **Never merge a PR yourself, and never push directly to `develop` or `main`.** The maintainer (Ricardo) merges after reviewing and once CI is green. `develop` → `main` is a manual release done only by the maintainer.
