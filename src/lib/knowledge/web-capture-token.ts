@@ -1,15 +1,16 @@
 import crypto from 'node:crypto'
 
+// documentId: installed page (knowledge_documents row) to capture.
 type CaptureTokenPayload = {
   tenantId: string
-  sourceId: string
+  documentId: string
   url: string
   exp: number
 }
 
 type CaptureBatchTokenPayload = {
   tenantId: string
-  sourceIds: string[]
+  documentIds: string[]
   exp: number
 }
 
@@ -18,13 +19,13 @@ const CAPTURE_TOKEN_CLOCK_TOLERANCE_SECONDS = 60
 
 export function createWebCaptureToken(input: {
   tenantId: string
-  sourceId: string
+  documentId: string
   url: string
   expiresInSeconds?: number
 }) {
   const payload: CaptureTokenPayload = {
     tenantId: input.tenantId,
-    sourceId: input.sourceId,
+    documentId: input.documentId,
     url: input.url,
     exp: Math.floor(Date.now() / 1000) + (input.expiresInSeconds ?? getDefaultTokenTtlSeconds()),
   }
@@ -34,12 +35,12 @@ export function createWebCaptureToken(input: {
 
 export function createWebCaptureBatchToken(input: {
   tenantId: string
-  sourceIds: string[]
+  documentIds: string[]
   expiresInSeconds?: number
 }) {
   const payload: CaptureBatchTokenPayload = {
     tenantId: input.tenantId,
-    sourceIds: input.sourceIds,
+    documentIds: input.documentIds,
     exp: Math.floor(Date.now() / 1000) + (input.expiresInSeconds ?? getDefaultTokenTtlSeconds()),
   }
   const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url')
@@ -49,7 +50,7 @@ export function createWebCaptureBatchToken(input: {
 export function verifyWebCaptureToken(token: string) {
   const parsed = verifySignedPayload<Partial<CaptureTokenPayload>>(token, 'invalid_capture_token')
 
-  if (!parsed.tenantId || !parsed.sourceId || !parsed.url || !parsed.exp) {
+  if (!parsed.tenantId || !parsed.documentId || !parsed.url || !parsed.exp) {
     throw new Error('invalid_capture_token')
   }
   if (parsed.exp + CAPTURE_TOKEN_CLOCK_TOLERANCE_SECONDS < Math.floor(Date.now() / 1000)) {
@@ -62,10 +63,10 @@ export function verifyWebCaptureToken(token: string) {
 export function verifyWebCaptureBatchToken(token: string) {
   const parsed = verifySignedPayload<Partial<CaptureBatchTokenPayload>>(token, 'invalid_capture_batch_token')
 
-  if (!parsed.tenantId || !Array.isArray(parsed.sourceIds) || !parsed.sourceIds.length || !parsed.exp) {
+  if (!parsed.tenantId || !Array.isArray(parsed.documentIds) || !parsed.documentIds.length || !parsed.exp) {
     throw new Error('invalid_capture_batch_token')
   }
-  if (parsed.sourceIds.some((sourceId) => typeof sourceId !== 'string' || !sourceId)) {
+  if (parsed.documentIds.some((documentId) => typeof documentId !== 'string' || !documentId)) {
     throw new Error('invalid_capture_batch_token')
   }
   if (parsed.exp + CAPTURE_TOKEN_CLOCK_TOLERANCE_SECONDS < Math.floor(Date.now() / 1000)) {

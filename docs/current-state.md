@@ -573,6 +573,14 @@ Implemented:
   installed widget can submit visible public page text as pages are visited.
   Enabling the customer-facing fallback selects automatic capture; the legacy
   manual mode remains supported internally for existing configuration.
+- Installed-widget captures are one logical `knowledge_sources` row per venue
+  (`type = web_snapshot`, `config.installed_web_logical = true`, enforced by a
+  unique index) with one `knowledge_documents` row per captured page
+  (`capture_method = installed_widget`) and chunks linked by `document_id`.
+  Pages register, refresh, fail and get retired individually; Agora keeps
+  listing them page by page while Backstage and the Knowledge health counters
+  show a single web source. Capture tokens and "Desvincular" act on the page.
+  Response evidence from these chunks is labelled with the page title.
 - Installed-web sources are connected to `knowledge_sources` as
   `web_snapshot`: the installed widget extracts visible DOM text and `talia-ai`
   normalizes, chunks and generates embeddings. Automatic captures persist a

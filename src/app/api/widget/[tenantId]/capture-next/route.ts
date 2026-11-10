@@ -32,38 +32,38 @@ export async function POST(
   }
 
   const nextIndex = parsed.data.currentIndex + 1
-  const nextSourceId = batch.sourceIds[nextIndex]
-  if (!nextSourceId) {
-    return corsJson({ done: true, total: batch.sourceIds.length })
+  const nextPageId = batch.documentIds[nextIndex]
+  if (!nextPageId) {
+    return corsJson({ done: true, total: batch.documentIds.length })
   }
 
   const admin = createAdminClient()
-  const [domainSettings, sourceResult] = await Promise.all([
+  const [domainSettings, pageResult] = await Promise.all([
     getTenantWidgetDomainSettings(admin, tenantId),
     admin
-      .from('knowledge_sources')
-      .select('id, source_url')
-      .eq('id', nextSourceId)
+      .from('knowledge_documents')
+      .select('id, canonical_url, knowledge_sources!inner(type)')
+      .eq('id', nextPageId)
       .eq('theatre_id', tenantId)
-      .eq('type', 'web_snapshot')
+      .eq('knowledge_sources.type', 'web_snapshot')
       .maybeSingle(),
   ])
 
   if (!domainSettings.ok) {
     return corsJson({ error: domainSettings.error }, { status: 404 })
   }
-  if (sourceResult.error) {
-    return corsJson({ error: sourceResult.error.message }, { status: 500 })
+  if (pageResult.error) {
+    return corsJson({ error: pageResult.error.message }, { status: 500 })
   }
 
-  const source = sourceResult.data
-  if (!source?.source_url) {
+  const page = pageResult.data
+  if (!page?.canonical_url) {
     return corsJson({ error: 'source_not_found' }, { status: 404 })
   }
 
   const domain = validateWidgetRequestDomain({
     request,
-    pageUrl: source.source_url,
+    pageUrl: page.canonical_url,
     ...domainSettings.settings,
   })
   if (!domain.ok) {
@@ -73,15 +73,15 @@ export async function POST(
   return corsJson({
     done: false,
     nextIndex,
-    total: batch.sourceIds.length,
+    total: batch.documentIds.length,
     captureUrl: getSignedCaptureUrl({
       tenantId,
-      sourceId: source.id,
-      sourceUrl: source.source_url,
+      documentId: page.id,
+      sourceUrl: page.canonical_url,
       captureApiBase: new URL(request.url).origin,
       batchToken: parsed.data.batchToken,
       batchIndex: nextIndex,
-      batchTotal: batch.sourceIds.length,
+      batchTotal: batch.documentIds.length,
     }),
   })
 }

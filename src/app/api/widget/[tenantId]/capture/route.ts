@@ -57,7 +57,7 @@ export async function POST(
   const result = await ingestWebSnapshotSource({
     admin,
     tenantId,
-    sourceId: token.sourceId,
+    documentId: token.documentId,
     url: parsed.data.url,
     title: parsed.data.title,
     heading: parsed.data.heading,
