@@ -13554,3 +13554,21 @@ a.response-source-link:hover {
   outline: 2px solid var(--color-brand);
   outline-offset: 2px;
 }
+
+.voice-invitation-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.voice-invitation-toggle input {
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+}
+
+.voice-invitation-toggle > span {
+  display: grid;
+  gap: 4px;
+}

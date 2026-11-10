@@ -79,6 +79,21 @@ Hands-free conversation and wake word:
   unsupported (Firefox). Enabling it announces that the browser listens to
   the microphone while it is on; the privacy texts disclose it.
 
+Voice invitation on first visit (venue setting "Invitar a usar la voz al
+entrar", `widget_config.voiceInvitation`, off by default): visitors see an
+informative card «Di "Hola TALIA"» explaining that, if they turn voice on,
+their browser will listen to the microphone only to detect the wake phrase,
+with **Activar voz** / **Ahora no** and a privacy link. The microphone is only
+enabled from that click (opt-in consent: pre-enabled/opt-out listening is not
+valid consent under GDPR per CJEU Planet49 and the EDPB, and browsers tend to
+block microphone prompts on page load). After accepting, the card shows
+"Voz activada" with **Desactivar**; the ear button and green launcher dot keep
+the state visible and reversible (EDPB virtual voice assistant guidelines).
+The choice is remembered per browser; opening the chat dismisses the card
+without recording a choice. Not shown where browser recognition is
+unavailable (Firefox). Venues enabling it should mention it in their own
+privacy notice (they are the controller; TALIA processes on their behalf).
+
 Agent voice: each venue chooses one of 11 OpenAI voices in Agora (Web Agent
 settings, "Voz del agente", with a listen button per voice). It is stored as
 `widget_config.agentVoice` and sent to `talia-ai` server-side by the speech

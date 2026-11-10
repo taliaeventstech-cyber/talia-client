@@ -254,6 +254,8 @@ export async function updateTenantSettings(
       allowedDomains: normalizeAllowedWidgetDomains(data.allowedDomains ?? ''),
       // Only known voices are stored; anything else falls back to the default.
       agentVoice: normalizeAgentVoice(formData.get('agent_voice') ?? existingWidget.agentVoice),
+      // Visitors still have to accept in the widget before the mic turns on.
+      voiceInvitation: formData.get('voice_invitation') === 'on',
       chatbotAi: chatbotAiSettingsToWidgetConfig({
         ...existingAiSettings,
         fallbackMessage: data.fallbackMessage || null,

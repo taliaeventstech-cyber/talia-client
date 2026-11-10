@@ -126,6 +126,9 @@
     isolateWidgetScroll(host, root);
     var privacyLink = root.querySelector('[data-privacy]');
     var sessionFeedbackPrompt = null;
+    var voiceInviteKey = 'talia-voice-invite';
+    var voiceInviteVisible = false;
+    var hideVoiceInviteOnOpen = function () {};
     var conversationHasActivity = false;
     var privacyReplyPending = false;
     var voice = createVoiceController({
@@ -173,6 +176,8 @@
 
     function openPanel() {
       hideWelcome();
+      // Opening the chat dismisses the invitation without recording a choice.
+      hideVoiceInviteOnOpen();
       voice.announceShortcutOnce();
       panel.classList.add('panel--open');
       toggle.setAttribute('aria-expanded', 'true');
@@ -187,6 +192,7 @@
 
     function showWelcome() {
       if (panel.classList.contains('panel--open')) return;
+      if (voiceInviteVisible) return;
       welcome.classList.add('welcome--visible');
       welcome.setAttribute('aria-hidden', 'false');
     }
@@ -452,6 +458,61 @@
           voice.toggleWake();
         });
       }
+
+      // Venue-enabled invitation on the first visit. Informative and opt-in:
+      // the microphone only turns on after "Activar voz" (valid consent).
+      var voiceInvite = root.querySelector('[data-voice-invite]');
+      if (voiceInvite && config.voiceInvitation === true && !getStoredValue(voiceInviteKey) && !voice.isWakeEnabled()) {
+        var inviteAccept = voiceInvite.querySelector('[data-voice-invite-accept]');
+        var inviteDecline = voiceInvite.querySelector('[data-voice-invite-decline]');
+        var inviteTitle = voiceInvite.querySelector('[data-voice-invite-title]');
+        var inviteText = voiceInvite.querySelector('[data-voice-invite-text]');
+        var inviteAccepted = false;
+        var inviteHideTimer = null;
+
+        setTimeout(function () {
+          if (panel.classList.contains('panel--open') || getStoredValue(voiceInviteKey)) return;
+          hideWelcome();
+          voiceInviteVisible = true;
+          voiceInvite.classList.add('welcome--visible');
+          voiceInvite.setAttribute('aria-hidden', 'false');
+        }, 1500);
+
+        inviteAccept.addEventListener('click', function () {
+          inviteAccepted = true;
+          setStoredValue(voiceInviteKey, 'accepted');
+          voice.enableWake();
+          inviteTitle.textContent = voiceCopy.inviteOnTitle;
+          inviteText.textContent = voiceCopy.inviteOnBody;
+          inviteAccept.hidden = true;
+          inviteDecline.textContent = voiceCopy.inviteDisable;
+          inviteDecline.focus();
+          inviteHideTimer = setTimeout(hideVoiceInvite, 12000);
+        });
+
+        inviteDecline.addEventListener('click', function () {
+          clearTimeout(inviteHideTimer);
+          if (inviteAccepted) voice.disableWake();
+          setStoredValue(voiceInviteKey, 'declined');
+          hideVoiceInvite();
+        });
+
+        voiceInvite.addEventListener('keydown', function (event) {
+          if (event.key !== 'Escape') return;
+          event.stopPropagation();
+          if (!inviteAccepted) setStoredValue(voiceInviteKey, 'declined');
+          hideVoiceInvite();
+        });
+      }
+
+      function hideVoiceInvite() {
+        if (!voiceInvite) return;
+        if (root.activeElement && voiceInvite.contains(root.activeElement)) toggle.focus();
+        voiceInviteVisible = false;
+        voiceInvite.classList.remove('welcome--visible');
+        voiceInvite.setAttribute('aria-hidden', 'true');
+      }
+      hideVoiceInviteOnOpen = hideVoiceInvite;
     }
 
     input.addEventListener('input', resizeComposer);
@@ -701,7 +762,7 @@
         disclosure: 'You are talking to an AI assistant. It can make mistakes.',
         privacyLabel: 'Privacy',
         privacyQuestion: 'How do you use my data?',
-        privacySummary: 'We use the messages you send to answer your question, monitor quality, and protect the service. Conversation content is retained for 90 days and can be deleted sooner if you request it. If you talk to the agent, your voice is transcribed and answers may be read aloud using AI providers (such as OpenAI) or your browser’s speech service; we do not keep audio recordings. If you turn on “Hello TALIA” mode, your browser listens to the microphone while it is on to detect that phrase. We do not sell your data.',
+        privacySummary: 'We use the messages you send to answer your question, monitor quality, and protect the service. Conversation content is retained for 90 days and can be deleted sooner if you request it. If you talk to the agent, your voice is transcribed and answers may be read aloud using AI providers (such as OpenAI) or your browser’s speech service; we do not keep audio recordings. If you turn on “Hi TALIA” mode, your browser listens to the microphone while it is on to detect that phrase. We do not sell your data.',
         privacyMore: 'You can read the full details and learn how to exercise your rights here:'
       };
     } else if (language === 'pt-BR') {
@@ -1749,6 +1810,19 @@
     var voiceWakeMarkup = voiceSupport.browserRecognition
       ? '<button class="header-button" data-voice-wake type="button" aria-pressed="false" aria-label="' + escapeHtml(voiceCopy.wakeWord) + '" title="' + escapeHtml(voiceCopy.wakeWord) + '">' + getEarIcon() + '</button>'
       : '';
+    // Invitation card; only shown by the widget when the venue enabled it.
+    var voiceInviteMarkup = voiceSupport.browserRecognition
+      ? '<aside class="welcome voice-invite notranslate" data-voice-invite translate="no" role="region" aria-hidden="true" aria-label="' + escapeHtml(voiceCopy.inviteLabel) + '">'
+        + '<div class="voice-invite-body">'
+        + '<span class="welcome-brand"><span class="welcome-mark">' + launcherIconMarkup + '</span><strong class="welcome-name" data-voice-invite-title>' + escapeHtml(voiceCopy.inviteTitle) + '</strong></span>'
+        + '<p class="welcome-message voice-invite-text" data-voice-invite-text aria-live="polite">' + escapeHtml(voiceCopy.inviteBody) + '</p>'
+        + '<div class="voice-invite-actions">'
+        + '<button class="voice-invite-primary" data-voice-invite-accept type="button">' + escapeHtml(voiceCopy.inviteAccept) + '</button>'
+        + '<button class="voice-invite-secondary" data-voice-invite-decline type="button">' + escapeHtml(voiceCopy.inviteDecline) + '</button>'
+        + '</div>'
+        + '<a class="voice-invite-privacy" href="' + escapeHtml(compliance.privacyUrl) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(compliance.privacyLabel) + '</a>'
+        + '</div></aside>'
+      : '';
     var voiceStatusMarkup = voiceSupport.enabled
       ? '<div class="sr-only" data-voice-status role="status" aria-live="assertive" aria-atomic="true"></div><p class="sr-only" id="talia-voice-hint">' + escapeHtml(voiceCopy.shortcutHint) + '</p>'
       : '';
@@ -1944,6 +2018,15 @@
         .wake-dot { display: none; position: absolute; top: 3px; right: 3px; z-index: 2; width: 12px; height: 12px; border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 2px #fff; }\
         .toggle--wake .wake-dot { display: block; animation: talia-wake-pulse 2s ease-in-out infinite; }\
         @keyframes talia-wake-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }\
+        .voice-invite-body { display: grid; gap: 10px; padding: 16px; }\
+        .voice-invite-text { margin: 0; font-size: 15px; }\
+        .voice-invite-actions { display: flex; flex-wrap: wrap; gap: 8px; }\
+        .voice-invite-primary, .voice-invite-secondary { min-height: 40px; border-radius: 8px; padding: 0 14px; font: 600 14px "Space Grotesk", system-ui; cursor: pointer; }\
+        .voice-invite-primary { border: 0; background: ' + primaryColor + '; color: #fff; }\
+        .voice-invite-secondary { border: 1px solid currentColor; background: transparent; color: inherit; }\
+        .voice-invite-primary[hidden] { display: none; }\
+        .voice-invite-primary:focus-visible, .voice-invite-secondary:focus-visible, .voice-invite-privacy:focus-visible { outline: 2px solid ' + primaryColor + '; outline-offset: 2px; }\
+        .voice-invite-privacy { color: inherit; font-size: 12px; opacity: .75; }\
         .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }\
         .send { flex: 0 0 auto; height: 44px; border: 0; border-radius: 7px; padding: 0 14px; background: ' + primaryColor + '; color: white; font: 600 14px "Space Grotesk", system-ui; cursor: pointer; }\
         .powered { padding: 0 13px 10px; background: ' + formBackground + '; ' + formFilter + ' color: rgba(26,26,46,.52); text-align: center; font: 600 10px/1.35 "Space Grotesk", system-ui; }\
@@ -1959,6 +2042,7 @@
         </button>\
         <button class="welcome-close" data-welcome-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button>\
       </aside>\
+      ' + voiceInviteMarkup + '\
       <section class="panel notranslate" data-panel translate="no">\
         <div class="header"><span class="header-brand"><span class="header-mark">' + launcherIconMarkup + '</span><span class="header-identity"><span class="header-name">' + escapeHtml(assistantName) + '</span><small class="header-ai-label">' + escapeHtml(compliance.aiLabel) + '</small></span></span><div class="header-actions">' + voiceWakeMarkup + voiceSpeakerMarkup + '<button class="header-button" data-restart type="button" aria-label="' + escapeHtml(widgetCopy.restart) + '" title="' + escapeHtml(widgetCopy.restart) + '">' + getRestartIcon() + '</button><button class="header-button close" data-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button></div></div>\
         <div class="ai-disclosure" id="talia-ai-disclosure">' + escapeHtml(compliance.disclosure) + '</div>\
@@ -2068,7 +2152,15 @@
         wakeOn: 'Mode «Hola TALIA» activat. Mentre estigui actiu, el teu navegador escolta el micròfon per detectar «Hola TALIA». Desactiva’l amb el mateix botó.',
         wakeOff: 'Mode «Hola TALIA» desactivat.',
         wakeLauncher: 'escoltant «Hola TALIA»',
-        handsFreeEnded: 'No he sentit res més. Prem ' + keys + ' per tornar a parlar.'
+        handsFreeEnded: 'No he sentit res més. Prem ' + keys + ' per tornar a parlar.',
+        inviteLabel: 'Assistència per veu',
+        inviteTitle: 'Digues «Hola TALIA»',
+        inviteBody: 'Pots fer servir aquest web amb la veu. Si l’actives, el teu navegador escoltarà el micròfon només per detectar «Hola TALIA». La pots desactivar quan vulguis.',
+        inviteAccept: 'Activar la veu',
+        inviteDecline: 'Ara no',
+        inviteOnTitle: 'Veu activada',
+        inviteOnBody: 'Digues «Hola TALIA» quan vulguis. El punt verd indica que t’escolto.',
+        inviteDisable: 'Desactivar'
       };
     }
     if (language === 'en') {
@@ -2094,11 +2186,19 @@
         shortcutKeys: keys,
         shortcutHint: 'Press ' + keys + ' at any time to talk to the web agent. You will hear a sound when you can start talking.',
         firstOpen: 'Tip: press ' + keys + ' to talk instead of typing.',
-        wakeWord: 'Listen for “Hello TALIA”',
-        wakeOn: '“Hello TALIA” mode is on. While it’s on, your browser listens to the microphone to detect “Hello TALIA”. Turn it off with the same button.',
-        wakeOff: '“Hello TALIA” mode is off.',
-        wakeLauncher: 'listening for “Hello TALIA”',
-        handsFreeEnded: 'I didn’t hear anything else. Press ' + keys + ' to talk again.'
+        wakeWord: 'Listen for “Hi TALIA”',
+        wakeOn: '“Hi TALIA” mode is on. While it’s on, your browser listens to the microphone to detect “Hi TALIA”. Turn it off with the same button.',
+        wakeOff: '“Hi TALIA” mode is off.',
+        wakeLauncher: 'listening for “Hi TALIA”',
+        handsFreeEnded: 'I didn’t hear anything else. Press ' + keys + ' to talk again.',
+        inviteLabel: 'Voice assistance',
+        inviteTitle: 'Say “Hi TALIA”',
+        inviteBody: 'You can use this website by voice. If you turn it on, your browser will listen to the microphone only to detect “Hi TALIA”. You can turn it off at any time.',
+        inviteAccept: 'Turn on voice',
+        inviteDecline: 'Not now',
+        inviteOnTitle: 'Voice is on',
+        inviteOnBody: 'Say “Hi TALIA” whenever you like. The green dot shows I’m listening.',
+        inviteDisable: 'Turn off'
       };
     }
     if (language === 'pt-BR') {
@@ -2128,7 +2228,15 @@
         wakeOn: 'Modo “Olá TALIA” ativado. Enquanto estiver ativo, seu navegador ouve o microfone para detectar “Olá TALIA”. Desative com o mesmo botão.',
         wakeOff: 'Modo “Olá TALIA” desativado.',
         wakeLauncher: 'ouvindo “Olá TALIA”',
-        handsFreeEnded: 'Não ouvi mais nada. Pressione ' + keys + ' para falar de novo.'
+        handsFreeEnded: 'Não ouvi mais nada. Pressione ' + keys + ' para falar de novo.',
+        inviteLabel: 'Assistência por voz',
+        inviteTitle: 'Diga “Olá TALIA”',
+        inviteBody: 'Você pode usar este site por voz. Se ativar, seu navegador ouvirá o microfone apenas para detectar “Olá TALIA”. Você pode desativar quando quiser.',
+        inviteAccept: 'Ativar voz',
+        inviteDecline: 'Agora não',
+        inviteOnTitle: 'Voz ativada',
+        inviteOnBody: 'Diga “Olá TALIA” quando quiser. O ponto verde indica que estou ouvindo.',
+        inviteDisable: 'Desativar'
       };
     }
     return {
@@ -2157,7 +2265,15 @@
       wakeOn: 'Modo «Hola TALIA» activado. Mientras esté activo, tu navegador escucha el micrófono para detectar «Hola TALIA». Desactívalo con el mismo botón.',
       wakeOff: 'Modo «Hola TALIA» desactivado.',
       wakeLauncher: 'escuchando «Hola TALIA»',
-      handsFreeEnded: 'No he oído nada más. Pulsa ' + keys + ' para volver a hablar.'
+      handsFreeEnded: 'No he oído nada más. Pulsa ' + keys + ' para volver a hablar.',
+      inviteLabel: 'Asistencia por voz',
+      inviteTitle: 'Di «Hola TALIA»',
+      inviteBody: 'Puedes usar esta web con la voz. Si la activas, tu navegador escuchará el micrófono solo para detectar «Hola TALIA». Puedes desactivarla cuando quieras.',
+      inviteAccept: 'Activar voz',
+      inviteDecline: 'Ahora no',
+      inviteOnTitle: 'Voz activada',
+      inviteOnBody: 'Di «Hola TALIA» cuando quieras. El punto verde indica que te escucho.',
+      inviteDisable: 'Desactivar'
     };
   }
 
@@ -2218,6 +2334,9 @@
         handleReply: noop,
         announceShortcutOnce: noop,
         toggleWake: noop,
+        enableWake: noop,
+        disableWake: noop,
+        isWakeEnabled: function () { return false; },
         isActive: function () { return false; }
       };
     }
@@ -2980,6 +3099,18 @@
         }
         speak(text, language, true, fromVoice ? continueConversation : null);
       },
+      enableWake: function () {
+        // Called from the visitor's click on "Activar voz", so the browser can
+        // show its microphone permission prompt.
+        setWake(true);
+        earcons.play('captured');
+      },
+      disableWake: function () {
+        setWake(false);
+        earcons.play('cancel');
+        announce(copy.wakeOff);
+      },
+      isWakeEnabled: function () { return wakeEnabled; },
       toggleWake: function () {
         // Turned on from a click, so the browser can ask for the microphone.
         setWake(!wakeEnabled);

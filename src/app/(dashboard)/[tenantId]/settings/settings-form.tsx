@@ -30,6 +30,8 @@ import {
 } from '@/components/widget-installation-assistant'
 
 type SettingsFormLabels = AgentVoicePickerLabels & {
+  voiceInvitation: string
+  voiceInvitationHint: string
   chatbot: string
   widgetAvailability: string
   widgetAvailabilityHint: string
@@ -151,6 +153,7 @@ type SettingsFormProps = {
     fallbackMessage: string | null
     fallbackWhatsApp: boolean
     agentVoice: AgentVoice
+    voiceInvitation: boolean
   }
   voiceOptions: { value: AgentVoice; label: string; description: string }[]
   hasUsableKnowledge: boolean
@@ -729,6 +732,17 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, ha
           </section>
 
           <section className="card stack">
+            <label className="voice-invitation-toggle">
+              <input
+                type="checkbox"
+                name="voice_invitation"
+                defaultChecked={widgetConfig.voiceInvitation}
+              />
+              <span>
+                <strong>{labels.voiceInvitation}</strong>
+                <span className="muted">{labels.voiceInvitationHint}</span>
+              </span>
+            </label>
             <AgentVoicePicker
               tenantId={tenantId}
               defaultVoice={widgetConfig.agentVoice}

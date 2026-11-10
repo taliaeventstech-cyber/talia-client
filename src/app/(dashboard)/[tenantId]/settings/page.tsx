@@ -2,7 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { SettingsForm } from './settings-form'
-import { getAgentVoiceFromWidgetConfig, getAgentVoiceOptions } from '@/lib/widget/agent-voices'
+import { getAgentVoiceFromWidgetConfig, getAgentVoiceOptions, isVoiceInvitationEnabled } from '@/lib/widget/agent-voices'
 import { normalizeChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import { normalizeWidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { normalizeProactiveGreeting } from '@/lib/widget/proactive-greeting'
@@ -88,6 +88,7 @@ export default async function SettingsPage({ params }: Props) {
             fallbackMessage: aiSettings.fallbackMessage,
             fallbackWhatsApp: aiSettings.fallbackWhatsApp,
             agentVoice: getAgentVoiceFromWidgetConfig(theatre.widget_config),
+            voiceInvitation: isVoiceInvitationEnabled(theatre.widget_config),
           }}
           voiceOptions={getAgentVoiceOptions(locale)}
           hasUsableKnowledge={hasUsableKnowledge}

@@ -1,5 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
-import { getAgentVoiceFromWidgetConfig, type AgentVoice } from '@/lib/widget/agent-voices'
+import { getAgentVoiceFromWidgetConfig, isVoiceInvitationEnabled, type AgentVoice } from '@/lib/widget/agent-voices'
 import { getBillingAccess } from '@/lib/billing/access'
 import { normalizeChatbotAiSettings, type ChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import type { Json } from '@/types/database.types'
@@ -47,6 +47,8 @@ export type PublicWidgetConfig = {
   compliance: WidgetComplianceCopy & { privacyUrl: string }
   installedWebCapture: InstalledWebCaptureSettings
   accessibility: PublicAccessibilityConfig
+  /** Invite visitors to turn on voice ("Di «Hola TALIA»") on first visit. */
+  voiceInvitation: boolean
 }
 
 export type WidgetPosition = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
@@ -241,6 +243,7 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
       },
       installedWebCapture: widgetConfig.installedWebCapture,
       accessibility: widgetConfig.accessibility,
+      voiceInvitation: isVoiceInvitationEnabled(data.widget_config),
     } satisfies PublicWidgetConfig,
   }
 }

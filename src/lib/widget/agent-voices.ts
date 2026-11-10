@@ -35,6 +35,17 @@ export function getAgentVoiceFromWidgetConfig(widgetConfig: unknown): AgentVoice
   return normalizeAgentVoice(config.agentVoice ?? config.agent_voice)
 }
 
+/**
+ * Whether the venue invites visitors to turn on voice ("Di «Hola TALIA»") on
+ * their first visit. Off unless explicitly enabled; the microphone still
+ * only turns on after the visitor accepts in the widget.
+ */
+export function isVoiceInvitationEnabled(widgetConfig: unknown): boolean {
+  if (!widgetConfig || typeof widgetConfig !== 'object' || Array.isArray(widgetConfig)) return false
+  const config = widgetConfig as { voiceInvitation?: unknown; voice_invitation?: unknown }
+  return (config.voiceInvitation ?? config.voice_invitation) === true
+}
+
 type VoiceLocale = 'es' | 'ca' | 'en' | 'pt-BR'
 
 // Short, human descriptions to help a venue pick; they can listen to each one.

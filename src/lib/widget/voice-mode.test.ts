@@ -213,3 +213,39 @@ describe('widget hands-free conversation and wake word', () => {
     expect(widgetSource).toContain('announce(copy.handsFreeEnded);')
   })
 })
+
+describe('widget voice invitation on first visit', () => {
+  it('only shows when the venue enabled it, once per browser, and never turns the mic on by itself', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain("config.voiceInvitation === true && !getStoredValue(voiceInviteKey) && !voice.isWakeEnabled()")
+    // The microphone (wake word) is only enabled from the visitor's click.
+    expect(widgetSource).toMatch(/inviteAccept\.addEventListener\('click', function \(\) \{[\s\S]*?voice\.enableWake\(\);/)
+    expect(widgetSource).not.toMatch(/setTimeout\([^)]*enableWake/)
+  })
+
+  it('lets the visitor decline or turn voice off again from the same message', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain("if (inviteAccepted) voice.disableWake();")
+    expect(widgetSource).toContain("setStoredValue(voiceInviteKey, 'declined');")
+    expect(widgetSource).toContain('inviteDecline.textContent = voiceCopy.inviteDisable;')
+  })
+
+  it.each(['es', 'ca', 'en', 'pt-BR'])('is fully localized with an explicit microphone notice (%s)', async (language) => {
+    const widgetSource = await readWidget()
+    const start = widgetSource.indexOf('  function isApplePlatform()')
+    const end = widgetSource.indexOf('  function createVoiceController(')
+    const getVoiceCopy = new Function(`${widgetSource.slice(start, end)}; return getVoiceCopy;`)() as (
+      language: string,
+      apple: boolean,
+    ) => Record<string, string>
+    const copy = getVoiceCopy(language, false)
+
+    for (const key of ['inviteTitle', 'inviteBody', 'inviteAccept', 'inviteDecline', 'inviteOnTitle', 'inviteOnBody', 'inviteDisable', 'inviteLabel']) {
+      expect(copy[key]).toBeTruthy()
+    }
+    expect(copy.inviteTitle).toMatch(/TALIA/)
+    expect(copy.inviteBody).toMatch(/micr[oóò](f|ph)on/i)
+  })
+})
