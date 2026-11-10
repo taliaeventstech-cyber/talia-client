@@ -1,4 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
+import { getAgentVoiceFromWidgetConfig, type AgentVoice } from '@/lib/widget/agent-voices'
 import { getBillingAccess } from '@/lib/billing/access'
 import { normalizeChatbotAiSettings, type ChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import type { Json } from '@/types/database.types'
@@ -105,6 +106,8 @@ export type TenantChatConfig = {
   websiteUrl: string | null
   aiSettings: ChatbotAiSettings
   suggestedQuestions: SuggestedQuestion[]
+  /** Voice chosen in Agora for spoken Web Agent replies. */
+  agentVoice?: AgentVoice
 }
 
 export type KnowledgeFaqItem = {
@@ -277,6 +280,7 @@ export async function getTenantChatConfig(admin: AdminClient, tenantId: string) 
       websiteUrl: data.website_url,
       aiSettings: widgetConfig.aiSettings,
       suggestedQuestions: widgetConfig.suggestedQuestions,
+      agentVoice: getAgentVoiceFromWidgetConfig(data.widget_config),
     } satisfies TenantChatConfig,
   }
 }

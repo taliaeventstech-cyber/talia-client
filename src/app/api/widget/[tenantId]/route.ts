@@ -2,6 +2,7 @@ import { corsJson, corsNoContent } from '@/lib/http/cors'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getPublicWidgetConfig } from '@/lib/tenants/service'
 import { getTenantWidgetDomainSettings, validateWidgetRequestDomain } from '@/lib/widget/domain-allowlist'
+import { getPublicVoiceConfig } from '@/lib/widget/speech'
 
 export async function GET(
   request: Request,
@@ -29,7 +30,10 @@ export async function GET(
     return corsJson({ error: result.error }, { status: 404 })
   }
 
-  return corsJson(result.config)
+  // Disabled widgets keep a minimal, silent configuration.
+  if (result.config.enabled === false) return corsJson(result.config)
+
+  return corsJson({ ...result.config, voice: getPublicVoiceConfig() })
 }
 
 export function OPTIONS() {

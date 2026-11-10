@@ -7,10 +7,12 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { CopyScriptButton } from '@/components/copy-script-button'
 import { updateTenantSettings, type SettingsFormState } from './actions'
+import { AgentVoicePicker, type AgentVoicePickerLabels } from './agent-voice-picker'
+import type { AgentVoice } from '@/lib/widget/agent-voices'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry } from '@/lib/phone/international'
 import Image from 'next/image'
-import { ArrowDown, ArrowUp, Bot, ChevronLeft, MessageCircle, MessageCircleMore, Plus, RefreshCcw, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bot, ChevronLeft, MessageCircle, MessageCircleMore, Mic, Plus, RefreshCcw, Trash2, Volume2 } from 'lucide-react'
 import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { getSessionFeedbackCopy } from '@/lib/widget/session-feedback-copy'
 import {
@@ -27,7 +29,7 @@ import {
   type WidgetInstallationAssistantLabels,
 } from '@/components/widget-installation-assistant'
 
-type SettingsFormLabels = {
+type SettingsFormLabels = AgentVoicePickerLabels & {
   chatbot: string
   widgetAvailability: string
   widgetAvailabilityHint: string
@@ -148,7 +150,9 @@ type SettingsFormProps = {
     allowedDomains: string[]
     fallbackMessage: string | null
     fallbackWhatsApp: boolean
+    agentVoice: AgentVoice
   }
+  voiceOptions: { value: AgentVoice; label: string; description: string }[]
   hasUsableKnowledge: boolean
   labels: SettingsFormLabels
   compliance: WidgetComplianceCopy
@@ -180,7 +184,7 @@ const initialState: SettingsFormState = {
   message: '',
 }
 
-export function SettingsForm({ tenantId, theatre, widgetConfig, hasUsableKnowledge, labels, compliance, previewLabel, integration }: SettingsFormProps) {
+export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, hasUsableKnowledge, labels, compliance, previewLabel, integration }: SettingsFormProps) {
   const router = useRouter()
   const [state, formAction, pending] = useActionState(updateTenantSettings.bind(null, tenantId), initialState)
   const [widgetEnabled, setWidgetEnabled] = useState(widgetConfig.enabled)
@@ -721,6 +725,15 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, hasUsableKnowled
               rows={4}
               className="mono"
               placeholder="staging.example.com&#10;preview.example.com"
+            />
+          </section>
+
+          <section className="card stack">
+            <AgentVoicePicker
+              tenantId={tenantId}
+              defaultVoice={widgetConfig.agentVoice}
+              options={voiceOptions}
+              labels={labels}
             />
           </section>
 
@@ -1335,6 +1348,16 @@ function WidgetPreview({
             </span>
           </span>
           <span className="widget-preview-header-actions">
+            {/* Mirrors the installed widget's voice controls (public/widget.js); inert in preview. */}
+            <button
+              type="button"
+              className="widget-preview-icon-button widget-preview-voice-control"
+              aria-label="Leer respuestas en voz alta"
+              title="Leer respuestas en voz alta"
+              aria-disabled="true"
+            >
+              <Volume2 aria-hidden="true" strokeWidth={2} />
+            </button>
             <button
               type="button"
               className="widget-preview-icon-button widget-preview-restart"
@@ -1469,6 +1492,16 @@ function WidgetPreview({
             placeholder="Escribe tu mensaje..."
             onInput={(event) => resizePreviewComposer(event.currentTarget)}
           />
+          <button
+            type="button"
+            className="widget-preview-mic"
+            disabled
+            aria-label="Hablar con el agente (Alt+Mayús+V; en Mac, Opción+Mayús+V)"
+            title="Hablar con el agente (Alt+Mayús+V; en Mac, Opción+Mayús+V)"
+            style={{ color }}
+          >
+            <Mic aria-hidden="true" strokeWidth={2} />
+          </button>
           <button type="button" disabled style={{ background: color }}>Enviar</button>
         </div>
         <div
