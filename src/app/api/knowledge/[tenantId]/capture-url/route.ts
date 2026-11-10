@@ -5,6 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
+// Ids are installed pages (knowledge_documents rows of the venue's
+// installed-web source). The query parameters keep their historical names.
 const batchCaptureSchema = z.object({
   sourceIds: z.array(z.string().uuid()).min(1).max(20),
 })
@@ -31,38 +33,33 @@ export async function GET(
     }
     return createBatchCaptureResponse({
       tenantId,
-      sourceIds: parsedSourceIds.data.sourceIds,
+      pageIds: parsedSourceIds.data.sourceIds,
       origin: request.nextUrl.origin,
       redirect: request.nextUrl.searchParams.get('redirect') === '1',
     })
   }
 
-  const sourceId = request.nextUrl.searchParams.get('sourceId')
-  if (!sourceId) {
+  const pageId = request.nextUrl.searchParams.get('sourceId')
+  if (!pageId || !z.string().uuid().safeParse(pageId).success) {
     return noStoreJson({ error: 'source_id_required' }, { status: 400 })
   }
 
   const admin = createAdminClient()
-  const { data: source, error } = await admin
-    .from('knowledge_sources')
-    .select('id, source_url, type')
-    .eq('id', sourceId)
-    .eq('theatre_id', tenantId)
-    .eq('type', 'web_snapshot')
-    .maybeSingle()
+  const { data: pages, error } = await loadInstalledPages(admin, tenantId, [pageId])
 
   if (error) {
     return noStoreJson({ error: error.message }, { status: 500 })
   }
 
-  if (!source?.source_url) {
+  const page = pages?.[0]
+  if (!page?.canonical_url) {
     return noStoreJson({ error: 'source_not_found' }, { status: 404 })
   }
 
   const captureUrl = getSignedCaptureUrl({
     tenantId,
-    sourceId: source.id,
-    sourceUrl: source.source_url,
+    documentId: page.id,
+    sourceUrl: page.canonical_url,
     captureApiBase: request.nextUrl.origin,
   })
 
@@ -87,59 +84,67 @@ export async function POST(
 
   return createBatchCaptureResponse({
     tenantId,
-    sourceIds: parsed.data.sourceIds,
+    pageIds: parsed.data.sourceIds,
     origin: request.nextUrl.origin,
     redirect: false,
   })
 }
 
+function loadInstalledPages(
+  admin: ReturnType<typeof createAdminClient>,
+  tenantId: string,
+  pageIds: string[],
+) {
+  return admin
+    .from('knowledge_documents')
+    .select('id, canonical_url, knowledge_sources!inner(type)')
+    .eq('theatre_id', tenantId)
+    .eq('knowledge_sources.type', 'web_snapshot')
+    .in('id', pageIds)
+}
+
 async function createBatchCaptureResponse({
   tenantId,
-  sourceIds,
+  pageIds,
   origin,
   redirect,
 }: {
   tenantId: string
-  sourceIds: string[]
+  pageIds: string[]
   origin: string
   redirect: boolean
 }) {
   const admin = createAdminClient()
-  const { data: sources, error } = await admin
-    .from('knowledge_sources')
-    .select('id, source_url, type')
-    .eq('theatre_id', tenantId)
-    .eq('type', 'web_snapshot')
-    .in('id', sourceIds)
+  const { data: pages, error } = await loadInstalledPages(admin, tenantId, pageIds)
 
   if (error) {
     return noStoreJson({ error: error.message }, { status: 500 })
   }
 
-  const validSourceIds = new Set((sources ?? [])
-    .filter((source) => Boolean(source.source_url))
-    .map((source) => source.id))
-  const orderedSourceIds = sourceIds.filter((sourceId) => validSourceIds.has(sourceId))
-  const firstSource = (sources ?? []).find((source) => source.id === orderedSourceIds[0])
+  const validPageIds = new Set((pages ?? [])
+    .filter((page) => Boolean(page.canonical_url))
+    .map((page) => page.id))
+  const orderedPageIds = pageIds.filter((pageId) => validPageIds.has(pageId))
+  const firstPage = (pages ?? []).find((page) => page.id === orderedPageIds[0])
 
-  if (!firstSource?.source_url) {
+  if (!firstPage?.canonical_url) {
     return noStoreJson({ error: 'source_not_found' }, { status: 404 })
   }
 
   const batchToken = createWebCaptureBatchToken({
     tenantId,
-    sourceIds: orderedSourceIds,
+    documentIds: orderedPageIds,
     expiresInSeconds: CAPTURE_BATCH_TOKEN_TTL_SECONDS,
   })
 
   const captureUrl = getSignedCaptureUrl({
     tenantId,
-    sourceId: firstSource.id,
-    sourceUrl: firstSource.source_url,
+    documentId: firstPage.id,
+    sourceUrl: firstPage.canonical_url,
     captureApiBase: origin,
     batchToken,
     batchIndex: 0,
-    batchTotal: orderedSourceIds.length,
+    batchTotal: orderedPageIds.length,
   })
 
   if (redirect) {
@@ -148,7 +153,7 @@ async function createBatchCaptureResponse({
 
   return noStoreJson({
     captureUrl,
-    total: orderedSourceIds.length,
+    total: orderedPageIds.length,
   })
 }
 

@@ -75,4 +75,31 @@ describe('response sources', () => {
       additionalCount: 0,
     })
   })
+
+  it('labels installed-widget evidence with its page, even when the old page source is gone', () => {
+    const references = [{
+      id: '11111111-1111-4111-8111-111111111111',
+      sourceId: '22222222-2222-4222-8222-222222222222',
+      sourceType: 'web_snapshot',
+    }]
+    const result = resolveResponseSourcesByMessageId(
+      new Map([['message-1', references]]),
+      [],
+      [],
+      new Map([['11111111-1111-4111-8111-111111111111', { title: 'Helenas - Sala Fènix', url: 'https://salafenix.com/programacio/helenas' }]]),
+    )
+
+    expect(result.get('message-1')?.sources).toEqual([{ label: 'Helenas - Sala Fènix', href: 'installed' }])
+  })
+
+  it('falls back to the page path when the captured page has no title', () => {
+    const result = resolveResponseSourcesByMessageId(
+      new Map([['message-1', [{ id: '33333333-3333-4333-8333-333333333333', sourceId: null, sourceType: 'web_snapshot' }]]]),
+      [],
+      [],
+      new Map([['33333333-3333-4333-8333-333333333333', { title: null, url: 'https://www.salafenix.com/contacte' }]]),
+    )
+
+    expect(result.get('message-1')?.sources).toEqual([{ label: 'salafenix.com/contacte', href: 'installed' }])
+  })
 })

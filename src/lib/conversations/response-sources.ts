@@ -22,6 +22,9 @@ type KnowledgeItemRow = {
   question: string
 }
 
+/** Installed-widget page behind a cited chunk (chunk id -> page). */
+export type InstalledPageByChunkId = Map<string, { title: string | null; url: string }>
+
 export type ResponseSource = {
   label: string
   href: string
@@ -63,18 +66,43 @@ export async function getResponseSourcesByMessageId(
     ...references.map((reference) => reference.sourceId),
     ...items.map((item) => item.source_id),
   ])
-  const sourcesResult = sourceIds.length
-    ? await admin
-      .from('knowledge_sources')
-      .select('id, name, type')
-      .eq('theatre_id', input.tenantId)
-      .in('id', sourceIds)
-    : { data: [] }
+  const chunkIds = uniqueUuidIds(references.map((reference) => reference.id))
+  const [sourcesResult, pagesResult] = await Promise.all([
+    sourceIds.length
+      ? admin
+        .from('knowledge_sources')
+        .select('id, name, type')
+        .eq('theatre_id', input.tenantId)
+        .in('id', sourceIds)
+      : Promise.resolve({ data: [] }),
+    chunkIds.length
+      ? admin
+        .from('knowledge_chunks')
+        .select('id, knowledge_documents!inner(title, canonical_url, capture_method)')
+        .eq('theatre_id', input.tenantId)
+        .eq('knowledge_documents.capture_method', 'installed_widget')
+        .in('id', chunkIds)
+      : Promise.resolve({ data: [] }),
+  ])
+
+  const pagesByChunkId: InstalledPageByChunkId = new Map()
+  for (const row of (pagesResult.data ?? []) as Array<{
+    id: string
+    knowledge_documents: { title: string | null; canonical_url: string } | null
+  }>) {
+    if (row.knowledge_documents) {
+      pagesByChunkId.set(row.id, {
+        title: row.knowledge_documents.title,
+        url: row.knowledge_documents.canonical_url,
+      })
+    }
+  }
 
   return resolveResponseSourcesByMessageId(
     referencesByMessageId,
     items,
     (sourcesResult.data ?? []) as KnowledgeSourceRow[],
+    pagesByChunkId,
   )
 }
 
@@ -100,6 +128,7 @@ export function resolveResponseSourcesByMessageId(
   referencesByMessageId: Map<string, SourceReference[]>,
   items: KnowledgeItemRow[],
   sources: KnowledgeSourceRow[],
+  pagesByChunkId: InstalledPageByChunkId = new Map(),
 ): ResponseSourcesByMessageId {
   const itemById = new Map(items.map((item) => [item.id, item]))
   const sourceById = new Map(sources.map((source) => [source.id, source]))
@@ -114,6 +143,13 @@ export function resolveResponseSourcesByMessageId(
           external: true,
         }]
       }
+      // Installed-widget evidence is labelled by its page, which also resolves
+      // responses recorded before pages were grouped under one source.
+      const page = reference.id ? pagesByChunkId.get(reference.id) : undefined
+      if (page) {
+        return [{ label: truncate(page.title || getPageLabel(page.url), 120), href: 'installed' }]
+      }
+
       const directSource = reference.sourceId ? sourceById.get(reference.sourceId) : undefined
       if (directSource) return [toResponseSource(directSource)]
 
@@ -154,6 +190,15 @@ function toResponseSource(source: KnowledgeSourceRow): ResponseSource {
   return {
     label: truncate(source.name, 120),
     href: getKnowledgeTab(source.type),
+  }
+}
+
+function getPageLabel(url: string) {
+  try {
+    const parsed = new URL(url)
+    return `${parsed.hostname.replace(/^www\./, '')}${parsed.pathname === '/' ? '' : parsed.pathname}`
+  } catch {
+    return url
   }
 }
 
