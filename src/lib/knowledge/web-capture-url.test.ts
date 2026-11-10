@@ -16,7 +16,7 @@ describe('getSignedCaptureUrl', () => {
   it('signs the clean landing URL and carries capture params in the hash', () => {
     const captureUrl = getSignedCaptureUrl({
       tenantId: 'tenant-1',
-      sourceId: 'source-1',
+      documentId: 'source-1',
       sourceUrl: 'https://example.com/programa#agenda',
       captureApiBase: 'https://agora.example.test',
     })

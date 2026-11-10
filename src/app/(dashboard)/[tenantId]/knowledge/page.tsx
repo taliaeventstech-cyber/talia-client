@@ -64,6 +64,7 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
     sourcesResult,
     managedWebQuota,
     { data: theatreSettings },
+    { data: installedPageRows },
     { data: widgetInstallations },
   ] = await Promise.all([
     admin
@@ -78,6 +79,14 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
       .select('widget_config')
       .eq('id', tenantId)
       .maybeSingle(),
+    activeTab === 'installed'
+      ? admin
+        .from('knowledge_documents')
+        .select('id, canonical_url, title, status, metadata, last_discovered_at, last_fetched_at, last_error, created_at, knowledge_sources!inner(type)')
+        .eq('theatre_id', tenantId)
+        .eq('knowledge_sources.type', 'web_snapshot')
+        .neq('status', 'removed')
+      : Promise.resolve({ data: [] }),
     activeTab === 'installed'
       ? admin
         .from('widget_installations')
@@ -103,7 +112,14 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
       : knowledgeItemsQuery.is('source_id', null))
     : { data: [], count: 0 }
 
-  const rawKnowledgeSources = sourcesResult.data ?? []
+  // Installed-widget captures are one logical source with one document per
+  // page; Agora keeps listing them page by page.
+  const installedPages = (installedPageRows ?? []).map(toInstalledPageRow)
+  const installedPageIds = new Set(installedPages.map((page) => page.id))
+  const rawKnowledgeSources = [
+    ...(sourcesResult.data ?? []).filter((source) => source.type !== 'web_snapshot'),
+    ...installedPages,
+  ]
   const dedupedInstalledSources = activeTab === 'installed'
     ? [
       ...rawKnowledgeSources.filter((source) => source.type !== 'web_snapshot'),
@@ -121,7 +137,19 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
   const knowledgeSources = activeTab === 'installed'
     ? dedupedInstalledSources.slice(currentFrom, currentFrom + pageSize)
     : rawKnowledgeSources
-  const sourceIds = knowledgeSources.map((source) => source.id)
+  const sourceIds = knowledgeSources
+    .filter((source) => !installedPageIds.has(source.id))
+    .map((source) => source.id)
+  const visiblePageIds = knowledgeSources
+    .filter((source) => installedPageIds.has(source.id))
+    .map((source) => source.id)
+  const { data: pageChunks } = visiblePageIds.length
+    ? await admin
+      .from('knowledge_chunks')
+      .select('document_id, embedding_status')
+      .in('document_id', visiblePageIds)
+      .eq('active', true)
+    : { data: [] }
   const [{ data: sourceChunks }, { data: sourceDocuments }, { data: sourceSyncRuns }] = sourceIds.length
     ? await Promise.all([
       admin
@@ -142,15 +170,19 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
     : [{ data: [] }, { data: [] }, { data: [] }]
   const chunkCounts = new Map<string, number>()
   const embeddingCounts = new Map<string, { ready: number; pending: number; processing: number; error: number }>()
-  for (const chunk of sourceChunks ?? []) {
-    if (!chunk.source_id) continue
-    chunkCounts.set(chunk.source_id, (chunkCounts.get(chunk.source_id) ?? 0) + 1)
-    const current = embeddingCounts.get(chunk.source_id) ?? { ready: 0, pending: 0, processing: 0, error: 0 }
-    if (chunk.embedding_status === 'ready') current.ready += 1
-    else if (chunk.embedding_status === 'processing') current.processing += 1
-    else if (chunk.embedding_status === 'error') current.error += 1
+  const chunkRows = [
+    ...(sourceChunks ?? []).map((chunk) => ({ key: chunk.source_id, status: chunk.embedding_status })),
+    ...(pageChunks ?? []).map((chunk) => ({ key: chunk.document_id, status: chunk.embedding_status })),
+  ]
+  for (const chunk of chunkRows) {
+    if (!chunk.key) continue
+    chunkCounts.set(chunk.key, (chunkCounts.get(chunk.key) ?? 0) + 1)
+    const current = embeddingCounts.get(chunk.key) ?? { ready: 0, pending: 0, processing: 0, error: 0 }
+    if (chunk.status === 'ready') current.ready += 1
+    else if (chunk.status === 'processing') current.processing += 1
+    else if (chunk.status === 'error') current.error += 1
     else current.pending += 1
-    embeddingCounts.set(chunk.source_id, current)
+    embeddingCounts.set(chunk.key, current)
   }
   const documentCounts = new Map<string, number>()
   for (const document of sourceDocuments ?? []) {
@@ -224,6 +256,40 @@ export default async function KnowledgePage({ params, searchParams }: Props) {
       </section>
     </main>
   )
+}
+
+function toInstalledPageRow(page: {
+  id: string
+  canonical_url: string
+  title: string | null
+  status: string
+  metadata: unknown
+  last_discovered_at: string | null
+  last_fetched_at: string | null
+  last_error: string | null
+  created_at: string
+}) {
+  const metadata = isRecord(page.metadata) ? page.metadata : {}
+  return {
+    id: page.id,
+    type: 'web_snapshot' as const,
+    name: page.title || page.canonical_url,
+    // Documents use pending/blocked; the installed-page UI speaks in source terms.
+    status: page.status === 'pending' ? 'connected' : page.status === 'blocked' ? 'error' : page.status,
+    sync_enabled: false,
+    config: {
+      ...metadata,
+      capture_url: page.canonical_url,
+      page_title: page.title,
+      last_seen_at: page.last_discovered_at,
+    },
+    source_url: page.canonical_url,
+    refresh_interval: 'manual',
+    next_sync_at: null,
+    last_synced_at: page.last_fetched_at,
+    last_error: page.last_error,
+    created_at: page.created_at,
+  }
 }
 
 function getSourceTypesForTab(tab: KnowledgeTab): SourceType[] {

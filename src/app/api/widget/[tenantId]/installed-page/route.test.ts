@@ -45,6 +45,7 @@ describe('POST /api/widget/[tenantId]/installed-page', () => {
       ok: true,
       message: 'registered',
       sourceId: 'source-1',
+      documentId: 'page-1',
     })
     vi.mocked(ingestWebSnapshotSource).mockResolvedValue({ ok: true, message: 'processed', count: 3 })
   })
@@ -74,10 +75,10 @@ describe('POST /api/widget/[tenantId]/installed-page', () => {
     const response = await postInstalledPage(requestBody)
 
     expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toMatchObject({ processed: true, chunks: 3 })
+    await expect(response.json()).resolves.toMatchObject({ processed: true, chunks: 3, page_id: 'page-1' })
     expect(ingestWebSnapshotSource).toHaveBeenCalledWith(expect.objectContaining({
       tenantId: 'tenant-1',
-      sourceId: 'source-1',
+      documentId: 'page-1',
       captureMode: 'automatic',
     }))
   })
