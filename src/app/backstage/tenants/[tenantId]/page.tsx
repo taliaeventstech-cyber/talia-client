@@ -2100,7 +2100,7 @@ function getSourceTypeLabel(type: string) {
   if (type === 'url') return 'URL'
   if (type === 'sitemap') return 'Sitemap'
   if (type === 'website') return 'Web completa'
-  if (type === 'web_snapshot') return 'Página web capturada'
+  if (type === 'web_snapshot') return 'Web capturada por el widget'
   return type
 }
 

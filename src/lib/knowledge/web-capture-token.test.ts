@@ -25,7 +25,7 @@ describe('web capture tokens', () => {
   it('uses a 24 hour default ttl so capture links survive an open Agora tab', () => {
     const token = createWebCaptureToken({
       tenantId: 'tenant-1',
-      sourceId: 'source-1',
+      documentId: 'source-1',
       url: 'https://example.com/programacion',
     })
 
@@ -33,7 +33,7 @@ describe('web capture tokens', () => {
 
     expect(verifyWebCaptureToken(token)).toMatchObject({
       tenantId: 'tenant-1',
-      sourceId: 'source-1',
+      documentId: 'source-1',
       url: 'https://example.com/programacion',
     })
   })
@@ -42,7 +42,7 @@ describe('web capture tokens', () => {
     process.env.WEB_CAPTURE_TOKEN_TTL_SECONDS = '120'
     const token = createWebCaptureToken({
       tenantId: 'tenant-1',
-      sourceId: 'source-1',
+      documentId: 'source-1',
       url: 'https://example.com/programacion',
     })
 
@@ -54,12 +54,12 @@ describe('web capture tokens', () => {
   it('signs a batch of installed pages for sequential capture', () => {
     const token = createWebCaptureBatchToken({
       tenantId: 'tenant-1',
-      sourceIds: ['source-1', 'source-2'],
+      documentIds: ['source-1', 'source-2'],
     })
 
     expect(verifyWebCaptureBatchToken(token)).toMatchObject({
       tenantId: 'tenant-1',
-      sourceIds: ['source-1', 'source-2'],
+      documentIds: ['source-1', 'source-2'],
     })
   })
 })

@@ -1164,7 +1164,29 @@ export async function deleteKnowledgeSource(
     .maybeSingle()
 
   if (sourceError) return { ok: false, error: sourceError.message }
-  if (!source) return { ok: false, error: 'Fuente no encontrada.' }
+  if (!source) {
+    // Installed-widget pages are documents of the venue's installed-web source.
+    const page = await admin
+      .from('knowledge_documents')
+      .select('id, knowledge_sources!inner(type)')
+      .eq('id', sourceId)
+      .eq('theatre_id', tenantId)
+      .eq('knowledge_sources.type', 'web_snapshot')
+      .maybeSingle()
+    if (page.error) return { ok: false, error: page.error.message }
+    if (!page.data) return { ok: false, error: 'Fuente no encontrada.' }
+
+    const pageDelete = await admin
+      .from('knowledge_documents')
+      .delete()
+      .eq('id', page.data.id)
+      .eq('theatre_id', tenantId)
+    if (pageDelete.error) return { ok: false, error: pageDelete.error.message }
+
+    revalidatePath(`/${tenantId}/knowledge`)
+    revalidatePath(`/${tenantId}/overview`)
+    return { ok: true }
+  }
 
   const config = isRecord(source.config) ? source.config : {}
   const storageBucket = typeof config.storage_bucket === 'string' ? config.storage_bucket : null

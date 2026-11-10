@@ -4,7 +4,7 @@ const CAPTURE_URL_TOKEN_TTL_SECONDS = 15 * 60
 
 export function getSignedCaptureUrl({
   tenantId,
-  sourceId,
+  documentId,
   sourceUrl,
   captureApiBase,
   batchToken,
@@ -12,7 +12,7 @@ export function getSignedCaptureUrl({
   batchTotal,
 }: {
   tenantId: string
-  sourceId: string
+  documentId: string
   sourceUrl: string
   captureApiBase?: string
   batchToken?: string
@@ -26,7 +26,7 @@ export function getSignedCaptureUrl({
   captureParams.set('talia_capture', '1')
   captureParams.set('talia_capture_token', createWebCaptureToken({
     tenantId,
-    sourceId,
+    documentId,
     url: signedUrl,
     expiresInSeconds: CAPTURE_URL_TOKEN_TTL_SECONDS,
   }))

@@ -586,6 +586,14 @@ Implemented:
   installed widget can submit visible public page text as pages are visited.
   Enabling the customer-facing fallback selects automatic capture; the legacy
   manual mode remains supported internally for existing configuration.
+- Installed-widget captures are one logical `knowledge_sources` row per venue
+  (`type = web_snapshot`, `config.installed_web_logical = true`, enforced by a
+  unique index) with one `knowledge_documents` row per captured page
+  (`capture_method = installed_widget`) and chunks linked by `document_id`.
+  Pages register, refresh, fail and get retired individually; Agora keeps
+  listing them page by page while Backstage and the Knowledge health counters
+  show a single web source. Capture tokens and "Desvincular" act on the page.
+  Response evidence from these chunks is labelled with the page title.
 - Installed-web sources are connected to `knowledge_sources` as
   `web_snapshot`: the installed widget extracts visible DOM text and `talia-ai`
   normalizes, chunks and generates embeddings. Automatic captures persist a
@@ -595,6 +603,12 @@ Implemented:
   URLs are admitted directly; other pages require both cultural and explicit
   date signals. Generic pages are marked as evaluated without an extraction
   model call, and each content hash is evaluated at most once.
+- Installed-web capture applies a lifecycle policy: archive listing URLs (tag,
+  category, author, pagination, search, feed and `?s=`/`?paged=`-style
+  parameters) are never registered and existing ones are deactivated when seen
+  again; a venue can register at most 50 new installed pages per rolling 24h;
+  and a page whose chunks an operator retired (`metadata.cleanup`, none
+  active) is not reprocessed, so a recapture cannot silently reactivate it.
 - Installed-web URLs are canonicalized across the widget, API and database. Tracking parameters are discarded, functional query parameters are preserved, duplicate rows are merged before a unique tenant/type/URL index is enforced, and page-presence writes are throttled to once per hour per source.
 - Agora can configure managed single-page, sitemap and bounded-website sources
   with manual, daily, weekly or monthly refresh policies. The persistence model

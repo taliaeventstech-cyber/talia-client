@@ -23,6 +23,7 @@ export type TaliaAiIngestResult = {
 export async function ingestKnowledgeTextWithTaliaAi({
   tenantId,
   sourceId,
+  documentId,
   sourceType,
   text,
   url,
@@ -31,6 +32,8 @@ export async function ingestKnowledgeTextWithTaliaAi({
 }: {
   tenantId: string
   sourceId: string
+  /** Page inside a logical source (installed-widget captures). */
+  documentId?: string
   sourceType: string
   text?: string
   url?: string
@@ -55,6 +58,7 @@ export async function ingestKnowledgeTextWithTaliaAi({
       body: JSON.stringify({
         tenant_id: tenantId,
         source_id: sourceId,
+        ...(documentId ? { document_id: documentId } : {}),
         source_type: sourceType,
         ...(text ? { text } : {}),
         ...(url ? { url } : {}),

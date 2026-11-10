@@ -63,12 +63,12 @@ export async function POST(
   if (
     tenant.config.installedWebCapture.mode === 'automatic'
     && parsed.data.text
-    && result.sourceId
+    && result.documentId
   ) {
     const ingest = await ingestWebSnapshotSource({
       admin,
       tenantId,
-      sourceId: result.sourceId,
+      documentId: result.documentId,
       url: parsed.data.url,
       title: parsed.data.title,
       heading: parsed.data.heading,
@@ -77,10 +77,10 @@ export async function POST(
       captureMode: 'automatic',
     })
     if (!ingest.ok) return corsJson({ ok: false, error: ingest.message }, { status: 422 })
-    return corsJson({ ok: true, source_id: result.sourceId, processed: true, chunks: ingest.count ?? 0 })
+    return corsJson({ ok: true, source_id: result.sourceId, page_id: result.documentId, processed: true, chunks: ingest.count ?? 0 })
   }
 
-  return corsJson({ ok: true, source_id: result.sourceId, processed: false })
+  return corsJson({ ok: true, source_id: result.sourceId, page_id: result.documentId, processed: false })
 }
 
 export function OPTIONS() {

@@ -15,6 +15,9 @@ security/TAL-XX-short-description
 ```
 
 Reference the Linear issue ID in the branch name and in the PR description.
+Work without a Linear issue (tooling, docs, housekeeping) uses `chore/short-description`.
+
+Agents follow the same names. Never create or push `claude/*` branches, including from Claude Code cloud sessions that start on one: branch from an up-to-date `develop` with a conventional name instead.
 
 After GitHub merges, follow
 [`docs/operations/git-sync-workflow.md`](docs/operations/git-sync-workflow.md)
