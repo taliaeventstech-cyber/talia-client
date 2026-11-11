@@ -82,8 +82,8 @@ Hands-free conversation and wake word:
   browser): while on, the browser's speech engine listens for "Hola / Hello /
   Hey / Olá / Bon dia TALIA" (also "Talía", "Thalia" or a one-word custom
   assistant name) and then opens the agent and starts listening. It only
-  listens while the agent is idle and the tab is visible, shows a green dot
-  on the launcher (and in its accessible name), restarts with backoff when
+  listens while the agent is idle and the tab is visible, shows the animated
+  sound bars on the launcher (and an accessible label), restarts with backoff when
   the browser ends recognition, and is hidden where browser recognition is
   unsupported (Firefox). Enabling it announces that the browser listens to
   the microphone while it is on; the privacy texts disclose it.
