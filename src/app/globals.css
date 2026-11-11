@@ -13542,6 +13542,24 @@ a.response-source-link:hover {
   gap: 4px;
 }
 
+/* Voice options in Agora: plain grouping, dimmed while voice is switched off. */
+.voice-options {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.voice-options:disabled {
+  opacity: 0.5;
+}
+
+.voice-options:disabled .voice-invitation-toggle {
+  cursor: not-allowed;
+}
+
 /* Web Agent settings: tabs by goal + sticky live preview (TAL-73) */
 .chatbot-settings-save-bar {
   position: sticky;

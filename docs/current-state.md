@@ -342,7 +342,10 @@ Implemented:
   (`/v1/voice/*`, OpenAI) on all plans, with measured per-call cost in
   `ai_usage_events`, and falls back to the browser's Web Speech engine. The
   widget privacy summary discloses voice processing; the Agora preview shows
-  the voice controls (inert). Details: `docs/requirements/chatbot.md`.
+  the voice controls (inert). Venues can switch voice off in Agora (Web Agent
+  → Voice, `widget_config.voiceEnabled`, on by default): the widget then hides
+  every voice control and the voice routes refuse with `voice_disabled`.
+  Details: `docs/requirements/chatbot.md`.
 - Auto-growing chat composer in production and preview, with `Enter` to send,
   `Shift + Enter` for line breaks and a bounded internal scroll for long drafts.
 - Per-response feedback uses a localized TALIA micro-survey with compact

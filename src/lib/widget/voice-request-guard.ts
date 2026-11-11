@@ -59,6 +59,11 @@ export async function guardVoiceRequest(
     return reject({ error: tenant.error }, 404)
   }
 
+  // The venue switched voice off in Agora: no paid speech calls at all.
+  if (tenant.config.voiceEnabled === false) {
+    return reject({ error: 'voice_disabled' }, 403)
+  }
+
   const domainSettings = await getTenantWidgetDomainSettings(admin, input.tenantId)
   if (!domainSettings.ok) {
     return reject({ error: domainSettings.error }, 404)

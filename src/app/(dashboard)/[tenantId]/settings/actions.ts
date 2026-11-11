@@ -254,8 +254,13 @@ export async function updateTenantSettings(
       allowedDomains: normalizeAllowedWidgetDomains(data.allowedDomains ?? ''),
       // Only known voices are stored; anything else falls back to the default.
       agentVoice: normalizeAgentVoice(formData.get('agent_voice') ?? existingWidget.agentVoice),
+      // Off hides every voice control in the widget and blocks the voice endpoints.
+      voiceEnabled: formData.get('voice_enabled') === 'on',
       // Visitors still have to accept in the widget before the mic turns on.
-      voiceInvitation: formData.get('voice_invitation') === 'on',
+      // Kept as it was while voice is off (its checkbox is disabled then).
+      voiceInvitation: formData.get('voice_enabled') === 'on'
+        ? formData.get('voice_invitation') === 'on'
+        : existingWidget.voiceInvitation === true,
       chatbotAi: chatbotAiSettingsToWidgetConfig({
         ...existingAiSettings,
         fallbackMessage: data.fallbackMessage || null,

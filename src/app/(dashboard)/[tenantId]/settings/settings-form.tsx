@@ -56,6 +56,8 @@ type SettingsFormLabels = AgentVoicePickerLabels & {
   sectionPrivacy: string
   voiceInvitation: string
   voiceInvitationHint: string
+  voiceEnabled: string
+  voiceEnabledHint: string
   chatbot: string
   widgetAvailability: string
   widgetAvailabilityHint: string
@@ -178,6 +180,7 @@ type SettingsFormProps = {
     fallbackWhatsApp: boolean
     agentVoice: AgentVoice
     voiceInvitation: boolean
+    voiceEnabled: boolean
   }
   voiceOptions: { value: AgentVoice; label: string; description: string }[]
   hasUsableKnowledge: boolean
@@ -277,6 +280,7 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, ha
     suggestedQuestions: widgetConfig.suggestedQuestions,
     fallbackLanguage: theatre.primary_language,
     pageUrl: theatre.website_url ?? '',
+    voiceEnabled: widgetConfig.voiceEnabled,
   })
   const [suggestedQuestions, setSuggestedQuestions] = useState(widgetConfig.suggestedQuestions)
 
@@ -600,20 +604,38 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, ha
               <label className="voice-invitation-toggle">
                 <input
                   type="checkbox"
-                  name="voice_invitation"
-                  defaultChecked={widgetConfig.voiceInvitation}
+                  name="voice_enabled"
+                  checked={previewConfig.voiceEnabled}
+                  onChange={(event) => {
+                    const voiceEnabled = event.target.checked
+                    setPreviewConfig((current) => ({ ...current, voiceEnabled }))
+                  }}
                 />
                 <span>
-                  <strong>{labels.voiceInvitation}</strong>
-                  <span className="muted">{labels.voiceInvitationHint}</span>
+                  <strong>{labels.voiceEnabled}</strong>
+                  <span className="muted">{labels.voiceEnabledHint}</span>
                 </span>
               </label>
-              <AgentVoicePicker
-                tenantId={tenantId}
-                defaultVoice={widgetConfig.agentVoice}
-                options={voiceOptions}
-                labels={labels}
-              />
+              {/* Voice options only apply while voice is on; they keep their saved values. */}
+              <fieldset className="voice-options" disabled={!previewConfig.voiceEnabled}>
+                <label className="voice-invitation-toggle">
+                  <input
+                    type="checkbox"
+                    name="voice_invitation"
+                    defaultChecked={widgetConfig.voiceInvitation}
+                  />
+                  <span>
+                    <strong>{labels.voiceInvitation}</strong>
+                    <span className="muted">{labels.voiceInvitationHint}</span>
+                  </span>
+                </label>
+                <AgentVoicePicker
+                  tenantId={tenantId}
+                  defaultVoice={widgetConfig.agentVoice}
+                  options={voiceOptions}
+                  labels={labels}
+                />
+              </fieldset>
             </section>
 
           </SettingsPanel>
@@ -1404,6 +1426,7 @@ function WidgetPreview({
     suggestedQuestions: SuggestedQuestion[]
     fallbackLanguage: string
     pageUrl: string
+    voiceEnabled: boolean
   }
   compliance: WidgetComplianceCopy
   suggestedQuestionsLabel: string
@@ -1570,15 +1593,17 @@ function WidgetPreview({
           </span>
           <span className="widget-preview-header-actions">
             {/* Mirrors the installed widget's voice controls (public/widget.js); inert in preview. */}
-            <button
-              type="button"
-              className="widget-preview-icon-button widget-preview-voice-control"
-              aria-label="Leer respuestas en voz alta"
-              title="Leer respuestas en voz alta"
-              aria-disabled="true"
-            >
-              <Volume2 aria-hidden="true" strokeWidth={2} />
-            </button>
+            {widgetConfig.voiceEnabled ? (
+              <button
+                type="button"
+                className="widget-preview-icon-button widget-preview-voice-control"
+                aria-label="Leer respuestas en voz alta"
+                title="Leer respuestas en voz alta"
+                aria-disabled="true"
+              >
+                <Volume2 aria-hidden="true" strokeWidth={2} />
+              </button>
+            ) : null}
             <button
               type="button"
               className="widget-preview-icon-button widget-preview-restart"
@@ -1749,16 +1774,18 @@ function WidgetPreview({
               }
             }}
           />
-          <button
-            type="button"
-            className="widget-preview-mic"
-            disabled
-            aria-label="Hablar con el agente (Alt+Mayús+V; en Mac, Opción+Mayús+V)"
-            title="Hablar con el agente (Alt+Mayús+V; en Mac, Opción+Mayús+V)"
-            style={{ color }}
-          >
-            <Mic aria-hidden="true" strokeWidth={2} />
-          </button>
+          {widgetConfig.voiceEnabled ? (
+            <button
+              type="button"
+              className="widget-preview-mic"
+              disabled
+              aria-label="Hablar con el agente (Alt+Mayús+V; en Mac, Opción+Mayús+V)"
+              title="Hablar con el agente (Alt+Mayús+V; en Mac, Opción+Mayús+V)"
+              style={{ color }}
+            >
+              <Mic aria-hidden="true" strokeWidth={2} />
+            </button>
+          ) : null}
           <button
             type="button"
             className="widget-preview-send"
