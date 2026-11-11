@@ -5,6 +5,7 @@ import { getWebPageRejection } from './web-page-validity'
 import {
   hasReachedDailyNewPageLimit,
   isArchiveListingUrl,
+  isRemovedInstalledPage,
   isRetiredInstalledPage,
   RETIRED_CHUNK_METADATA_KEY,
 } from './installed-web-lifecycle'
@@ -440,6 +441,14 @@ export async function ingestWebSnapshotSource({
 
   const page = await loadInstalledPage(admin, tenantId, documentId)
   if (!page.ok) return { ok: false, message: page.message }
+  if (isRemovedInstalledPage(page.data.status)) {
+    return {
+      ok: true,
+      count: 0,
+      replaced: false,
+      message: 'La página está retirada de Knowledge; no se ha vuelto a procesar.',
+    }
+  }
 
   const rejection = isArchiveListingUrl(normalizedUrl)
     ? { message: ARCHIVE_LISTING_MESSAGE }

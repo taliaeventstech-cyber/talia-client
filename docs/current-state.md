@@ -446,8 +446,9 @@ Implemented:
 - Internal chat runtime in `src/lib/agent-runtime/chat.ts`, with `talia-ai` as
   the sole provider for new web-chat responses.
 - Next acts as a gateway: it validates tenant, limits and session, and delegates
-  retrieval + response to `/v1/chat/respond`. A `talia-ai` failure remains
-  visible and never falls back to n8n.
+  retrieval + response to `/v1/chat/respond`. `talia-ai` is the only executable
+  web-agent provider; failures remain visible and have no secondary runtime
+  fallback.
 - `talia-ai` is the sole authority for visitor-language
   detection and response-language selection. Next sends the tenant language as
   `fallback_language` and requires `metadata.response_language` in successful
@@ -615,8 +616,9 @@ Implemented:
   category, author, pagination, search, feed and `?s=`/`?paged=`-style
   parameters) are never registered and existing ones are deactivated when seen
   again; a venue can register at most 50 new installed pages per rolling 24h;
-  and a page whose chunks an operator retired (`metadata.cleanup`, none
-  active) is not reprocessed, so a recapture cannot silently reactivate it.
+  and an operator-retired page remains as a `removed` document tombstone while
+  its chunks and structured events are deleted. A later visit cannot silently
+  recreate or reactivate that retired content.
 - Installed-web URLs are canonicalized across the widget, API and database. Tracking parameters are discarded, functional query parameters are preserved, duplicate rows are merged before a unique tenant/type/URL index is enforced, and page-presence writes are throttled to once per hour per source.
 - Agora can configure managed single-page, sitemap and bounded-website sources
   with manual, daily, weekly or monthly refresh policies. The persistence model
@@ -1107,9 +1109,6 @@ Do not take as a new model:
 Active debt:
 
 - Separate editable prompts from technical prompts.
-- Create a separate `talia-ai` repo following `docs/architecture/talia-ai-service.md`.
-- Remove dormant legacy n8n configuration and webhook routes after the
-  production rollback window closes.
 - Consolidate roadmap docs so there are no parallel sources.
 - Complete advanced roles and permissions.
 - Complete observability and reporting.

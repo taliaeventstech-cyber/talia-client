@@ -1627,8 +1627,6 @@ export type Database = {
           fallback_email: string | null
           fallback_phone: string | null
           id: string
-          n8n_hmac_secret: string | null
-          n8n_webhook_url: string | null
           name: string
           onboarding_completed: boolean
           onboarding_goals: Json
@@ -1652,7 +1650,6 @@ export type Database = {
           voice_system_prompt: string | null
           voice_temperature: number
           voice_tone: string
-          webhook_secret: string | null
           widget_config: Json
         }
         Insert: {
@@ -1663,8 +1660,6 @@ export type Database = {
           fallback_email?: string | null
           fallback_phone?: string | null
           id?: string
-          n8n_hmac_secret?: string | null
-          n8n_webhook_url?: string | null
           name: string
           onboarding_completed?: boolean
           onboarding_goals?: Json
@@ -1688,7 +1683,6 @@ export type Database = {
           voice_system_prompt?: string | null
           voice_temperature?: number
           voice_tone?: string
-          webhook_secret?: string | null
           widget_config?: Json
         }
         Update: {
@@ -1699,8 +1693,6 @@ export type Database = {
           fallback_email?: string | null
           fallback_phone?: string | null
           id?: string
-          n8n_hmac_secret?: string | null
-          n8n_webhook_url?: string | null
           name?: string
           onboarding_completed?: boolean
           onboarding_goals?: Json
@@ -1724,7 +1716,6 @@ export type Database = {
           voice_system_prompt?: string | null
           voice_temperature?: number
           voice_tone?: string
-          webhook_secret?: string | null
           widget_config?: Json
         }
         Relationships: [

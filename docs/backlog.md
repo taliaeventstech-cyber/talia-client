@@ -11,12 +11,12 @@ Status: pending
 Context:
 - The knowledge base is shared per venue.
 - Each channel has its own configuration: Chatbot, Email, Voice.
-- n8n workflows/agents also have technical system prompts.
+- `talia-ai` agents also have technical system prompts.
 
 Improvement:
 - Explicitly distinguish between `channelPrompt` and the agent's technical instructions.
 - `channelPrompt`: editable from product/backstage; defines tone, preferences, and channel behavior.
-- Technical prompt: lives in n8n/backend; contains hard rules, output format, safety limits, and the JSON contract.
+- Technical prompt: lives in `talia-ai`; contains hard rules, output format, safety limits, and the JSON contract.
 
 Rationale:
 - Prevents a user from breaking the agent's technical contract.

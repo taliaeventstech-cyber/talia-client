@@ -124,7 +124,6 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
       fallback_phone: input.fallbackPhone || null,
       widget_config: widgetConfig,
       system_prompt: buildInitialSystemPrompt(input),
-      n8n_webhook_url: getDefaultN8nWebhookUrl(),
     })
     .select('id')
     .single()
@@ -189,10 +188,6 @@ export async function createTenantForUser(admin: AdminClient, input: CreateTenan
   }
 
   return { ok: true as const, tenantId: theatre.id }
-}
-
-function getDefaultN8nWebhookUrl() {
-  return process.env.DEFAULT_N8N_WEBHOOK_URL || null
 }
 
 function buildInitialSystemPrompt(input: CreateTenantInput) {

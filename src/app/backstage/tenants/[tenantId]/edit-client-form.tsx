@@ -21,7 +21,6 @@ type Client = {
   website_url: string | null
   fallback_email: string | null
   fallback_phone: string | null
-  n8n_webhook_url: string | null
   system_prompt: string | null
   widget_config: unknown
   voice_phone_number: string | null
@@ -441,16 +440,6 @@ function ChatbotOperationsPanel({ client }: { client: Client }) {
 
         <div className="chatbot-config-card">
           <p className="eyebrow">Operación</p>
-          <label className="field field-important">
-            Webhook n8n
-            <input
-              name="chatbot_webhook_url"
-              type="url"
-              defaultValue={client.n8n_webhook_url ?? ''}
-              placeholder="https://n8n.talia.ai/webhook/..."
-            />
-            <span className="field-hint">Endpoint técnico que recibe los mensajes del widget.</span>
-          </label>
           <label className="field">
             Dominios autorizados adicionales
             <textarea

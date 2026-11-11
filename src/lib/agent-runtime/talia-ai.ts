@@ -22,7 +22,6 @@ export class TaliaAiChatAgentProvider implements ChatAgentProvider {
   async respond(input: ChatAgentRuntimeInput): Promise<ChatAgentRuntimeResult> {
     const baseUrl = process.env.TALIA_AI_BASE_URL?.replace(/\/$/, '')
     const apiKey = process.env.TALIA_AI_INTERNAL_API_KEY
-    const includeFallbackContacts = !input.relevantKnowledge?.some((item) => item.score >= 4)
     const aiSettings = normalizeChatbotAiSettings(input.tenant.aiSettings)
     const officialWebDomains = aiSettings.officialWebFallback
       ? getOfficialWebDomains(input.tenant.websiteUrl)
@@ -95,19 +94,9 @@ export class TaliaAiChatAgentProvider implements ChatAgentProvider {
               ...(aiSettings.fallbackMessage ? { custom_message: aiSettings.fallbackMessage } : {}),
               whatsapp_enabled: aiSettings.fallbackWhatsApp,
             },
-            ...(aiSettings.fallbackContacts && includeFallbackContacts && input.tenant.fallbackEmail ? { fallback_email: input.tenant.fallbackEmail } : {}),
-            ...(aiSettings.fallbackContacts && includeFallbackContacts && input.tenant.fallbackPhone ? { fallback_phone: input.tenant.fallbackPhone } : {}),
+            ...(aiSettings.fallbackContacts && input.tenant.fallbackEmail ? { fallback_email: input.tenant.fallbackEmail } : {}),
+            ...(aiSettings.fallbackContacts && input.tenant.fallbackPhone ? { fallback_phone: input.tenant.fallbackPhone } : {}),
           },
-          relevant_knowledge: input.relevantKnowledge?.map((item) => ({
-            id: item.id,
-            source_id: item.sourceId,
-            source_type: item.sourceType,
-            question: item.question,
-            answer: item.answer,
-            category: item.category,
-            priority: item.priority,
-            score: normalizeKnowledgeScore(item.score),
-          })) ?? [],
         }),
       })
 
@@ -268,10 +257,4 @@ function getResponseLanguage(metadata: unknown) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
-}
-
-function normalizeKnowledgeScore(score: number) {
-  if (!Number.isFinite(score)) return 0
-  if (score <= 1) return Math.max(0, score)
-  return Math.max(0, Math.min(1, score / 20))
 }

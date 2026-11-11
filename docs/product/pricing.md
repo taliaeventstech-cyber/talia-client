@@ -200,7 +200,7 @@ Recommended architecture:
 - Store `cost_estimate_cents` in `usage_events`.
 - Compare monthly against providers' actual invoices.
 
-While n8n manages part of the flow, the cost will be estimated if it does not return tokens. When we migrate to our own backend, tracking will be more reliable.
+The agent runtime returns measured per-component usage so TALIA can persist token and cost data against versioned prices.
 
 ## Hard Limits
 

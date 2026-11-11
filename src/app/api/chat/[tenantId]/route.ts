@@ -1,9 +1,7 @@
 import { getRecentConversationState, saveConversation } from '@/lib/chat/service'
 import { getFallbackChatAnalytics, parseChatAnalytics, saveConversationTopic } from '@/lib/analytics/topics'
-import { isTaliaAiPrimaryProvider, runChatAgent } from '@/lib/agent-runtime/chat'
+import { runChatAgent } from '@/lib/agent-runtime/chat'
 import { corsJson, corsNoContent } from '@/lib/http/cors'
-import { buildRelevantKnowledgeHints, retrieveTenantKnowledge } from '@/lib/knowledge/retrieval'
-import { detectChatLanguage } from '@/lib/chat/language'
 import { summarizeVerifiedChatActions } from '@/lib/chat/agent-actions'
 import {
   enforceAllowedContactEmails,
@@ -28,7 +26,6 @@ import { recordMeasuredAiUsage } from '@/lib/usage/ai-cost'
 import { consumeRateLimit, getClientIp } from '@/lib/auth/security'
 import {
   checkTenantLimit,
-  estimateOpenAiTextCostCents,
   estimateTokenCount,
   recordUsageEvent,
 } from '@/lib/usage/service'
@@ -206,111 +203,11 @@ export async function POST(
     metadata: suggestedQuestionTrace,
   })
 
-  const shouldDelegateKnowledgeToTaliaAi = isTaliaAiPrimaryProvider()
-  const recentConversation = shouldDelegateKnowledgeToTaliaAi
-    ? await getRecentConversationState(admin, tenantId, sessionId)
-    : { messages: [], latestAssistantMetadata: undefined }
-  const legacyVisitorLanguage = shouldDelegateKnowledgeToTaliaAi
-    ? null
-    : detectChatLanguage(message, tenant.config.language)
-  const pendingClarification = shouldDelegateKnowledgeToTaliaAi
-    ? extractPendingClarification(recentConversation.latestAssistantMetadata)
-    : undefined
-  const previousResolution = shouldDelegateKnowledgeToTaliaAi
-    ? extractPreviousConversationResolution(recentConversation.latestAssistantMetadata)
-    : undefined
-  const knowledge = shouldDelegateKnowledgeToTaliaAi
-    ? {
-      query: message,
-      channel: 'web' as const,
-      matches: [],
-      topMatch: null,
-      shouldAnswerDirectly: false,
-    }
-    : await retrieveTenantKnowledge({
-      admin,
-      tenantId,
-      query: message,
-      channel: 'web',
-      language: legacyVisitorLanguage ?? tenant.config.language,
-    })
-
-  if (legacyVisitorLanguage && knowledge.shouldAnswerDirectly && knowledge.topMatch && knowledge.topMatch.language === legacyVisitorLanguage) {
-    const match = knowledge.topMatch
-    const directKnowledgeMetadata = {
-      source: 'knowledge_retrieval',
-      user_message: message,
-      response_language: legacyVisitorLanguage,
-      retrieval_status: 'direct_match',
-      low_confidence: false,
-      knowledge_item_id: match.id,
-      knowledge_source_id: match.source_id,
-      knowledge_source_type: getKnowledgeSourceType(match.metadata),
-      knowledge_score: match.score,
-      agent_sources: [
-        {
-          id: match.id,
-          source_id: match.source_id,
-          source_type: getKnowledgeSourceType(match.metadata),
-          score: match.score,
-        },
-      ],
-      ...suggestedQuestionTrace,
-    } satisfies Record<string, Json>
-
-    const [saveResult] = await Promise.all([
-      saveConversation(admin, {
-        tenantId,
-        sessionId,
-        messages: [
-          { role: 'user', content: message, metadata: suggestedQuestionTrace },
-          { role: 'assistant', content: match.answer, metadata: directKnowledgeMetadata },
-        ],
-        metadata: directKnowledgeMetadata,
-      }),
-      saveConversationTopic(admin, {
-        tenantId,
-        sessionId,
-        topic: match.category ?? undefined,
-        userMessage: message,
-      }),
-    ])
-    const assistantMessageId = saveResult.ok
-      ? saveResult.messages.find((item) => item.role === 'assistant')?.id
-      : undefined
-
-    await recordChatbotUsage(admin, {
-      tenantId,
-      sessionId,
-      message: match.answer,
-      phase: 'assistant_message',
-      metadata: {
-        source: 'knowledge_retrieval',
-        knowledge_item_id: match.id,
-        knowledge_source_id: match.source_id,
-        knowledge_source_type: getKnowledgeSourceType(match.metadata),
-      },
-    })
-
-    return corsJson({
-      reply: match.answer,
-      ai_generated: true,
-      session_id: sessionId,
-      assistant_message_id: assistantMessageId,
-      source: {
-        type: 'knowledge_retrieval',
-        id: match.id,
-        source_id: match.source_id,
-        source_type: getKnowledgeSourceType(match.metadata),
-        question: match.question,
-        category: match.category,
-        score: match.score,
-      },
-    })
-  }
+  const recentConversation = await getRecentConversationState(admin, tenantId, sessionId)
+  const pendingClarification = extractPendingClarification(recentConversation.latestAssistantMetadata)
+  const previousResolution = extractPreviousConversationResolution(recentConversation.latestAssistantMetadata)
 
   const response = await runChatAgent({
-    n8nWebhookUrl: tenant.config.n8nWebhookUrl,
     tenantId,
     sessionId,
     message,
@@ -329,7 +226,6 @@ export async function POST(
       websiteUrl: tenant.config.websiteUrl,
       aiSettings: tenant.config.aiSettings,
     },
-    relevantKnowledge: shouldDelegateKnowledgeToTaliaAi ? [] : buildRelevantKnowledgeHints(knowledge.matches),
   })
 
   if (!response.ok) {
@@ -342,9 +238,7 @@ export async function POST(
 
   const agentSources = summarizeAgentSources(response.sources)
   const agentMetadata = summarizeAgentMetadata(response.metadata)
-  const finalResponseLanguage = response.provider === 'talia-ai'
-    ? requireAgentResponseLanguage(agentMetadata)
-    : detectChatLanguage(message, tenant.config.language)
+  const finalResponseLanguage = requireAgentResponseLanguage(agentMetadata)
   const agentActions = summarizeVerifiedChatActions(response.actions, {
     tenantName: tenant.config.name,
     fallbackPhone: tenant.config.fallbackPhone,
@@ -357,18 +251,14 @@ export async function POST(
     fallbackContacts: tenant.config.aiSettings.fallbackContacts,
   })
   const safeReply = contactGuard.reply
-  const requestedProvider = shouldDelegateKnowledgeToTaliaAi ? 'talia-ai' : 'n8n'
   const retrievalStatus = getRetrievalStatus({
-    delegatedToTaliaAi: shouldDelegateKnowledgeToTaliaAi,
     agentSources,
-    localKnowledgeMatches: knowledge.matches.length,
     retrievalTrace,
   })
   const lowConfidence = isLowConfidenceTrace(agentSources, agentMetadata)
-  const fallbackReason = response.provider !== requestedProvider ? 'primary_provider_failed' : null
   const assistantTraceMetadata = {
     source: response.provider,
-    requested_provider: requestedProvider,
+    requested_provider: 'talia-ai',
     model: response.model ?? null,
     user_message: message,
     page_url: pageUrl ?? null,
@@ -376,7 +266,7 @@ export async function POST(
     tenant_fallback_language: tenant.config.language,
     retrieval_status: retrievalStatus,
     low_confidence: lowConfidence,
-    fallback_reason: fallbackReason,
+    fallback_reason: null,
     contact_guard: {
       redacted_emails: contactGuard.redactedEmails,
       allowed_emails: contactGuard.allowedEmails,
@@ -442,19 +332,15 @@ export async function POST(
     sessionId,
     message: safeReply,
     phase: 'assistant_message',
-    inputText: message,
     assistantMessageId,
-    usageMeasurement: response.provider === 'talia-ai' ? 'precise' : 'legacy',
     usageComponents: response.usageComponents,
     metadata: {
       source: response.provider,
       model: response.model ?? null,
-      knowledge_matches: knowledge.matches.length,
-      top_knowledge_score: knowledge.topMatch?.score ?? null,
       response_language: finalResponseLanguage,
       retrieval_status: retrievalStatus,
       low_confidence: lowConfidence,
-      fallback_reason: fallbackReason,
+      fallback_reason: null,
       contact_guard: {
         redacted_emails: contactGuard.redactedEmails,
         allowed_emails: contactGuard.allowedEmails,
@@ -534,12 +420,6 @@ function normalizeTimeZone(value: unknown) {
   }
 }
 
-function getKnowledgeSourceType(metadata: Record<string, unknown> | null) {
-  const sourceType = metadata?.source_type
-  return typeof sourceType === 'string' ? sourceType : 'knowledge_item'
-}
-
-
 function buildLimitFallbackMessage(
   config: { name: string; fallbackEmail: string | null; fallbackPhone: string | null },
   language: string,
@@ -604,9 +484,7 @@ async function recordChatbotUsage(
     sessionId: string
     message: string
     phase: 'user_message' | 'assistant_message'
-    inputText?: string
     assistantMessageId?: string
-    usageMeasurement?: 'precise' | 'legacy'
     usageComponents?: ChatAiUsageComponent[]
     metadata?: Record<string, Json | undefined>
   },
@@ -641,7 +519,6 @@ async function recordChatbotUsage(
   }
 
   const components = input.usageComponents ?? []
-  const preciseMeasurement = input.usageMeasurement === 'precise'
   const usageCorrelationId = input.assistantMessageId ?? crypto.randomUUID()
   const measuredTotals = components.reduce((total, component) => ({
     requestCount: total.requestCount + component.request_count,
@@ -665,69 +542,46 @@ async function recordChatbotUsage(
     },
   })
 
-  if (preciseMeasurement) {
-    if (!components.length) return
+  if (!components.length) return
 
-    const aiCall = await recordUsageEvent(admin, {
-      tenantId: input.tenantId,
-      moduleKey: 'web',
-      channel: 'web',
-      eventType: 'ai_call',
-      quantity: measuredTotals.requestCount,
-      unit: 'call',
-      inputTokens: measuredTotals.inputTokens,
-      outputTokens: measuredTotals.outputTokens,
-      idempotencyKey: `chatbot:${input.tenantId}:${usageCorrelationId}:ai_call`,
-      metadata: {
-        session_id: input.sessionId,
-        accuracy: 'measured',
-        component_count: components.length,
-        ...(input.metadata ?? {}),
-      },
-    })
-
-    if (!aiCall.ok || !aiCall.eventId) return
-
-    const preciseUsage = await recordMeasuredAiUsage(admin, {
-      tenantId: input.tenantId,
-      sessionId: input.sessionId,
-      usageEventId: aiCall.eventId,
-      idempotencyPrefix: `chatbot:${input.tenantId}:${usageCorrelationId}:component`,
-      components,
-      metadata: {
-        assistant_message_id: input.assistantMessageId ?? null,
-      },
-    })
-
-    if (!preciseUsage.ok) {
-      console.error('[chat] failed to persist precise AI usage', {
-        tenantId: input.tenantId,
-        sessionId: input.sessionId,
-        error: preciseUsage.error,
-      })
-    }
-    return
-  }
-
-  if (!input.inputText) return
-  const inputTokens = estimateTokenCount(input.inputText)
-  const outputTokens = estimateTokenCount(input.message)
-  await recordUsageEvent(admin, {
+  const aiCall = await recordUsageEvent(admin, {
     tenantId: input.tenantId,
     moduleKey: 'web',
     channel: 'web',
     eventType: 'ai_call',
+    quantity: measuredTotals.requestCount,
     unit: 'call',
-    inputTokens,
-    outputTokens,
-    costEstimateCents: estimateOpenAiTextCostCents(inputTokens, outputTokens, 'gpt-4o'),
+    inputTokens: measuredTotals.inputTokens,
+    outputTokens: measuredTotals.outputTokens,
+    idempotencyKey: `chatbot:${input.tenantId}:${usageCorrelationId}:ai_call`,
     metadata: {
       session_id: input.sessionId,
-      model: 'gpt-4o',
-      accuracy: 'estimated_legacy',
+      accuracy: 'measured',
+      component_count: components.length,
       ...(input.metadata ?? {}),
     },
   })
+
+  if (!aiCall.ok || !aiCall.eventId) return
+
+  const preciseUsage = await recordMeasuredAiUsage(admin, {
+    tenantId: input.tenantId,
+    sessionId: input.sessionId,
+    usageEventId: aiCall.eventId,
+    idempotencyPrefix: `chatbot:${input.tenantId}:${usageCorrelationId}:component`,
+    components,
+    metadata: {
+      assistant_message_id: input.assistantMessageId ?? null,
+    },
+  })
+
+  if (!preciseUsage.ok) {
+    console.error('[chat] failed to persist precise AI usage', {
+      tenantId: input.tenantId,
+      sessionId: input.sessionId,
+      error: preciseUsage.error,
+    })
+  }
 }
 
 function summarizeAgentMetadata(metadata: Record<string, unknown> | undefined): Record<string, Json> {
@@ -1055,22 +909,16 @@ function summarizeClarificationResolution(value: unknown): Json | null {
 }
 
 function getRetrievalStatus({
-  delegatedToTaliaAi,
   agentSources,
-  localKnowledgeMatches,
   retrievalTrace,
 }: {
-  delegatedToTaliaAi: boolean
   agentSources: AgentSourceSummary[]
-  localKnowledgeMatches: number
   retrievalTrace: RetrievalTrace | null
 }) {
   if (retrievalTrace?.status) return retrievalTrace.status
   if ((retrievalTrace?.chunks.length ?? 0) > 0) return 'sources_used'
   if (agentSources.length > 0) return 'sources_used'
-  if (delegatedToTaliaAi) return 'delegated_no_sources'
-  if (localKnowledgeMatches > 0) return 'local_matches_not_used'
-  return 'no_sources'
+  return 'delegated_no_sources'
 }
 
 function isLowConfidenceTrace(agentSources: AgentSourceSummary[], agentMetadata: Record<string, Json>) {

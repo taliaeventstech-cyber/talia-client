@@ -30,7 +30,7 @@ Practically: if an agent's answer contradicts `docs/current-state.md`, the doc i
 
 Only `CLAUDE.md` and `AGENTS.md` exist today. If your tool needs its own supplement file and doesn't read `AGENTS.md` natively, add it (e.g. `.github/copilot-instructions.md`) and keep it a thin pointer to `AGENTS.md` + `docs/current-state.md` — don't fork the rules into multiple bodies of text that can drift apart.
 
-`CLAUDE.md`'s body was refreshed to match `docs/current-state.md` (accounts/venues/profiles model, `talia-ai`, n8n as temporary adapter) — it's a reliable secondary source now, not just the rule-import wrapper.
+`CLAUDE.md`'s body was refreshed to match `docs/current-state.md` (accounts/venues/profiles model and `talia-ai` as the active runtime) — it's a reliable secondary source now, not just the rule-import wrapper.
 
 ---
 

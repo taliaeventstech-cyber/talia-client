@@ -100,7 +100,6 @@ export type PublicAccessibilityConfig = {
 
 export type TenantChatConfig = {
   tenantId: string
-  n8nWebhookUrl: string | null
   name: string
   language: string
   responseTone: ChatbotResponseTone
@@ -134,23 +133,6 @@ export type TenantRuntimeChatConfig = {
   fallbackPhone: string | null
   topicCategories: string[]
   knowledgeItems: KnowledgeFaqItem[]
-}
-
-export async function getTenantWebhookSecret(admin: AdminClient, tenantId: string) {
-  const { data, error } = await admin
-    .from('theatres')
-    .select('webhook_secret, n8n_hmac_secret')
-    .eq('id', tenantId)
-    .single()
-
-  if (error || !data) {
-    return { ok: false as const, error: 'Tenant not found' }
-  }
-
-  return {
-    ok: true as const,
-    secret: data.webhook_secret ?? data.n8n_hmac_secret,
-  }
 }
 
 export async function assertTenantAdmin(admin: AdminClient, userId: string, tenantId: string) {
@@ -261,7 +243,7 @@ export async function getTenantChatConfig(
 ) {
   const { data, error } = await admin
     .from('theatres')
-    .select('id, name, primary_language, system_prompt, n8n_webhook_url, fallback_email, fallback_phone, website_url, widget_config, accounts(status, created_at, metadata)')
+    .select('id, name, primary_language, system_prompt, fallback_email, fallback_phone, website_url, widget_config, accounts(status, created_at, metadata)')
     .eq('id', tenantId)
     .single()
 
@@ -283,7 +265,6 @@ export async function getTenantChatConfig(
     ok: true as const,
     config: {
       tenantId: data.id,
-      n8nWebhookUrl: data.n8n_webhook_url,
       name: data.name,
       language: data.primary_language ?? 'es',
       responseTone: widgetConfig.tone,

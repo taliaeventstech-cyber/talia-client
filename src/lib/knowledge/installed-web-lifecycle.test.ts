@@ -5,6 +5,7 @@ import {
   hasReachedDailyNewPageLimit,
   INSTALLED_WEB_NEW_PAGES_PER_DAY,
   isArchiveListingUrl,
+  isRemovedInstalledPage,
   isRetiredInstalledPage,
 } from './installed-web-lifecycle'
 
@@ -55,6 +56,13 @@ describe('isRetiredInstalledPage', () => {
 
   it('is not retired for a page that was never indexed', () => {
     expect(isRetiredInstalledPage({ activeChunks: 0, retiredChunks: 0 })).toBe(false)
+  })
+})
+
+describe('isRemovedInstalledPage', () => {
+  it('keeps an operator-retired page from being ingested again', () => {
+    expect(isRemovedInstalledPage('removed')).toBe(true)
+    expect(isRemovedInstalledPage('ready')).toBe(false)
   })
 })
 

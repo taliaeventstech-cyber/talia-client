@@ -5,7 +5,6 @@ import { buildTestChatState, runWebAgentTestTurn, testChatRequestSchema } from '
 
 const config = {
   tenantId: 'tenant-1',
-  n8nWebhookUrl: null,
   name: 'Teatro Demo',
   language: 'es',
   responseTone: 'close',

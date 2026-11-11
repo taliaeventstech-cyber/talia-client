@@ -76,7 +76,6 @@ export async function runWebAgentTestTurn(
   const state = request.state as Json | undefined
 
   const response = await runAgent({
-    n8nWebhookUrl: config.n8nWebhookUrl,
     tenantId: input.tenantId,
     sessionId: input.sessionId,
     message: request.message,
@@ -95,7 +94,6 @@ export async function runWebAgentTestTurn(
       websiteUrl: config.websiteUrl,
       aiSettings: config.aiSettings,
     },
-    relevantKnowledge: [],
   })
 
   if (!response.ok) {

@@ -11,7 +11,7 @@ Allow a venue to install TALIA on its website via a script and answer visitor qu
 - Primary color.
 - Initial message.
 - Session persistence via `localStorage`.
-- TALIA API as a proxy to n8n/backend.
+- TALIA API as a gateway to the internal agent runtime.
 - Saving of conversations and messages.
 - Topic and intent classification.
 - Usage and limits per venue.
@@ -177,7 +177,7 @@ Opt-out per installation with `data-voice="off"` on the script tag, or
 
 - CORS controlled by the TALIA API.
 - No secrets exposed in the frontend.
-- No dependency on n8n in the browser.
+- No dependency on the AI provider in the browser.
 - Fallback if no webhook is configured.
 - Logging of usage events.
 - Treat model output as untrusted for external destinations. Next accepts a

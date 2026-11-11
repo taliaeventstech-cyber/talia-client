@@ -40,6 +40,10 @@ export const INSTALLED_WEB_NEW_PAGES_PER_DAY = 50
 /** Marker written by operator cleanups on chunks retired from retrieval. */
 export const RETIRED_CHUNK_METADATA_KEY = 'cleanup'
 
+export function isRemovedInstalledPage(status: string) {
+  return status === 'removed'
+}
+
 export function isArchiveListingUrl(value: string): boolean {
   let url: URL
   try {

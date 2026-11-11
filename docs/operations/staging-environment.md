@@ -62,7 +62,7 @@ own URL.
 | `EMAIL_OAUTH_STATE_SECRET`, `META_MARKETING_OAUTH_STATE_SECRET`, `WEB_CAPTURE_TOKEN_SECRET`, `CRON_SECRET`, `INTERNAL_API_KEY` | New random values |
 | `OPENAI_API_KEY` | A separate key with a low monthly spend limit |
 | `CHAT_AGENT_PROVIDER`, `TALIA_AI_BASE_URL`, `TALIA_AI_INTERNAL_API_KEY` | `talia-ai-staging` — see "talia-ai" below |
-| `GOOGLE_*`, `MICROSOFT_*`, `META_*`, `NEXT_PUBLIC_META_*`, `ELEVENLABS_*`, `N8N_BASE_URL`, `DEFAULT_N8N_*` | Leave **unset** at first; the related channels are unavailable in staging |
+| `GOOGLE_*`, `MICROSOFT_*`, `META_*`, `NEXT_PUBLIC_META_*`, `ELEVENLABS_*` | Leave **unset** at first; the related channels are unavailable in staging |
 | `WIDGET_SERVER_VOICE_ENABLED` | Optional kill switch (`false` = browser voice only). Web Agent voice uses `TALIA_AI_BASE_URL` / `TALIA_AI_INTERNAL_API_KEY`; voice models are configured in `talia-ai` |
 | `OPENAI_ACCESSIBILITY_MODEL`, `EMAIL_AGENT_*`, `KNOWLEDGE_EMBEDDINGS_ENABLED`, `META_MARKETING_GRAPH_API_VERSION`, `NEXT_PUBLIC_AUTH_SPLINE_SCENE_URL` | Same as production (not secrets) |
 

@@ -54,7 +54,7 @@ Reason:
 - `talia-ai` is only called server-to-server.
 - Every request must be authenticated with an internal key.
 - Contracts must be stable, versioned JSON under `/v1`.
-- n8n stays as a temporary adapter, not the central brain.
+- `talia-ai` is the sole executable AI runtime; do not add a secondary workflow fallback.
 - The service must be stateless except for external DB/queues.
 - Every long-running operation must be idempotent.
 
@@ -404,12 +404,12 @@ Variables in `talia-client`:
 
 - `TALIA_AI_BASE_URL`
 - `TALIA_AI_INTERNAL_API_KEY`
-- `CHAT_AGENT_PROVIDER=talia-ai|n8n`
 
 Rule:
 
-- If `CHAT_AGENT_PROVIDER=talia-ai`, `runChatAgent` calls `talia-ai`.
-- If it fails with a 5xx or times out, it can temporarily fall back to n8n if the tenant has a webhook.
+- `runChatAgent` calls `talia-ai`.
+- If it fails with a 5xx or times out, the gateway surfaces the failure for
+  operational review; it does not select another runtime.
 - The widget doesn't change.
 
 ## Implementation Phases
@@ -440,8 +440,8 @@ Done when:
 
 Done when:
 
-- a tenant can get a response without n8n;
-- n8n still works as a fallback;
+- a tenant can get a response through `talia-ai`;
+- runtime failures remain observable without a fallback provider;
 - per-component provider usage is returned by `talia-ai` and persisted against
   versioned pricing in `talia-client`.
 
@@ -488,7 +488,7 @@ Done when:
 - Retries with backoff only on transient errors.
 - Structured logs with request id.
 - Don't mix technical prompts with editable UI/config.
-- Don't depend on n8n inside `talia-ai`.
+- Don't depend on a workflow engine inside `talia-ai`.
 
 ## Initial Out of Scope
 

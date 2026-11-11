@@ -10,8 +10,7 @@ Multi-tenant SaaS where an **account** (the contractual client) manages one or m
 - **UI**: shadcn/ui-derived components + Tailwind
 - **Charts**: Recharts
 - **Forms**: react-hook-form + zod
-- **AI/RAG backend**: `talia-ai` — separate repo (Node/Fastify, Fly.io) taking over chat, email drafting, RAG, ingestion and embeddings over time. Selected via `CHAT_AGENT_PROVIDER=talia-ai`.
-- **Legacy AI/workflow adapter**: n8n, self-hosted (`n8n.culturactiva.cat`) — **temporary**, being phased out in favor of `talia-ai`. Don't add new business logic to it.
+- **AI/RAG backend**: `talia-ai` — separate repo (Node/Fastify, Fly.io) for chat, email drafting, RAG, ingestion and embeddings.
 - **Hosting**: Vercel
 
 ## Architecture
@@ -24,7 +23,7 @@ Multi-tenant SaaS where an **account** (the contractual client) manages one or m
       /overview /conversations /analytics /settings /knowledge /email /voice /chatbot /accessibility /account /upgrade
     /backstage               # internal TALIA panel (accounts/venues/config/diagnostics)
     /auth /onboarding /invite
-    /api                     # routes (n8n + talia-ai webhooks, cron, billing, etc.)
+    /api                     # routes (channel webhooks, talia-ai gateway, cron, billing, etc.)
   /components
     /ui                      # shared shadcn-style primitives
     (flat files)             # cross-page shared components, e.g. dashboard-nav.tsx
@@ -91,11 +90,11 @@ auth.users
 
 Full detail: `docs/architecture/accounts-venues-access.md`.
 
-## n8n & talia-ai Integration
+## talia-ai Integration
 
-- n8n is a **temporary adapter** for chatbot/email classification and drafting — TALIA orchestrates, n8n never writes directly to Supabase or creates Gmail drafts itself. See `docs/requirements/email-agent.md` and `docs/architecture/agent-runtime.md`.
-- `talia-ai` (separate repo) is the direction of travel: when `CHAT_AGENT_PROVIDER=talia-ai`, Next.js acts as a gateway (validates tenant/limits/session) and delegates retrieval + response to `talia-ai`'s `/v1/chat/respond`, with a temporary fallback to n8n on 5xx.
-- Don't add new business logic to n8n. New AI/RAG logic belongs in `talia-ai`.
+- `talia-ai` is the sole runtime for new Web and Email agent executions. Next.js acts as the gateway, validates tenant/limits/session and delegates retrieval + response to `/v1/chat/respond`.
+- There is no workflow fallback. Runtime failures remain visible for operational review.
+- Historical n8n traces remain readable in Backstage, but n8n is not an executable provider.
 
 ## Workflow
 
@@ -116,7 +115,7 @@ Full detail: `docs/architecture/accounts-venues-access.md`.
 
 - **Never point local work or a preview at the production database.** If `.env.local` (or any env you're given) contains the production Supabase URL, stop and tell the maintainer instead of continuing.
 - **Never run `npm run db:migrate` / `supabase db push`** unless the maintainer explicitly asks in this session *and* you've confirmed the linked project is staging (`npx supabase projects list` shows the linked one). Applying migrations to production is always the maintainer's job.
-- Vercel crons (`vercel.json`) only run in production. Staging uses Stripe **test mode**; integrations without staging credentials (Google/Microsoft OAuth, Meta, WhatsApp, Instagram, ElevenLabs, n8n) are expected to be unavailable there — that's not a bug to fix.
+- Vercel crons (`vercel.json`) only run in production. Staging uses Stripe **test mode**; integrations without staging credentials (Google/Microsoft OAuth, Meta, WhatsApp, Instagram, ElevenLabs) are expected to be unavailable there — that's not a bug to fix.
 - How staging is set up: `docs/operations/staging-environment.md`.
 
 ## Git workflow (summary — full rules in `CONTRIBUTING.md`)
@@ -150,6 +149,6 @@ If you're unsure whether a change touches one of these areas, ask. UI, copy, i18
 - ❌ Don't install packages without clear justification
 - ❌ Don't commit secrets (check `.env*`)
 - ❌ Don't say "theatre" in product/UI/new code, or build new logic on `public.users`
-- ❌ Don't add new business logic to n8n — that belongs in `talia-ai` now
+- ❌ Don't introduce a secondary workflow runtime for AI agent responses
 
 @AGENTS.md

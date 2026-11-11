@@ -28,7 +28,7 @@ export default async function SettingsPage({ params }: Props) {
   const [{ data: theatre }, hasUsableKnowledge, { data: installation }] = await Promise.all([
     admin
       .from('theatres')
-      .select('name, slug, primary_language, system_prompt, fallback_email, fallback_phone, website_url, widget_config, n8n_webhook_url')
+      .select('name, slug, primary_language, system_prompt, fallback_email, fallback_phone, website_url, widget_config')
       .eq('id', tenantId)
       .single(),
     hasUsableTenantKnowledge(admin, tenantId),

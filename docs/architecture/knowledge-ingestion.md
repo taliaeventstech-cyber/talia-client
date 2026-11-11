@@ -307,7 +307,7 @@ Current implementation:
 - falls back to deterministic text search over `knowledge_chunks` and `knowledge_items`;
 - limits to the best matches;
 - responds directly only if the score exceeds the threshold;
-- if it doesn't exceed the threshold, passes the retrieved context to n8n.
+- if it doesn't exceed the threshold, passes the retrieved context to the channel agent runtime.
 
 Future implementation:
 
@@ -347,6 +347,7 @@ When we decouple backend/AI:
    - `talia-ai` consumes the service-role sync-run contract;
    - the dashboard doesn't depend on the AI provider.
 
-## n8n
+## Agent runtime
 
-The legacy workflow can keep working if it treats `knowledge_items` as general knowledge, not just as FAQs. It's worth mentally renaming the prompt section from `FAQs OFICIALES` to `CONOCIMIENTO OFICIAL` and prioritizing those items as an official source while the migration to `talia-ai` is completed.
+`talia-ai` treats `knowledge_items` as general governed Knowledge rather than
+only FAQs, and prioritizes that evidence before any generative fallback.

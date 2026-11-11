@@ -38,7 +38,7 @@ describe('widget compliance', () => {
     expect(widgetSource).toContain("compliance.privacySummary + '\\n\\n' + compliance.privacyMore")
     expect(widgetSource).not.toContain('Conservamos esta conversación durante 30 días')
     expect(widgetSource).toContain("item.setAttribute('data-ai-generated', 'true')")
-    expect(chatRouteSource.match(/ai_generated: true/g)).toHaveLength(3)
+    expect(chatRouteSource.match(/ai_generated: true/g)).toHaveLength(2)
   })
 
   it('keeps the published retention wording aligned with the 90-day deletion policy', async () => {
