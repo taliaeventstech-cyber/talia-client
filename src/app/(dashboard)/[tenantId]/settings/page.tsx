@@ -47,16 +47,20 @@ export default async function SettingsPage({ params }: Props) {
   const installationSecurity = getWidgetInstallationSecurity(widgetAppUrl)
 
   return (
-    <main className="page-shell">
-      <header className="page-header chatbot-settings-header">
-        <div>
-          <h1>{dictionary.settings.section}</h1>
-          <p className="muted">{dictionary.settings.title}</p>
-        </div>
-      </header>
+    <main className="page-shell chatbot-settings-page">
+      {theatre ? null : (
+        <header className="page-header chatbot-settings-header">
+          <div>
+            <h1>{dictionary.settings.section}</h1>
+            <p className="muted">{dictionary.settings.title}</p>
+          </div>
+        </header>
+      )}
 
       {theatre ? (
         <SettingsForm
+          title={dictionary.settings.section}
+          subtitle={dictionary.settings.title}
           tenantId={tenantId}
           theatre={{
             system_prompt: theatre.system_prompt,

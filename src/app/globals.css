@@ -13639,3 +13639,87 @@ a.response-source-link:hover {
   grid-column: 1 / -1;
   max-width: 180px;
 }
+
+/* Web Agent settings: fixed-height workspace on desktop. The page never
+   scrolls; only the settings cards scroll inside their column and the
+   preview fits the viewport height. */
+.chatbot-settings-save-bar.page-header {
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 1081px) {
+  .dashboard-main:has(.chatbot-settings-page) {
+    overflow: hidden;
+  }
+
+  .chatbot-settings-page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .chatbot-settings-form {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+  }
+
+  .chatbot-settings-save-bar.page-header,
+  .chatbot-settings-tabs {
+    position: static;
+    padding: 0;
+  }
+
+  .chatbot-settings-page .chatbot-settings-grid {
+    flex: 1;
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+    min-height: 0;
+  }
+
+  .chatbot-settings-main-column {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 6px;
+    scrollbar-gutter: stable;
+  }
+
+  .chatbot-settings-preview-column {
+    position: static;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    max-height: none;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .chatbot-settings-preview-column .chatbot-preview-card {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .chatbot-settings-preview-column .widget-live-preview {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
+@media (max-width: 1080px) {
+  /* The title row is taller now: let it scroll away and keep only the tabs pinned. */
+  .chatbot-settings-save-bar.page-header {
+    position: static;
+  }
+
+  .chatbot-settings-tabs {
+    top: 0;
+  }
+}
