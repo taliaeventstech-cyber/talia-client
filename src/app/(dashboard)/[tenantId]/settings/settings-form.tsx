@@ -8,12 +8,12 @@ import Link from 'next/link'
 import { CopyScriptButton } from '@/components/copy-script-button'
 import { updateTenantSettings, type SettingsFormState } from './actions'
 import { AgentVoicePicker, type AgentVoicePickerLabels } from './agent-voice-picker'
+import { TaliaMark } from '@/components/talia-mark'
 import { testWebAgentMessage, type TestWebAgentResult } from './test-web-agent-action'
 import type { Json } from '@/types/database.types'
 import type { AgentVoice } from '@/lib/widget/agent-voices'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry } from '@/lib/phone/international'
-import Image from 'next/image'
 import { ArrowDown, ArrowUp, Bot, ChevronLeft, Globe, MessageCircle, MessageCircleMore, Mic, Moon, Palette, Plug, Plus, RefreshCcw, Sun, Trash2, Volume2 } from 'lucide-react'
 import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { getSessionFeedbackCopy } from '@/lib/widget/session-feedback-copy'
@@ -1344,16 +1344,7 @@ function LauncherIconGlyph({ value }: { value: WidgetLauncherIcon }) {
     return <MessageCircle className="widget-launcher-glyph widget-launcher-glyph-chat" strokeWidth={2.2} aria-hidden="true" />
   }
 
-  return (
-    <Image
-      className="widget-launcher-glyph widget-launcher-glyph-talia"
-      src="/icon.svg"
-      alt=""
-      aria-hidden="true"
-      width={500}
-      height={500}
-    />
-  )
+  return <TaliaMark className="widget-launcher-glyph widget-launcher-glyph-talia" />
 }
 
 // Compact light/dark page background switch for the preview's address bar.
@@ -1584,7 +1575,8 @@ function WidgetPreview({
         <div className="widget-preview-header" style={headerStyle}>
           <span className="widget-preview-header-brand">
             <span className="widget-preview-header-mark" style={{ color }}>
-              <PreviewLauncherIcon value={widgetConfig.launcherIcon} size={34} tone="brand" />
+              {/* TALIA's own avatar is always the TALIA mark, like the installed widget. */}
+              <TaliaMark size={20} />
             </span>
             <span className="widget-preview-header-identity">
               <span className="widget-preview-header-name">{widgetConfig.assistantName}</span>
@@ -1865,13 +1857,13 @@ function WidgetPreview({
           }
         }}
       >
-        <PreviewLauncherIcon value={widgetConfig.launcherIcon} size={previewSize} tone="light" />
+        <PreviewLauncherIcon value={widgetConfig.launcherIcon} size={previewSize} />
       </button>
     </div>
   )
 }
 
-function PreviewLauncherIcon({ value, size, tone = 'light' }: { value: WidgetLauncherIcon; size: number; tone?: 'light' | 'brand' }) {
+function PreviewLauncherIcon({ value, size }: { value: WidgetLauncherIcon; size: number }) {
   const shadow = { filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.2))' }
 
   if (value === 'chat') {
@@ -1885,19 +1877,7 @@ function PreviewLauncherIcon({ value, size, tone = 'light' }: { value: WidgetLau
   }
 
   return (
-    <Image
-      src="/icon.svg"
-      alt=""
-      aria-hidden="true"
-      width={500}
-      height={500}
-      style={{
-        width: Math.round(size * 0.82),
-        height: Math.round(size * 0.82),
-        objectFit: 'contain',
-        filter: tone === 'light' ? 'brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,.2))' : undefined,
-      }}
-    />
+    <TaliaMark size={Math.round(size * 0.54)} style={shadow} />
   )
 }
 
