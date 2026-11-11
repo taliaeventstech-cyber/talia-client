@@ -323,8 +323,13 @@ Implemented:
   and persist whether they were contextual or general plus the server-validated
   matching rule.
 - Interactive, production-sized Agora preview for the launcher, proactive
-  greeting, suggested questions and chat panel; message submission stays
-  disabled in preview mode.
+  greeting, suggested questions and chat panel. The preview doubles as a test
+  chat: messages are answered by the same agent as the public widget, using the
+  venue's current Knowledge and saved settings (also while the widget is still
+  switched off), and each answer lists the Knowledge sources it used or warns
+  when none were used. Test messages are not stored as conversations, do not
+  appear in analytics and do not count toward the plan; only their AI cost is
+  recorded as an internal `ai_call`.
 - Voice mode in the installed widget: microphone input (speech to text), a
   global `Alt+Shift+V` shortcut (`Option+Shift+V` on a Mac) for blind and low-vision visitors that opens
   the agent and starts listening, distinct audio cues and live-region

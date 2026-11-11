@@ -248,7 +248,12 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
   }
 }
 
-export async function getTenantChatConfig(admin: AdminClient, tenantId: string) {
+export async function getTenantChatConfig(
+  admin: AdminClient,
+  tenantId: string,
+  // Agora's test chat may run while the public widget is still switched off.
+  options: { allowDisabled?: boolean } = {},
+) {
   const { data, error } = await admin
     .from('theatres')
     .select('id, name, primary_language, system_prompt, n8n_webhook_url, fallback_email, fallback_phone, website_url, widget_config, accounts(status, created_at, metadata)')
@@ -265,7 +270,7 @@ export async function getTenantChatConfig(admin: AdminClient, tenantId: string) 
 
   const widgetConfig = getWidgetConfig(data.widget_config, data.primary_language)
 
-  if (!widgetConfig.enabled) {
+  if (!widgetConfig.enabled && !options.allowDisabled) {
     return { ok: false as const, error: 'Chatbot is disabled' }
   }
 
