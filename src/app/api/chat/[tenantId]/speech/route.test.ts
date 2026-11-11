@@ -109,6 +109,17 @@ describe('POST /api/chat/[tenantId]/speech', () => {
     expect(provider.synthesize).toHaveBeenCalledWith(expect.objectContaining({ voice: 'ash' }))
   })
 
+  it('refuses to speak when the venue switched voice off in Agora', async () => {
+    vi.mocked(getTenantChatConfig).mockResolvedValue({ ok: true, config: { voiceEnabled: false } } as Awaited<ReturnType<typeof getTenantChatConfig>>)
+
+    const response = await speechRequest({ session_id: 'session-1', text: 'Hola' })
+
+    expect(response.status).toBe(403)
+    await expect(response.json()).resolves.toEqual({ error: 'voice_disabled' })
+    expect(provider.synthesize).not.toHaveBeenCalled()
+    expect(recordUsageEvent).not.toHaveBeenCalled()
+  })
+
   it('rejects text above the per-request cap', async () => {
     const response = await speechRequest({ session_id: 'session-1', text: 'a'.repeat(1201) })
 

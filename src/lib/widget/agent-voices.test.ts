@@ -5,7 +5,9 @@ import {
   getAgentVoiceFromWidgetConfig,
   getAgentVoiceOptions,
   getAgentVoicePreviewSample,
+  isVoiceControlEnabled,
   isVoiceInvitationEnabled,
+  isVoiceInvitationSaved,
   normalizeAgentVoice,
 } from './agent-voices'
 
@@ -51,5 +53,22 @@ describe('voice invitation setting', () => {
     expect(isVoiceInvitationEnabled({ voiceInvitation: 'true' })).toBe(false)
     expect(isVoiceInvitationEnabled({})).toBe(false)
     expect(isVoiceInvitationEnabled(null)).toBe(false)
+  })
+})
+
+describe('voice control setting', () => {
+  it('stays on unless the venue explicitly switched it off', () => {
+    expect(isVoiceControlEnabled({})).toBe(true)
+    expect(isVoiceControlEnabled(null)).toBe(true)
+    expect(isVoiceControlEnabled({ voiceEnabled: true })).toBe(true)
+    expect(isVoiceControlEnabled({ voiceEnabled: 'false' })).toBe(true)
+    expect(isVoiceControlEnabled({ voiceEnabled: false })).toBe(false)
+    expect(isVoiceControlEnabled({ voice_enabled: false })).toBe(false)
+  })
+
+  it('never invites to talk while voice is off, but keeps the saved choice', () => {
+    const config = { voiceEnabled: false, voiceInvitation: true }
+    expect(isVoiceInvitationEnabled(config)).toBe(false)
+    expect(isVoiceInvitationSaved(config)).toBe(true)
   })
 })

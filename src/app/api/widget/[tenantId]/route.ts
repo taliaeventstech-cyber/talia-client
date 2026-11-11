@@ -33,7 +33,9 @@ export async function GET(
   // Disabled widgets keep a minimal, silent configuration.
   if (result.config.enabled === false) return corsJson(result.config)
 
-  return corsJson({ ...result.config, voice: getPublicVoiceConfig() })
+  // `voice.enabled: false` makes the widget hide every voice control.
+  const voice = result.config.voiceEnabled === false ? { enabled: false } : getPublicVoiceConfig()
+  return corsJson({ ...result.config, voice })
 }
 
 export function OPTIONS() {

@@ -12928,9 +12928,8 @@ a.response-source-link:hover {
 }
 
 .widget-launcher-glyph-talia {
-  width: 82%;
-  height: 82%;
-  filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+  width: 54%;
+  height: 54%;
 }
 
 .widget-launcher-glyph-chat,
@@ -13540,6 +13539,24 @@ a.response-source-link:hover {
 .voice-invitation-toggle > span {
   display: grid;
   gap: 4px;
+}
+
+/* Voice options in Agora: plain grouping, dimmed while voice is switched off. */
+.voice-options {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.voice-options:disabled {
+  opacity: 0.5;
+}
+
+.voice-options:disabled .voice-invitation-toggle {
+  cursor: not-allowed;
 }
 
 /* Web Agent settings: tabs by goal + sticky live preview (TAL-73) */

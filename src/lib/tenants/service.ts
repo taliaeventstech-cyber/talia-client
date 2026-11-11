@@ -1,5 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
-import { getAgentVoiceFromWidgetConfig, isVoiceInvitationEnabled, type AgentVoice } from '@/lib/widget/agent-voices'
+import { getAgentVoiceFromWidgetConfig, isVoiceControlEnabled, isVoiceInvitationEnabled, type AgentVoice } from '@/lib/widget/agent-voices'
 import { getBillingAccess } from '@/lib/billing/access'
 import { normalizeChatbotAiSettings, type ChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import type { Json } from '@/types/database.types'
@@ -49,6 +49,8 @@ export type PublicWidgetConfig = {
   accessibility: PublicAccessibilityConfig
   /** Invite visitors to turn on voice ("Di «Hola TALIA»") on first visit. */
   voiceInvitation: boolean
+  /** Whether the widget shows voice controls at all (Agora switch). */
+  voiceEnabled: boolean
 }
 
 export type WidgetPosition = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
@@ -110,6 +112,8 @@ export type TenantChatConfig = {
   suggestedQuestions: SuggestedQuestion[]
   /** Voice chosen in Agora for spoken Web Agent replies. */
   agentVoice?: AgentVoice
+  /** False when the venue switched voice off in Agora; voice endpoints refuse. */
+  voiceEnabled?: boolean
 }
 
 export type KnowledgeFaqItem = {
@@ -244,6 +248,7 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
       installedWebCapture: widgetConfig.installedWebCapture,
       accessibility: widgetConfig.accessibility,
       voiceInvitation: isVoiceInvitationEnabled(data.widget_config),
+      voiceEnabled: isVoiceControlEnabled(data.widget_config),
     } satisfies PublicWidgetConfig,
   }
 }
@@ -289,6 +294,7 @@ export async function getTenantChatConfig(
       aiSettings: widgetConfig.aiSettings,
       suggestedQuestions: widgetConfig.suggestedQuestions,
       agentVoice: getAgentVoiceFromWidgetConfig(data.widget_config),
+      voiceEnabled: isVoiceControlEnabled(data.widget_config),
     } satisfies TenantChatConfig,
   }
 }

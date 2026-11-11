@@ -30,14 +30,33 @@ export function getAgentVoiceFromWidgetConfig(widgetConfig: unknown): AgentVoice
 }
 
 /**
- * Whether the venue invites visitors to turn on voice ("Di «Hola TALIA»") on
- * their first visit. Off unless explicitly enabled; the microphone still
- * only turns on after the visitor accepts in the widget.
+ * Whether the Web Agent shows its voice controls (microphone, read-aloud,
+ * keyboard shortcut, hands-free). On unless the venue switches it off in
+ * Agora, so venues that never touched the setting keep voice.
  */
-export function isVoiceInvitationEnabled(widgetConfig: unknown): boolean {
+export function isVoiceControlEnabled(widgetConfig: unknown): boolean {
+  if (!widgetConfig || typeof widgetConfig !== 'object' || Array.isArray(widgetConfig)) return true
+  const config = widgetConfig as { voiceEnabled?: unknown; voice_enabled?: unknown }
+  return (config.voiceEnabled ?? config.voice_enabled) !== false
+}
+
+/**
+ * The venue's saved "invite visitors to talk" choice, kept even while voice
+ * is switched off so it comes back when voice is turned on again.
+ */
+export function isVoiceInvitationSaved(widgetConfig: unknown): boolean {
   if (!widgetConfig || typeof widgetConfig !== 'object' || Array.isArray(widgetConfig)) return false
   const config = widgetConfig as { voiceInvitation?: unknown; voice_invitation?: unknown }
   return (config.voiceInvitation ?? config.voice_invitation) === true
+}
+
+/**
+ * Whether the venue invites visitors to turn on voice ("Di «Hola TALIA»") on
+ * their first visit. Off unless explicitly enabled, and never while voice is
+ * switched off; the microphone still only turns on after the visitor accepts.
+ */
+export function isVoiceInvitationEnabled(widgetConfig: unknown): boolean {
+  return isVoiceControlEnabled(widgetConfig) && isVoiceInvitationSaved(widgetConfig)
 }
 
 type VoiceLocale = 'es' | 'ca' | 'en' | 'pt-BR'

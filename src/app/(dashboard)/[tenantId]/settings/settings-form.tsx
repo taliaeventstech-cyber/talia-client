@@ -8,12 +8,12 @@ import Link from 'next/link'
 import { CopyScriptButton } from '@/components/copy-script-button'
 import { updateTenantSettings, type SettingsFormState } from './actions'
 import { AgentVoicePicker, type AgentVoicePickerLabels } from './agent-voice-picker'
+import { TaliaMark } from '@/components/talia-mark'
 import { testWebAgentMessage, type TestWebAgentResult } from './test-web-agent-action'
 import type { Json } from '@/types/database.types'
 import type { AgentVoice } from '@/lib/widget/agent-voices'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry } from '@/lib/phone/international'
-import Image from 'next/image'
 import { ArrowDown, ArrowUp, Bot, ChevronLeft, Globe, MessageCircle, MessageCircleMore, Mic, Moon, Palette, Plug, Plus, RefreshCcw, Sun, Trash2, Volume2 } from 'lucide-react'
 import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { getSessionFeedbackCopy } from '@/lib/widget/session-feedback-copy'
@@ -56,6 +56,8 @@ type SettingsFormLabels = AgentVoicePickerLabels & {
   sectionPrivacy: string
   voiceInvitation: string
   voiceInvitationHint: string
+  voiceEnabled: string
+  voiceEnabledHint: string
   chatbot: string
   widgetAvailability: string
   widgetAvailabilityHint: string
@@ -178,6 +180,7 @@ type SettingsFormProps = {
     fallbackWhatsApp: boolean
     agentVoice: AgentVoice
     voiceInvitation: boolean
+    voiceEnabled: boolean
   }
   voiceOptions: { value: AgentVoice; label: string; description: string }[]
   hasUsableKnowledge: boolean
@@ -277,6 +280,7 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, ha
     suggestedQuestions: widgetConfig.suggestedQuestions,
     fallbackLanguage: theatre.primary_language,
     pageUrl: theatre.website_url ?? '',
+    voiceEnabled: widgetConfig.voiceEnabled,
   })
   const [suggestedQuestions, setSuggestedQuestions] = useState(widgetConfig.suggestedQuestions)
 
@@ -600,20 +604,38 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, ha
               <label className="voice-invitation-toggle">
                 <input
                   type="checkbox"
-                  name="voice_invitation"
-                  defaultChecked={widgetConfig.voiceInvitation}
+                  name="voice_enabled"
+                  checked={previewConfig.voiceEnabled}
+                  onChange={(event) => {
+                    const voiceEnabled = event.target.checked
+                    setPreviewConfig((current) => ({ ...current, voiceEnabled }))
+                  }}
                 />
                 <span>
-                  <strong>{labels.voiceInvitation}</strong>
-                  <span className="muted">{labels.voiceInvitationHint}</span>
+                  <strong>{labels.voiceEnabled}</strong>
+                  <span className="muted">{labels.voiceEnabledHint}</span>
                 </span>
               </label>
-              <AgentVoicePicker
-                tenantId={tenantId}
-                defaultVoice={widgetConfig.agentVoice}
-                options={voiceOptions}
-                labels={labels}
-              />
+              {/* Voice options only apply while voice is on; they keep their saved values. */}
+              <fieldset className="voice-options" disabled={!previewConfig.voiceEnabled}>
+                <label className="voice-invitation-toggle">
+                  <input
+                    type="checkbox"
+                    name="voice_invitation"
+                    defaultChecked={widgetConfig.voiceInvitation}
+                  />
+                  <span>
+                    <strong>{labels.voiceInvitation}</strong>
+                    <span className="muted">{labels.voiceInvitationHint}</span>
+                  </span>
+                </label>
+                <AgentVoicePicker
+                  tenantId={tenantId}
+                  defaultVoice={widgetConfig.agentVoice}
+                  options={voiceOptions}
+                  labels={labels}
+                />
+              </fieldset>
             </section>
 
           </SettingsPanel>
@@ -1322,16 +1344,7 @@ function LauncherIconGlyph({ value }: { value: WidgetLauncherIcon }) {
     return <MessageCircle className="widget-launcher-glyph widget-launcher-glyph-chat" strokeWidth={2.2} aria-hidden="true" />
   }
 
-  return (
-    <Image
-      className="widget-launcher-glyph widget-launcher-glyph-talia"
-      src="/icon.svg"
-      alt=""
-      aria-hidden="true"
-      width={500}
-      height={500}
-    />
-  )
+  return <TaliaMark className="widget-launcher-glyph widget-launcher-glyph-talia" />
 }
 
 // Compact light/dark page background switch for the preview's address bar.
@@ -1404,6 +1417,7 @@ function WidgetPreview({
     suggestedQuestions: SuggestedQuestion[]
     fallbackLanguage: string
     pageUrl: string
+    voiceEnabled: boolean
   }
   compliance: WidgetComplianceCopy
   suggestedQuestionsLabel: string
@@ -1561,7 +1575,8 @@ function WidgetPreview({
         <div className="widget-preview-header" style={headerStyle}>
           <span className="widget-preview-header-brand">
             <span className="widget-preview-header-mark" style={{ color }}>
-              <PreviewLauncherIcon value={widgetConfig.launcherIcon} size={34} tone="brand" />
+              {/* TALIA's own avatar is always the TALIA mark, like the installed widget. */}
+              <TaliaMark size={20} />
             </span>
             <span className="widget-preview-header-identity">
               <span className="widget-preview-header-name">{widgetConfig.assistantName}</span>
@@ -1570,15 +1585,17 @@ function WidgetPreview({
           </span>
           <span className="widget-preview-header-actions">
             {/* Mirrors the installed widget's voice controls (public/widget.js); inert in preview. */}
-            <button
-              type="button"
-              className="widget-preview-icon-button widget-preview-voice-control"
-              aria-label="Leer respuestas en voz alta"
-              title="Leer respuestas en voz alta"
-              aria-disabled="true"
-            >
-              <Volume2 aria-hidden="true" strokeWidth={2} />
-            </button>
+            {widgetConfig.voiceEnabled ? (
+              <button
+                type="button"
+                className="widget-preview-icon-button widget-preview-voice-control"
+                aria-label="Leer respuestas en voz alta"
+                title="Leer respuestas en voz alta"
+                aria-disabled="true"
+              >
+                <Volume2 aria-hidden="true" strokeWidth={2} />
+              </button>
+            ) : null}
             <button
               type="button"
               className="widget-preview-icon-button widget-preview-restart"
@@ -1749,16 +1766,18 @@ function WidgetPreview({
               }
             }}
           />
-          <button
-            type="button"
-            className="widget-preview-mic"
-            disabled
-            aria-label="Hablar con el agente (Alt+Mayús+V; en Mac, Opción+Mayús+V)"
-            title="Hablar con el agente (Alt+Mayús+V; en Mac, Opción+Mayús+V)"
-            style={{ color }}
-          >
-            <Mic aria-hidden="true" strokeWidth={2} />
-          </button>
+          {widgetConfig.voiceEnabled ? (
+            <button
+              type="button"
+              className="widget-preview-mic"
+              disabled
+              aria-label="Hablar con el agente (Alt+Mayús+V; en Mac, Opción+Mayús+V)"
+              title="Hablar con el agente (Alt+Mayús+V; en Mac, Opción+Mayús+V)"
+              style={{ color }}
+            >
+              <Mic aria-hidden="true" strokeWidth={2} />
+            </button>
+          ) : null}
           <button
             type="button"
             className="widget-preview-send"
@@ -1838,13 +1857,13 @@ function WidgetPreview({
           }
         }}
       >
-        <PreviewLauncherIcon value={widgetConfig.launcherIcon} size={previewSize} tone="light" />
+        <PreviewLauncherIcon value={widgetConfig.launcherIcon} size={previewSize} />
       </button>
     </div>
   )
 }
 
-function PreviewLauncherIcon({ value, size, tone = 'light' }: { value: WidgetLauncherIcon; size: number; tone?: 'light' | 'brand' }) {
+function PreviewLauncherIcon({ value, size }: { value: WidgetLauncherIcon; size: number }) {
   const shadow = { filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.2))' }
 
   if (value === 'chat') {
@@ -1858,19 +1877,7 @@ function PreviewLauncherIcon({ value, size, tone = 'light' }: { value: WidgetLau
   }
 
   return (
-    <Image
-      src="/icon.svg"
-      alt=""
-      aria-hidden="true"
-      width={500}
-      height={500}
-      style={{
-        width: Math.round(size * 0.82),
-        height: Math.round(size * 0.82),
-        objectFit: 'contain',
-        filter: tone === 'light' ? 'brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,.2))' : undefined,
-      }}
-    />
+    <TaliaMark size={Math.round(size * 0.54)} style={shadow} />
   )
 }
 

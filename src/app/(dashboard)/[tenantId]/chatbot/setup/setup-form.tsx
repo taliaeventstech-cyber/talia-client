@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useMemo, useState, useTransition } from 'react'
 import { ArrowLeft, ArrowRight, Bot, Check, Database, Link2, MessageCircle, MessageCircleMore, Palette } from 'lucide-react'
-import Image from 'next/image'
+import { TaliaMark } from '@/components/talia-mark'
 import Link from 'next/link'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
@@ -512,7 +512,7 @@ function WidgetStep({
                 : 'chatbot-launcher-icon-option'}
               onClick={() => update('launcherIcon', value)}
             >
-              <WidgetLauncherIconGlyph value={value} size={42} tone="brand" />
+              <WidgetLauncherIconGlyph value={value} size={42} />
               <span>{label}</span>
             </button>
           ))}
@@ -589,11 +589,9 @@ function ChoiceButton({
 function WidgetLauncherIconGlyph({
   value,
   size,
-  tone = 'light',
 }: {
   value: WidgetLauncherIcon
   size: number
-  tone?: 'light' | 'brand'
 }) {
   const iconSize = Math.round(size * 0.5)
 
@@ -607,21 +605,8 @@ function WidgetLauncherIconGlyph({
     return <Bot aria-hidden="true" width={iconSize} height={iconSize} strokeWidth={2.2} />
   }
 
-  return (
-    <Image
-      src="/icon.svg"
-      alt=""
-      aria-hidden="true"
-      width={500}
-      height={500}
-      style={{
-        width: Math.round(size * 0.72),
-        height: Math.round(size * 0.72),
-        objectFit: 'contain',
-        filter: tone === 'light' ? 'brightness(0) invert(1)' : undefined,
-      }}
-    />
-  )
+  // Coloured like the other icons (currentColor), so it suits both tones.
+  return <TaliaMark size={Math.round(size * 0.54)} />
 }
 
 function isStepValid(step: Step, values: InitialValues, sourceUrlError: string) {
