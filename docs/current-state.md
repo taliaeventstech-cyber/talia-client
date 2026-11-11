@@ -337,7 +337,9 @@ Implemented:
   optional "read answers aloud" toggle for typed turns) and local voice
   commands (stop, repeat, slower, write it), hands-free follow-up listening
   after spoken answers, an opt-in "Hola TALIA" wake word, and a per-venue
-  voice chosen in Agora. Speech goes through the guarded
+  voice chosen in Agora. Listening uses the browser's speech engine first
+  (live transcript in the chat); TALIA's server recognition is used only in
+  browsers without one. Speech goes through the guarded
   `/api/chat/[tenantId]/transcribe` and `/speech` routes to `talia-ai`
   (`/v1/voice/*`, OpenAI) on all plans, with measured per-call cost in
   `ai_usage_events`, and falls back to the browser's Web Speech engine. The
@@ -345,6 +347,16 @@ Implemented:
   the voice controls (inert). Venues can switch voice off in Agora (Web Agent
   → Voice, `widget_config.voiceEnabled`, on by default): the widget then hides
   every voice control and the voice routes refuse with `voice_disabled`.
+  Accessibility (EN 301 549 / WCAG 2.1 AA): the widget adds a hidden-until-
+  focused access link as the first tab stop of the page ("Asistente de voz
+  TALIA: pulsa Alt+Mayús+V…", opens the agent and starts listening) and is a
+  named landmark ("Agente web TALIA"). Closing the voice greeting hides it for
+  the current visit only (sessionStorage, per venue).
+  After the first spoken answer, TALIA asks once by voice whether to turn on
+  "Hola TALIA" for next time (explaining the browser listens for the phrase);
+  it only turns on after a spoken "yes". Returning visitors with it on see
+  "Di «Hola TALIA» o pulsa Hablar" in the greeting and can open TALIA by
+  voice alone.
   Details: `docs/requirements/chatbot.md`.
 - Auto-growing chat composer in production and preview, with `Enter` to send,
   `Shift + Enter` for line breaks and a bounded internal scroll for long drafts.

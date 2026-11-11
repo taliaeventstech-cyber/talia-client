@@ -272,6 +272,7 @@ const es = {
       icon: 'Icono del chat',
       iconOptions: {
         talia: 'TALIA',
+        mark: 'Monograma',
         chat: 'Conversación',
         bubble: 'Burbuja',
         bot: 'Agente Web',
@@ -704,6 +705,7 @@ const es = {
       widgetThemeGlassHint: 'Cristal esmerilado translúcido. Luce mejor sobre webs con imagen o color.',
       widgetIcon: 'Icono del widget',
       widgetIconTalia: 'Icono de TALIA',
+      widgetIconMark: 'Monograma de TALIA',
       widgetIconChat: 'Icono de conversación',
       widgetIconBubble: 'Burbuja de diálogo',
       widgetIconBot: 'Icono del Agente Web',
@@ -1571,6 +1573,7 @@ const ca: Dictionary = {
       icon: 'Icona del xat',
       iconOptions: {
         talia: 'TALIA',
+        mark: 'Monograma',
         chat: 'Conversa',
         bubble: 'Bombolla',
         bot: 'Agent Web',
@@ -2003,6 +2006,7 @@ const ca: Dictionary = {
       widgetThemeGlassHint: 'Vidre esmerilat translúcid. Llueix més sobre webs amb imatge o color.',
       widgetIcon: 'Icona del widget',
       widgetIconTalia: 'Icona de TALIA',
+      widgetIconMark: 'Monograma de TALIA',
       widgetIconChat: 'Icona de conversa',
       widgetIconBubble: 'Bombolla de diàleg',
       widgetIconBot: 'Icona de l’Agent Web',
@@ -3221,6 +3225,7 @@ const en: Dictionary = {
       widgetThemeGlassHint: 'Translucent frosted glass. Looks best over sites with imagery or color.',
       widgetIcon: 'Widget icon',
       widgetIconTalia: 'TALIA icon',
+      widgetIconMark: 'TALIA monogram',
       widgetIconChat: 'Conversation icon',
       widgetIconBubble: 'Dialogue bubble',
       widgetIconBot: 'Web Agent icon',
@@ -3790,6 +3795,7 @@ const en: Dictionary = {
       icon: 'Chat icon',
       iconOptions: {
         talia: 'TALIA',
+        mark: 'Monogram',
         chat: 'Conversation',
         bubble: 'Bubble',
         bot: 'Web Agent',
@@ -4451,6 +4457,7 @@ const ptBR: Dictionary = {
       widgetThemeGlassHint: 'Vidro fosco translúcido. Fica melhor em sites com imagens ou cores.',
       widgetIcon: 'Ícone de widget',
       widgetIconTalia: 'Ícone da TALIA',
+      widgetIconMark: 'Monograma da TALIA',
       widgetIconChat: 'Ícone de conversa',
       widgetIconBubble: 'Bolha de diálogo',
       widgetIconBot: 'Ícone do Agente Web',
@@ -5020,6 +5027,7 @@ const ptBR: Dictionary = {
       icon: 'Ícone do chat',
       iconOptions: {
         talia: 'TALIA',
+        mark: 'Monograma',
         chat: 'Conversa',
         bubble: 'Balão',
         bot: 'Agente Web',

@@ -213,19 +213,87 @@ describe('widget hands-free conversation and wake word', () => {
   it('listens again only after a spoken answer to a voice question, and ends after silence', async () => {
     const widgetSource = await readWidget()
 
-    expect(widgetSource).toContain('speak(text, language, true, fromVoice ? continueConversation : null);')
+    expect(widgetSource).toContain('speak(text, language, true, fromVoice ? afterVoiceAnswer : null);')
+    expect(widgetSource).toMatch(/function afterVoiceAnswer\(\) \{\s*if \(!shouldOfferWake\(\)\) \{\s*continueConversation\(\);/)
     expect(widgetSource).toContain('startListening(true);')
     expect(widgetSource).toContain('announce(copy.handsFreeEnded);')
   })
 })
 
 describe('widget voice offer in the greeting', () => {
-  it('only offers voice when the venue enabled it and stops offering it once dismissed', async () => {
+  it('only offers voice when the venue enabled it, and closing it hides it for this visit only', async () => {
     const widgetSource = await readWidget()
 
-    expect(widgetSource).toContain("var offerVoice = !!welcomeVoice && config.voiceInvitation === true && getStoredValue(voiceInviteKey) !== 'dismissed';")
-    expect(widgetSource).toContain("if (offerVoice) setStoredValue(voiceInviteKey, 'dismissed');")
+    expect(widgetSource).toContain("var voiceInviteKey = 'talia-voice-invite-' + tenantId;")
+    expect(widgetSource).toContain("var offerVoice = !!welcomeVoice && config.voiceInvitation === true && getSessionValue(voiceInviteKey) !== 'dismissed';")
+    // sessionStorage: offered again on the next visit, never hidden for good.
+    expect(widgetSource).toContain("if (offerVoice) setSessionValue(voiceInviteKey, 'dismissed');")
+    expect(widgetSource).toContain('window.sessionStorage.getItem(key)')
+    expect(widgetSource).not.toContain("setStoredValue(voiceInviteKey, 'dismissed')")
     expect(widgetSource).toContain('if (config.autoOpen || offerVoice) {')
+  })
+
+  it('offers "Hola TALIA" by voice once, after the first spoken answer, and only with a yes', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain("speak(text, language, true, fromVoice ? afterVoiceAnswer : null);")
+    // Asked once per browser, only where the browser engine can listen.
+    expect(widgetSource).toMatch(/function shouldOfferWake\(\) \{\s*return support\.browserRecognition && !wakeEnabled && !getStoredValue\(wakeOfferKey\)/)
+    expect(widgetSource).toContain("setStoredValue(wakeOfferKey, 'asked');")
+    // The wake word only turns on after an explicit "yes".
+    expect(widgetSource).toContain("if (answer === 'yes') setWake(true);")
+    expect(widgetSource).toContain("wakeOffer: '¿Quieres que la próxima vez puedas llamarme diciendo «Hola TALIA»? Mientras esta web esté abierta, tu navegador escuchará el micrófono para detectar esa frase. Di sí o no.'")
+    // Returning visitors who said yes are told they can just say it.
+    expect(widgetSource).toContain("greetingWakeHint: 'Di «Hola TALIA» o pulsa Hablar.'")
+  })
+
+  it('understands short yes / no answers in every widget language', async () => {
+    const widgetSource = await readWidget()
+    const answers = widgetSource.match(/var YES_NO_ANSWERS = \{[\s\S]*?\n {2}\};/)
+    const fn = widgetSource.match(/function getYesNoAnswer\(text\) \{[\s\S]*?\n {2}\}/)
+    expect(answers).not.toBeNull()
+    expect(fn).not.toBeNull()
+    const getYesNoAnswer = new Function(`${answers![0]}\n${fn![0]}\nreturn getYesNoAnswer;`)() as (text: string) => 'yes' | 'no' | null
+
+    for (const yes of ['Sí', 'sí, por favor', 'Vale.', "D'acord", 'Yes please', 'Sim']) expect(getYesNoAnswer(yes)).toBe('yes')
+    for (const no of ['No', 'No, gracias', 'Ahora no', 'Not now', 'Não, obrigado']) expect(getYesNoAnswer(no)).toBe('no')
+    // A real question is never taken as an answer.
+    expect(getYesNoAnswer('¿A qué hora abre la taquilla?')).toBeNull()
+    expect(getYesNoAnswer('si hay entradas para el sábado')).toBeNull()
+  })
+
+  it('reads the latest message as soon as "read answers aloud" is turned on, and stops when turned off', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain('var latest = lastReply || { text: options.initialMessage, language: options.language };')
+    expect(widgetSource).toMatch(/earcons\.play\('captured', function \(\) \{\s*if \(readAloud && latest\.text && !listening && !transcribing\) speak\(latest\.text, latest\.language, false\);/)
+    expect(widgetSource).toMatch(/if \(!readAloud\) \{\s*\/\/ Turning it off also stops whatever is being read\.\s*stopSpeaking\(\);/)
+    expect(widgetSource).toContain("readAloud: 'Leer las respuestas en voz alta (también las escritas)',")
+  })
+
+  it('listens with the browser engine first, so the visitor sees their words while talking', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain('var useServerRecognition = support.serverRecognition && !support.browserRecognition;')
+  })
+
+  it('asks the visitor to repeat instead of dropping their words when TALIA voice is unavailable', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toMatch(/if \(shouldUseBrowserFallback\(result\.status\) && support\.browserRecognition\) \{[\s\S]*?useServerRecognition = false;[\s\S]*?speak\(copy\.repeatPlease, options\.language, false, function \(\) \{[\s\S]*?startListening\(true\);/)
+    expect(widgetSource).toContain("repeatPlease: 'Perdona, no te he oído bien. ¿Puedes repetirlo?',")
+  })
+
+  it('tells keyboard and screen-reader users the agent exists before anything else on the page', async () => {
+    const widgetSource = await readWidget()
+
+    // First stop of the tab order, hidden until focused (WCAG 2.4.1).
+    expect(widgetSource).toContain('document.body.insertBefore(linkHost, document.body.firstChild);')
+    expect(widgetSource).toContain(".access:not(:focus):not(:focus-visible)")
+    expect(widgetSource).toContain("accessLinkVoice: 'Asistente de voz {name}: pulsa {keys} o este botón para hablar'")
+    // Named landmark for the screen reader's regions list.
+    expect(widgetSource).toContain("host.setAttribute('role', 'region');")
+    expect(widgetSource).toContain("landmark: 'Agente web {name}'")
   })
 
   it('starts listening only from the visitor\'s "Hablar" click, with a just-in-time notice', async () => {

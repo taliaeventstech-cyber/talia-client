@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { CopyScriptButton } from '@/components/copy-script-button'
 import { updateTenantSettings, type SettingsFormState } from './actions'
 import { AgentVoicePicker, type AgentVoicePickerLabels } from './agent-voice-picker'
+import { TaliaFace } from '@/components/talia-face'
 import { TaliaMark } from '@/components/talia-mark'
 import { testWebAgentMessage, type TestWebAgentResult } from './test-web-agent-action'
 import type { Json } from '@/types/database.types'
@@ -119,6 +120,7 @@ type SettingsFormLabels = AgentVoicePickerLabels & {
   widgetThemeGlassHint: string
   widgetIcon: string
   widgetIconTalia: string
+  widgetIconMark: string
   widgetIconChat: string
   widgetIconBubble: string
   widgetIconBot: string
@@ -670,6 +672,7 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, ha
                       color={previewConfig.primaryColor}
                       label={labels.widgetIcon}
                       taliaLabel={labels.widgetIconTalia}
+                      markLabel={labels.widgetIconMark}
                       chatLabel={labels.widgetIconChat}
                       bubbleLabel={labels.widgetIconBubble}
                       botLabel={labels.widgetIconBot}
@@ -1259,6 +1262,7 @@ function LauncherIconPicker({
   color,
   label,
   taliaLabel,
+  markLabel,
   chatLabel,
   bubbleLabel,
   botLabel,
@@ -1270,6 +1274,7 @@ function LauncherIconPicker({
   color: string
   label: string
   taliaLabel: string
+  markLabel: string
   chatLabel: string
   bubbleLabel: string
   botLabel: string
@@ -1280,6 +1285,7 @@ function LauncherIconPicker({
   const [expanded, setExpanded] = useState(false)
   const options: Array<{ value: WidgetLauncherIcon; label: string }> = [
     { value: 'talia', label: taliaLabel },
+    { value: 'mark', label: markLabel },
     { value: 'chat', label: chatLabel },
     { value: 'bubble', label: bubbleLabel },
     { value: 'bot', label: botLabel },
@@ -1344,7 +1350,11 @@ function LauncherIconGlyph({ value }: { value: WidgetLauncherIcon }) {
     return <MessageCircle className="widget-launcher-glyph widget-launcher-glyph-chat" strokeWidth={2.2} aria-hidden="true" />
   }
 
-  return <TaliaMark className="widget-launcher-glyph widget-launcher-glyph-talia" />
+  if (value === 'mark') {
+    return <TaliaMark className="widget-launcher-glyph widget-launcher-glyph-mark" />
+  }
+
+  return <TaliaFace className="widget-launcher-glyph widget-launcher-glyph-talia" />
 }
 
 // Compact light/dark page background switch for the preview's address bar.
@@ -1574,9 +1584,9 @@ function WidgetPreview({
         ) : null}
         <div className="widget-preview-header" style={headerStyle}>
           <span className="widget-preview-header-brand">
-            <span className="widget-preview-header-mark" style={{ color }}>
-              {/* TALIA's own avatar is always the TALIA mark, like the installed widget. */}
-              <TaliaMark size={20} />
+            <span className="widget-preview-header-mark">
+              {/* TALIA's own avatar is always TALIA's face, like the installed widget. */}
+              <TaliaFace size={32} />
             </span>
             <span className="widget-preview-header-identity">
               <span className="widget-preview-header-name">{widgetConfig.assistantName}</span>
@@ -1589,8 +1599,8 @@ function WidgetPreview({
               <button
                 type="button"
                 className="widget-preview-icon-button widget-preview-voice-control"
-                aria-label="Leer respuestas en voz alta"
-                title="Leer respuestas en voz alta"
+                aria-label="Leer las respuestas en voz alta (también las escritas)"
+                title="Leer las respuestas en voz alta (también las escritas)"
                 aria-disabled="true"
               >
                 <Volume2 aria-hidden="true" strokeWidth={2} />
@@ -1876,9 +1886,11 @@ function PreviewLauncherIcon({ value, size }: { value: WidgetLauncherIcon; size:
     return <Bot aria-hidden="true" width={Math.round(size * 0.54)} height={Math.round(size * 0.54)} strokeWidth={2.2} style={shadow} />
   }
 
-  return (
-    <TaliaMark size={Math.round(size * 0.54)} style={shadow} />
-  )
+  if (value === 'mark') {
+    return <TaliaMark size={Math.round(size * 0.54)} style={shadow} />
+  }
+
+  return <TaliaFace size={Math.round(size * 0.82)} style={{ filter: 'brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,.2))' }} />
 }
 
 // Single source of truth for the glass material, mirrored by the production widget
