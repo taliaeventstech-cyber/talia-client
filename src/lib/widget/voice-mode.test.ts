@@ -262,6 +262,15 @@ describe('widget voice offer in the greeting', () => {
     expect(getYesNoAnswer('si hay entradas para el sábado')).toBeNull()
   })
 
+  it('reads the latest message as soon as "read answers aloud" is turned on, and stops when turned off', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain('var latest = lastReply || { text: options.initialMessage, language: options.language };')
+    expect(widgetSource).toMatch(/earcons\.play\('captured', function \(\) \{\s*if \(readAloud && latest\.text && !listening && !transcribing\) speak\(latest\.text, latest\.language, false\);/)
+    expect(widgetSource).toMatch(/if \(!readAloud\) \{\s*\/\/ Turning it off also stops whatever is being read\.\s*stopSpeaking\(\);/)
+    expect(widgetSource).toContain("readAloud: 'Leer las respuestas en voz alta (también las escritas)',")
+  })
+
   it('listens with the browser engine first, so the visitor sees their words while talking', async () => {
     const widgetSource = await readWidget()
 

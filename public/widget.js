@@ -141,6 +141,7 @@
       support: voiceSupport,
       copy: voiceCopy,
       language: fallbackLanguage,
+      initialMessage: initialMessage,
       micButton: root.querySelector('[data-voice-mic]'),
       speakerButton: root.querySelector('[data-voice-speaker]'),
       wakeButton: root.querySelector('[data-voice-wake]'),
@@ -2235,7 +2236,7 @@
         unsupported: 'Aquest navegador no permet parlar amb l’agent. Pots escriure el teu missatge.',
         repeatPlease: 'Perdona, no t’he sentit bé. Ho pots repetir?',
         failed: 'No he pogut entendre l’àudio. Torna-ho a provar o escriu el teu missatge.',
-        readAloud: 'Llegir respostes en veu alta',
+        readAloud: 'Llegir les respostes en veu alta (també les escrites)',
         readAloudOn: 'Lectura en veu alta activada.',
         readAloudOff: 'Lectura en veu alta desactivada.',
         speechStopped: 'Lectura aturada.',
@@ -2285,7 +2286,7 @@
         unsupported: 'This browser doesn’t support talking to the agent. You can type your message.',
         repeatPlease: 'Sorry, I didn’t catch that. Could you say it again?',
         failed: 'I couldn’t understand the audio. Try again or type your message.',
-        readAloud: 'Read answers aloud',
+        readAloud: 'Read answers aloud (typed ones too)',
         readAloudOn: 'Reading answers aloud is on.',
         readAloudOff: 'Reading answers aloud is off.',
         speechStopped: 'Reading stopped.',
@@ -2335,7 +2336,7 @@
         unsupported: 'Este navegador não permite falar com o agente. Você pode digitar sua mensagem.',
         repeatPlease: 'Desculpe, não ouvi bem. Pode repetir?',
         failed: 'Não consegui entender o áudio. Tente de novo ou digite sua mensagem.',
-        readAloud: 'Ler respostas em voz alta',
+        readAloud: 'Ler as respostas em voz alta (também as escritas)',
         readAloudOn: 'Leitura em voz alta ativada.',
         readAloudOff: 'Leitura em voz alta desativada.',
         speechStopped: 'Leitura interrompida.',
@@ -2384,7 +2385,7 @@
       unsupported: 'Este navegador no permite hablar con el agente. Puedes escribir tu mensaje.',
       repeatPlease: 'Perdona, no te he oído bien. ¿Puedes repetirlo?',
       failed: 'No he podido entender el audio. Vuelve a intentarlo o escribe tu mensaje.',
-      readAloud: 'Leer respuestas en voz alta',
+      readAloud: 'Leer las respuestas en voz alta (también las escritas)',
       readAloudOn: 'Lectura en voz alta activada.',
       readAloudOff: 'Lectura en voz alta desactivada.',
       speechStopped: 'Lectura detenida.',
@@ -3325,9 +3326,19 @@
         if (readAloud) speakVoiceReplies = true;
         setStoredValue(readAloudKey, readAloud ? 'on' : 'off');
         updateSpeakerButton();
-        if (!readAloud) stopSpeaking();
-        earcons.play(readAloud ? 'captured' : 'cancel');
         announce(readAloud ? copy.readAloudOn : copy.readAloudOff);
+        if (!readAloud) {
+          // Turning it off also stops whatever is being read.
+          stopSpeaking();
+          earcons.play('cancel');
+          return;
+        }
+        // Turning it on reads TALIA's latest message right away, so the
+        // visitor hears that it works (the greeting if nothing else yet).
+        var latest = lastReply || { text: options.initialMessage, language: options.language };
+        earcons.play('captured', function () {
+          if (readAloud && latest.text && !listening && !transcribing) speak(latest.text, latest.language, false);
+        });
       },
       stopAll: function (announceStop) {
         var wasActive = listening || speaking || transcribing;

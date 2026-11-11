@@ -1599,8 +1599,8 @@ function WidgetPreview({
               <button
                 type="button"
                 className="widget-preview-icon-button widget-preview-voice-control"
-                aria-label="Leer respuestas en voz alta"
-                title="Leer respuestas en voz alta"
+                aria-label="Leer las respuestas en voz alta (también las escritas)"
+                title="Leer las respuestas en voz alta (también las escritas)"
                 aria-disabled="true"
               >
                 <Volume2 aria-hidden="true" strokeWidth={2} />
