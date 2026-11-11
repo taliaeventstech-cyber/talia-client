@@ -182,7 +182,11 @@ describe('widget hands-free conversation and wake word', () => {
     ['Hey Thalia', true],
     ['Olá Talia', true],
     ['Bon dia Talia', true],
-    ['Talia', false],
+    ['Talía', true],
+    ['Hola Italia', true],
+    ['hola Natalia', true],
+    ['Oye Talia', true],
+    ['Italia', false],
     ['La Talia de ayer', false],
     ['Hola, ¿a qué hora abrís?', false],
   ])('recognises the wake phrase in "%s": %s', async (utterance, expected) => {
@@ -274,5 +278,14 @@ describe('widget animated voice states (sound bars)', () => {
     const widgetSource = await readWidget()
 
     expect(widgetSource).toContain('.voice-bars span { animation: none !important; transition: none; }')
+  })
+})
+
+describe('widget voice diagnostics', () => {
+  it('only logs what the browser heard when debugging is explicitly enabled', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain("var voiceDebug = script.hasAttribute('data-voice-debug') || /[?&]talia_voice_debug=1(&|$)/.test(window.location.search);")
+    expect(widgetSource).toContain('if (!voiceDebug || !window.console) return;')
   })
 })

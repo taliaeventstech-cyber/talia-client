@@ -15,6 +15,8 @@
   var baseUrl = (script.getAttribute('data-api-base') || new URL(script.src).origin).replace(/\/$/, '');
   var pageUrlOverride = script.getAttribute('data-page-url') || '';
   var siteOriginOverride = script.getAttribute('data-site-origin') || '';
+  // Opt-in diagnostics for voice testing: logs what the browser heard.
+  var voiceDebug = script.hasAttribute('data-voice-debug') || /[?&]talia_voice_debug=1(&|$)/.test(window.location.search);
   var sessionKey = 'talia-session-' + tenantId;
   var installedWebCapture = { enabled: false, mode: 'manual' };
   var sessionId = getStoredValue(sessionKey);
@@ -2684,6 +2686,7 @@
             handleNoSpeech();
             return;
           }
+          voiceLog('transcription failed', result.status, result.data && result.data.error);
           if (shouldUseBrowserFallback(result.status) && support.browserRecognition) useServerRecognition = false;
           failListening(copy.failed);
         })
@@ -2733,6 +2736,7 @@
 
       recognition.onerror = function (event) {
         recognitionError = event && event.error ? event.error : 'unknown';
+        voiceLog('recognition error', recognitionError);
       };
 
       recognition.onend = function () {
@@ -3113,6 +3117,7 @@
       wake.onresult = function (event) {
         for (var index = event.resultIndex; index < event.results.length; index += 1) {
           var transcript = event.results[index][0] ? event.results[index][0].transcript : '';
+          voiceLog('wake heard', transcript, isWakePhrase(transcript, options.assistantName) ? '(match)' : '');
           if (isWakePhrase(transcript, options.assistantName)) {
             wakeFailures = 0;
             stopWake();
@@ -3125,6 +3130,7 @@
       };
       wake.onerror = function (event) {
         var error = event && event.error;
+        voiceLog('wake error', error);
         if (error === 'not-allowed' || error === 'service-not-allowed') {
           setWake(false);
           announce(copy.denied);
@@ -3140,6 +3146,7 @@
         scheduleWake(Math.min(15000, 400 * Math.pow(2, wakeFailures)));
       };
       wakeRecognition = wake;
+      voiceLog('wake listening', wake.lang);
       try {
         wake.start();
       } catch {
@@ -3254,17 +3261,31 @@
 
   // "Hola TALIA", "Hello TALIA", "Hey TALIA", "Olá TALIA"... Recognizers may
   // write the name as Talía or Thalia; the venue's assistant name also works.
+  function voiceLog() {
+    if (!voiceDebug || !window.console) return;
+    var args = Array.prototype.slice.call(arguments);
+    args.unshift('[TALIA voice]');
+    console.info.apply(console, args);
+  }
+
   function isWakePhrase(text, assistantName) {
     var normalize = function (value) {
       var result = String(value || '').toLowerCase();
       if (typeof result.normalize === 'function') result = result.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       return result.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
     };
-    var names = ['talia', 'thalia', 'tahlia'];
+    // Speech engines often "correct" the uncommon name TALIA into a familiar
+    // word (Spanish engines hear "Hola Italia", "Natalia", "Dalia"...).
+    var names = ['talia', 'thalia', 'tahlia', 'talya', 'tallia', 'tali a', 'tal ia', 'italia', 'natalia', 'dalia', 'thalya'];
     var custom = normalize(assistantName);
     if (custom && custom.indexOf(' ') < 0 && names.indexOf(custom) < 0) names.push(custom);
-    var pattern = new RegExp('(^| )(hola|hello|hey|hi|ola|oi|ei|bon dia|buenas|ok|okay) (' + names.join('|') + ')( |$)');
-    return pattern.test(normalize(text));
+    var heard = normalize(text);
+    var greeting = '(hola|holaa|hello|hallo|hey|hi|ola|oi|ei|ey|eh|bon dia|buenas|buenos dias|ok|okay|oye)';
+    var pattern = new RegExp('(^| )' + greeting + ' (' + names.join('|') + ')( |$)');
+    if (pattern.test(heard)) return true;
+    // The name alone ("¡Talía!") also wakes the agent, but not a longer
+    // sentence that merely mentions it.
+    return /^(talia|thalia|tahlia|talya)$/.test(heard) || (custom && heard === custom);
   }
 
   var VOICE_COMMANDS = {
