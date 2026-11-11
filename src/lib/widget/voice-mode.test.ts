@@ -262,6 +262,13 @@ describe('widget voice offer in the greeting', () => {
     expect(getYesNoAnswer('si hay entradas para el sábado')).toBeNull()
   })
 
+  it('asks the visitor to repeat instead of dropping their words when TALIA voice is unavailable', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toMatch(/if \(shouldUseBrowserFallback\(result\.status\) && support\.browserRecognition\) \{[\s\S]*?useServerRecognition = false;[\s\S]*?speak\(copy\.repeatPlease, options\.language, false, function \(\) \{[\s\S]*?startListening\(true\);/)
+    expect(widgetSource).toContain("repeatPlease: 'Perdona, no te he oído bien. ¿Puedes repetirlo?',")
+  })
+
   it('tells keyboard and screen-reader users the agent exists before anything else on the page', async () => {
     const widgetSource = await readWidget()
 

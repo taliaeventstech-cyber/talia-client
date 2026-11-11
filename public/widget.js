@@ -2233,6 +2233,7 @@
         noSpeech: 'No t’he sentit. Prem ' + keys + ' per tornar-ho a provar.',
         denied: 'No tinc accés al micròfon. Revisa els permisos del navegador o escriu el teu missatge.',
         unsupported: 'Aquest navegador no permet parlar amb l’agent. Pots escriure el teu missatge.',
+        repeatPlease: 'Perdona, no t’he sentit bé. Ho pots repetir?',
         failed: 'No he pogut entendre l’àudio. Torna-ho a provar o escriu el teu missatge.',
         readAloud: 'Llegir respostes en veu alta',
         readAloudOn: 'Lectura en veu alta activada.',
@@ -2282,6 +2283,7 @@
         noSpeech: 'I didn’t hear anything. Press ' + keys + ' to try again.',
         denied: 'I can’t access the microphone. Check your browser permissions or type your message.',
         unsupported: 'This browser doesn’t support talking to the agent. You can type your message.',
+        repeatPlease: 'Sorry, I didn’t catch that. Could you say it again?',
         failed: 'I couldn’t understand the audio. Try again or type your message.',
         readAloud: 'Read answers aloud',
         readAloudOn: 'Reading answers aloud is on.',
@@ -2331,6 +2333,7 @@
         noSpeech: 'Não ouvi nada. Pressione ' + keys + ' para tentar de novo.',
         denied: 'Não tenho acesso ao microfone. Verifique as permissões do navegador ou digite sua mensagem.',
         unsupported: 'Este navegador não permite falar com o agente. Você pode digitar sua mensagem.',
+        repeatPlease: 'Desculpe, não ouvi bem. Pode repetir?',
         failed: 'Não consegui entender o áudio. Tente de novo ou digite sua mensagem.',
         readAloud: 'Ler respostas em voz alta',
         readAloudOn: 'Leitura em voz alta ativada.',
@@ -2379,6 +2382,7 @@
       noSpeech: 'No te he oído. Pulsa ' + keys + ' para volver a intentarlo.',
       denied: 'No tengo acceso al micrófono. Revisa los permisos del navegador o escribe tu mensaje.',
       unsupported: 'Este navegador no permite hablar con el agente. Puedes escribir tu mensaje.',
+      repeatPlease: 'Perdona, no te he oído bien. ¿Puedes repetirlo?',
       failed: 'No he podido entender el audio. Vuelve a intentarlo o escribe tu mensaje.',
       readAloud: 'Leer respuestas en voz alta',
       readAloudOn: 'Lectura en voz alta activada.',
@@ -2773,7 +2777,18 @@
             return;
           }
           voiceLog('transcription failed', result.status, result.data && result.data.error);
-          if (shouldUseBrowserFallback(result.status) && support.browserRecognition) useServerRecognition = false;
+          if (shouldUseBrowserFallback(result.status) && support.browserRecognition) {
+            // The server voice failed: switch to the browser engine and
+            // ask the visitor to repeat, instead of dropping what they said.
+            useServerRecognition = false;
+            conversationActive = true;
+            earcons.play('cancel');
+            announce(copy.repeatPlease);
+            speak(copy.repeatPlease, options.language, false, function () {
+              if (conversationActive && isIdle() && options.isPanelOpen()) startListening(true);
+            });
+            return;
+          }
           failListening(copy.failed);
         })
         .catch(function () {
