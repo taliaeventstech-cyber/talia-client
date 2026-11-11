@@ -88,20 +88,27 @@ Hands-free conversation and wake word:
   unsupported (Firefox). Enabling it announces that the browser listens to
   the microphone while it is on; the privacy texts disclose it.
 
-Voice invitation on first visit (venue setting "Invitar a usar la voz al
-entrar", `widget_config.voiceInvitation`, off by default): visitors see an
-informative card «Di "Hola TALIA"» explaining that, if they turn voice on,
-their browser will listen to the microphone only to detect the wake phrase,
-with **Activar voz** / **Ahora no** and a privacy link. The microphone is only
-enabled from that click (opt-in consent: pre-enabled/opt-out listening is not
-valid consent under GDPR per CJEU Planet49 and the EDPB, and browsers tend to
-block microphone prompts on page load). After accepting, the card shows
-"Voz activada" with **Desactivar**; the ear button and the animated launcher bars keep
-the state visible and reversible (EDPB virtual voice assistant guidelines).
-The choice is remembered per browser; opening the chat dismisses the card
-without recording a choice. Not shown where browser recognition is
-unavailable (Firefox). Venues enabling it should mention it in their own
-privacy notice (they are the controller; TALIA processes on their behalf).
+Voice offer in the greeting (venue setting "Ofrecer hablar por voz en el
+saludo", `widget_config.voiceInvitation`, off by default): the proactive
+greeting ("Soy TALIA. ¿Te ayudo?") shows even without auto-open and adds two
+equal choices, **Escribir** and **Hablar**, plus a just-in-time notice ("Si
+hablas, tu voz se transcribe para responderte" + privacy link). "Hablar" opens
+the chat and starts listening in one step; the microphone is only used from
+that click (opt-in consent: pre-enabled/opt-out listening is not valid consent
+under GDPR per CJEU Planet49 and the EDPB). Closing a greeting that offered
+voice stops offering it in that browser.
+
+Voice panel in the chat pad: while listening, thinking or speaking, the
+composer turns into a voice panel with the animated bars, a status ("Te
+escucho…", "Un momento…", "TALIA está respondiendo"), a hint on what to do
+next, and one action (Listo / Cancelar / Detener). Focus moves to that action
+for keyboard users and returns to the input afterwards.
+
+Hands-free: after the visitor has used voice once, a "Manos libres: di «Hola
+TALIA»" pill with a switch appears above the composer (progressive
+disclosure). Turning it on is the explicit consent for wake-word listening;
+its tooltip and announcement explain that the browser listens only to detect
+the phrase. The launcher bars keep the state visible while the chat is closed.
 
 Agent voice: each venue chooses one of 11 OpenAI voices in Agora (Web Agent
 settings, "Voz del agente", with a listen button per voice). It is stored as

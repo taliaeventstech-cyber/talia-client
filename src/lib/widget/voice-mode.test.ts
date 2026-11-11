@@ -203,7 +203,8 @@ describe('widget hands-free conversation and wake word', () => {
     const widgetSource = await readWidget()
 
     expect(widgetSource).toContain("var wakeEnabled = support.browserRecognition && getStoredValue(wakeKey) === 'on';")
-    expect(widgetSource).toContain("var voiceWakeMarkup = voiceSupport.browserRecognition")
+    expect(widgetSource).toContain("var voiceHandsFreeMarkup = voiceSupport.browserRecognition")
+    expect(widgetSource).toContain('role="switch" aria-checked="false"')
     expect(widgetSource).toContain("options.launcher.classList.toggle('toggle--wake', active);")
     expect(widgetSource).toContain('if (document.hidden) stopWake();')
     expect(widgetSource).toContain('if (!wakeEnabled || wakeRecognition || !isIdle() || document.hidden) return;')
@@ -218,25 +219,34 @@ describe('widget hands-free conversation and wake word', () => {
   })
 })
 
-describe('widget voice invitation on first visit', () => {
-  it('only shows when the venue enabled it, once per browser, and never turns the mic on by itself', async () => {
+describe('widget voice offer in the greeting', () => {
+  it('only offers voice when the venue enabled it and stops offering it once dismissed', async () => {
     const widgetSource = await readWidget()
 
-    expect(widgetSource).toContain("config.voiceInvitation === true && !getStoredValue(voiceInviteKey) && !voice.isWakeEnabled()")
-    // The microphone (wake word) is only enabled from the visitor's click.
-    expect(widgetSource).toMatch(/inviteAccept\.addEventListener\('click', function \(\) \{[\s\S]*?voice\.enableWake\(\);/)
-    expect(widgetSource).not.toMatch(/setTimeout\([^)]*enableWake/)
+    expect(widgetSource).toContain("var offerVoice = !!welcomeVoice && config.voiceInvitation === true && getStoredValue(voiceInviteKey) !== 'dismissed';")
+    expect(widgetSource).toContain("if (offerVoice) setStoredValue(voiceInviteKey, 'dismissed');")
+    expect(widgetSource).toContain('if (config.autoOpen || offerVoice) {')
   })
 
-  it('lets the visitor decline or turn voice off again from the same message', async () => {
+  it('starts listening only from the visitor\'s "Hablar" click, with a just-in-time notice', async () => {
     const widgetSource = await readWidget()
 
-    expect(widgetSource).toContain("if (inviteAccepted) voice.disableWake();")
-    expect(widgetSource).toContain("setStoredValue(voiceInviteKey, 'declined');")
-    expect(widgetSource).toContain('inviteDecline.textContent = voiceCopy.inviteDisable;')
+    expect(widgetSource).toMatch(/\[data-welcome-talk\]'\)\.addEventListener\('click', function \(\) \{[\s\S]*?voice\.toggleListening\(\);/)
+    expect(widgetSource).toContain("escapeHtml(voiceCopy.greetingNotice)")
+    expect(widgetSource).not.toMatch(/setTimeout\([^)]*(enableWake|toggleListening)/)
   })
 
-  it.each(['es', 'ca', 'en', 'pt-BR'])('is fully localized with an explicit microphone notice (%s)', async (language) => {
+  it('shows voice status in the chat pad with one clear action, and reveals hands-free progressively', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain('<div class="voice-dock" data-voice-dock aria-hidden="true">')
+    expect(widgetSource).toContain("if (panel.getAttribute('data-voice-state') === 'listening') voice.toggleListening();")
+    expect(widgetSource).toContain('<div class="voice-handsfree" data-voice-handsfree hidden>')
+    expect(widgetSource).toContain('function revealHandsFree() {')
+    expect(widgetSource).not.toContain('data-voice-visual-status')
+  })
+
+  it.each(['es', 'ca', 'en', 'pt-BR'])('is fully localized (%s)', async (language) => {
     const widgetSource = await readWidget()
     const start = widgetSource.indexOf('  function isApplePlatform()')
     const end = widgetSource.indexOf('  function createVoiceController(')
@@ -246,11 +256,16 @@ describe('widget voice invitation on first visit', () => {
     ) => Record<string, string>
     const copy = getVoiceCopy(language, false)
 
-    for (const key of ['inviteTitle', 'inviteBody', 'inviteAccept', 'inviteDecline', 'inviteOnTitle', 'inviteOnBody', 'inviteDisable', 'inviteLabel']) {
+    for (const key of [
+      'greetingVoiceHint', 'greetingType', 'greetingTalk', 'greetingNotice',
+      'dockListeningTitle', 'dockListeningHint', 'dockThinkingTitle', 'dockThinkingHint',
+      'dockSpeakingTitle', 'dockSpeakingHint', 'dockDone', 'dockCancel', 'dockStop',
+      'handsFreeLabel', 'handsFreeTitle',
+    ]) {
       expect(copy[key]).toBeTruthy()
     }
-    expect(copy.inviteTitle).toMatch(/TALIA/)
-    expect(copy.inviteBody).toMatch(/micr[oóò](f|ph)on/i)
+    expect(copy.handsFreeLabel).toMatch(/TALIA/)
+    expect(copy.handsFreeTitle).toMatch(/micr[oóò](f|ph)on/i)
   })
 })
 
