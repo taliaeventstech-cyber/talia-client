@@ -8,6 +8,8 @@ import Link from 'next/link'
 import { CopyScriptButton } from '@/components/copy-script-button'
 import { updateTenantSettings, type SettingsFormState } from './actions'
 import { AgentVoicePicker, type AgentVoicePickerLabels } from './agent-voice-picker'
+import { testWebAgentMessage, type TestWebAgentResult } from './test-web-agent-action'
+import type { Json } from '@/types/database.types'
 import type { AgentVoice } from '@/lib/widget/agent-voices'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry } from '@/lib/phone/international'
@@ -30,6 +32,12 @@ import {
 } from '@/components/widget-installation-assistant'
 
 type SettingsFormLabels = AgentVoicePickerLabels & {
+  testChatHint: string
+  testChatSources: string
+  testChatNoSources: string
+  testChatError: string
+  testChatRateLimited: string
+  testChatThinking: string
   settingsSections: string
   tabConversation: string
   tabAnswers: string
@@ -888,6 +896,10 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, ha
               compliance={compliance}
               suggestedQuestionsLabel={labels.suggestedQuestions}
               suggestedQuestionsPrompt={labels.suggestedQuestionsPrompt}
+              testChat={{
+                send: (payload) => testWebAgentMessage(tenantId, payload),
+                labels,
+              }}
             />
           </section>
 
@@ -1357,11 +1369,20 @@ function PreviewBackgroundSwitch({
   )
 }
 
+type TestChatMessage = {
+  role: 'user' | 'assistant'
+  content: string
+  sources?: string[]
+  additionalSources?: number
+  error?: boolean
+}
+
 function WidgetPreview({
   widgetConfig,
   compliance,
   suggestedQuestionsLabel,
   suggestedQuestionsPrompt,
+  testChat,
 }: {
   widgetConfig: {
     assistantName: string
@@ -1387,8 +1408,69 @@ function WidgetPreview({
   compliance: WidgetComplianceCopy
   suggestedQuestionsLabel: string
   suggestedQuestionsPrompt: string
+  testChat: {
+    send: (payload: {
+      message: string
+      history: { role: 'user' | 'assistant'; content: string }[]
+      state: Json | null
+      pageUrl?: string
+      timeZone?: string
+    }) => Promise<TestWebAgentResult>
+    labels: Pick<SettingsFormLabels, 'testChatHint' | 'testChatSources' | 'testChatNoSources' | 'testChatError' | 'testChatRateLimited' | 'testChatThinking'>
+  }
 }) {
   const [panelOpen, setPanelOpen] = useState(true)
+  // Test chat: real answers from the saved Knowledge; nothing is stored.
+  const [testMessages, setTestMessages] = useState<TestChatMessage[]>([])
+  const [testState, setTestState] = useState<Json | null>(null)
+  const [testPending, setTestPending] = useState(false)
+  const [draft, setDraft] = useState('')
+  const messagesRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const container = messagesRef.current
+    if (container) container.scrollTop = container.scrollHeight
+  }, [testMessages.length, testPending])
+
+  async function sendTestMessage(text: string) {
+    const message = text.trim()
+    if (!message || testPending) return
+    const history = testMessages
+      .filter((item) => !item.error)
+      .map((item) => ({ role: item.role, content: item.content }))
+    setTestMessages((current) => [...current, { role: 'user', content: message }])
+    setDraft('')
+    setTestPending(true)
+    try {
+      const result = await testChat.send({
+        message,
+        history,
+        state: testState,
+        pageUrl: widgetConfig.pageUrl || undefined,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      })
+      if (result.ok) {
+        setTestState(result.state)
+        setTestMessages((current) => [...current, {
+          role: 'assistant',
+          content: result.reply,
+          sources: result.sources.map((source) => source.label),
+          additionalSources: result.additionalSources,
+        }])
+      } else {
+        setTestMessages((current) => [...current, {
+          role: 'assistant',
+          content: result.error === 'rate_limited' ? testChat.labels.testChatRateLimited : testChat.labels.testChatError,
+          error: true,
+        }])
+      }
+    } catch {
+      setTestMessages((current) => [...current, { role: 'assistant', content: testChat.labels.testChatError, error: true }])
+    } finally {
+      setTestPending(false)
+      requestAnimationFrame(() => composerRef.current?.focus())
+    }
+  }
   const [greetingVisible, setGreetingVisible] = useState(false)
   const [sessionFeedbackOpen, setSessionFeedbackOpen] = useState(false)
   const [sessionFeedbackResolved, setSessionFeedbackResolved] = useState<boolean | null>(null)
@@ -1454,6 +1536,8 @@ function WidgetPreview({
   }
 
   function closeSessionFeedback() {
+    setTestMessages([])
+    setTestState(null)
     setSessionFeedbackOpen(false)
     setSessionFeedbackResolved(null)
     setSelectedSuggestedQuestion(null)
@@ -1507,8 +1591,9 @@ function WidgetPreview({
             <button type="button" className="widget-preview-icon-button widget-preview-close" aria-label="Cerrar" onClick={closePanel}>×</button>
           </span>
         </div>
-        <div className="widget-preview-messages" style={{ background: glass ? skin.msgSurface : '#F5F2EC' }}>
+        <div ref={messagesRef} className="widget-preview-messages" style={{ background: glass ? skin.msgSurface : '#F5F2EC' }}>
           <p className="widget-preview-ai-disclosure">{compliance.disclosure}</p>
+          <p className="widget-preview-test-hint">{testChat.labels.testChatHint}</p>
           <p className="widget-preview-message" style={botBubbleStyle}>
             {widgetConfig.initialMessage}
           </p>
@@ -1526,7 +1611,7 @@ function WidgetPreview({
               </button>
             </div>
           </div>
-          {!selectedSuggestedQuestion && !privacyConversationOpen && !sessionFeedbackOpen && visibleSuggestedQuestions.length > 0 ? (
+          {!selectedSuggestedQuestion && !privacyConversationOpen && !sessionFeedbackOpen && testMessages.length === 0 && visibleSuggestedQuestions.length > 0 ? (
             <div
               className="widget-preview-suggested-questions"
               role="group"
@@ -1544,8 +1629,7 @@ function WidgetPreview({
                     key={question.id}
                     onClick={() => {
                       setPrivacyConversationOpen(false)
-                      setSelectedSuggestedQuestion(question.text)
-                      requestAnimationFrame(() => composerRef.current?.focus())
+                      void sendTestMessage(question.text)
                     }}
                   >
                     {question.text}
@@ -1557,6 +1641,30 @@ function WidgetPreview({
           {selectedSuggestedQuestion ? (
             <p className="widget-preview-message widget-preview-message-user" style={{ background: color }}>
               {selectedSuggestedQuestion}
+            </p>
+          ) : null}
+          {testMessages.map((item, index) => item.role === 'user' ? (
+            <p key={index} className="widget-preview-message widget-preview-message-user" style={{ background: color }}>
+              {item.content}
+            </p>
+          ) : (
+            <div key={index} className="widget-preview-test-answer">
+              <p className={item.error ? 'widget-preview-message widget-preview-test-error' : 'widget-preview-message'} style={item.error ? undefined : botBubbleStyle}>
+                {item.content}
+              </p>
+              {item.error ? null : item.sources && item.sources.length ? (
+                <p className="widget-preview-test-sources">
+                  {testChat.labels.testChatSources}: {item.sources.join(' · ')}
+                  {item.additionalSources ? ` (+${item.additionalSources})` : ''}
+                </p>
+              ) : (
+                <p className="widget-preview-test-sources widget-preview-test-sources-missing">{testChat.labels.testChatNoSources}</p>
+              )}
+            </div>
+          ))}
+          {testPending ? (
+            <p className="widget-preview-message widget-preview-test-typing" style={botBubbleStyle} aria-label={testChat.labels.testChatThinking}>
+              <span /><span /><span />
             </p>
           ) : null}
           {privacyConversationOpen ? (
@@ -1627,7 +1735,19 @@ function WidgetPreview({
             ref={composerRef}
             rows={1}
             placeholder="Escribe tu mensaje..."
+            value={draft}
             onInput={(event) => resizePreviewComposer(event.currentTarget)}
+            onChange={(event) => {
+              // Test messages are not settings: don't mark the form as changed.
+              event.stopPropagation()
+              setDraft(event.target.value)
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault()
+                void sendTestMessage(draft)
+              }
+            }}
           />
           <button
             type="button"
@@ -1639,7 +1759,15 @@ function WidgetPreview({
           >
             <Mic aria-hidden="true" strokeWidth={2} />
           </button>
-          <button type="button" disabled style={{ background: color }}>Enviar</button>
+          <button
+            type="button"
+            className="widget-preview-send"
+            disabled={!draft.trim() || testPending}
+            style={{ background: color }}
+            onClick={() => void sendTestMessage(draft)}
+          >
+            Enviar
+          </button>
         </div>
         <div
           className="widget-preview-powered"
