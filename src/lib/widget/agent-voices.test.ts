@@ -11,14 +11,17 @@ import {
 
 describe('agent voices', () => {
   it('only accepts the voices talia-ai supports', () => {
-    expect(AGENT_VOICES).toEqual(expect.arrayContaining(['coral', 'nova', 'sage', 'onyx']))
-    expect(normalizeAgentVoice('onyx')).toBe('onyx')
+    expect(AGENT_VOICES).toEqual(['coral', 'sage', 'ash'])
+    expect(normalizeAgentVoice('ash')).toBe('ash')
+    // Voices removed for the MVP fall back to the default.
+    expect(normalizeAgentVoice('onyx')).toBe(DEFAULT_AGENT_VOICE)
     expect(normalizeAgentVoice('robot')).toBe(DEFAULT_AGENT_VOICE)
     expect(normalizeAgentVoice(undefined)).toBe(DEFAULT_AGENT_VOICE)
   })
 
   it('reads the venue voice from widget_config and defaults safely', () => {
-    expect(getAgentVoiceFromWidgetConfig({ agentVoice: 'nova' })).toBe('nova')
+    expect(getAgentVoiceFromWidgetConfig({ agentVoice: 'ash' })).toBe('ash')
+    expect(getAgentVoiceFromWidgetConfig({ agentVoice: 'nova' })).toBe(DEFAULT_AGENT_VOICE)
     expect(getAgentVoiceFromWidgetConfig({ agent_voice: 'sage' })).toBe('sage')
     expect(getAgentVoiceFromWidgetConfig({ agentVoice: '<script>' })).toBe(DEFAULT_AGENT_VOICE)
     expect(getAgentVoiceFromWidgetConfig(null)).toBe(DEFAULT_AGENT_VOICE)

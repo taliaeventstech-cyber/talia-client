@@ -35,17 +35,17 @@ describe('previewAgentVoice', () => {
       ok: true,
       audio: new Uint8Array([1, 2, 3]),
       contentType: 'audio/mpeg',
-      voice: 'nova',
+      voice: 'sage',
       usageComponents: [],
     })
   })
 
   it('plays a sample in the venue language with the chosen voice and records usage', async () => {
-    const result = await previewAgentVoice('tenant-1', 'nova')
+    const result = await previewAgentVoice('tenant-1', 'sage')
 
     expect(result).toEqual({ ok: true, audioBase64: Buffer.from([1, 2, 3]).toString('base64') })
     expect(requireTenantProductAccess).toHaveBeenCalledWith('tenant-1', 'manage_chatbot', 'web')
-    expect(provider.synthesize).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant-1', voice: 'nova', language: 'ca' }))
+    expect(provider.synthesize).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant-1', voice: 'sage', language: 'ca' }))
     expect(vi.mocked(consumeRateLimit).mock.calls[0][0][0].key).toBe('voice-preview:tenant-1:user-1')
     expect(recordVoiceUsage).toHaveBeenCalled()
   })
@@ -53,7 +53,7 @@ describe('previewAgentVoice', () => {
   it('refuses non-admin members', async () => {
     vi.mocked(assertTenantAdmin).mockResolvedValue(false)
 
-    await expect(previewAgentVoice('tenant-1', 'nova')).resolves.toEqual({ ok: false, error: 'forbidden' })
+    await expect(previewAgentVoice('tenant-1', 'sage')).resolves.toEqual({ ok: false, error: 'forbidden' })
     expect(provider.synthesize).not.toHaveBeenCalled()
   })
 
@@ -66,7 +66,7 @@ describe('previewAgentVoice', () => {
   it('is rate limited per user', async () => {
     vi.mocked(consumeRateLimit).mockResolvedValue({ unavailable: false, retryAfterSeconds: 30 } as Awaited<ReturnType<typeof consumeRateLimit>>)
 
-    await expect(previewAgentVoice('tenant-1', 'nova')).resolves.toEqual({ ok: false, error: 'rate_limited' })
+    await expect(previewAgentVoice('tenant-1', 'sage')).resolves.toEqual({ ok: false, error: 'rate_limited' })
     expect(provider.synthesize).not.toHaveBeenCalled()
   })
 })
