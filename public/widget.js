@@ -128,7 +128,9 @@
     isolateWidgetScroll(host, root);
     var privacyLink = root.querySelector('[data-privacy]');
     var sessionFeedbackPrompt = null;
-    var voiceInviteKey = 'talia-voice-invite';
+    // Per venue. Closing the voice greeting hides it for a week, not forever.
+    var voiceInviteKey = 'talia-voice-invite-' + tenantId;
+    var voiceInviteSnoozeMs = 7 * 24 * 60 * 60 * 1000;
     var conversationHasActivity = false;
     var privacyReplyPending = false;
     var voice = createVoiceController({
@@ -221,7 +223,7 @@
 
     // Venue-enabled voice offer inside the greeting ("Escribir" / "Hablar").
     var welcomeVoice = root.querySelector('[data-welcome-voice]');
-    var offerVoice = !!welcomeVoice && config.voiceInvitation === true && getStoredValue(voiceInviteKey) !== 'dismissed';
+    var offerVoice = !!welcomeVoice && config.voiceInvitation === true && !isVoiceInviteSnoozed(getStoredValue(voiceInviteKey), voiceInviteSnoozeMs);
     if (offerVoice) {
       welcomeVoice.hidden = false;
       welcome.classList.add('welcome--voice');
@@ -244,7 +246,7 @@
 
     welcomeClose.addEventListener('click', function () {
       // Closing a greeting that offered voice means "don't offer it again".
-      if (offerVoice) setStoredValue(voiceInviteKey, 'dismissed');
+      if (offerVoice) setStoredValue(voiceInviteKey, 'dismissed:' + Date.now());
       hideWelcome();
       toggle.focus();
     });
@@ -3569,6 +3571,14 @@
 
   function createSessionId() {
     return crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + '-' + Math.random().toString(16).slice(2);
+  }
+
+  // `dismissed:<time>` snoozes the voice greeting; older plain values and
+  // anything unreadable never block it.
+  function isVoiceInviteSnoozed(value, snoozeMs) {
+    var match = /^dismissed:(\d+)$/.exec(String(value || ''));
+    if (!match) return false;
+    return Date.now() - Number(match[1]) < snoozeMs;
   }
 
   function getStoredValue(key) {
