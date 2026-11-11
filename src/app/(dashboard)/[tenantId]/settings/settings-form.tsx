@@ -12,7 +12,7 @@ import type { AgentVoice } from '@/lib/widget/agent-voices'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry } from '@/lib/phone/international'
 import Image from 'next/image'
-import { ArrowDown, ArrowUp, Bot, ChevronLeft, MessageCircle, MessageCircleMore, Mic, Palette, Plug, Plus, RefreshCcw, Trash2, Volume2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bot, ChevronLeft, Globe, MessageCircle, MessageCircleMore, Mic, Moon, Palette, Plug, Plus, RefreshCcw, Sun, Trash2, Volume2 } from 'lucide-react'
 import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { getSessionFeedbackCopy } from '@/lib/widget/session-feedback-copy'
 import {
@@ -854,10 +854,27 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, ha
         </div>
 
         <aside className="stack chatbot-settings-preview-column">
-          <section className="card stack chatbot-preview-card">
-            <div className="chatbot-preview-card-header">
-              <h2>{previewLabel}</h2>
-              <BackgroundToggle
+          {/* The preview is a mini browser window: the simulated page URL lives in
+              its address bar so the widget gets almost all the space. */}
+          <section className="card chatbot-preview-card chatbot-preview-frame" aria-label={previewLabel}>
+            <div className="preview-browser-bar">
+              <span className="preview-browser-dots" aria-hidden="true"><i /><i /><i /></span>
+              <label className="preview-browser-address" title={labels.suggestedQuestionsPreviewUrlHint}>
+                <Globe aria-hidden="true" size={14} strokeWidth={2} />
+                <span className="sr-only">{labels.suggestedQuestionsPreviewUrl}</span>
+                <input
+                  type="url"
+                  value={previewConfig.pageUrl}
+                  placeholder="https://example.org/agenda"
+                  aria-describedby="chatbot-preview-url-hint"
+                  onChange={(event) => {
+                    event.stopPropagation()
+                    setPreviewConfig((current) => ({ ...current, pageUrl: event.target.value }))
+                  }}
+                />
+              </label>
+              <span className="sr-only" id="chatbot-preview-url-hint">{labels.suggestedQuestionsPreviewUrlHint}</span>
+              <PreviewBackgroundSwitch
                 value={previewConfig.glassBackground}
                 label={labels.glassBackground}
                 lightLabel={labels.glassBackgroundLight}
@@ -865,19 +882,6 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, ha
                 onSelect={(glassBackground) => setPreviewConfig((current) => ({ ...current, glassBackground }))}
               />
             </div>
-            <label className="field suggested-questions-preview-url">
-              {labels.suggestedQuestionsPreviewUrl}
-              <input
-                type="url"
-                value={previewConfig.pageUrl}
-                placeholder="https://example.org/agenda"
-                onChange={(event) => {
-                  event.stopPropagation()
-                  setPreviewConfig((current) => ({ ...current, pageUrl: event.target.value }))
-                }}
-              />
-              <span className="muted">{labels.suggestedQuestionsPreviewUrlHint}</span>
-            </label>
             <WidgetPreview
               key={previewConfig.autoOpen ? 'proactive' : 'manual'}
               widgetConfig={previewConfig}
@@ -1318,7 +1322,9 @@ function LauncherIconGlyph({ value }: { value: WidgetLauncherIcon }) {
   )
 }
 
-function BackgroundToggle({
+// Compact light/dark page background switch for the preview's address bar.
+// Keeps the `glass_background` form field the settings action saves.
+function PreviewBackgroundSwitch({
   value,
   label,
   lightLabel,
@@ -1332,36 +1338,22 @@ function BackgroundToggle({
   onSelect: (value: 'light' | 'dark') => void
 }) {
   return (
-    <fieldset className="glass-background-toggle-field">
-      <legend className="sr-only">{label}</legend>
-      <div className="glass-background-toggle" data-background={value} role="radiogroup" aria-label={label} aria-orientation="vertical">
-        <span className="glass-background-toggle-indicator" aria-hidden="true" />
-        <label className="glass-background-toggle-option" title={lightLabel}>
+    <div className="preview-background-switch" role="radiogroup" aria-label={label}>
+      {([['light', lightLabel, Sun], ['dark', darkLabel, Moon]] as const).map(([option, optionLabel, Icon]) => (
+        <label key={option} className="preview-background-option" title={optionLabel} data-checked={value === option}>
           <input
             type="radio"
             name="glass_background"
-            value="light"
-            checked={value === 'light'}
-            onChange={() => onSelect('light')}
+            value={option}
+            checked={value === option}
+            onChange={() => onSelect(option)}
             className="sr-only"
-            aria-label={lightLabel}
+            aria-label={optionLabel}
           />
-          <span className="glass-background-orb glass-background-orb-light" aria-hidden="true" />
+          <Icon aria-hidden="true" size={14} strokeWidth={2} />
         </label>
-        <label className="glass-background-toggle-option" title={darkLabel}>
-          <input
-            type="radio"
-            name="glass_background"
-            value="dark"
-            checked={value === 'dark'}
-            onChange={() => onSelect('dark')}
-            className="sr-only"
-            aria-label={darkLabel}
-          />
-          <span className="glass-background-orb glass-background-orb-dark" aria-hidden="true" />
-        </label>
-      </div>
-    </fieldset>
+      ))}
+    </div>
   )
 }
 
