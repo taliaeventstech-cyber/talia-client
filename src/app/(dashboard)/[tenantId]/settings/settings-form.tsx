@@ -12,7 +12,7 @@ import type { AgentVoice } from '@/lib/widget/agent-voices'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 import { getDefaultPhoneCountry } from '@/lib/phone/international'
 import Image from 'next/image'
-import { ArrowDown, ArrowUp, Bot, ChevronLeft, MessageCircle, MessageCircleMore, Mic, Plus, RefreshCcw, Trash2, Volume2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bot, ChevronLeft, MessageCircle, MessageCircleMore, Mic, Palette, Plug, Plus, RefreshCcw, Trash2, Volume2 } from 'lucide-react'
 import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { getSessionFeedbackCopy } from '@/lib/widget/session-feedback-copy'
 import {
@@ -30,6 +30,22 @@ import {
 } from '@/components/widget-installation-assistant'
 
 type SettingsFormLabels = AgentVoicePickerLabels & {
+  settingsSections: string
+  tabConversation: string
+  tabAnswers: string
+  tabVoice: string
+  tabAppearance: string
+  tabInstall: string
+  sectionWelcome: string
+  sectionWelcomeHint: string
+  sectionFallback: string
+  sectionFallbackHint: string
+  sectionVoice: string
+  sectionVoiceHint: string
+  sectionStyle: string
+  sectionPlacement: string
+  advancedSettings: string
+  sectionPrivacy: string
   voiceInvitation: string
   voiceInvitationHint: string
   chatbot: string
@@ -187,10 +203,42 @@ const initialState: SettingsFormState = {
   message: '',
 }
 
+type SettingsTabId = 'conversation' | 'answers' | 'voice' | 'appearance' | 'install'
+
+// Grouped by what the venue wants to do, not by field type.
+const SETTINGS_TABS: { id: SettingsTabId; labelKey: 'tabConversation' | 'tabAnswers' | 'tabVoice' | 'tabAppearance' | 'tabInstall'; icon: typeof MessageCircle }[] = [
+  { id: 'conversation', labelKey: 'tabConversation', icon: MessageCircle },
+  { id: 'answers', labelKey: 'tabAnswers', icon: Bot },
+  { id: 'voice', labelKey: 'tabVoice', icon: Mic },
+  { id: 'appearance', labelKey: 'tabAppearance', icon: Palette },
+  { id: 'install', labelKey: 'tabInstall', icon: Plug },
+]
+
+function isSettingsTabId(value: string): value is SettingsTabId {
+  return SETTINGS_TABS.some((tab) => tab.id === value)
+}
+
+// Every panel stays mounted (only hidden) so all fields are always submitted.
+function SettingsPanel({ id, activeTab, children }: { id: SettingsTabId; activeTab: SettingsTabId; children: React.ReactNode }) {
+  return (
+    <div
+      role="tabpanel"
+      id={`chatbot-settings-panel-${id}`}
+      aria-labelledby={`chatbot-settings-tab-${id}`}
+      data-settings-panel={id}
+      hidden={activeTab !== id}
+      className="stack chatbot-settings-panel"
+    >
+      {children}
+    </div>
+  )
+}
+
 export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, hasUsableKnowledge, labels, compliance, previewLabel, integration }: SettingsFormProps) {
   const router = useRouter()
   const [state, formAction, pending] = useActionState(updateTenantSettings.bind(null, tenantId), initialState)
   const [widgetEnabled, setWidgetEnabled] = useState(widgetConfig.enabled)
+  const [activeTab, setActiveTab] = useState<SettingsTabId>('conversation')
   const activationLocked = !hasUsableKnowledge && !widgetConfig.enabled
   const [dirty, setDirty] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
@@ -327,6 +375,13 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, ha
       onSubmit={() => {
         submittedVersionRef.current = changeVersionRef.current
       }}
+      onInvalidCapture={(event) => {
+        // A required field in another tab: show that tab so the browser can
+        // point at the field instead of failing silently.
+        const panel = (event.target as HTMLElement).closest<HTMLElement>('[data-settings-panel]')
+        const tab = panel?.dataset.settingsPanel
+        if (tab && isSettingsTabId(tab)) setActiveTab(tab)
+      }}
     >
       <ActionToast state={state} />
       {pendingNavigation ? (
@@ -368,29 +423,46 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, ha
             </span>
             <strong>{widgetEnabled ? labels.widgetEnabled : labels.widgetDisabled}</strong>
           </label>
+          {dirty ? <span className="chatbot-settings-unsaved">{labels.unsavedChanges}</span> : null}
+          <button className="button-primary chatbot-settings-save-button" type="submit" disabled={!dirty || pending}>
+            {pending ? labels.saving : labels.save}
+          </button>
         </div>
+      </div>
+
+      <div className="chatbot-settings-tabs" role="tablist" aria-label={labels.settingsSections}>
+        {SETTINGS_TABS.map((tab, index) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            id={`chatbot-settings-tab-${tab.id}`}
+            aria-controls={`chatbot-settings-panel-${tab.id}`}
+            aria-selected={activeTab === tab.id}
+            tabIndex={activeTab === tab.id ? 0 : -1}
+            className="chatbot-settings-tab"
+            onClick={() => setActiveTab(tab.id)}
+            onKeyDown={(event) => {
+              const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
+              if (!step) return
+              event.preventDefault()
+              const next = SETTINGS_TABS[(index + step + SETTINGS_TABS.length) % SETTINGS_TABS.length]
+              setActiveTab(next.id)
+              document.getElementById(`chatbot-settings-tab-${next.id}`)?.focus()
+            }}
+          >
+            <tab.icon aria-hidden="true" size={17} strokeWidth={2} />
+            <span>{labels[tab.labelKey]}</span>
+          </button>
+        ))}
       </div>
 
       <div className="two-column-grid chatbot-settings-grid">
         <div className="stack">
-          <section className="card stack">
-            <h2>{labels.channelPrompt}</h2>
-            <p className="muted">
-              {labels.channelPromptHintBefore}
-              <Link href={`/${tenantId}/knowledge`}>{labels.channelPromptHintKnowledge}</Link>.
-            </p>
-            <textarea
-              name="system_prompt"
-              defaultValue={theatre.system_prompt ?? ''}
-              rows={10}
-              className="mono"
-              placeholder="Instrucciones específicas para el Agente Web."
-            />
-          </section>
-
-          <section className="card stack">
-            <h2>{labels.chatbot}</h2>
-            <div className="form-grid">
+          <SettingsPanel id="conversation" activeTab={activeTab}>
+            <section className="card stack">
+              <h2>{labels.sectionWelcome}</h2>
+              <p className="muted settings-section-hint">{labels.sectionWelcomeHint}</p>
               <label className="field">
                 {labels.initialMessage}
                 <textarea
@@ -401,11 +473,358 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, ha
                 />
               </label>
 
-              <div className="chatbot-compliance-summary">
-                <strong>{compliance.aiLabel}</strong>
-                <p>{labels.aiDisclosureFixed}</p>
+              <div className="form-row" style={{ alignItems: 'center', gap: 16 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    name="auto_open"
+                    defaultChecked={widgetConfig.autoOpen}
+                    style={{ width: 16, height: 16 }}
+                    onChange={(event) => setPreviewConfig((current) => ({ ...current, autoOpen: event.target.checked }))}
+                  />
+                  {labels.autoOpen}
+                </label>
+                <label className="field" style={{ margin: 0 }}>
+                  {labels.delay}
+                  <input
+                    name="auto_open_delay"
+                    type="number"
+                    min={0}
+                    max={60}
+                    defaultValue={widgetConfig.autoOpenDelay}
+                    style={{ width: 80 }}
+                  />
+                </label>
+              </div>
+              <label className="field">
+                {labels.proactiveMessage}
+                <input
+                  name="proactive_message"
+                  type="text"
+                  maxLength={160}
+                  defaultValue={widgetConfig.proactiveMessage}
+                  onChange={(event) => setPreviewConfig((current) => ({ ...current, proactiveMessage: event.target.value }))}
+                />
+                <span className="muted">{labels.proactiveMessageHint}</span>
+              </label>
+            </section>
+
+            <section className="card stack">
+              <SuggestedQuestionsEditor
+                questions={suggestedQuestions}
+                chatbotLanguage={theatre.primary_language}
+                labels={labels}
+                onChange={updateSuggestedQuestions}
+              />
+
+            </section>
+          </SettingsPanel>
+
+          <SettingsPanel id="answers" activeTab={activeTab}>
+            <section className="card stack">
+              <h2>{labels.channelPrompt}</h2>
+              <p className="muted">
+                {labels.channelPromptHintBefore}
+                <Link href={`/${tenantId}/knowledge`}>{labels.channelPromptHintKnowledge}</Link>.
+              </p>
+              <textarea
+                name="system_prompt"
+                defaultValue={theatre.system_prompt ?? ''}
+                rows={10}
+                className="mono"
+                placeholder="Instrucciones específicas para el Agente Web."
+              />
+            </section>
+
+
+            <section className="card stack">
+              <h2>{labels.sectionFallback}</h2>
+              <p className="muted settings-section-hint">{labels.sectionFallbackHint}</p>
+              <div className="form-grid">
+                <label className="field">
+                  {labels.fallbackEmail}
+                  <input name="fallback_email" type="email" defaultValue={theatre.fallback_email ?? ''} />
+                </label>
+
+                <InternationalPhoneInput
+                  name="fallback_phone"
+                  label={labels.fallbackPhone}
+                  defaultValue={theatre.fallback_phone}
+                  defaultCountry={getDefaultPhoneCountry(theatre.primary_language)}
+                  locale={theatre.primary_language}
+                />
+
+                <label className="field" style={{ gridColumn: '1 / -1' }}>
+                  {labels.fallbackMessage}
+                  <textarea name="fallback_message" defaultValue={widgetConfig.fallbackMessage ?? ''} rows={3} />
+                  <span className="muted">{labels.fallbackMessageHint}</span>
+                </label>
               </div>
 
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  name="fallback_whatsapp"
+                  defaultChecked={widgetConfig.fallbackWhatsApp}
+                  style={{ width: 16, height: 16, marginTop: 4 }}
+                />
+                <span>
+                  <strong>{labels.fallbackWhatsApp}</strong>
+                  <span className="muted" style={{ display: 'block', marginTop: 4 }}>
+                    {labels.fallbackWhatsAppHint}
+                  </span>
+                </span>
+              </label>
+
+            </section>
+          </SettingsPanel>
+
+          <SettingsPanel id="voice" activeTab={activeTab}>
+            <section className="card stack">
+              <h2>{labels.sectionVoice}</h2>
+              <p className="muted settings-section-hint">{labels.sectionVoiceHint}</p>
+              <label className="voice-invitation-toggle">
+                <input
+                  type="checkbox"
+                  name="voice_invitation"
+                  defaultChecked={widgetConfig.voiceInvitation}
+                />
+                <span>
+                  <strong>{labels.voiceInvitation}</strong>
+                  <span className="muted">{labels.voiceInvitationHint}</span>
+                </span>
+              </label>
+              <AgentVoicePicker
+                tenantId={tenantId}
+                defaultVoice={widgetConfig.agentVoice}
+                options={voiceOptions}
+                labels={labels}
+              />
+            </section>
+
+          </SettingsPanel>
+
+          <SettingsPanel id="appearance" activeTab={activeTab}>
+            <section className="card stack">
+              <h2>{labels.sectionStyle}</h2>
+              <div className="form-grid">
+                <label className="field settings-color-field">
+                  {labels.primaryColor}
+                  <input
+                    name="primary_color"
+                    type="color"
+                    defaultValue={widgetConfig.primaryColor}
+                    style={{ height: 44 }}
+                    onChange={(event) => setPreviewConfig((current) => ({ ...current, primaryColor: event.target.value }))}
+                  />
+                </label>
+
+                <fieldset className="field widget-theme-field widget-appearance-field" style={{ gridColumn: '1 / -1', border: 0, padding: 0, margin: 0 }}>
+                  <legend style={{ padding: 0 }}>{labels.widgetTheme}</legend>
+                  <div className="widget-appearance-controls">
+                    <ThemeToggle
+                      value={previewConfig.widgetTheme}
+                      color={previewConfig.primaryColor}
+                      solidLabel={labels.widgetThemeSolid}
+                      glassLabel={labels.widgetThemeGlass}
+                      onSelect={(widgetTheme) => setPreviewConfig((current) => ({ ...current, widgetTheme }))}
+                    />
+                    <LauncherIconPicker
+                      value={previewConfig.launcherIcon}
+                      color={previewConfig.primaryColor}
+                      label={labels.widgetIcon}
+                      taliaLabel={labels.widgetIconTalia}
+                      chatLabel={labels.widgetIconChat}
+                      bubbleLabel={labels.widgetIconBubble}
+                      botLabel={labels.widgetIconBot}
+                      expandLabel={labels.widgetIconExpand}
+                      collapseLabel={labels.widgetIconCollapse}
+                      onSelect={(launcherIcon) => setPreviewConfig((current) => ({ ...current, launcherIcon }))}
+                    />
+                  </div>
+                </fieldset>
+
+                {previewConfig.widgetTheme === 'glass' ? (
+                  <div className="glass-controls" style={{ gridColumn: '1 / -1' }}>
+                    <div className="glass-range-controls">
+                      <label className="field glass-range-field">
+                        <span className="glass-range-label">
+                          <span>{labels.glassBlur}</span>
+                          <output>{Math.round((previewConfig.glassBlur / 30) * 100)}%</output>
+                        </span>
+                        <input
+                          type="range"
+                          name="glass_blur"
+                          min={0}
+                          max={30}
+                          value={previewConfig.glassBlur}
+                          style={{ ['--fill' as string]: `${Math.round((previewConfig.glassBlur / 30) * 100)}%` }}
+                          onChange={(event) => setPreviewConfig((current) => ({ ...current, glassBlur: Number(event.target.value) }))}
+                        />
+                      </label>
+
+                      <label className="field glass-range-field">
+                        <span className="glass-range-label">
+                          <span>{labels.glassTranslucency}</span>
+                          <output>{Math.round(((previewConfig.glassTranslucency - 15) / 70) * 100)}%</output>
+                        </span>
+                        <input
+                          type="range"
+                          name="glass_translucency"
+                          min={15}
+                          max={85}
+                          value={previewConfig.glassTranslucency}
+                          style={{ ['--fill' as string]: `${Math.round(((previewConfig.glassTranslucency - 15) / 70) * 100)}%` }}
+                          onChange={(event) => setPreviewConfig((current) => ({ ...current, glassTranslucency: Number(event.target.value) }))}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <input type="hidden" name="glass_blur" value={previewConfig.glassBlur} />
+                    <input type="hidden" name="glass_translucency" value={previewConfig.glassTranslucency} />
+                  </>
+                )}
+
+              </div>
+            </section>
+
+            <section className="card stack">
+              <h2>{labels.sectionPlacement}</h2>
+              <div className="form-grid">
+                <label className="field">
+                  {labels.position}
+                  <select
+                    name="position"
+                    defaultValue={widgetConfig.position}
+                    onChange={(event) => setPreviewConfig((current) => ({ ...current, position: event.target.value }))}
+                  >
+                    <option value="bottom-right">Abajo derecha</option>
+                    <option value="bottom-left">Abajo izquierda</option>
+                    <option value="top-right">Arriba derecha</option>
+                    <option value="top-left">Arriba izquierda</option>
+                  </select>
+                </label>
+
+                <label className="field">
+                  {labels.widgetSize}
+                  <select
+                    name="widget_size"
+                    defaultValue={widgetConfig.widgetSize}
+                    onChange={(event) => setPreviewConfig((current) => ({ ...current, widgetSize: getWidgetSize(event.target.value) }))}
+                  >
+                    <option value="small">Pequeño</option>
+                    <option value="medium">Mediano</option>
+                    <option value="large">Grande</option>
+                  </select>
+                </label>
+
+              </div>
+              <details className="settings-advanced">
+                <summary>{labels.advancedSettings}</summary>
+                <div className="form-grid">
+                  <label className="field">
+                    {labels.inlineOffset}
+                    <input
+                      name="inline_offset"
+                      type="number"
+                      min={12}
+                      max={320}
+                      defaultValue={widgetConfig.inlineOffset}
+                      onChange={(event) => setPreviewConfig((current) => ({ ...current, inlineOffset: getNumericInput(event.target.value, widgetConfig.inlineOffset) }))}
+                    />
+                  </label>
+
+                  <label className="field">
+                    {labels.blockOffset}
+                    <input
+                      name="block_offset"
+                      type="number"
+                      min={12}
+                      max={320}
+                      defaultValue={widgetConfig.blockOffset}
+                      onChange={(event) => setPreviewConfig((current) => ({ ...current, blockOffset: getNumericInput(event.target.value, widgetConfig.blockOffset) }))}
+                    />
+                  </label>
+
+                </div>
+                <div className="form-row" style={{ alignItems: 'flex-start', gap: 16 }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      name="collision_strategy"
+                      value="auto"
+                      defaultChecked={widgetConfig.collisionStrategy !== 'none'}
+                      style={{ width: 16, height: 16, marginTop: 4 }}
+                      onChange={(event) => setPreviewConfig((current) => ({ ...current, collisionStrategy: event.target.checked ? 'auto' : 'none' }))}
+                    />
+                    <span>
+                      <strong>{labels.collisionStrategy}</strong>
+                      <span className="muted" style={{ display: 'block', marginTop: 4 }}>
+                        {labels.collisionStrategyHint}
+                      </span>
+                      <span className="muted" style={{ display: 'block', marginTop: 4 }}>
+                        {labels.offsetHint}
+                      </span>
+                    </span>
+                  </label>
+                </div>
+
+              </details>
+            </section>
+          </SettingsPanel>
+
+          <SettingsPanel id="install" activeTab={activeTab}>
+            <section className="card stack">
+              <h2>{integration.title}</h2>
+              {integration.hasScriptAccess ? (
+                <>
+                  <p
+                    className="muted"
+                    dangerouslySetInnerHTML={{ __html: integration.help }}
+                  />
+                  <div className="script-code-panel">
+                    <CopyScriptButton
+                      value={integration.embedCode}
+                      label={integration.copyScript}
+                      copiedLabel={integration.copiedScript}
+                    />
+                    <pre className="ai-output script-code-block">{integration.embedCode}</pre>
+                  </div>
+                  <WidgetInstallationAssistant
+                    websiteUrl={integration.assistant.websiteUrl}
+                    installation={integration.assistant.installation}
+                    security={integration.security}
+                    labels={integration.assistant.labels}
+                  />
+                </>
+              ) : (
+                <div className="locked-panel">
+                  <span className="status-pill status-pill-soon">Configura el Agente Web</span>
+                  <h3>El script se desbloquea al completar la configuración</h3>
+                  <p className="muted">
+                    Completa el setup inicial para generar el script de instalación.
+                  </p>
+                </div>
+              )}
+            </section>
+
+            <section className="card stack">
+              <h2>{labels.allowedDomains}</h2>
+              <p className="muted">{labels.allowedDomainsHint}</p>
+              <textarea
+                name="allowed_domains"
+                defaultValue={widgetConfig.allowedDomains.join('\n')}
+                rows={4}
+                className="mono"
+                placeholder="staging.example.com&#10;preview.example.com"
+              />
+            </section>
+
+
+            <section className="card stack">
+              <h2>{labels.sectionPrivacy}</h2>
               <label className="field">
                 {labels.privacyUrl}
                 <input
@@ -419,239 +838,16 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, ha
                 <small className="muted">{labels.privacyUrlHint}</small>
               </label>
 
-              <SuggestedQuestionsEditor
-                questions={suggestedQuestions}
-                chatbotLanguage={theatre.primary_language}
-                labels={labels}
-                onChange={updateSuggestedQuestions}
-              />
+              <div className="chatbot-compliance-summary">
+                <strong>{compliance.aiLabel}</strong>
+                <p>{labels.aiDisclosureFixed}</p>
+              </div>
 
-              <label className="field">
-                {labels.primaryColor}
-                <input
-                  name="primary_color"
-                  type="color"
-                  defaultValue={widgetConfig.primaryColor}
-                  style={{ height: 44 }}
-                  onChange={(event) => setPreviewConfig((current) => ({ ...current, primaryColor: event.target.value }))}
-                />
-              </label>
-
-              <label className="field">
-                {labels.position}
-                <select
-                  name="position"
-                  defaultValue={widgetConfig.position}
-                  onChange={(event) => setPreviewConfig((current) => ({ ...current, position: event.target.value }))}
-                >
-                  <option value="bottom-right">Abajo derecha</option>
-                  <option value="bottom-left">Abajo izquierda</option>
-                  <option value="top-right">Arriba derecha</option>
-                  <option value="top-left">Arriba izquierda</option>
-                </select>
-              </label>
-
-              <label className="field">
-                {labels.widgetSize}
-                <select
-                  name="widget_size"
-                  defaultValue={widgetConfig.widgetSize}
-                  onChange={(event) => setPreviewConfig((current) => ({ ...current, widgetSize: getWidgetSize(event.target.value) }))}
-                >
-                  <option value="small">Pequeño</option>
-                  <option value="medium">Mediano</option>
-                  <option value="large">Grande</option>
-                </select>
-              </label>
-
-              <fieldset className="field widget-theme-field widget-appearance-field" style={{ gridColumn: '1 / -1', border: 0, padding: 0, margin: 0 }}>
-                <legend style={{ padding: 0 }}>{labels.widgetTheme}</legend>
-                <div className="widget-appearance-controls">
-                  <ThemeToggle
-                    value={previewConfig.widgetTheme}
-                    color={previewConfig.primaryColor}
-                    solidLabel={labels.widgetThemeSolid}
-                    glassLabel={labels.widgetThemeGlass}
-                    onSelect={(widgetTheme) => setPreviewConfig((current) => ({ ...current, widgetTheme }))}
-                  />
-                  <LauncherIconPicker
-                    value={previewConfig.launcherIcon}
-                    color={previewConfig.primaryColor}
-                    label={labels.widgetIcon}
-                    taliaLabel={labels.widgetIconTalia}
-                    chatLabel={labels.widgetIconChat}
-                    bubbleLabel={labels.widgetIconBubble}
-                    botLabel={labels.widgetIconBot}
-                    expandLabel={labels.widgetIconExpand}
-                    collapseLabel={labels.widgetIconCollapse}
-                    onSelect={(launcherIcon) => setPreviewConfig((current) => ({ ...current, launcherIcon }))}
-                  />
-                </div>
-              </fieldset>
-
-              {previewConfig.widgetTheme === 'glass' ? (
-                <div className="glass-controls" style={{ gridColumn: '1 / -1' }}>
-                  <div className="glass-range-controls">
-                    <label className="field glass-range-field">
-                      <span className="glass-range-label">
-                        <span>{labels.glassBlur}</span>
-                        <output>{Math.round((previewConfig.glassBlur / 30) * 100)}%</output>
-                      </span>
-                      <input
-                        type="range"
-                        name="glass_blur"
-                        min={0}
-                        max={30}
-                        value={previewConfig.glassBlur}
-                        style={{ ['--fill' as string]: `${Math.round((previewConfig.glassBlur / 30) * 100)}%` }}
-                        onChange={(event) => setPreviewConfig((current) => ({ ...current, glassBlur: Number(event.target.value) }))}
-                      />
-                    </label>
-
-                    <label className="field glass-range-field">
-                      <span className="glass-range-label">
-                        <span>{labels.glassTranslucency}</span>
-                        <output>{Math.round(((previewConfig.glassTranslucency - 15) / 70) * 100)}%</output>
-                      </span>
-                      <input
-                        type="range"
-                        name="glass_translucency"
-                        min={15}
-                        max={85}
-                        value={previewConfig.glassTranslucency}
-                        style={{ ['--fill' as string]: `${Math.round(((previewConfig.glassTranslucency - 15) / 70) * 100)}%` }}
-                        onChange={(event) => setPreviewConfig((current) => ({ ...current, glassTranslucency: Number(event.target.value) }))}
-                      />
-                    </label>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <input type="hidden" name="glass_blur" value={previewConfig.glassBlur} />
-                  <input type="hidden" name="glass_translucency" value={previewConfig.glassTranslucency} />
-                </>
-              )}
-
-              <label className="field">
-                {labels.inlineOffset}
-                <input
-                  name="inline_offset"
-                  type="number"
-                  min={12}
-                  max={320}
-                  defaultValue={widgetConfig.inlineOffset}
-                  onChange={(event) => setPreviewConfig((current) => ({ ...current, inlineOffset: getNumericInput(event.target.value, widgetConfig.inlineOffset) }))}
-                />
-              </label>
-
-              <label className="field">
-                {labels.blockOffset}
-                <input
-                  name="block_offset"
-                  type="number"
-                  min={12}
-                  max={320}
-                  defaultValue={widgetConfig.blockOffset}
-                  onChange={(event) => setPreviewConfig((current) => ({ ...current, blockOffset: getNumericInput(event.target.value, widgetConfig.blockOffset) }))}
-                />
-              </label>
-
-              <label className="field">
-                {labels.fallbackEmail}
-                <input name="fallback_email" type="email" defaultValue={theatre.fallback_email ?? ''} />
-              </label>
-
-              <InternationalPhoneInput
-                name="fallback_phone"
-                label={labels.fallbackPhone}
-                defaultValue={theatre.fallback_phone}
-                defaultCountry={getDefaultPhoneCountry(theatre.primary_language)}
-                locale={theatre.primary_language}
-              />
-
-              <label className="field" style={{ gridColumn: '1 / -1' }}>
-                {labels.fallbackMessage}
-                <textarea name="fallback_message" defaultValue={widgetConfig.fallbackMessage ?? ''} rows={3} />
-                <span className="muted">{labels.fallbackMessageHint}</span>
-              </label>
-            </div>
-
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                name="fallback_whatsapp"
-                defaultChecked={widgetConfig.fallbackWhatsApp}
-                style={{ width: 16, height: 16, marginTop: 4 }}
-              />
-              <span>
-                <strong>{labels.fallbackWhatsApp}</strong>
-                <span className="muted" style={{ display: 'block', marginTop: 4 }}>
-                  {labels.fallbackWhatsAppHint}
-                </span>
-              </span>
-            </label>
-
-            <div className="form-row" style={{ alignItems: 'flex-start', gap: 16 }}>
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  name="collision_strategy"
-                  value="auto"
-                  defaultChecked={widgetConfig.collisionStrategy !== 'none'}
-                  style={{ width: 16, height: 16, marginTop: 4 }}
-                  onChange={(event) => setPreviewConfig((current) => ({ ...current, collisionStrategy: event.target.checked ? 'auto' : 'none' }))}
-                />
-                <span>
-                  <strong>{labels.collisionStrategy}</strong>
-                  <span className="muted" style={{ display: 'block', marginTop: 4 }}>
-                    {labels.collisionStrategyHint}
-                  </span>
-                  <span className="muted" style={{ display: 'block', marginTop: 4 }}>
-                    {labels.offsetHint}
-                  </span>
-                </span>
-              </label>
-            </div>
-
-            <div className="form-row" style={{ alignItems: 'center', gap: 16 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  name="auto_open"
-                  defaultChecked={widgetConfig.autoOpen}
-                  style={{ width: 16, height: 16 }}
-                  onChange={(event) => setPreviewConfig((current) => ({ ...current, autoOpen: event.target.checked }))}
-                />
-                {labels.autoOpen}
-              </label>
-              <label className="field" style={{ margin: 0 }}>
-                {labels.delay}
-                <input
-                  name="auto_open_delay"
-                  type="number"
-                  min={0}
-                  max={60}
-                  defaultValue={widgetConfig.autoOpenDelay}
-                  style={{ width: 80 }}
-                />
-              </label>
-            </div>
-            <label className="field">
-              {labels.proactiveMessage}
-              <input
-                name="proactive_message"
-                type="text"
-                maxLength={160}
-                defaultValue={widgetConfig.proactiveMessage}
-                onChange={(event) => setPreviewConfig((current) => ({ ...current, proactiveMessage: event.target.value }))}
-              />
-              <span className="muted">{labels.proactiveMessageHint}</span>
-            </label>
-          </section>
-
+            </section>
+          </SettingsPanel>
         </div>
 
-        <aside className="stack">
+        <aside className="stack chatbot-settings-preview-column">
           <section className="card stack chatbot-preview-card">
             <div className="chatbot-preview-card-header">
               <h2>{previewLabel}</h2>
@@ -685,80 +881,9 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, ha
             />
           </section>
 
-          <section className="card stack">
-            <h2>{integration.title}</h2>
-            {integration.hasScriptAccess ? (
-              <>
-                <p
-                  className="muted"
-                  dangerouslySetInnerHTML={{ __html: integration.help }}
-                />
-                <div className="script-code-panel">
-                  <CopyScriptButton
-                    value={integration.embedCode}
-                    label={integration.copyScript}
-                    copiedLabel={integration.copiedScript}
-                  />
-                  <pre className="ai-output script-code-block">{integration.embedCode}</pre>
-                </div>
-                <WidgetInstallationAssistant
-                  websiteUrl={integration.assistant.websiteUrl}
-                  installation={integration.assistant.installation}
-                  security={integration.security}
-                  labels={integration.assistant.labels}
-                />
-              </>
-            ) : (
-              <div className="locked-panel">
-                <span className="status-pill status-pill-soon">Configura el Agente Web</span>
-                <h3>El script se desbloquea al completar la configuración</h3>
-                <p className="muted">
-                  Completa el setup inicial para generar el script de instalación.
-                </p>
-              </div>
-            )}
-          </section>
-
-          <section className="card stack">
-            <h2>{labels.allowedDomains}</h2>
-            <p className="muted">{labels.allowedDomainsHint}</p>
-            <textarea
-              name="allowed_domains"
-              defaultValue={widgetConfig.allowedDomains.join('\n')}
-              rows={4}
-              className="mono"
-              placeholder="staging.example.com&#10;preview.example.com"
-            />
-          </section>
-
-          <section className="card stack">
-            <label className="voice-invitation-toggle">
-              <input
-                type="checkbox"
-                name="voice_invitation"
-                defaultChecked={widgetConfig.voiceInvitation}
-              />
-              <span>
-                <strong>{labels.voiceInvitation}</strong>
-                <span className="muted">{labels.voiceInvitationHint}</span>
-              </span>
-            </label>
-            <AgentVoicePicker
-              tenantId={tenantId}
-              defaultVoice={widgetConfig.agentVoice}
-              options={voiceOptions}
-              labels={labels}
-            />
-          </section>
-
         </aside>
       </div>
 
-      <div className="chatbot-settings-save-footer">
-        <button className="button-primary" type="submit" disabled={!dirty || pending}>
-          {pending ? labels.saving : labels.save}
-        </button>
-      </div>
     </form>
   )
 }
