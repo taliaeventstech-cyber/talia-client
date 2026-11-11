@@ -102,11 +102,11 @@ describe('POST /api/chat/[tenantId]/speech', () => {
   })
 
   it('speaks with the voice the venue chose in Agora', async () => {
-    vi.mocked(getTenantChatConfig).mockResolvedValue({ ok: true, config: { agentVoice: 'onyx' } } as Awaited<ReturnType<typeof getTenantChatConfig>>)
+    vi.mocked(getTenantChatConfig).mockResolvedValue({ ok: true, config: { agentVoice: 'ash' } } as Awaited<ReturnType<typeof getTenantChatConfig>>)
 
     await speechRequest({ session_id: 'session-1', text: 'Hola' })
 
-    expect(provider.synthesize).toHaveBeenCalledWith(expect.objectContaining({ voice: 'onyx' }))
+    expect(provider.synthesize).toHaveBeenCalledWith(expect.objectContaining({ voice: 'ash' }))
   })
 
   it('rejects text above the per-request cap', async () => {

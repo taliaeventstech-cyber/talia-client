@@ -110,8 +110,8 @@ disclosure). Turning it on is the explicit consent for wake-word listening;
 its tooltip and announcement explain that the browser listens only to detect
 the phrase. The launcher bars keep the state visible while the chat is closed.
 
-Agent voice: each venue chooses one of 11 OpenAI voices in Agora (Web Agent
-settings, "Voz del agente", with a listen button per voice). It is stored as
+Agent voice: each venue chooses one of three voices (Coral, Sage, Ash — an MVP subset of the OpenAI voices talia-ai accepts) in Agora (Web Agent
+settings → Voz, a dropdown with one «Escuchar» button). It is stored as
 `widget_config.agentVoice` and sent to `talia-ai` server-side by the speech
 route; visitors cannot change it.
 

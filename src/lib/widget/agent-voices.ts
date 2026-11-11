@@ -1,17 +1,11 @@
-// Voices a venue can choose for its Web Agent's spoken replies. They mirror
+// Voices a venue can choose for its Web Agent's spoken replies, a subset of
 // the OpenAI text-to-speech voices accepted by talia-ai's /v1/voice/speech.
+// MVP: three clearly different voices. talia-ai accepts more OpenAI voices,
+// so this list can grow later without a contract change.
 export const AGENT_VOICES = [
   'coral',
-  'nova',
   'sage',
-  'shimmer',
-  'alloy',
-  'ballad',
-  'verse',
   'ash',
-  'echo',
-  'onyx',
-  'fable',
 ] as const
 
 export type AgentVoice = (typeof AGENT_VOICES)[number]
@@ -52,55 +46,23 @@ type VoiceLocale = 'es' | 'ca' | 'en' | 'pt-BR'
 const VOICE_DESCRIPTIONS: Record<VoiceLocale, Record<AgentVoice, string>> = {
   es: {
     coral: 'Femenina, cálida y cercana',
-    nova: 'Femenina, clara y animada',
     sage: 'Femenina, serena y pausada',
-    shimmer: 'Femenina, suave',
-    alloy: 'Neutra y equilibrada',
-    ballad: 'Masculina, suave y expresiva',
-    verse: 'Masculina, versátil',
     ash: 'Masculina, clara y directa',
-    echo: 'Masculina, tranquila',
-    onyx: 'Masculina, grave',
-    fable: 'Narrativa y expresiva',
   },
   ca: {
     coral: 'Femenina, càlida i propera',
-    nova: 'Femenina, clara i animada',
     sage: 'Femenina, serena i pausada',
-    shimmer: 'Femenina, suau',
-    alloy: 'Neutra i equilibrada',
-    ballad: 'Masculina, suau i expressiva',
-    verse: 'Masculina, versàtil',
     ash: 'Masculina, clara i directa',
-    echo: 'Masculina, tranquil·la',
-    onyx: 'Masculina, greu',
-    fable: 'Narrativa i expressiva',
   },
   en: {
     coral: 'Female, warm and friendly',
-    nova: 'Female, clear and upbeat',
     sage: 'Female, calm and measured',
-    shimmer: 'Female, soft',
-    alloy: 'Neutral and balanced',
-    ballad: 'Male, soft and expressive',
-    verse: 'Male, versatile',
     ash: 'Male, clear and direct',
-    echo: 'Male, calm',
-    onyx: 'Male, deep',
-    fable: 'Storyteller, expressive',
   },
   'pt-BR': {
     coral: 'Feminina, calorosa e próxima',
-    nova: 'Feminina, clara e animada',
     sage: 'Feminina, serena e pausada',
-    shimmer: 'Feminina, suave',
-    alloy: 'Neutra e equilibrada',
-    ballad: 'Masculina, suave e expressiva',
-    verse: 'Masculina, versátil',
     ash: 'Masculina, clara e direta',
-    echo: 'Masculina, tranquila',
-    onyx: 'Masculina, grave',
-    fable: 'Narrativa e expressiva',
   },
 }
 
