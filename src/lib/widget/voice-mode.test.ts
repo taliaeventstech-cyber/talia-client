@@ -220,12 +220,28 @@ describe('widget hands-free conversation and wake word', () => {
 })
 
 describe('widget voice offer in the greeting', () => {
-  it('only offers voice when the venue enabled it and stops offering it once dismissed', async () => {
+  it('only offers voice when the venue enabled it and snoozes it per venue once dismissed', async () => {
     const widgetSource = await readWidget()
 
-    expect(widgetSource).toContain("var offerVoice = !!welcomeVoice && config.voiceInvitation === true && getStoredValue(voiceInviteKey) !== 'dismissed';")
-    expect(widgetSource).toContain("if (offerVoice) setStoredValue(voiceInviteKey, 'dismissed');")
+    expect(widgetSource).toContain("var voiceInviteKey = 'talia-voice-invite-' + tenantId;")
+    expect(widgetSource).toContain("var offerVoice = !!welcomeVoice && config.voiceInvitation === true && !isVoiceInviteSnoozed(getStoredValue(voiceInviteKey), voiceInviteSnoozeMs);")
+    expect(widgetSource).toContain("if (offerVoice) setStoredValue(voiceInviteKey, 'dismissed:' + Date.now());")
     expect(widgetSource).toContain('if (config.autoOpen || offerVoice) {')
+  })
+
+  it('snoozes a dismissed voice greeting for a week, never forever', async () => {
+    const widgetSource = await readWidget()
+    const match = widgetSource.match(/function isVoiceInviteSnoozed\(value, snoozeMs\) \{[\s\S]*?\n {2}\}/)
+    expect(match).not.toBeNull()
+    const isSnoozed = new Function(`${match![0]}; return isVoiceInviteSnoozed;`)() as (value: unknown, snoozeMs: number) => boolean
+    const week = 7 * 24 * 60 * 60 * 1000
+
+    expect(isSnoozed(`dismissed:${Date.now() - 1000}`, week)).toBe(true)
+    expect(isSnoozed(`dismissed:${Date.now() - week - 1000}`, week)).toBe(false)
+    // The old permanent flag and other values never hide the greeting.
+    expect(isSnoozed('dismissed', week)).toBe(false)
+    expect(isSnoozed('used', week)).toBe(false)
+    expect(isSnoozed(null, week)).toBe(false)
   })
 
   it('starts listening only from the visitor\'s "Hablar" click, with a just-in-time notice', async () => {
