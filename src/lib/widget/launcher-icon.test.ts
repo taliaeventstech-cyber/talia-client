@@ -4,6 +4,7 @@ import { normalizeWidgetLauncherIcon } from './launcher-icon'
 describe('normalizeWidgetLauncherIcon', () => {
   it('keeps supported launcher icons', () => {
     expect(normalizeWidgetLauncherIcon('talia')).toBe('talia')
+    expect(normalizeWidgetLauncherIcon('mark')).toBe('mark')
     expect(normalizeWidgetLauncherIcon('chat')).toBe('chat')
     expect(normalizeWidgetLauncherIcon('bubble')).toBe('bubble')
     expect(normalizeWidgetLauncherIcon('bot')).toBe('bot')

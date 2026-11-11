@@ -2,6 +2,7 @@
 
 import { startTransition, useActionState, useMemo, useState, useTransition } from 'react'
 import { ArrowLeft, ArrowRight, Bot, Check, Database, Link2, MessageCircle, MessageCircleMore, Palette } from 'lucide-react'
+import { TaliaFace } from '@/components/talia-face'
 import { TaliaMark } from '@/components/talia-mark'
 import Link from 'next/link'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
@@ -498,6 +499,7 @@ function WidgetStep({
         <div className="chatbot-launcher-icon-options" role="radiogroup" aria-label={widget.icon}>
           {([
             ['talia', widget.iconOptions.talia],
+            ['mark', widget.iconOptions.mark],
             ['chat', widget.iconOptions.chat],
             ['bubble', widget.iconOptions.bubble],
             ['bot', widget.iconOptions.bot],
@@ -512,7 +514,7 @@ function WidgetStep({
                 : 'chatbot-launcher-icon-option'}
               onClick={() => update('launcherIcon', value)}
             >
-              <WidgetLauncherIconGlyph value={value} size={42} />
+              <WidgetLauncherIconGlyph value={value} size={42} tone="brand" />
               <span>{label}</span>
             </button>
           ))}
@@ -589,9 +591,11 @@ function ChoiceButton({
 function WidgetLauncherIconGlyph({
   value,
   size,
+  tone = 'light',
 }: {
   value: WidgetLauncherIcon
   size: number
+  tone?: 'light' | 'brand'
 }) {
   const iconSize = Math.round(size * 0.5)
 
@@ -605,8 +609,14 @@ function WidgetLauncherIconGlyph({
     return <Bot aria-hidden="true" width={iconSize} height={iconSize} strokeWidth={2.2} />
   }
 
-  // Coloured like the other icons (currentColor), so it suits both tones.
-  return <TaliaMark size={Math.round(size * 0.54)} />
+  if (value === 'mark') return <TaliaMark size={Math.round(size * 0.54)} />
+
+  return (
+    <TaliaFace
+      size={Math.round(size * 0.72)}
+      style={tone === 'light' ? undefined : { filter: 'none' }}
+    />
+  )
 }
 
 function isStepValid(step: Step, values: InitialValues, sourceUrlError: string) {

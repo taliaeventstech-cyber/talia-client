@@ -12,7 +12,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { assertTenantAdmin } from '@/lib/tenants/service'
 import { getTenantContentHosts } from '@/lib/widget/domain-allowlist'
-import { normalizeWidgetLauncherIcon } from '@/lib/widget/launcher-icon'
+import { normalizeWidgetLauncherIcon, WIDGET_LAUNCHER_ICONS } from '@/lib/widget/launcher-icon'
 import type { Json } from '@/types/database.types'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -30,7 +30,7 @@ export type ChatbotWebsiteSourceResult =
 const setupSchema = z.object({
   initialMessage: z.string().trim().min(1, 'El mensaje inicial es obligatorio').max(300),
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'El color debe estar en formato hexadecimal'),
-  launcherIcon: z.enum(['talia', 'chat', 'bubble', 'bot']),
+  launcherIcon: z.enum(WIDGET_LAUNCHER_ICONS),
   systemPrompt: z.string().trim().max(8000, 'El prompt no puede superar los 8000 caracteres').optional(),
   tone: z.enum(['close', 'formal', 'brief']),
   fallbackBehavior: z.enum(['contact', 'human', 'unknown']),

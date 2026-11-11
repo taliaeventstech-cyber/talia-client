@@ -113,7 +113,7 @@
     });
 
     var root = host.attachShadow({ mode: 'open' });
-    root.innerHTML = getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, compliance, widgetCopy, voiceSupport, voiceCopy);
+    root.innerHTML = getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, baseUrl + '/icon.svg', compliance, widgetCopy, voiceSupport, voiceCopy);
 
     var panel = root.querySelector('[data-panel]');
     var welcome = root.querySelector('[data-welcome]');
@@ -1806,7 +1806,7 @@
     notice.textContent = message;
   }
 
-  function getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, compliance, widgetCopy, voiceSupport, voiceCopy) {
+  function getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, iconUrl, compliance, widgetCopy, voiceSupport, voiceCopy) {
     var togglePosition = getTogglePositionCss(position);
     var panelPosition = getPanelPositionCss(position);
     var toggleSize = getWidgetSizePixels(widgetSize);
@@ -1814,10 +1814,11 @@
     var welcomeOrigin = position.indexOf('top') >= 0 ? 'top center' : 'bottom center';
     var welcomeStartTransform = position.indexOf('top') >= 0 ? 'translateY(-8px) scale(.96)' : 'translateY(8px) scale(.96)';
     var chatIconSize = Math.round(toggleSize * 0.5);
-    var launcherIconMarkup = getLauncherIconMarkup(launcherIcon);
-    // TALIA's own avatar in the chat is always the TALIA mark, whatever
-    // launcher icon the venue picked.
-    var taliaMarkMarkup = getTaliaMarkIcon();
+    var toggleIconSize = Math.round(toggleSize * 0.82);
+    var launcherIconMarkup = getLauncherIconMarkup(launcherIcon, iconUrl);
+    // TALIA's own avatar in the chat is always TALIA's face, drawn as a
+    // one-colour icon, whatever launcher icon the venue picked.
+    var taliaFaceMarkup = getTaliaFaceIcon(iconUrl);
     var voiceMicMarkup = voiceSupport.recognition
       ? '<button class="mic notranslate" translate="no" data-voice-mic type="button" aria-pressed="false" aria-keyshortcuts="Alt+Shift+V" aria-label="' + escapeHtml(voiceCopy.micStart) + '" title="' + escapeHtml(voiceCopy.micStart + ' (' + voiceCopy.shortcutKeys + ')') + '">' + getMicIcon() + '</button>'
       : '';
@@ -1923,7 +1924,8 @@
         .toggle:hover { transform: scale(1.08); }\
         .toggle:active { transform: scale(0.94); }\
         .toggle .launcher-icon { position: relative; z-index: 1; display: block; object-fit: contain; }\
-        .toggle .launcher-icon--talia { width: ' + chatIconSize + 'px; height: ' + chatIconSize + 'px; fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,.2)); }\
+        .toggle .launcher-icon--talia { width: ' + toggleIconSize + 'px; height: ' + toggleIconSize + 'px; filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,.2)); }\
+        .toggle .launcher-icon--mark { width: ' + chatIconSize + 'px; height: ' + chatIconSize + 'px; fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,.2)); }\
         .toggle .launcher-icon--chat, .toggle .launcher-icon--bubble, .toggle .launcher-icon--bot { width: ' + chatIconSize + 'px; height: ' + chatIconSize + 'px; fill: none; stroke: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,.2)); }\
         ' + toggleSheen + '\
         .welcome { position: fixed; ' + welcomePosition + ' z-index: 2147483647; width: min(320px, calc(100vw - 32px)); min-height: 112px; overflow: hidden; border: ' + welcomeBorder + '; border-radius: 12px; background: ' + welcomeBackground + '; ' + welcomeFilter + ' color: ' + welcomeColor + '; box-shadow: 0 14px 38px rgba(0,0,0,.2); opacity: 0; visibility: hidden; pointer-events: none; transform: ' + welcomeStartTransform + '; transform-origin: ' + welcomeOrigin + '; transition: opacity 180ms ease, transform 240ms cubic-bezier(0.16,1,0.3,1), visibility 0s linear 240ms; }\
@@ -1932,7 +1934,7 @@
         .welcome-brand { display: flex; align-items: center; gap: 11px; min-width: 0; }\
         .welcome-mark { flex: 0 0 38px; display: grid; width: 38px; height: 38px; place-items: center; overflow: hidden; border-radius: 50%; background: ' + primaryColor + '; color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.28); }\
         .welcome-mark .launcher-icon { display: block; object-fit: contain; }\
-        .welcome-mark .launcher-icon--talia { width: 56%; height: 56%; fill: currentColor; }\
+        .welcome-mark .launcher-icon--talia { width: 82%; height: 82%; filter: brightness(0) invert(1) drop-shadow(0 1px 1px rgba(0,0,0,.16)); }\
         .welcome-mark .launcher-icon--chat, .welcome-mark .launcher-icon--bubble, .welcome-mark .launcher-icon--bot { width: 52%; height: 52%; fill: none; stroke: currentColor; }\
         .welcome-name { min-width: 0; overflow: hidden; color: inherit; font: 700 16px/1.2 "Space Grotesk", system-ui; text-overflow: ellipsis; white-space: nowrap; }\
         .welcome-message { color: inherit; font: 500 16px/1.42 "Space Grotesk", system-ui; }\
@@ -1944,9 +1946,9 @@
         ' + specularBand + '\
         .header { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px; background: ' + headerBackground + '; ' + headerFilter + ' color: white; font: 600 17px "Space Grotesk", system-ui; }\
         .header-brand { display: flex; min-width: 0; align-items: center; gap: 10px; }\
-        .header-mark { flex: 0 0 34px; display: grid; width: 34px; height: 34px; place-items: center; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.92); color: ' + primaryColor + '; box-shadow: inset 0 1px 0 rgba(255,255,255,.62), 0 1px 2px rgba(0,0,0,.08); }\
+        .header-mark { flex: 0 0 36px; display: grid; width: 36px; height: 36px; place-items: center; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.32); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.24); }\
         .header-mark .launcher-icon { display: block; object-fit: contain; }\
-        .header-mark .launcher-icon--talia { width: 58%; height: 58%; fill: currentColor; }\
+        .header-mark .launcher-icon--talia { width: 88%; height: 88%; filter: brightness(0) invert(1); }\
         .header-mark .launcher-icon--chat, .header-mark .launcher-icon--bubble, .header-mark .launcher-icon--bot { width: 54%; height: 54%; fill: none; stroke: currentColor; }\
         .header-identity { min-width: 0; display: grid; gap: 2px; }\
         .header-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\
@@ -2111,14 +2113,14 @@
       </style>\
       <aside class="welcome notranslate" data-welcome translate="no" aria-hidden="true" aria-label="' + escapeHtml(widgetCopy.greetingLabel) + '">\
         <button class="welcome-action" data-welcome-action type="button">\
-          <span class="welcome-brand"><span class="welcome-mark">' + taliaMarkMarkup + '</span><strong class="welcome-name">' + escapeHtml(assistantName) + '</strong></span>\
+          <span class="welcome-brand"><span class="welcome-mark">' + taliaFaceMarkup + '</span><strong class="welcome-name">' + escapeHtml(assistantName) + '</strong></span>\
           <span class="welcome-message">' + escapeHtml(proactiveMessage) + '</span>\
         </button>\
         ' + welcomeVoiceMarkup + '\
         <button class="welcome-close" data-welcome-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button>\
       </aside>\
       <section class="panel notranslate" data-panel translate="no">\
-        <div class="header"><span class="header-brand"><span class="header-mark">' + taliaMarkMarkup + '</span><span class="header-identity"><span class="header-name">' + escapeHtml(assistantName) + '</span><small class="header-ai-label">' + escapeHtml(compliance.aiLabel) + '</small></span></span><div class="header-actions">' + voiceSpeakerMarkup + '<button class="header-button" data-restart type="button" aria-label="' + escapeHtml(widgetCopy.restart) + '" title="' + escapeHtml(widgetCopy.restart) + '">' + getRestartIcon() + '</button><button class="header-button close" data-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button></div></div>\
+        <div class="header"><span class="header-brand"><span class="header-mark">' + taliaFaceMarkup + '</span><span class="header-identity"><span class="header-name">' + escapeHtml(assistantName) + '</span><small class="header-ai-label">' + escapeHtml(compliance.aiLabel) + '</small></span></span><div class="header-actions">' + voiceSpeakerMarkup + '<button class="header-button" data-restart type="button" aria-label="' + escapeHtml(widgetCopy.restart) + '" title="' + escapeHtml(widgetCopy.restart) + '">' + getRestartIcon() + '</button><button class="header-button close" data-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button></div></div>\
         <div class="ai-disclosure" id="talia-ai-disclosure">' + escapeHtml(compliance.disclosure) + '</div>\
         <div class="messages notranslate" data-messages translate="no"><div class="message notranslate assistant" translate="no" data-ai-generated="true" data-ai-provider="talia">' + escapeHtml(initialMessage) + '</div></div>\
         <form class="form notranslate" data-form translate="no">' + voiceHandsFreeMarkup + voiceDockMarkup + '<textarea class="input notranslate" data-input translate="no" rows="1" placeholder="' + escapeHtml(widgetCopy.inputPlaceholder) + '" autocomplete="off" aria-describedby="talia-ai-disclosure talia-privacy-notice"></textarea>' + voiceMicMarkup + '<button class="send notranslate" translate="no" type="submit">' + escapeHtml(widgetCopy.send) + '</button></form>\
@@ -3532,12 +3534,20 @@
     return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M19 5a10 10 0 0 1 0 14"></path></svg>';
   }
 
-  // The TALIA mark: the open "Λ" of the TALIA wordmark, drawn in currentColor.
-  function getTaliaMarkIcon() {
-    return '<svg class="launcher-icon launcher-icon--talia" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path d="M43 13h15l27 69q1.5 4 6 5v1H67v-1q4.5-1 3-5L50.5 31 32 82q-1.5 4 3 5v1H13v-1q4.5-1 6-5z"></path></svg>';
+  // TALIA's face (public/icon.svg). Shown white via a CSS filter, so it needs
+  // no CORS on the venue's site.
+  function getTaliaFaceIcon(iconUrl) {
+    return '<img class="launcher-icon launcher-icon--talia" src="' + escapeHtml(iconUrl) + '" alt="" aria-hidden="true" />';
   }
 
-  function getLauncherIconMarkup(launcherIcon) {
+  // The TALIA monogram: the open "Λ" of the TALIA wordmark, in currentColor.
+  function getTaliaMarkIcon() {
+    return '<svg class="launcher-icon launcher-icon--mark" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path d="M43 13h15l27 69q1.5 4 6 5v1H67v-1q4.5-1 3-5L50.5 31 32 82q-1.5 4 3 5v1H13v-1q4.5-1 6-5z"></path></svg>';
+  }
+
+  function getLauncherIconMarkup(launcherIcon, iconUrl) {
+    if (launcherIcon === 'mark') return getTaliaMarkIcon();
+
     if (launcherIcon === 'bubble') {
       return '<svg class="launcher-icon launcher-icon--bubble" viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path><path d="M8 12h.01"></path><path d="M12 12h.01"></path><path d="M16 12h.01"></path></svg>';
     }
@@ -3550,7 +3560,7 @@
       return '<svg class="launcher-icon launcher-icon--chat" viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path></svg>';
     }
 
-    return getTaliaMarkIcon();
+    return getTaliaFaceIcon(iconUrl);
   }
 
   function getRestartIcon() {
@@ -3657,7 +3667,7 @@
   }
 
   function getLauncherIcon(value) {
-    return value === 'chat' || value === 'bubble' || value === 'bot' ? value : 'talia';
+    return value === 'mark' || value === 'chat' || value === 'bubble' || value === 'bot' ? value : 'talia';
   }
 
   function getGlassBackground(value) {
