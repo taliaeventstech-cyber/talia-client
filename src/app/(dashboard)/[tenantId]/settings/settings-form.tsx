@@ -176,6 +176,8 @@ type SettingsFormProps = {
   labels: SettingsFormLabels
   compliance: WidgetComplianceCopy
   previewLabel: string
+  title: string
+  subtitle: string
   integration: {
     title: string
     help: string
@@ -234,7 +236,7 @@ function SettingsPanel({ id, activeTab, children }: { id: SettingsTabId; activeT
   )
 }
 
-export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, hasUsableKnowledge, labels, compliance, previewLabel, integration }: SettingsFormProps) {
+export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, hasUsableKnowledge, labels, compliance, previewLabel, title, subtitle, integration }: SettingsFormProps) {
   const router = useRouter()
   const [state, formAction, pending] = useActionState(updateTenantSettings.bind(null, tenantId), initialState)
   const [widgetEnabled, setWidgetEnabled] = useState(widgetConfig.enabled)
@@ -367,7 +369,7 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, ha
     <form
       ref={formRef}
       action={formAction}
-      className="stack"
+      className="stack chatbot-settings-form"
       onChange={() => {
         changeVersionRef.current += 1
         setDirty(true)
@@ -397,7 +399,11 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, ha
         />
       ) : null}
 
-      <div className="chatbot-settings-save-bar">
+      <div className="page-header chatbot-settings-header chatbot-settings-save-bar">
+        <div>
+          <h1>{title}</h1>
+          <p className="muted">{subtitle}</p>
+        </div>
         <div className="chatbot-settings-save-actions">
           {activationLocked ? (
             <Link
@@ -458,7 +464,7 @@ export function SettingsForm({ tenantId, theatre, widgetConfig, voiceOptions, ha
       </div>
 
       <div className="two-column-grid chatbot-settings-grid">
-        <div className="stack">
+        <div className="stack chatbot-settings-main-column">
           <SettingsPanel id="conversation" activeTab={activeTab}>
             <section className="card stack">
               <h2>{labels.sectionWelcome}</h2>
