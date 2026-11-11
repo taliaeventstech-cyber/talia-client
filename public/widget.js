@@ -2433,7 +2433,10 @@
     var readAloud = getStoredValue(readAloudKey) === 'on';
     // Engines can be downgraded to the browser at runtime (TALIA voice
     // unavailable, rate limited, over the usage limit...).
-    var useServerRecognition = support.serverRecognition;
+    // Browser engine first where it exists: it writes the visitor's words in
+    // the chat while they talk and answers instantly. TALIA's server
+    // recognition is kept for browsers without one (e.g. Firefox).
+    var useServerRecognition = support.serverRecognition && !support.browserRecognition;
     var useServerSynthesis = support.serverSynthesis;
     // Browser recognition state.
     var recognition = null;

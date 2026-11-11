@@ -262,6 +262,12 @@ describe('widget voice offer in the greeting', () => {
     expect(getYesNoAnswer('si hay entradas para el sábado')).toBeNull()
   })
 
+  it('listens with the browser engine first, so the visitor sees their words while talking', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain('var useServerRecognition = support.serverRecognition && !support.browserRecognition;')
+  })
+
   it('asks the visitor to repeat instead of dropping their words when TALIA voice is unavailable', async () => {
     const widgetSource = await readWidget()
 
