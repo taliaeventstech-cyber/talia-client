@@ -77,6 +77,6 @@ describe('widget privacy copy for voice mode', () => {
     expect(summary).toContain('OpenAI')
     expect(summary).toMatch(/grabaciones de audio|enregistraments d’àudio|audio recordings|gravações de áudio/)
     expect(summary).toContain('TALIA')
-    expect(summary).toMatch(/Hola TALIA|Hello TALIA|Olá TALIA/)
+    expect(summary).toMatch(/Hola TALIA|Hi TALIA|Olá TALIA/)
   })
 })

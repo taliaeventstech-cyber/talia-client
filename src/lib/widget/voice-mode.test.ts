@@ -182,7 +182,11 @@ describe('widget hands-free conversation and wake word', () => {
     ['Hey Thalia', true],
     ['Olá Talia', true],
     ['Bon dia Talia', true],
-    ['Talia', false],
+    ['Talía', true],
+    ['Hola Italia', true],
+    ['hola Natalia', true],
+    ['Oye Talia', true],
+    ['Italia', false],
     ['La Talia de ayer', false],
     ['Hola, ¿a qué hora abrís?', false],
   ])('recognises the wake phrase in "%s": %s', async (utterance, expected) => {
@@ -199,7 +203,8 @@ describe('widget hands-free conversation and wake word', () => {
     const widgetSource = await readWidget()
 
     expect(widgetSource).toContain("var wakeEnabled = support.browserRecognition && getStoredValue(wakeKey) === 'on';")
-    expect(widgetSource).toContain("var voiceWakeMarkup = voiceSupport.browserRecognition")
+    expect(widgetSource).toContain("var voiceHandsFreeMarkup = voiceSupport.browserRecognition")
+    expect(widgetSource).toContain('role="switch" aria-checked="false"')
     expect(widgetSource).toContain("options.launcher.classList.toggle('toggle--wake', active);")
     expect(widgetSource).toContain('if (document.hidden) stopWake();')
     expect(widgetSource).toContain('if (!wakeEnabled || wakeRecognition || !isIdle() || document.hidden) return;')
@@ -211,5 +216,91 @@ describe('widget hands-free conversation and wake word', () => {
     expect(widgetSource).toContain('speak(text, language, true, fromVoice ? continueConversation : null);')
     expect(widgetSource).toContain('startListening(true);')
     expect(widgetSource).toContain('announce(copy.handsFreeEnded);')
+  })
+})
+
+describe('widget voice offer in the greeting', () => {
+  it('only offers voice when the venue enabled it and stops offering it once dismissed', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain("var offerVoice = !!welcomeVoice && config.voiceInvitation === true && getStoredValue(voiceInviteKey) !== 'dismissed';")
+    expect(widgetSource).toContain("if (offerVoice) setStoredValue(voiceInviteKey, 'dismissed');")
+    expect(widgetSource).toContain('if (config.autoOpen || offerVoice) {')
+  })
+
+  it('starts listening only from the visitor\'s "Hablar" click, with a just-in-time notice', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toMatch(/\[data-welcome-talk\]'\)\.addEventListener\('click', function \(\) \{[\s\S]*?voice\.toggleListening\(\);/)
+    expect(widgetSource).toContain("escapeHtml(voiceCopy.greetingNotice)")
+    expect(widgetSource).not.toMatch(/setTimeout\([^)]*(enableWake|toggleListening)/)
+  })
+
+  it('shows voice status in the chat pad with one clear action, and reveals hands-free progressively', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain('<div class="voice-dock" data-voice-dock aria-hidden="true">')
+    expect(widgetSource).toContain("if (panel.getAttribute('data-voice-state') === 'listening') voice.toggleListening();")
+    expect(widgetSource).toContain('<div class="voice-handsfree" data-voice-handsfree hidden>')
+    expect(widgetSource).toContain('function revealHandsFree() {')
+    expect(widgetSource).not.toContain('data-voice-visual-status')
+  })
+
+  it.each(['es', 'ca', 'en', 'pt-BR'])('is fully localized (%s)', async (language) => {
+    const widgetSource = await readWidget()
+    const start = widgetSource.indexOf('  function isApplePlatform()')
+    const end = widgetSource.indexOf('  function createVoiceController(')
+    const getVoiceCopy = new Function(`${widgetSource.slice(start, end)}; return getVoiceCopy;`)() as (
+      language: string,
+      apple: boolean,
+    ) => Record<string, string>
+    const copy = getVoiceCopy(language, false)
+
+    for (const key of [
+      'greetingVoiceHint', 'greetingType', 'greetingTalk', 'greetingNotice',
+      'dockListeningTitle', 'dockListeningHint', 'dockThinkingTitle', 'dockThinkingHint',
+      'dockSpeakingTitle', 'dockSpeakingHint', 'dockDone', 'dockCancel', 'dockStop',
+      'handsFreeLabel', 'handsFreeTitle',
+    ]) {
+      expect(copy[key]).toBeTruthy()
+    }
+    expect(copy.handsFreeLabel).toMatch(/TALIA/)
+    expect(copy.handsFreeTitle).toMatch(/micr[oóò](f|ph)on/i)
+  })
+})
+
+describe('widget animated voice states (sound bars)', () => {
+  it('derives one visual state from the voice controller and shows it on the launcher and header', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain("var next = listening ? 'listening'")
+    expect(widgetSource).toContain("toggle.setAttribute('data-voice-state', state);")
+    expect(widgetSource).toContain("panel.setAttribute('data-voice-state', state);")
+    expect(widgetSource).toContain('<span class="voice-bars" aria-hidden="true">')
+    expect(widgetSource).not.toContain('wake-dot')
+  })
+
+  it('drives the bars with the real microphone and TALIA voice levels', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain('setLevel(Math.min(1, level * 7));')
+    expect(widgetSource).toContain('outputMeterStop = meterOutput(context, source);')
+    // Initialised before `noop` exists: must be a real function.
+    expect(widgetSource).toContain('var outputMeterStop = function () {};')
+  })
+
+  it('stops every animation when the visitor prefers reduced motion', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain('.voice-bars span { animation: none !important; transition: none; }')
+  })
+})
+
+describe('widget voice diagnostics', () => {
+  it('only logs what the browser heard when debugging is explicitly enabled', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain("var voiceDebug = script.hasAttribute('data-voice-debug') || /[?&]talia_voice_debug=1(&|$)/.test(window.location.search);")
+    expect(widgetSource).toContain('if (!voiceDebug || !window.console) return;')
   })
 })

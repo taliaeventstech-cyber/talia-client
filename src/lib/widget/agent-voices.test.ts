@@ -5,6 +5,7 @@ import {
   getAgentVoiceFromWidgetConfig,
   getAgentVoiceOptions,
   getAgentVoicePreviewSample,
+  isVoiceInvitationEnabled,
   normalizeAgentVoice,
 } from './agent-voices'
 
@@ -37,5 +38,15 @@ describe('agent voices', () => {
     expect(getAgentVoicePreviewSample('ca').text).toContain('TALIA')
     expect(getAgentVoicePreviewSample('pt-BR')).toMatchObject({ language: 'pt-BR' })
     expect(getAgentVoicePreviewSample('fr')).toMatchObject({ language: 'es' })
+  })
+})
+
+describe('voice invitation setting', () => {
+  it('is off unless the venue explicitly enabled it', () => {
+    expect(isVoiceInvitationEnabled({ voiceInvitation: true })).toBe(true)
+    expect(isVoiceInvitationEnabled({ voice_invitation: true })).toBe(true)
+    expect(isVoiceInvitationEnabled({ voiceInvitation: 'true' })).toBe(false)
+    expect(isVoiceInvitationEnabled({})).toBe(false)
+    expect(isVoiceInvitationEnabled(null)).toBe(false)
   })
 })

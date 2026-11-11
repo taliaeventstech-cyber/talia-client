@@ -15,6 +15,8 @@
   var baseUrl = (script.getAttribute('data-api-base') || new URL(script.src).origin).replace(/\/$/, '');
   var pageUrlOverride = script.getAttribute('data-page-url') || '';
   var siteOriginOverride = script.getAttribute('data-site-origin') || '';
+  // Opt-in diagnostics for voice testing: logs what the browser heard.
+  var voiceDebug = script.hasAttribute('data-voice-debug') || /[?&]talia_voice_debug=1(&|$)/.test(window.location.search);
   var sessionKey = 'talia-session-' + tenantId;
   var installedWebCapture = { enabled: false, mode: 'manual' };
   var sessionId = getStoredValue(sessionKey);
@@ -126,6 +128,7 @@
     isolateWidgetScroll(host, root);
     var privacyLink = root.querySelector('[data-privacy]');
     var sessionFeedbackPrompt = null;
+    var voiceInviteKey = 'talia-voice-invite';
     var conversationHasActivity = false;
     var privacyReplyPending = false;
     var voice = createVoiceController({
@@ -141,6 +144,23 @@
       status: root.querySelector('[data-voice-status]'),
       input: input,
       isPanelOpen: function () { return panel.classList.contains('panel--open'); },
+      onVisualState: function (state) {
+        toggle.setAttribute('data-voice-state', state);
+        panel.setAttribute('data-voice-state', state);
+        updateVoiceDock(state);
+      },
+      onWakeChange: function (enabled) {
+        if (enabled) revealHandsFree();
+      },
+      onLevel: function (level) {
+        var live = typeof level === 'number';
+        toggle.classList.toggle('voice-live', live);
+        panel.classList.toggle('voice-live', live);
+        if (live) {
+          toggle.style.setProperty('--lvl', level.toFixed(2));
+          panel.style.setProperty('--lvl', level.toFixed(2));
+        }
+      },
       openPanel: function () {
         if (!panel.classList.contains('panel--open')) openPanel();
       },
@@ -199,7 +219,23 @@
       welcome.setAttribute('aria-hidden', 'true');
     }
 
-    if (config.autoOpen) {
+    // Venue-enabled voice offer inside the greeting ("Escribir" / "Hablar").
+    var welcomeVoice = root.querySelector('[data-welcome-voice]');
+    var offerVoice = !!welcomeVoice && config.voiceInvitation === true && getStoredValue(voiceInviteKey) !== 'dismissed';
+    if (offerVoice) {
+      welcomeVoice.hidden = false;
+      welcome.classList.add('welcome--voice');
+      welcome.querySelector('[data-welcome-type]').addEventListener('click', openPanel);
+      welcome.querySelector('[data-welcome-talk]').addEventListener('click', function () {
+        setStoredValue(voiceInviteKey, 'used');
+        // The click is the visitor's explicit choice to talk (and lets the
+        // browser ask for the microphone).
+        if (!panel.classList.contains('panel--open')) openPanel();
+        voice.toggleListening();
+      });
+    }
+
+    if (config.autoOpen || offerVoice) {
       var delay = typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3;
       setTimeout(showWelcome, delay * 1000);
     }
@@ -207,6 +243,8 @@
     welcomeAction.addEventListener('click', openPanel);
 
     welcomeClose.addEventListener('click', function () {
+      // Closing a greeting that offered voice means "don't offer it again".
+      if (offerVoice) setStoredValue(voiceInviteKey, 'dismissed');
       hideWelcome();
       toggle.focus();
     });
@@ -277,6 +315,35 @@
       input.value = '';
       resizeComposer();
       input.focus();
+    }
+
+    // Voice panel in the chat pad: status, what to do next, one clear action.
+    function updateVoiceDock(state) {
+      var dock = root.querySelector('[data-voice-dock]');
+      if (!dock) return;
+      var active = state === 'listening' || state === 'thinking' || state === 'speaking';
+      var hadFocus = root.activeElement && (root.activeElement === input || dock.contains(root.activeElement));
+      dock.setAttribute('aria-hidden', active ? 'false' : 'true');
+      if (active) {
+        revealHandsFree();
+        dock.querySelector('[data-voice-dock-title]').textContent = state === 'listening' ? voiceCopy.dockListeningTitle
+          : state === 'thinking' ? voiceCopy.dockThinkingTitle : voiceCopy.dockSpeakingTitle;
+        dock.querySelector('[data-voice-dock-hint]').textContent = state === 'listening' ? voiceCopy.dockListeningHint
+          : state === 'thinking' ? voiceCopy.dockThinkingHint : voiceCopy.dockSpeakingHint;
+        dock.querySelector('[data-voice-dock-action]').textContent = state === 'listening' ? voiceCopy.dockDone
+          : state === 'thinking' ? voiceCopy.dockCancel : voiceCopy.dockStop;
+        // Keep keyboard focus on something visible.
+        if (hadFocus) dock.querySelector('[data-voice-dock-action]').focus();
+      } else if (hadFocus && root.activeElement !== input) {
+        input.focus();
+      }
+    }
+
+    function revealHandsFree() {
+      var handsFree = root.querySelector('[data-voice-handsfree]');
+      if (!handsFree || !handsFree.hidden) return;
+      handsFree.hidden = false;
+      panel.classList.add('panel--handsfree');
     }
 
     function showSessionFeedback() {
@@ -452,6 +519,15 @@
           voice.toggleWake();
         });
       }
+
+      var dockAction = root.querySelector('[data-voice-dock-action]');
+      if (dockAction) {
+        dockAction.addEventListener('click', function () {
+          if (panel.getAttribute('data-voice-state') === 'listening') voice.toggleListening();
+          else voice.stopAll(true);
+        });
+      }
+      if (voice.isWakeEnabled()) revealHandsFree();
     }
 
     input.addEventListener('input', resizeComposer);
@@ -701,7 +777,7 @@
         disclosure: 'You are talking to an AI assistant. It can make mistakes.',
         privacyLabel: 'Privacy',
         privacyQuestion: 'How do you use my data?',
-        privacySummary: 'We use the messages you send to answer your question, monitor quality, and protect the service. Conversation content is retained for 90 days and can be deleted sooner if you request it. If you talk to the agent, your voice is transcribed and answers may be read aloud using AI providers (such as OpenAI) or your browser’s speech service; we do not keep audio recordings. If you turn on “Hello TALIA” mode, your browser listens to the microphone while it is on to detect that phrase. We do not sell your data.',
+        privacySummary: 'We use the messages you send to answer your question, monitor quality, and protect the service. Conversation content is retained for 90 days and can be deleted sooner if you request it. If you talk to the agent, your voice is transcribed and answers may be read aloud using AI providers (such as OpenAI) or your browser’s speech service; we do not keep audio recordings. If you turn on “Hi TALIA” mode, your browser listens to the microphone while it is on to detect that phrase. We do not sell your data.',
         privacyMore: 'You can read the full details and learn how to exercise your rights here:'
       };
     } else if (language === 'pt-BR') {
@@ -1746,8 +1822,33 @@
     var voiceSpeakerMarkup = voiceSupport.synthesis
       ? '<button class="header-button" data-voice-speaker type="button" aria-pressed="false" aria-label="' + escapeHtml(voiceCopy.readAloud) + '" title="' + escapeHtml(voiceCopy.readAloud) + '">' + getSpeakerIcon() + '</button>'
       : '';
-    var voiceWakeMarkup = voiceSupport.browserRecognition
-      ? '<button class="header-button" data-voice-wake type="button" aria-pressed="false" aria-label="' + escapeHtml(voiceCopy.wakeWord) + '" title="' + escapeHtml(voiceCopy.wakeWord) + '">' + getEarIcon() + '</button>'
+    var voiceBarsMarkup = '<span class="voice-bars" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></span>';
+    // Greeting choices (shown only when the venue offers voice): typing and
+    // talking presented side by side, with a just-in-time privacy notice.
+    var welcomeVoiceMarkup = voiceSupport.recognition
+      ? '<div class="welcome-voice" data-welcome-voice hidden>'
+        + '<span class="welcome-voice-hint">' + escapeHtml(voiceCopy.greetingVoiceHint) + '</span>'
+        + '<div class="welcome-voice-actions">'
+        + '<button class="welcome-choice" data-welcome-type type="button">' + getPencilIcon() + '<span>' + escapeHtml(voiceCopy.greetingType) + '</span></button>'
+        + '<button class="welcome-choice welcome-choice--primary" data-welcome-talk type="button">' + getMicIcon() + '<span>' + escapeHtml(voiceCopy.greetingTalk) + '</span></button>'
+        + '</div>'
+        + '<span class="welcome-voice-notice">' + escapeHtml(voiceCopy.greetingNotice) + ' <a href="' + escapeHtml(compliance.privacyUrl) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(compliance.privacyLabel) + '</a></span>'
+        + '</div>'
+      : '';
+    // Voice panel that takes over the composer while voice is in use.
+    var voiceDockMarkup = voiceSupport.recognition
+      ? '<div class="voice-dock" data-voice-dock aria-hidden="true">'
+        + '<span class="voice-dock-visual">' + voiceBarsMarkup + '</span>'
+        + '<span class="voice-dock-text"><strong data-voice-dock-title></strong><span data-voice-dock-hint></span></span>'
+        + '<button class="voice-dock-action" data-voice-dock-action type="button"></button>'
+        + '</div>'
+      : '';
+    // "Manos libres" switch, revealed after the visitor has used voice once.
+    var voiceHandsFreeMarkup = voiceSupport.browserRecognition
+      ? '<div class="voice-handsfree" data-voice-handsfree hidden>'
+        + '<span class="voice-handsfree-label" data-voice-handsfree-label>' + escapeHtml(voiceCopy.handsFreeLabel) + '</span>'
+        + '<button class="voice-switch" data-voice-wake type="button" role="switch" aria-checked="false" aria-label="' + escapeHtml(voiceCopy.handsFreeLabel) + '" title="' + escapeHtml(voiceCopy.handsFreeTitle) + '"><span class="voice-switch-knob"></span></button>'
+        + '</div>'
       : '';
     var voiceStatusMarkup = voiceSupport.enabled
       ? '<div class="sr-only" data-voice-status role="status" aria-live="assertive" aria-atomic="true"></div><p class="sr-only" id="talia-voice-hint">' + escapeHtml(voiceCopy.shortcutHint) + '</p>'
@@ -1941,15 +2042,69 @@
         .mic--busy { opacity: .6; }\
         @keyframes talia-mic-pulse { 0% { opacity: .7; transform: scale(.92); } 100% { opacity: 0; transform: scale(1.18); } }\
         .header-button[aria-pressed="true"] { background: rgba(255,255,255,.22); }\
-        .wake-dot { display: none; position: absolute; top: 3px; right: 3px; z-index: 2; width: 12px; height: 12px; border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 2px #fff; }\
-        .toggle--wake .wake-dot { display: block; animation: talia-wake-pulse 2s ease-in-out infinite; }\
-        @keyframes talia-wake-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }\
+        .voice-bars { display: none; position: relative; z-index: 1; align-items: center; justify-content: center; gap: 4px; height: 60%; }\
+        .voice-bars span { --f: 1; display: block; width: 5px; height: 6px; border-radius: 3px; background: currentColor; transition: height 90ms linear; }\
+        .voice-bars span:nth-child(1) { --f: .45; } .voice-bars span:nth-child(2) { --f: .8; } .voice-bars span:nth-child(3) { --f: 1; } .voice-bars span:nth-child(4) { --f: .7; } .voice-bars span:nth-child(5) { --f: .4; }\
+        .toggle .voice-bars { gap: 3px; } .toggle .voice-bars span { width: 4px; }\
+        .toggle[data-voice-state]:not([data-voice-state="idle"]) .launcher-icon { display: none; }\
+        [data-voice-state]:not([data-voice-state="idle"]) .voice-bars { display: flex; }\
+        [data-voice-state="wake"] .voice-bars span { animation: talia-bars-idle 2.4s ease-in-out infinite; }\
+        [data-voice-state="wake"] .voice-bars span:nth-child(2) { animation-delay: .2s; } [data-voice-state="wake"] .voice-bars span:nth-child(3) { animation-delay: .4s; } [data-voice-state="wake"] .voice-bars span:nth-child(4) { animation-delay: .6s; }\
+        [data-voice-state="listening"] .voice-bars span, [data-voice-state="speaking"] .voice-bars span { animation: talia-bars-voice .5s ease-in-out infinite alternate; }\
+        [data-voice-state="listening"] .voice-bars span:nth-child(2n), [data-voice-state="speaking"] .voice-bars span:nth-child(2n) { animation-duration: .38s; }\
+        .voice-live .voice-bars span { animation: none !important; height: calc(6px + var(--lvl, 0) * var(--f) * 26px); }\
+        [data-voice-state="thinking"] .voice-bars span { width: 6px; height: 6px; animation: talia-bars-think 1s ease-in-out infinite; }\
+        [data-voice-state="thinking"] .voice-bars span:nth-child(2) { animation-delay: .15s; } [data-voice-state="thinking"] .voice-bars span:nth-child(3) { animation-delay: .3s; } [data-voice-state="thinking"] .voice-bars span:nth-child(4) { animation-delay: .45s; }\
+        @keyframes talia-bars-idle { 0%, 100% { height: 6px; opacity: .65; } 50% { height: 14px; opacity: 1; } }\
+        @keyframes talia-bars-voice { from { height: 6px; } to { height: calc(10px + var(--f) * 18px); } }\
+        @keyframes talia-bars-think { 0%, 100% { transform: translateY(0); opacity: .55; } 50% { transform: translateY(-5px); opacity: 1; } }\
+        .form { position: relative; }\
+        .voice-dock { position: absolute; inset: 0; z-index: 3; display: none; align-items: center; gap: 14px; padding: 13px 13px 13px 16px; background: ' + (glass ? skin.chromeFill : '#fff') + '; ' + formFilter + ' animation: talia-dock-in 200ms ease-out both; }\
+        .panel[data-voice-state="listening"] .voice-dock, .panel[data-voice-state="thinking"] .voice-dock, .panel[data-voice-state="speaking"] .voice-dock { display: flex; }\
+        .voice-dock-visual { flex: 0 0 auto; display: grid; width: 56px; height: 44px; place-items: center; border-radius: 12px; background: color-mix(in srgb, ' + primaryColor + ' 10%, #fff); color: ' + primaryColor + '; }\
+        .voice-dock-visual .voice-bars { height: 70%; gap: 3px; }\
+        .voice-dock-visual .voice-bars span { width: 4px; }\
+        .voice-dock-text { display: grid; flex: 1; min-width: 0; gap: 2px; color: #1A1A2E; }\
+        .voice-dock-text strong { font: 700 15px/1.25 "Space Grotesk", system-ui; }\
+        .voice-dock-text span { overflow: hidden; color: rgba(26,26,46,.66); font: 500 12.5px/1.35 "Space Grotesk", system-ui; text-overflow: ellipsis; }\
+        .voice-dock-action { flex: 0 0 auto; height: 40px; border: 0; border-radius: 999px; padding: 0 16px; background: ' + primaryColor + '; color: #fff; font: 600 14px "Space Grotesk", system-ui; cursor: pointer; }\
+        .voice-dock-action:focus-visible, .voice-switch:focus-visible, .welcome-choice:focus-visible { outline: 2px solid ' + primaryColor + '; outline-offset: 2px; }\
+        @keyframes talia-dock-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }\
+        .voice-handsfree { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 2; display: flex; width: max-content; max-width: calc(100% - 26px); margin: 0 auto; align-items: center; gap: 10px; border-radius: 999px; padding: 5px 6px 5px 14px; background: #fff; color: #1A1A2E; box-shadow: 0 4px 16px rgba(0,0,0,.12), 0 0 0 1px rgba(26,26,46,.08); white-space: nowrap; font: 600 12.5px "Space Grotesk", system-ui; animation: talia-dock-in 220ms ease-out both; }\
+        .voice-handsfree[hidden] { display: none; }\
+        .panel--handsfree .messages { padding-bottom: 56px; }\
+        .voice-switch { position: relative; width: 38px; height: 22px; border: 0; border-radius: 999px; padding: 0; background: rgba(26,26,46,.22); cursor: pointer; transition: background 160ms ease; }\
+        .voice-switch-knob { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform 160ms ease; }\
+        .voice-switch[aria-checked="true"] { background: ' + primaryColor + '; }\
+        .voice-switch[aria-checked="true"] .voice-switch-knob { transform: translateX(16px); }\
+        .welcome-voice { display: grid; gap: 10px; padding: 0 16px 16px; }\
+        .welcome-voice[hidden] { display: none; }\
+        .welcome--voice .welcome-action { padding-bottom: 10px; }\
+        .welcome-voice-hint { font: 500 14px/1.4 "Space Grotesk", system-ui; opacity: .78; }\
+        .welcome-voice-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }\
+        .welcome-choice { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border: 1px solid rgba(26,26,46,.2); border-radius: 12px; padding: 0 12px; background: transparent; color: inherit; font: 600 14.5px "Space Grotesk", system-ui; cursor: pointer; transition: transform 120ms ease, box-shadow 120ms ease; }\
+        .welcome-choice:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }\
+        .welcome-choice svg { width: 18px; height: 18px; fill: none; stroke: currentColor; }\
+        .welcome-choice--primary { border-color: ' + primaryColor + '; background: ' + primaryColor + '; color: #fff; }\
+        .welcome-voice-notice { font: 500 11.5px/1.4 "Space Grotesk", system-ui; opacity: .62; }\
+        .welcome-voice-notice a { color: inherit; }\
+        @keyframes talia-msg-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }\
+        .message, .suggested-questions, .feedback { animation: talia-msg-in 220ms ease-out both; }\
+        .voice-invite-body { display: grid; gap: 10px; padding: 16px; }\
+        .voice-invite-text { margin: 0; font-size: 15px; }\
+        .voice-invite-actions { display: flex; flex-wrap: wrap; gap: 8px; }\
+        .voice-invite-primary, .voice-invite-secondary { min-height: 40px; border-radius: 8px; padding: 0 14px; font: 600 14px "Space Grotesk", system-ui; cursor: pointer; }\
+        .voice-invite-primary { border: 0; background: ' + primaryColor + '; color: #fff; }\
+        .voice-invite-secondary { border: 1px solid currentColor; background: transparent; color: inherit; }\
+        .voice-invite-primary[hidden] { display: none; }\
+        .voice-invite-primary:focus-visible, .voice-invite-secondary:focus-visible, .voice-invite-privacy:focus-visible { outline: 2px solid ' + primaryColor + '; outline-offset: 2px; }\
+        .voice-invite-privacy { color: inherit; font-size: 12px; opacity: .75; }\
         .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }\
         .send { flex: 0 0 auto; height: 44px; border: 0; border-radius: 7px; padding: 0 14px; background: ' + primaryColor + '; color: white; font: 600 14px "Space Grotesk", system-ui; cursor: pointer; }\
         .powered { padding: 0 13px 10px; background: ' + formBackground + '; ' + formFilter + ' color: rgba(26,26,46,.52); text-align: center; font: 600 10px/1.35 "Space Grotesk", system-ui; }\
         .powered a { color: inherit; text-decoration: none; }\
         .powered a:hover { color: ' + primaryColor + '; text-decoration: underline; }\
-        @media (prefers-reduced-motion: reduce) { .panel, .welcome { transition: opacity 120ms ease; } .toggle { transition: none; } .typing-dots span { animation: none; opacity: .62; } .mic--listening::after { animation: none; opacity: .5; } .toggle--wake .wake-dot { animation: none; } }\
+        @media (prefers-reduced-motion: reduce) { .panel, .welcome { transition: opacity 120ms ease; } .toggle { transition: none; } .typing-dots span { animation: none; opacity: .62; } .mic--listening::after { animation: none; opacity: .5; } .voice-bars span { animation: none !important; transition: none; } .message, .suggested-questions, .feedback, .voice-dock, .voice-handsfree { animation: none; } .welcome-choice, .voice-switch, .voice-switch-knob { transition: none; } }\
         ' + reducedTransparencyFallback + '\
       </style>\
       <aside class="welcome notranslate" data-welcome translate="no" aria-hidden="true" aria-label="' + escapeHtml(widgetCopy.greetingLabel) + '">\
@@ -1957,19 +2112,20 @@
           <span class="welcome-brand"><span class="welcome-mark">' + launcherIconMarkup + '</span><strong class="welcome-name">' + escapeHtml(assistantName) + '</strong></span>\
           <span class="welcome-message">' + escapeHtml(proactiveMessage) + '</span>\
         </button>\
+        ' + welcomeVoiceMarkup + '\
         <button class="welcome-close" data-welcome-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button>\
       </aside>\
       <section class="panel notranslate" data-panel translate="no">\
-        <div class="header"><span class="header-brand"><span class="header-mark">' + launcherIconMarkup + '</span><span class="header-identity"><span class="header-name">' + escapeHtml(assistantName) + '</span><small class="header-ai-label">' + escapeHtml(compliance.aiLabel) + '</small></span></span><div class="header-actions">' + voiceWakeMarkup + voiceSpeakerMarkup + '<button class="header-button" data-restart type="button" aria-label="' + escapeHtml(widgetCopy.restart) + '" title="' + escapeHtml(widgetCopy.restart) + '">' + getRestartIcon() + '</button><button class="header-button close" data-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button></div></div>\
+        <div class="header"><span class="header-brand"><span class="header-mark">' + launcherIconMarkup + '</span><span class="header-identity"><span class="header-name">' + escapeHtml(assistantName) + '</span><small class="header-ai-label">' + escapeHtml(compliance.aiLabel) + '</small></span></span><div class="header-actions">' + voiceSpeakerMarkup + '<button class="header-button" data-restart type="button" aria-label="' + escapeHtml(widgetCopy.restart) + '" title="' + escapeHtml(widgetCopy.restart) + '">' + getRestartIcon() + '</button><button class="header-button close" data-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button></div></div>\
         <div class="ai-disclosure" id="talia-ai-disclosure">' + escapeHtml(compliance.disclosure) + '</div>\
         <div class="messages notranslate" data-messages translate="no"><div class="message notranslate assistant" translate="no" data-ai-generated="true" data-ai-provider="talia">' + escapeHtml(initialMessage) + '</div></div>\
-        <form class="form notranslate" data-form translate="no"><textarea class="input notranslate" data-input translate="no" rows="1" placeholder="' + escapeHtml(widgetCopy.inputPlaceholder) + '" autocomplete="off" aria-describedby="talia-ai-disclosure talia-privacy-notice"></textarea>' + voiceMicMarkup + '<button class="send notranslate" translate="no" type="submit">' + escapeHtml(widgetCopy.send) + '</button></form>\
+        <form class="form notranslate" data-form translate="no">' + voiceHandsFreeMarkup + voiceDockMarkup + '<textarea class="input notranslate" data-input translate="no" rows="1" placeholder="' + escapeHtml(widgetCopy.inputPlaceholder) + '" autocomplete="off" aria-describedby="talia-ai-disclosure talia-privacy-notice"></textarea>' + voiceMicMarkup + '<button class="send notranslate" translate="no" type="submit">' + escapeHtml(widgetCopy.send) + '</button></form>\
         <div class="powered" id="talia-privacy-notice"><a data-privacy href="' + escapeHtml(compliance.privacyUrl) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(compliance.privacyLabel) + '</a><span aria-hidden="true"> · </span><a href="https://talia.events" target="_blank" rel="noopener noreferrer">Powered by TALIA</a></div>\
         ' + voiceStatusMarkup + '\
       </section>\
       <button class="toggle" data-toggle aria-label="' + escapeHtml(widgetCopy.openAssistant) + '"' + toggleVoiceAttributes + '>\
         ' + launcherIconMarkup + '\
-        <span class="wake-dot" aria-hidden="true"></span>\
+        ' + voiceBarsMarkup + '\
       </button>';
   }
 
@@ -2065,10 +2221,25 @@
         shortcutHint: 'Prem ' + keys + ' en qualsevol moment per parlar amb l’agent web. Sentiràs un so quan puguis començar a parlar.',
         firstOpen: 'Consell: prem ' + keys + ' per parlar en comptes d’escriure.',
         wakeWord: 'Escoltar «Hola TALIA»',
-        wakeOn: 'Mode «Hola TALIA» activat. Mentre estigui actiu, el teu navegador escolta el micròfon per detectar «Hola TALIA». Desactiva’l amb el mateix botó.',
+        wakeOn: 'Mode «Hola TALIA» activat. Mentre estigui actiu, el teu navegador escolta el micròfon per detectar «Hola TALIA». Desactiva’l amb el mateix interruptor.',
         wakeOff: 'Mode «Hola TALIA» desactivat.',
         wakeLauncher: 'escoltant «Hola TALIA»',
-        handsFreeEnded: 'No he sentit res més. Prem ' + keys + ' per tornar a parlar.'
+        handsFreeEnded: 'No he sentit res més. Prem ' + keys + ' per tornar a parlar.',
+        greetingVoiceHint: 'Pots escriure’m o parlar-me.',
+        greetingType: 'Escriure',
+        greetingTalk: 'Parlar',
+        greetingNotice: 'Si parles, la teva veu es transcriu per respondre’t.',
+        dockListeningTitle: 'T’escolto…',
+        dockListeningHint: 'Parla amb normalitat i fes una pausa en acabar.',
+        dockThinkingTitle: 'Un moment…',
+        dockThinkingHint: 'Estic preparant la resposta.',
+        dockSpeakingTitle: 'TALIA està responent',
+        dockSpeakingHint: 'Digues «para» o prem Aturar.',
+        dockDone: 'Fet',
+        dockCancel: 'Cancel·lar',
+        dockStop: 'Aturar',
+        handsFreeLabel: 'Mans lliures: digues «Hola TALIA»',
+        handsFreeTitle: 'En activar-ho, el navegador escolta el micròfon només per detectar «Hola TALIA».'
       };
     }
     if (language === 'en') {
@@ -2094,11 +2265,26 @@
         shortcutKeys: keys,
         shortcutHint: 'Press ' + keys + ' at any time to talk to the web agent. You will hear a sound when you can start talking.',
         firstOpen: 'Tip: press ' + keys + ' to talk instead of typing.',
-        wakeWord: 'Listen for “Hello TALIA”',
-        wakeOn: '“Hello TALIA” mode is on. While it’s on, your browser listens to the microphone to detect “Hello TALIA”. Turn it off with the same button.',
-        wakeOff: '“Hello TALIA” mode is off.',
-        wakeLauncher: 'listening for “Hello TALIA”',
-        handsFreeEnded: 'I didn’t hear anything else. Press ' + keys + ' to talk again.'
+        wakeWord: 'Listen for “Hi TALIA”',
+        wakeOn: '“Hi TALIA” mode is on. While it’s on, your browser listens to the microphone to detect “Hi TALIA”. Turn it off with the same switch.',
+        wakeOff: '“Hi TALIA” mode is off.',
+        wakeLauncher: 'listening for “Hi TALIA”',
+        handsFreeEnded: 'I didn’t hear anything else. Press ' + keys + ' to talk again.',
+        greetingVoiceHint: 'You can type or talk to me.',
+        greetingType: 'Type',
+        greetingTalk: 'Talk',
+        greetingNotice: 'If you talk, your voice is transcribed to answer you.',
+        dockListeningTitle: 'Listening…',
+        dockListeningHint: 'Speak normally and pause when you’re done.',
+        dockThinkingTitle: 'One moment…',
+        dockThinkingHint: 'I’m preparing the answer.',
+        dockSpeakingTitle: 'TALIA is answering',
+        dockSpeakingHint: 'Say “stop” or press Stop.',
+        dockDone: 'Done',
+        dockCancel: 'Cancel',
+        dockStop: 'Stop',
+        handsFreeLabel: 'Hands-free: say “Hi TALIA”',
+        handsFreeTitle: 'When on, your browser listens to the microphone only to detect “Hi TALIA”.'
       };
     }
     if (language === 'pt-BR') {
@@ -2125,10 +2311,25 @@
         shortcutHint: 'Pressione ' + keys + ' a qualquer momento para falar com o agente web. Você ouvirá um som quando puder começar a falar.',
         firstOpen: 'Dica: pressione ' + keys + ' para falar em vez de digitar.',
         wakeWord: 'Ouvir “Olá TALIA”',
-        wakeOn: 'Modo “Olá TALIA” ativado. Enquanto estiver ativo, seu navegador ouve o microfone para detectar “Olá TALIA”. Desative com o mesmo botão.',
+        wakeOn: 'Modo “Olá TALIA” ativado. Enquanto estiver ativo, seu navegador ouve o microfone para detectar “Olá TALIA”. Desative com o mesmo interruptor.',
         wakeOff: 'Modo “Olá TALIA” desativado.',
         wakeLauncher: 'ouvindo “Olá TALIA”',
-        handsFreeEnded: 'Não ouvi mais nada. Pressione ' + keys + ' para falar de novo.'
+        handsFreeEnded: 'Não ouvi mais nada. Pressione ' + keys + ' para falar de novo.',
+        greetingVoiceHint: 'Você pode escrever ou falar comigo.',
+        greetingType: 'Escrever',
+        greetingTalk: 'Falar',
+        greetingNotice: 'Se você falar, sua voz é transcrita para responder.',
+        dockListeningTitle: 'Estou ouvindo…',
+        dockListeningHint: 'Fale normalmente e faça uma pausa ao terminar.',
+        dockThinkingTitle: 'Um momento…',
+        dockThinkingHint: 'Estou preparando a resposta.',
+        dockSpeakingTitle: 'TALIA está respondendo',
+        dockSpeakingHint: 'Diga “pare” ou toque em Parar.',
+        dockDone: 'Pronto',
+        dockCancel: 'Cancelar',
+        dockStop: 'Parar',
+        handsFreeLabel: 'Mãos livres: diga “Olá TALIA”',
+        handsFreeTitle: 'Quando ativado, seu navegador ouve o microfone apenas para detectar “Olá TALIA”.'
       };
     }
     return {
@@ -2154,10 +2355,25 @@
       shortcutHint: 'Pulsa ' + keys + ' en cualquier momento para hablar con el agente web. Oirás un sonido cuando puedas empezar a hablar.',
       firstOpen: 'Consejo: pulsa ' + keys + ' para hablar en lugar de escribir.',
       wakeWord: 'Escuchar «Hola TALIA»',
-      wakeOn: 'Modo «Hola TALIA» activado. Mientras esté activo, tu navegador escucha el micrófono para detectar «Hola TALIA». Desactívalo con el mismo botón.',
+      wakeOn: 'Modo «Hola TALIA» activado. Mientras esté activo, tu navegador escucha el micrófono para detectar «Hola TALIA». Desactívalo con el mismo interruptor.',
       wakeOff: 'Modo «Hola TALIA» desactivado.',
       wakeLauncher: 'escuchando «Hola TALIA»',
-      handsFreeEnded: 'No he oído nada más. Pulsa ' + keys + ' para volver a hablar.'
+      handsFreeEnded: 'No he oído nada más. Pulsa ' + keys + ' para volver a hablar.',
+      greetingVoiceHint: 'Puedes escribirme o hablarme.',
+      greetingType: 'Escribir',
+      greetingTalk: 'Hablar',
+      greetingNotice: 'Si hablas, tu voz se transcribe para responderte.',
+      dockListeningTitle: 'Te escucho…',
+      dockListeningHint: 'Habla con normalidad y haz una pausa al terminar.',
+      dockThinkingTitle: 'Un momento…',
+      dockThinkingHint: 'Estoy preparando la respuesta.',
+      dockSpeakingTitle: 'TALIA está respondiendo',
+      dockSpeakingHint: 'Di «para» o pulsa Detener.',
+      dockDone: 'Listo',
+      dockCancel: 'Cancelar',
+      dockStop: 'Detener',
+      handsFreeLabel: 'Manos libres: di «Hola TALIA»',
+      handsFreeTitle: 'Al activarlo, tu navegador escucha el micrófono solo para detectar «Hola TALIA».'
     };
   }
 
@@ -2206,6 +2422,10 @@
     var wakeRecognition = null;
     var wakeTimer = null;
     var wakeFailures = 0;
+    // Visual state for the animated sound bars on the launcher and header.
+    var awaitingReply = false;
+    var visualState = 'idle';
+    var outputMeterStop = function () {};
     var earcons = createEarconPlayer();
     var noop = function () {};
 
@@ -2218,6 +2438,9 @@
         handleReply: noop,
         announceShortcutOnce: noop,
         toggleWake: noop,
+        enableWake: noop,
+        disableWake: noop,
+        isWakeEnabled: function () { return false; },
         isActive: function () { return false; }
       };
     }
@@ -2238,7 +2461,25 @@
       setTimeout(function () { statusRegion.textContent = message; }, 40);
     }
 
+    // idle | wake | listening | thinking | speaking
+    function refreshVisualState() {
+      var next = listening ? 'listening'
+        : (transcribing || awaitingReply) ? 'thinking'
+          : speaking ? 'speaking'
+            : (wakeEnabled && wakeRecognition) ? 'wake'
+              : 'idle';
+      if (next === visualState) return;
+      visualState = next;
+      if (next !== 'listening' && next !== 'speaking') setLevel(null);
+      if (options.onVisualState) options.onVisualState(next);
+    }
+
+    function setLevel(level) {
+      if (options.onLevel) options.onLevel(level);
+    }
+
     function updateMicButton() {
+      refreshVisualState();
       if (!micButton) return;
       micButton.classList.toggle('mic--listening', listening);
       micButton.classList.toggle('mic--busy', transcribing);
@@ -2430,6 +2671,7 @@
           sum += value * value;
         }
         var level = Math.sqrt(sum / samples.length);
+        setLevel(Math.min(1, level * 7));
         var now = Date.now();
         if (level > 0.035) {
           current.heardSpeech = true;
@@ -2485,6 +2727,7 @@
             handleNoSpeech();
             return;
           }
+          voiceLog('transcription failed', result.status, result.data && result.data.error);
           if (shouldUseBrowserFallback(result.status) && support.browserRecognition) useServerRecognition = false;
           failListening(copy.failed);
         })
@@ -2534,6 +2777,7 @@
 
       recognition.onerror = function (event) {
         recognitionError = event && event.error ? event.error : 'unknown';
+        voiceLog('recognition error', recognitionError);
       };
 
       recognition.onend = function () {
@@ -2679,6 +2923,7 @@
       stopWake();
       speaking = true;
       afterSpeech = then || null;
+      refreshVisualState();
 
       function start() {
         if (token !== speechToken) return;
@@ -2741,9 +2986,12 @@
             if (context.state === 'suspended' && typeof context.resume === 'function') context.resume().catch(noop);
             var source = context.createBufferSource();
             source.buffer = audioBuffer;
-            source.connect(context.destination);
+            outputMeterStop();
+            outputMeterStop = meterOutput(context, source);
             currentSource = source;
             source.onended = function () {
+              outputMeterStop();
+              outputMeterStop = noop;
               if (currentSource === source) currentSource = null;
               playChunk(index + 1);
             };
@@ -2808,10 +3056,39 @@
       }
     }
 
+    // Routes TALIA's voice through an analyser so the bars follow it.
+    function meterOutput(context, source) {
+      var analyser;
+      try {
+        analyser = context.createAnalyser();
+        analyser.fftSize = 512;
+        source.connect(analyser);
+        analyser.connect(context.destination);
+      } catch {
+        source.connect(context.destination);
+        return noop;
+      }
+      var samples = new Uint8Array(analyser.fftSize);
+      var interval = setInterval(function () {
+        analyser.getByteTimeDomainData(samples);
+        var sum = 0;
+        for (var index = 0; index < samples.length; index += 1) {
+          var value = (samples[index] - 128) / 128;
+          sum += value * value;
+        }
+        setLevel(Math.min(1, Math.sqrt(sum / samples.length) * 5));
+      }, 70);
+      return function () {
+        clearInterval(interval);
+        setLevel(null);
+      };
+    }
+
     // Called when a reply finishes playing on its own (not when stopped).
     function finishSpeech(token, failed) {
       if (token !== speechToken) return;
       speaking = false;
+      refreshVisualState();
       var next = afterSpeech;
       afterSpeech = null;
       if (next && !failed) next();
@@ -2822,7 +3099,10 @@
       speechToken += 1;
       speaking = false;
       afterSpeech = null;
+      outputMeterStop();
+      outputMeterStop = noop;
       stopCurrentAudio();
+      refreshVisualState();
     }
 
     function continueConversation() {
@@ -2846,8 +3126,10 @@
     }
 
     function updateWakeIndicator() {
+      refreshVisualState();
       var active = wakeEnabled && !!wakeRecognition;
-      if (options.wakeButton) options.wakeButton.setAttribute('aria-pressed', wakeEnabled ? 'true' : 'false');
+      if (options.wakeButton) options.wakeButton.setAttribute('aria-checked', wakeEnabled ? 'true' : 'false');
+      if (options.onWakeChange) options.onWakeChange(wakeEnabled);
       if (options.launcher) {
         options.launcher.classList.toggle('toggle--wake', active);
         options.launcher.setAttribute('aria-label', options.launcherLabel + (active ? ' · ' + copy.wakeLauncher : ''));
@@ -2877,6 +3159,7 @@
       wake.onresult = function (event) {
         for (var index = event.resultIndex; index < event.results.length; index += 1) {
           var transcript = event.results[index][0] ? event.results[index][0].transcript : '';
+          voiceLog('wake heard', transcript, isWakePhrase(transcript, options.assistantName) ? '(match)' : '');
           if (isWakePhrase(transcript, options.assistantName)) {
             wakeFailures = 0;
             stopWake();
@@ -2889,6 +3172,7 @@
       };
       wake.onerror = function (event) {
         var error = event && event.error;
+        voiceLog('wake error', error);
         if (error === 'not-allowed' || error === 'service-not-allowed') {
           setWake(false);
           announce(copy.denied);
@@ -2904,6 +3188,7 @@
         scheduleWake(Math.min(15000, 400 * Math.pow(2, wakeFailures)));
       };
       wakeRecognition = wake;
+      voiceLog('wake listening', wake.lang);
       try {
         wake.start();
       } catch {
@@ -2950,6 +3235,7 @@
         var wasActive = listening || speaking || transcribing;
         var wasSpeaking = speaking;
         conversationActive = false;
+        awaitingReply = false;
         stopListening(true);
         // Ignore a transcription that is still in flight.
         captureToken += 1;
@@ -2965,10 +3251,14 @@
         // reply can play under browser autoplay rules.
         if (readAloud) earcons.prime();
         if (!fromVoice) return;
+        awaitingReply = true;
+        refreshVisualState();
         earcons.play('processing');
         announce(copy.processing);
       },
       handleReply: function (text, language, fromVoice, failed) {
+        awaitingReply = false;
+        refreshVisualState();
         if (!failed) lastReply = { text: text, language: language };
         // Replies are spoken for voice turns (unless the visitor said "write
         // it"), or for every turn when "read answers aloud" is on.
@@ -2980,6 +3270,18 @@
         }
         speak(text, language, true, fromVoice ? continueConversation : null);
       },
+      enableWake: function () {
+        // Called from the visitor's click on "Activar voz", so the browser can
+        // show its microphone permission prompt.
+        setWake(true);
+        earcons.play('captured');
+      },
+      disableWake: function () {
+        setWake(false);
+        earcons.play('cancel');
+        announce(copy.wakeOff);
+      },
+      isWakeEnabled: function () { return wakeEnabled; },
       toggleWake: function () {
         // Turned on from a click, so the browser can ask for the microphone.
         setWake(!wakeEnabled);
@@ -3001,17 +3303,31 @@
 
   // "Hola TALIA", "Hello TALIA", "Hey TALIA", "Olá TALIA"... Recognizers may
   // write the name as Talía or Thalia; the venue's assistant name also works.
+  function voiceLog() {
+    if (!voiceDebug || !window.console) return;
+    var args = Array.prototype.slice.call(arguments);
+    args.unshift('[TALIA voice]');
+    console.info.apply(console, args);
+  }
+
   function isWakePhrase(text, assistantName) {
     var normalize = function (value) {
       var result = String(value || '').toLowerCase();
       if (typeof result.normalize === 'function') result = result.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       return result.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
     };
-    var names = ['talia', 'thalia', 'tahlia'];
+    // Speech engines often "correct" the uncommon name TALIA into a familiar
+    // word (Spanish engines hear "Hola Italia", "Natalia", "Dalia"...).
+    var names = ['talia', 'thalia', 'tahlia', 'talya', 'tallia', 'tali a', 'tal ia', 'italia', 'natalia', 'dalia', 'thalya'];
     var custom = normalize(assistantName);
     if (custom && custom.indexOf(' ') < 0 && names.indexOf(custom) < 0) names.push(custom);
-    var pattern = new RegExp('(^| )(hola|hello|hey|hi|ola|oi|ei|bon dia|buenas|ok|okay) (' + names.join('|') + ')( |$)');
-    return pattern.test(normalize(text));
+    var heard = normalize(text);
+    var greeting = '(hola|holaa|hello|hallo|hey|hi|ola|oi|ei|ey|eh|bon dia|buenas|buenos dias|ok|okay|oye)';
+    var pattern = new RegExp('(^| )' + greeting + ' (' + names.join('|') + ')( |$)');
+    if (pattern.test(heard)) return true;
+    // The name alone ("¡Talía!") also wakes the agent, but not a longer
+    // sentence that merely mentions it.
+    return /^(talia|thalia|tahlia|talya)$/.test(heard) || (custom && heard === custom);
   }
 
   var VOICE_COMMANDS = {
@@ -3206,8 +3522,8 @@
     return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><path d="M12 18v4"></path><path d="M8 22h8"></path></svg>';
   }
 
-  function getEarIcon() {
-    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8.5a6.5 6.5 0 1 1 13 0c0 6-6 6-6 10a3.5 3.5 0 1 1-7 0"></path><path d="M15 8.5a2.5 2.5 0 0 0-5 0v1a2 2 0 1 1 0 4"></path></svg>';
+  function getPencilIcon() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>';
   }
 
   function getSpeakerIcon() {

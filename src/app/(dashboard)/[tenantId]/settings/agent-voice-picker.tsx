@@ -97,48 +97,47 @@ export function AgentVoicePicker({ tenantId, defaultVoice, options, labels }: Pr
     }
   }
 
+  const selectedOption = options.find((option) => option.value === selected)
+  const isPlaying = playingVoice === selected
+  const isLoading = loadingVoice === selected
+  const selectId = `agent-voice-${tenantId}`
+
   return (
-    <fieldset className="agent-voice-picker">
-      <legend>{labels.agentVoice}</legend>
-      <p className="muted">{labels.agentVoiceHint}</p>
-      <div className="agent-voice-options" role="radiogroup" aria-label={labels.agentVoice}>
-        {options.map((option) => {
-          const isPlaying = playingVoice === option.value
-          const isLoading = loadingVoice === option.value
-          return (
-            <div
-              key={option.value}
-              className={selected === option.value ? 'agent-voice-option agent-voice-option-selected' : 'agent-voice-option'}
-            >
-              <label className="agent-voice-option-label">
-                <input
-                  type="radio"
-                  name="agent_voice"
-                  value={option.value}
-                  checked={selected === option.value}
-                  onChange={() => setSelected(option.value)}
-                />
-                <span>
-                  <strong>{option.label}</strong>
-                  <span className="muted">{option.description}</span>
-                </span>
-              </label>
-              <button
-                type="button"
-                className="agent-voice-listen"
-                onClick={() => void listen(option.value)}
-                disabled={loadingVoice !== null && !isLoading}
-                aria-label={`${isPlaying ? labels.agentVoiceStop : labels.agentVoiceListen}: ${option.label}`}
-                aria-pressed={isPlaying}
-              >
-                {isPlaying ? <Pause aria-hidden="true" size={16} /> : <Play aria-hidden="true" size={16} />}
-                <span>{isLoading ? labels.agentVoiceLoading : isPlaying ? labels.agentVoiceStop : labels.agentVoiceListen}</span>
-              </button>
-            </div>
-          )
-        })}
+    <div className="agent-voice-picker">
+      <label className="field" htmlFor={selectId}>
+        {labels.agentVoice}
+      </label>
+      <div className="agent-voice-row">
+        <select
+          id={selectId}
+          name="agent_voice"
+          value={selected}
+          onChange={(event) => {
+            stopPlayback()
+            setSelected(event.target.value as AgentVoice)
+          }}
+          aria-describedby={`${selectId}-hint`}
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label} · {option.description}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className="agent-voice-listen"
+          onClick={() => void listen(selected)}
+          disabled={loadingVoice !== null && !isLoading}
+          aria-label={`${isPlaying ? labels.agentVoiceStop : labels.agentVoiceListen}: ${selectedOption?.label ?? selected}`}
+          aria-pressed={isPlaying}
+        >
+          {isPlaying ? <Pause aria-hidden="true" size={16} /> : <Play aria-hidden="true" size={16} />}
+          <span>{isLoading ? labels.agentVoiceLoading : isPlaying ? labels.agentVoiceStop : labels.agentVoiceListen}</span>
+        </button>
       </div>
+      <p className="muted" id={`${selectId}-hint`}>{labels.agentVoiceHint}</p>
       <p className="muted" role="status" aria-live="polite">{message}</p>
-    </fieldset>
+    </div>
   )
 }

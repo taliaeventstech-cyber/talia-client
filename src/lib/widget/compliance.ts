@@ -31,7 +31,7 @@ const COPY = {
     disclosure: 'You are talking to an AI assistant. It can make mistakes.',
     privacyLabel: 'Privacy',
     privacyQuestion: 'How do you use my data?',
-    privacySummary: 'We use the messages you send to answer your question, monitor quality, and protect the service. Conversation content is retained for 90 days and can be deleted sooner if you request it. If you talk to the agent, your voice is transcribed and answers may be read aloud using AI providers (such as OpenAI) or your browser’s speech service; we do not keep audio recordings. If you turn on “Hello TALIA” mode, your browser listens to the microphone while it is on to detect that phrase. We do not sell your data.',
+    privacySummary: 'We use the messages you send to answer your question, monitor quality, and protect the service. Conversation content is retained for 90 days and can be deleted sooner if you request it. If you talk to the agent, your voice is transcribed and answers may be read aloud using AI providers (such as OpenAI) or your browser’s speech service; we do not keep audio recordings. If you turn on “Hi TALIA” mode, your browser listens to the microphone while it is on to detect that phrase. We do not sell your data.',
     privacyMore: 'You can read the full details and learn how to exercise your rights here:',
   },
   'pt-BR': {
