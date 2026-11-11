@@ -350,6 +350,11 @@ Implemented:
   TALIA: pulsa Alt+Mayús+V…", opens the agent and starts listening) and is a
   named landmark ("Agente web TALIA"). Closing the voice greeting hides it for
   the current visit only (sessionStorage, per venue).
+  After the first spoken answer, TALIA asks once by voice whether to turn on
+  "Hola TALIA" for next time (explaining the browser listens for the phrase);
+  it only turns on after a spoken "yes". Returning visitors with it on see
+  "Di «Hola TALIA» o pulsa Hablar" in the greeting and can open TALIA by
+  voice alone.
   Details: `docs/requirements/chatbot.md`.
 - Auto-growing chat composer in production and preview, with `Enter` to send,
   `Shift + Enter` for line breaks and a bounded internal scroll for long drafts.

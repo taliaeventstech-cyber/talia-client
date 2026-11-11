@@ -1851,7 +1851,7 @@
     // talking presented side by side, with a just-in-time privacy notice.
     var welcomeVoiceMarkup = voiceSupport.recognition
       ? '<div class="welcome-voice" data-welcome-voice hidden>'
-        + '<span class="welcome-voice-hint">' + escapeHtml(voiceCopy.greetingVoiceHint) + '</span>'
+        + '<span class="welcome-voice-hint">' + escapeHtml(voiceSupport.browserRecognition && getStoredValue('talia-voice-wake-word') === 'on' ? voiceCopy.greetingWakeHint : voiceCopy.greetingVoiceHint) + '</span>'
         + '<div class="welcome-voice-actions">'
         + '<button class="welcome-choice" data-welcome-type type="button">' + getPencilIcon() + '<span>' + escapeHtml(voiceCopy.greetingType) + '</span></button>'
         + '<button class="welcome-choice welcome-choice--primary" data-welcome-talk type="button">' + getMicIcon() + '<span>' + escapeHtml(voiceCopy.greetingTalk) + '</span></button>'
@@ -2250,6 +2250,10 @@
         wakeOff: 'Mode «Hola TALIA» desactivat.',
         wakeLauncher: 'escoltant «Hola TALIA»',
         handsFreeEnded: 'No he sentit res més. Prem ' + keys + ' per tornar a parlar.',
+        greetingWakeHint: 'Digues «Hola TALIA» o prem Parlar.',
+        wakeOffer: 'Vols que la propera vegada em pugui activar dient «Hola TALIA»? Mentre aquesta web estigui oberta, el teu navegador escoltarà el micròfon per detectar aquesta frase. Digues sí o no.',
+        wakeOfferAccepted: 'Fet. Quan vulguis, digues «Hola TALIA». Ho pots desactivar amb l’interruptor Mans lliures. Alguna cosa més?',
+        wakeOfferDeclined: 'D’acord. Alguna cosa més?',
         greetingVoiceHint: 'Pots escriure’m o parlar-me.',
         greetingType: 'Escriure',
         greetingTalk: 'Parlar',
@@ -2295,6 +2299,10 @@
         wakeOff: '“Hi TALIA” mode is off.',
         wakeLauncher: 'listening for “Hi TALIA”',
         handsFreeEnded: 'I didn’t hear anything else. Press ' + keys + ' to talk again.',
+        greetingWakeHint: 'Say “Hi TALIA” or press Talk.',
+        wakeOffer: 'Would you like to call me next time just by saying “Hi TALIA”? While this site is open, your browser will listen to the microphone to detect that phrase. Say yes or no.',
+        wakeOfferAccepted: 'Done. Whenever you like, say “Hi TALIA”. You can turn it off with the Hands-free switch. Anything else?',
+        wakeOfferDeclined: 'All right. Anything else?',
         greetingVoiceHint: 'You can type or talk to me.',
         greetingType: 'Type',
         greetingTalk: 'Talk',
@@ -2340,6 +2348,10 @@
         wakeOff: 'Modo “Olá TALIA” desativado.',
         wakeLauncher: 'ouvindo “Olá TALIA”',
         handsFreeEnded: 'Não ouvi mais nada. Pressione ' + keys + ' para falar de novo.',
+        greetingWakeHint: 'Diga “Olá TALIA” ou toque em Falar.',
+        wakeOffer: 'Quer que na próxima vez eu possa ser ativada quando você disser “Olá TALIA”? Enquanto este site estiver aberto, seu navegador vai ouvir o microfone para detectar essa frase. Diga sim ou não.',
+        wakeOfferAccepted: 'Pronto. Quando quiser, diga “Olá TALIA”. Você pode desativar no botão Mãos livres. Mais alguma coisa?',
+        wakeOfferDeclined: 'Tudo bem. Mais alguma coisa?',
         greetingVoiceHint: 'Você pode escrever ou falar comigo.',
         greetingType: 'Escrever',
         greetingTalk: 'Falar',
@@ -2384,6 +2396,10 @@
       wakeOff: 'Modo «Hola TALIA» desactivado.',
       wakeLauncher: 'escuchando «Hola TALIA»',
       handsFreeEnded: 'No he oído nada más. Pulsa ' + keys + ' para volver a hablar.',
+      greetingWakeHint: 'Di «Hola TALIA» o pulsa Hablar.',
+      wakeOffer: '¿Quieres que la próxima vez puedas llamarme diciendo «Hola TALIA»? Mientras esta web esté abierta, tu navegador escuchará el micrófono para detectar esa frase. Di sí o no.',
+      wakeOfferAccepted: 'Hecho. Cuando quieras, di «Hola TALIA». Puedes desactivarlo con el interruptor Manos libres. ¿Algo más?',
+      wakeOfferDeclined: 'De acuerdo. ¿Algo más?',
       greetingVoiceHint: 'Puedes escribirme o hablarme.',
       greetingType: 'Escribir',
       greetingTalk: 'Hablar',
@@ -2447,6 +2463,10 @@
     var wakeRecognition = null;
     var wakeTimer = null;
     var wakeFailures = 0;
+    // After the first spoken answer TALIA asks, once, whether to turn on
+    // "Hola TALIA" for next time; the visitor answers by voice (yes / no).
+    var wakeOfferKey = 'talia-voice-wake-offer';
+    var wakeOfferPending = false;
     // Visual state for the animated sound bars on the launcher and header.
     var awaitingReply = false;
     var visualState = 'idle';
@@ -2891,6 +2911,20 @@
     // else (including "talk to a person") goes to the agent, whose fallback
     // policy already offers the venue's human contact options.
     function deliverTranscript(text) {
+      if (wakeOfferPending) {
+        wakeOfferPending = false;
+        var answer = getYesNoAnswer(text);
+        if (answer) {
+          options.onInterim('');
+          if (answer === 'yes') setWake(true);
+          earcons.play(answer === 'yes' ? 'captured' : 'cancel');
+          var reply = answer === 'yes' ? copy.wakeOfferAccepted : copy.wakeOfferDeclined;
+          announce(reply);
+          speak(reply, options.language, false, continueConversation);
+          return;
+        }
+        // Anything else is a normal question: answer it.
+      }
       var command = getVoiceCommand(text);
       if (!command) {
         conversationActive = true;
@@ -3130,6 +3164,27 @@
       refreshVisualState();
     }
 
+    // Explicit, informed opt-in: asked once per browser, only where the
+    // browser engine can listen for the phrase, and only by voice to a
+    // visitor who is already talking to TALIA.
+    function shouldOfferWake() {
+      return support.browserRecognition && !wakeEnabled && !getStoredValue(wakeOfferKey)
+        && conversationActive && options.isPanelOpen();
+    }
+
+    function afterVoiceAnswer() {
+      if (!shouldOfferWake()) {
+        continueConversation();
+        return;
+      }
+      setStoredValue(wakeOfferKey, 'asked');
+      announce(copy.wakeOffer);
+      speak(copy.wakeOffer, options.language, false, function () {
+        wakeOfferPending = true;
+        continueConversation();
+      });
+    }
+
     function continueConversation() {
       if (!conversationActive || !options.isPanelOpen()) {
         conversationActive = false;
@@ -3293,7 +3348,7 @@
           earcons.play('error', function () { speak(text, language, false); });
           return;
         }
-        speak(text, language, true, fromVoice ? continueConversation : null);
+        speak(text, language, true, fromVoice ? afterVoiceAnswer : null);
       },
       enableWake: function () {
         // Called from the visitor's click on "Activar voz", so the browser can
@@ -3361,6 +3416,21 @@
     slower: ['mas despacio', 'mas lento', 'habla mas despacio', 'habla mas lento', 'slower', 'more slowly', 'speak slower', 'speak more slowly', 'mes a poc a poc', 'mes lent', 'parla mes a poc a poc', 'mais devagar', 'mais lento', 'fale mais devagar'],
     write: ['escribelo', 'por escrito', 'escribemelo', 'solo por escrito', 'write it', 'write it down', 'in writing', 'escriu ho', 'per escrit', 'escreva', 'por escrito por favor', 'so por escrito']
   };
+
+  var YES_NO_ANSWERS = {
+    yes: ['si', 'vale', 'claro', 'de acuerdo', 'venga', 'ok', 'okay', 'por supuesto', 'si gracias', 'si por favor', 'activalo', 'perfecto', 'val', 'd acord', 'si us plau', 'yes', 'yeah', 'yep', 'sure', 'yes please', 'of course', 'sim', 'pode ser', 'sim por favor'],
+    no: ['no', 'no gracias', 'ahora no', 'mejor no', 'de momento no', 'no cal', 'ara no', 'no thanks', 'no thank you', 'not now', 'nope', 'nao', 'nao obrigado', 'nao obrigada', 'agora nao']
+  };
+
+  function getYesNoAnswer(text) {
+    var normalized = String(text || '').toLowerCase();
+    if (typeof normalized.normalize === 'function') normalized = normalized.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    normalized = normalized.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!normalized || normalized.split(' ').length > 4) return null;
+    if (YES_NO_ANSWERS.yes.indexOf(normalized) >= 0) return 'yes';
+    if (YES_NO_ANSWERS.no.indexOf(normalized) >= 0) return 'no';
+    return null;
+  }
 
   function getVoiceCommand(text) {
     var normalized = String(text || '').toLowerCase();

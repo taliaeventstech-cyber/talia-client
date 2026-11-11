@@ -213,7 +213,8 @@ describe('widget hands-free conversation and wake word', () => {
   it('listens again only after a spoken answer to a voice question, and ends after silence', async () => {
     const widgetSource = await readWidget()
 
-    expect(widgetSource).toContain('speak(text, language, true, fromVoice ? continueConversation : null);')
+    expect(widgetSource).toContain('speak(text, language, true, fromVoice ? afterVoiceAnswer : null);')
+    expect(widgetSource).toMatch(/function afterVoiceAnswer\(\) \{\s*if \(!shouldOfferWake\(\)\) \{\s*continueConversation\(\);/)
     expect(widgetSource).toContain('startListening(true);')
     expect(widgetSource).toContain('announce(copy.handsFreeEnded);')
   })
@@ -230,6 +231,35 @@ describe('widget voice offer in the greeting', () => {
     expect(widgetSource).toContain('window.sessionStorage.getItem(key)')
     expect(widgetSource).not.toContain("setStoredValue(voiceInviteKey, 'dismissed')")
     expect(widgetSource).toContain('if (config.autoOpen || offerVoice) {')
+  })
+
+  it('offers "Hola TALIA" by voice once, after the first spoken answer, and only with a yes', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain("speak(text, language, true, fromVoice ? afterVoiceAnswer : null);")
+    // Asked once per browser, only where the browser engine can listen.
+    expect(widgetSource).toMatch(/function shouldOfferWake\(\) \{\s*return support\.browserRecognition && !wakeEnabled && !getStoredValue\(wakeOfferKey\)/)
+    expect(widgetSource).toContain("setStoredValue(wakeOfferKey, 'asked');")
+    // The wake word only turns on after an explicit "yes".
+    expect(widgetSource).toContain("if (answer === 'yes') setWake(true);")
+    expect(widgetSource).toContain("wakeOffer: '¿Quieres que la próxima vez puedas llamarme diciendo «Hola TALIA»? Mientras esta web esté abierta, tu navegador escuchará el micrófono para detectar esa frase. Di sí o no.'")
+    // Returning visitors who said yes are told they can just say it.
+    expect(widgetSource).toContain("greetingWakeHint: 'Di «Hola TALIA» o pulsa Hablar.'")
+  })
+
+  it('understands short yes / no answers in every widget language', async () => {
+    const widgetSource = await readWidget()
+    const answers = widgetSource.match(/var YES_NO_ANSWERS = \{[\s\S]*?\n {2}\};/)
+    const fn = widgetSource.match(/function getYesNoAnswer\(text\) \{[\s\S]*?\n {2}\}/)
+    expect(answers).not.toBeNull()
+    expect(fn).not.toBeNull()
+    const getYesNoAnswer = new Function(`${answers![0]}\n${fn![0]}\nreturn getYesNoAnswer;`)() as (text: string) => 'yes' | 'no' | null
+
+    for (const yes of ['Sí', 'sí, por favor', 'Vale.', "D'acord", 'Yes please', 'Sim']) expect(getYesNoAnswer(yes)).toBe('yes')
+    for (const no of ['No', 'No, gracias', 'Ahora no', 'Not now', 'Não, obrigado']) expect(getYesNoAnswer(no)).toBe('no')
+    // A real question is never taken as an answer.
+    expect(getYesNoAnswer('¿A qué hora abre la taquilla?')).toBeNull()
+    expect(getYesNoAnswer('si hay entradas para el sábado')).toBeNull()
   })
 
   it('tells keyboard and screen-reader users the agent exists before anything else on the page', async () => {
