@@ -63,6 +63,15 @@ Visitor experience:
   localized "link" word. A header speaker toggle ("read answers aloud",
   persisted per browser) also speaks replies to typed turns.
 
+Animated voice states ("Ondas"): the launcher icon and the header logo turn
+into four sound bars whenever voice is in use — gently breathing while waiting
+for "Hola TALIA", following the real volume of the visitor's voice while
+listening and of TALIA's voice while speaking (Web Audio analysers), and
+bouncing dots while thinking. The header label adds a short status
+("· Te escucho…", "· Un momento…", "· Hablando…", "· Di «Hola TALIA»"). New
+messages fade and slide in. Everything stops under `prefers-reduced-motion`;
+states are also announced in the live region.
+
 Hands-free conversation and wake word:
 
 - After a voice question is answered aloud, the widget automatically listens
@@ -87,7 +96,7 @@ with **Activar voz** / **Ahora no** and a privacy link. The microphone is only
 enabled from that click (opt-in consent: pre-enabled/opt-out listening is not
 valid consent under GDPR per CJEU Planet49 and the EDPB, and browsers tend to
 block microphone prompts on page load). After accepting, the card shows
-"Voz activada" with **Desactivar**; the ear button and green launcher dot keep
+"Voz activada" with **Desactivar**; the ear button and the animated launcher bars keep
 the state visible and reversible (EDPB virtual voice assistant guidelines).
 The choice is remembered per browser; opening the chat dismisses the card
 without recording a choice. Not shown where browser recognition is

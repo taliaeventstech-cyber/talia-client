@@ -249,3 +249,30 @@ describe('widget voice invitation on first visit', () => {
     expect(copy.inviteBody).toMatch(/micr[oóò](f|ph)on/i)
   })
 })
+
+describe('widget animated voice states (sound bars)', () => {
+  it('derives one visual state from the voice controller and shows it on the launcher and header', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain("var next = listening ? 'listening'")
+    expect(widgetSource).toContain("toggle.setAttribute('data-voice-state', state);")
+    expect(widgetSource).toContain("panel.setAttribute('data-voice-state', state);")
+    expect(widgetSource).toContain('<span class="voice-bars" aria-hidden="true">')
+    expect(widgetSource).not.toContain('wake-dot')
+  })
+
+  it('drives the bars with the real microphone and TALIA voice levels', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain('setLevel(Math.min(1, level * 7));')
+    expect(widgetSource).toContain('outputMeterStop = meterOutput(context, source);')
+    // Initialised before `noop` exists: must be a real function.
+    expect(widgetSource).toContain('var outputMeterStop = function () {};')
+  })
+
+  it('stops every animation when the visitor prefers reduced motion', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain('.voice-bars span { animation: none !important; transition: none; }')
+  })
+})

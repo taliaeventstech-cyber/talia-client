@@ -144,6 +144,27 @@
       status: root.querySelector('[data-voice-status]'),
       input: input,
       isPanelOpen: function () { return panel.classList.contains('panel--open'); },
+      onVisualState: function (state) {
+        toggle.setAttribute('data-voice-state', state);
+        panel.setAttribute('data-voice-state', state);
+        var statusLine = root.querySelector('[data-voice-visual-status]');
+        if (statusLine) {
+          statusLine.textContent = state === 'wake' ? voiceCopy.statusWake
+            : state === 'listening' ? voiceCopy.statusListening
+              : state === 'thinking' ? voiceCopy.statusThinking
+                : state === 'speaking' ? voiceCopy.statusSpeaking
+                  : '';
+        }
+      },
+      onLevel: function (level) {
+        var live = typeof level === 'number';
+        toggle.classList.toggle('voice-live', live);
+        panel.classList.toggle('voice-live', live);
+        if (live) {
+          toggle.style.setProperty('--lvl', level.toFixed(2));
+          panel.style.setProperty('--lvl', level.toFixed(2));
+        }
+      },
       openPanel: function () {
         if (!panel.classList.contains('panel--open')) openPanel();
       },
@@ -2015,9 +2036,29 @@
         .mic--busy { opacity: .6; }\
         @keyframes talia-mic-pulse { 0% { opacity: .7; transform: scale(.92); } 100% { opacity: 0; transform: scale(1.18); } }\
         .header-button[aria-pressed="true"] { background: rgba(255,255,255,.22); }\
-        .wake-dot { display: none; position: absolute; top: 3px; right: 3px; z-index: 2; width: 12px; height: 12px; border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 2px #fff; }\
-        .toggle--wake .wake-dot { display: block; animation: talia-wake-pulse 2s ease-in-out infinite; }\
-        @keyframes talia-wake-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }\
+        .voice-bars { display: none; position: relative; z-index: 1; align-items: center; justify-content: center; gap: 4px; height: 60%; }\
+        .voice-bars span { --f: 1; display: block; width: 5px; height: 6px; border-radius: 3px; background: currentColor; transition: height 90ms linear; }\
+        .voice-bars span:nth-child(1) { --f: .55; } .voice-bars span:nth-child(2) { --f: 1; } .voice-bars span:nth-child(3) { --f: .8; } .voice-bars span:nth-child(4) { --f: .45; }\
+        .header-mark .voice-bars { gap: 2.5px; } .header-mark .voice-bars span { width: 3.5px; }\
+        [data-voice-state]:not([data-voice-state="idle"]) .launcher-icon { display: none; }\
+        [data-voice-state]:not([data-voice-state="idle"]) .voice-bars { display: flex; }\
+        [data-voice-state="wake"] .voice-bars span { animation: talia-bars-idle 2.4s ease-in-out infinite; }\
+        [data-voice-state="wake"] .voice-bars span:nth-child(2) { animation-delay: .2s; } [data-voice-state="wake"] .voice-bars span:nth-child(3) { animation-delay: .4s; } [data-voice-state="wake"] .voice-bars span:nth-child(4) { animation-delay: .6s; }\
+        [data-voice-state="listening"] .voice-bars span, [data-voice-state="speaking"] .voice-bars span { animation: talia-bars-voice .5s ease-in-out infinite alternate; }\
+        [data-voice-state="listening"] .voice-bars span:nth-child(2n), [data-voice-state="speaking"] .voice-bars span:nth-child(2n) { animation-duration: .38s; }\
+        .voice-live .voice-bars span { animation: none !important; height: calc(6px + var(--lvl, 0) * var(--f) * 26px); }\
+        .header-mark.voice-live .voice-bars span, .voice-live .header-mark .voice-bars span { height: calc(4px + var(--lvl, 0) * var(--f) * 16px); }\
+        [data-voice-state="thinking"] .voice-bars span { width: 6px; height: 6px; animation: talia-bars-think 1s ease-in-out infinite; }\
+        [data-voice-state="thinking"] .voice-bars span:nth-child(2) { animation-delay: .15s; } [data-voice-state="thinking"] .voice-bars span:nth-child(3) { animation-delay: .3s; } [data-voice-state="thinking"] .voice-bars span:nth-child(4) { animation-delay: .45s; }\
+        .header-mark .voice-bars span { max-height: 20px; }\
+        @keyframes talia-bars-idle { 0%, 100% { height: 6px; opacity: .65; } 50% { height: 14px; opacity: 1; } }\
+        @keyframes talia-bars-voice { from { height: 6px; } to { height: calc(10px + var(--f) * 18px); } }\
+        @keyframes talia-bars-think { 0%, 100% { transform: translateY(0); opacity: .55; } 50% { transform: translateY(-5px); opacity: 1; } }\
+        .header-voice-status:not(:empty)::before { content: " · "; }\
+        .header-voice-status { text-transform: none; letter-spacing: 0; }\
+        .header-ai-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\
+        @keyframes talia-msg-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }\
+        .message, .suggested-questions, .feedback { animation: talia-msg-in 220ms ease-out both; }\
         .voice-invite-body { display: grid; gap: 10px; padding: 16px; }\
         .voice-invite-text { margin: 0; font-size: 15px; }\
         .voice-invite-actions { display: flex; flex-wrap: wrap; gap: 8px; }\
@@ -2032,7 +2073,7 @@
         .powered { padding: 0 13px 10px; background: ' + formBackground + '; ' + formFilter + ' color: rgba(26,26,46,.52); text-align: center; font: 600 10px/1.35 "Space Grotesk", system-ui; }\
         .powered a { color: inherit; text-decoration: none; }\
         .powered a:hover { color: ' + primaryColor + '; text-decoration: underline; }\
-        @media (prefers-reduced-motion: reduce) { .panel, .welcome { transition: opacity 120ms ease; } .toggle { transition: none; } .typing-dots span { animation: none; opacity: .62; } .mic--listening::after { animation: none; opacity: .5; } .toggle--wake .wake-dot { animation: none; } }\
+        @media (prefers-reduced-motion: reduce) { .panel, .welcome { transition: opacity 120ms ease; } .toggle { transition: none; } .typing-dots span { animation: none; opacity: .62; } .mic--listening::after { animation: none; opacity: .5; } .voice-bars span { animation: none !important; transition: none; } .message, .suggested-questions, .feedback { animation: none; } }\
         ' + reducedTransparencyFallback + '\
       </style>\
       <aside class="welcome notranslate" data-welcome translate="no" aria-hidden="true" aria-label="' + escapeHtml(widgetCopy.greetingLabel) + '">\
@@ -2044,7 +2085,7 @@
       </aside>\
       ' + voiceInviteMarkup + '\
       <section class="panel notranslate" data-panel translate="no">\
-        <div class="header"><span class="header-brand"><span class="header-mark">' + launcherIconMarkup + '</span><span class="header-identity"><span class="header-name">' + escapeHtml(assistantName) + '</span><small class="header-ai-label">' + escapeHtml(compliance.aiLabel) + '</small></span></span><div class="header-actions">' + voiceWakeMarkup + voiceSpeakerMarkup + '<button class="header-button" data-restart type="button" aria-label="' + escapeHtml(widgetCopy.restart) + '" title="' + escapeHtml(widgetCopy.restart) + '">' + getRestartIcon() + '</button><button class="header-button close" data-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button></div></div>\
+        <div class="header"><span class="header-brand"><span class="header-mark">' + launcherIconMarkup + '<span class="voice-bars" aria-hidden="true"><span></span><span></span><span></span><span></span></span></span><span class="header-identity"><span class="header-name">' + escapeHtml(assistantName) + '</span><small class="header-ai-label">' + escapeHtml(compliance.aiLabel) + '<span class="header-voice-status" data-voice-visual-status aria-hidden="true"></span></small></span></span><div class="header-actions">' + voiceWakeMarkup + voiceSpeakerMarkup + '<button class="header-button" data-restart type="button" aria-label="' + escapeHtml(widgetCopy.restart) + '" title="' + escapeHtml(widgetCopy.restart) + '">' + getRestartIcon() + '</button><button class="header-button close" data-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button></div></div>\
         <div class="ai-disclosure" id="talia-ai-disclosure">' + escapeHtml(compliance.disclosure) + '</div>\
         <div class="messages notranslate" data-messages translate="no"><div class="message notranslate assistant" translate="no" data-ai-generated="true" data-ai-provider="talia">' + escapeHtml(initialMessage) + '</div></div>\
         <form class="form notranslate" data-form translate="no"><textarea class="input notranslate" data-input translate="no" rows="1" placeholder="' + escapeHtml(widgetCopy.inputPlaceholder) + '" autocomplete="off" aria-describedby="talia-ai-disclosure talia-privacy-notice"></textarea>' + voiceMicMarkup + '<button class="send notranslate" translate="no" type="submit">' + escapeHtml(widgetCopy.send) + '</button></form>\
@@ -2053,7 +2094,7 @@
       </section>\
       <button class="toggle" data-toggle aria-label="' + escapeHtml(widgetCopy.openAssistant) + '"' + toggleVoiceAttributes + '>\
         ' + launcherIconMarkup + '\
-        <span class="wake-dot" aria-hidden="true"></span>\
+        <span class="voice-bars" aria-hidden="true"><span></span><span></span><span></span><span></span></span>\
       </button>';
   }
 
@@ -2159,8 +2200,12 @@
         inviteAccept: 'Activar la veu',
         inviteDecline: 'Ara no',
         inviteOnTitle: 'Veu activada',
-        inviteOnBody: 'Digues «Hola TALIA» quan vulguis. El punt verd indica que t’escolto.',
-        inviteDisable: 'Desactivar'
+        inviteOnBody: 'Digues «Hola TALIA» quan vulguis. Les ones del botó indiquen que t’escolto.',
+        inviteDisable: 'Desactivar',
+        statusWake: 'Digues «Hola TALIA»',
+        statusListening: 'T’escolto…',
+        statusThinking: 'Un moment…',
+        statusSpeaking: 'Parlant…'
       };
     }
     if (language === 'en') {
@@ -2197,8 +2242,12 @@
         inviteAccept: 'Turn on voice',
         inviteDecline: 'Not now',
         inviteOnTitle: 'Voice is on',
-        inviteOnBody: 'Say “Hi TALIA” whenever you like. The green dot shows I’m listening.',
-        inviteDisable: 'Turn off'
+        inviteOnBody: 'Say “Hi TALIA” whenever you like. The moving bars on the button show I’m listening.',
+        inviteDisable: 'Turn off',
+        statusWake: 'Say “Hi TALIA”',
+        statusListening: 'Listening…',
+        statusThinking: 'One moment…',
+        statusSpeaking: 'Speaking…'
       };
     }
     if (language === 'pt-BR') {
@@ -2235,8 +2284,12 @@
         inviteAccept: 'Ativar voz',
         inviteDecline: 'Agora não',
         inviteOnTitle: 'Voz ativada',
-        inviteOnBody: 'Diga “Olá TALIA” quando quiser. O ponto verde indica que estou ouvindo.',
-        inviteDisable: 'Desativar'
+        inviteOnBody: 'Diga “Olá TALIA” quando quiser. As ondas no botão indicam que estou ouvindo.',
+        inviteDisable: 'Desativar',
+        statusWake: 'Diga “Olá TALIA”',
+        statusListening: 'Ouvindo…',
+        statusThinking: 'Um momento…',
+        statusSpeaking: 'Falando…'
       };
     }
     return {
@@ -2272,8 +2325,12 @@
       inviteAccept: 'Activar voz',
       inviteDecline: 'Ahora no',
       inviteOnTitle: 'Voz activada',
-      inviteOnBody: 'Di «Hola TALIA» cuando quieras. El punto verde indica que te escucho.',
-      inviteDisable: 'Desactivar'
+      inviteOnBody: 'Di «Hola TALIA» cuando quieras. Las ondas del botón indican que te escucho.',
+      inviteDisable: 'Desactivar',
+      statusWake: 'Di «Hola TALIA»',
+      statusListening: 'Te escucho…',
+      statusThinking: 'Un momento…',
+      statusSpeaking: 'Hablando…'
     };
   }
 
@@ -2322,6 +2379,10 @@
     var wakeRecognition = null;
     var wakeTimer = null;
     var wakeFailures = 0;
+    // Visual state for the animated sound bars on the launcher and header.
+    var awaitingReply = false;
+    var visualState = 'idle';
+    var outputMeterStop = function () {};
     var earcons = createEarconPlayer();
     var noop = function () {};
 
@@ -2357,7 +2418,25 @@
       setTimeout(function () { statusRegion.textContent = message; }, 40);
     }
 
+    // idle | wake | listening | thinking | speaking
+    function refreshVisualState() {
+      var next = listening ? 'listening'
+        : (transcribing || awaitingReply) ? 'thinking'
+          : speaking ? 'speaking'
+            : (wakeEnabled && wakeRecognition) ? 'wake'
+              : 'idle';
+      if (next === visualState) return;
+      visualState = next;
+      if (next !== 'listening' && next !== 'speaking') setLevel(null);
+      if (options.onVisualState) options.onVisualState(next);
+    }
+
+    function setLevel(level) {
+      if (options.onLevel) options.onLevel(level);
+    }
+
     function updateMicButton() {
+      refreshVisualState();
       if (!micButton) return;
       micButton.classList.toggle('mic--listening', listening);
       micButton.classList.toggle('mic--busy', transcribing);
@@ -2549,6 +2628,7 @@
           sum += value * value;
         }
         var level = Math.sqrt(sum / samples.length);
+        setLevel(Math.min(1, level * 7));
         var now = Date.now();
         if (level > 0.035) {
           current.heardSpeech = true;
@@ -2798,6 +2878,7 @@
       stopWake();
       speaking = true;
       afterSpeech = then || null;
+      refreshVisualState();
 
       function start() {
         if (token !== speechToken) return;
@@ -2860,9 +2941,12 @@
             if (context.state === 'suspended' && typeof context.resume === 'function') context.resume().catch(noop);
             var source = context.createBufferSource();
             source.buffer = audioBuffer;
-            source.connect(context.destination);
+            outputMeterStop();
+            outputMeterStop = meterOutput(context, source);
             currentSource = source;
             source.onended = function () {
+              outputMeterStop();
+              outputMeterStop = noop;
               if (currentSource === source) currentSource = null;
               playChunk(index + 1);
             };
@@ -2927,10 +3011,39 @@
       }
     }
 
+    // Routes TALIA's voice through an analyser so the bars follow it.
+    function meterOutput(context, source) {
+      var analyser;
+      try {
+        analyser = context.createAnalyser();
+        analyser.fftSize = 512;
+        source.connect(analyser);
+        analyser.connect(context.destination);
+      } catch {
+        source.connect(context.destination);
+        return noop;
+      }
+      var samples = new Uint8Array(analyser.fftSize);
+      var interval = setInterval(function () {
+        analyser.getByteTimeDomainData(samples);
+        var sum = 0;
+        for (var index = 0; index < samples.length; index += 1) {
+          var value = (samples[index] - 128) / 128;
+          sum += value * value;
+        }
+        setLevel(Math.min(1, Math.sqrt(sum / samples.length) * 5));
+      }, 70);
+      return function () {
+        clearInterval(interval);
+        setLevel(null);
+      };
+    }
+
     // Called when a reply finishes playing on its own (not when stopped).
     function finishSpeech(token, failed) {
       if (token !== speechToken) return;
       speaking = false;
+      refreshVisualState();
       var next = afterSpeech;
       afterSpeech = null;
       if (next && !failed) next();
@@ -2941,7 +3054,10 @@
       speechToken += 1;
       speaking = false;
       afterSpeech = null;
+      outputMeterStop();
+      outputMeterStop = noop;
       stopCurrentAudio();
+      refreshVisualState();
     }
 
     function continueConversation() {
@@ -2965,6 +3081,7 @@
     }
 
     function updateWakeIndicator() {
+      refreshVisualState();
       var active = wakeEnabled && !!wakeRecognition;
       if (options.wakeButton) options.wakeButton.setAttribute('aria-pressed', wakeEnabled ? 'true' : 'false');
       if (options.launcher) {
@@ -3069,6 +3186,7 @@
         var wasActive = listening || speaking || transcribing;
         var wasSpeaking = speaking;
         conversationActive = false;
+        awaitingReply = false;
         stopListening(true);
         // Ignore a transcription that is still in flight.
         captureToken += 1;
@@ -3084,10 +3202,14 @@
         // reply can play under browser autoplay rules.
         if (readAloud) earcons.prime();
         if (!fromVoice) return;
+        awaitingReply = true;
+        refreshVisualState();
         earcons.play('processing');
         announce(copy.processing);
       },
       handleReply: function (text, language, fromVoice, failed) {
+        awaitingReply = false;
+        refreshVisualState();
         if (!failed) lastReply = { text: text, language: language };
         // Replies are spoken for voice turns (unless the visitor said "write
         // it"), or for every turn when "read answers aloud" is on.
