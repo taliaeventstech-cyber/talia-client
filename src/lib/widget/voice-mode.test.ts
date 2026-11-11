@@ -220,28 +220,28 @@ describe('widget hands-free conversation and wake word', () => {
 })
 
 describe('widget voice offer in the greeting', () => {
-  it('only offers voice when the venue enabled it and snoozes it per venue once dismissed', async () => {
+  it('only offers voice when the venue enabled it, and closing it hides it for this visit only', async () => {
     const widgetSource = await readWidget()
 
     expect(widgetSource).toContain("var voiceInviteKey = 'talia-voice-invite-' + tenantId;")
-    expect(widgetSource).toContain("var offerVoice = !!welcomeVoice && config.voiceInvitation === true && !isVoiceInviteSnoozed(getStoredValue(voiceInviteKey), voiceInviteSnoozeMs);")
-    expect(widgetSource).toContain("if (offerVoice) setStoredValue(voiceInviteKey, 'dismissed:' + Date.now());")
+    expect(widgetSource).toContain("var offerVoice = !!welcomeVoice && config.voiceInvitation === true && getSessionValue(voiceInviteKey) !== 'dismissed';")
+    // sessionStorage: offered again on the next visit, never hidden for good.
+    expect(widgetSource).toContain("if (offerVoice) setSessionValue(voiceInviteKey, 'dismissed');")
+    expect(widgetSource).toContain('window.sessionStorage.getItem(key)')
+    expect(widgetSource).not.toContain("setStoredValue(voiceInviteKey, 'dismissed')")
     expect(widgetSource).toContain('if (config.autoOpen || offerVoice) {')
   })
 
-  it('snoozes a dismissed voice greeting for a week, never forever', async () => {
+  it('tells keyboard and screen-reader users the agent exists before anything else on the page', async () => {
     const widgetSource = await readWidget()
-    const match = widgetSource.match(/function isVoiceInviteSnoozed\(value, snoozeMs\) \{[\s\S]*?\n {2}\}/)
-    expect(match).not.toBeNull()
-    const isSnoozed = new Function(`${match![0]}; return isVoiceInviteSnoozed;`)() as (value: unknown, snoozeMs: number) => boolean
-    const week = 7 * 24 * 60 * 60 * 1000
 
-    expect(isSnoozed(`dismissed:${Date.now() - 1000}`, week)).toBe(true)
-    expect(isSnoozed(`dismissed:${Date.now() - week - 1000}`, week)).toBe(false)
-    // The old permanent flag and other values never hide the greeting.
-    expect(isSnoozed('dismissed', week)).toBe(false)
-    expect(isSnoozed('used', week)).toBe(false)
-    expect(isSnoozed(null, week)).toBe(false)
+    // First stop of the tab order, hidden until focused (WCAG 2.4.1).
+    expect(widgetSource).toContain('document.body.insertBefore(linkHost, document.body.firstChild);')
+    expect(widgetSource).toContain(".access:not(:focus):not(:focus-visible)")
+    expect(widgetSource).toContain("accessLinkVoice: 'Asistente de voz {name}: pulsa {keys} o este botón para hablar'")
+    // Named landmark for the screen reader's regions list.
+    expect(widgetSource).toContain("host.setAttribute('role', 'region');")
+    expect(widgetSource).toContain("landmark: 'Agente web {name}'")
   })
 
   it('starts listening only from the visitor\'s "Hablar" click, with a just-in-time notice', async () => {

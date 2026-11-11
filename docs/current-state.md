@@ -345,6 +345,11 @@ Implemented:
   the voice controls (inert). Venues can switch voice off in Agora (Web Agent
   → Voice, `widget_config.voiceEnabled`, on by default): the widget then hides
   every voice control and the voice routes refuse with `voice_disabled`.
+  Accessibility (EN 301 549 / WCAG 2.1 AA): the widget adds a hidden-until-
+  focused access link as the first tab stop of the page ("Asistente de voz
+  TALIA: pulsa Alt+Mayús+V…", opens the agent and starts listening) and is a
+  named landmark ("Agente web TALIA"). Closing the voice greeting hides it for
+  the current visit only (sessionStorage, per venue).
   Details: `docs/requirements/chatbot.md`.
 - Auto-growing chat composer in production and preview, with `Enter` to send,
   `Shift + Enter` for line breaks and a bounded internal scroll for long drafts.

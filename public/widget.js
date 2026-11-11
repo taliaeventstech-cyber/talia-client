@@ -104,6 +104,10 @@
     host.id = 'talia-widget-root';
     host.classList.add('notranslate');
     host.setAttribute('translate', 'no');
+    // Named landmark: screen readers list it among the page regions
+    // (EN 301 549 / WCAG 1.3.1, 2.4.1).
+    host.setAttribute('role', 'region');
+    host.setAttribute('aria-label', widgetCopy.landmark.replace('{name}', assistantName));
     document.body.appendChild(host);
     registerFloatingWidget(host, 'chatbot', position, {
       widgetSize: widgetSize,
@@ -128,9 +132,9 @@
     isolateWidgetScroll(host, root);
     var privacyLink = root.querySelector('[data-privacy]');
     var sessionFeedbackPrompt = null;
-    // Per venue. Closing the voice greeting hides it for a week, not forever.
+    // Per venue. Closing the voice greeting hides it for the rest of this
+    // visit only; it is offered again on the next visit.
     var voiceInviteKey = 'talia-voice-invite-' + tenantId;
-    var voiceInviteSnoozeMs = 7 * 24 * 60 * 60 * 1000;
     var conversationHasActivity = false;
     var privacyReplyPending = false;
     var voice = createVoiceController({
@@ -223,7 +227,7 @@
 
     // Venue-enabled voice offer inside the greeting ("Escribir" / "Hablar").
     var welcomeVoice = root.querySelector('[data-welcome-voice]');
-    var offerVoice = !!welcomeVoice && config.voiceInvitation === true && !isVoiceInviteSnoozed(getStoredValue(voiceInviteKey), voiceInviteSnoozeMs);
+    var offerVoice = !!welcomeVoice && config.voiceInvitation === true && getSessionValue(voiceInviteKey) !== 'dismissed';
     if (offerVoice) {
       welcomeVoice.hidden = false;
       welcome.classList.add('welcome--voice');
@@ -246,7 +250,7 @@
 
     welcomeClose.addEventListener('click', function () {
       // Closing a greeting that offered voice means "don't offer it again".
-      if (offerVoice) setStoredValue(voiceInviteKey, 'dismissed:' + Date.now());
+      if (offerVoice) setSessionValue(voiceInviteKey, 'dismissed');
       hideWelcome();
       toggle.focus();
     });
@@ -491,6 +495,21 @@
         voice.handleReply(reply, replyLanguage, fromVoice, failed);
       });
     }
+
+    // First stop of the keyboard / screen-reader tab order on the page, like a
+    // "skip to content" link: tells blind visitors the agent exists and how to
+    // reach it (EN 301 549 / WCAG 2.4.1, 2.1.1). Hidden until focused.
+    mountAccessLink(
+      voiceSupport.recognition
+        ? widgetCopy.accessLinkVoice.replace('{name}', assistantName).replace('{keys}', voiceCopy.shortcutKeys)
+        : widgetCopy.accessLinkOpen.replace('{name}', assistantName),
+      primaryColor,
+      function () {
+        if (!panel.classList.contains('panel--open')) openPanel();
+        // Activating the link is the visitor's explicit choice, like the shortcut.
+        if (voiceSupport.recognition) voice.toggleListening();
+      }
+    );
 
     if (voiceSupport.enabled) {
       // Global, screen-reader friendly shortcut: opens the agent and starts
@@ -3573,12 +3592,21 @@
     return crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + '-' + Math.random().toString(16).slice(2);
   }
 
-  // `dismissed:<time>` snoozes the voice greeting; older plain values and
-  // anything unreadable never block it.
-  function isVoiceInviteSnoozed(value, snoozeMs) {
-    var match = /^dismissed:(\d+)$/.exec(String(value || ''));
-    if (!match) return false;
-    return Date.now() - Number(match[1]) < snoozeMs;
+  // Session storage: lasts for the visitor's current visit (browser tab).
+  function getSessionValue(key) {
+    try {
+      return window.sessionStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+
+  function setSessionValue(key, value) {
+    try {
+      window.sessionStorage.setItem(key, value);
+    } catch {
+      // Without storage the greeting may simply show again on the next page.
+    }
   }
 
   function getStoredValue(key) {
@@ -3632,7 +3660,10 @@
         restart: 'Tornar a començar',
         inputPlaceholder: 'Escriu el teu missatge...',
         send: 'Enviar',
-        openAssistant: 'Obrir agent web'
+        openAssistant: 'Obrir agent web',
+        landmark: 'Agent web {name}',
+        accessLinkVoice: 'Assistent de veu {name}: prem {keys} o aquest botó per parlar',
+        accessLinkOpen: 'Obrir l’assistent {name}'
       };
     }
     if (language === 'en') {
@@ -3643,7 +3674,10 @@
         restart: 'Start over',
         inputPlaceholder: 'Type your message...',
         send: 'Send',
-        openAssistant: 'Open web agent'
+        openAssistant: 'Open web agent',
+        landmark: '{name} web agent',
+        accessLinkVoice: '{name} voice assistant: press {keys} or this button to talk',
+        accessLinkOpen: 'Open the {name} assistant'
       };
     }
     if (language === 'pt-BR') {
@@ -3654,7 +3688,10 @@
         restart: 'Começar novamente',
         inputPlaceholder: 'Digite sua mensagem...',
         send: 'Enviar',
-        openAssistant: 'Abrir agente web'
+        openAssistant: 'Abrir agente web',
+        landmark: 'Agente web {name}',
+        accessLinkVoice: 'Assistente de voz {name}: pressione {keys} ou este botão para falar',
+        accessLinkOpen: 'Abrir a assistente {name}'
       };
     }
     return {
@@ -3664,8 +3701,27 @@
       restart: 'Volver a comenzar',
       inputPlaceholder: 'Escribe tu mensaje...',
       send: 'Enviar',
-      openAssistant: 'Abrir agente web'
+      openAssistant: 'Abrir agente web',
+      landmark: 'Agente web {name}',
+      accessLinkVoice: 'Asistente de voz {name}: pulsa {keys} o este botón para hablar',
+      accessLinkOpen: 'Abrir el asistente {name}'
     };
+  }
+
+  function mountAccessLink(label, color, onActivate) {
+    if (document.getElementById('talia-access-link')) return;
+    var linkHost = document.createElement('div');
+    linkHost.id = 'talia-access-link';
+    linkHost.classList.add('notranslate');
+    linkHost.setAttribute('translate', 'no');
+    document.body.insertBefore(linkHost, document.body.firstChild);
+    var linkRoot = linkHost.attachShadow({ mode: 'open' });
+    linkRoot.innerHTML = '<style>'
+      + '.access { position: fixed; top: 12px; left: 12px; z-index: 2147483647; padding: 12px 18px; border: 2px solid #fff; border-radius: 10px; background: ' + color + '; color: #fff; font: 600 16px/1.3 system-ui, sans-serif; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,.25); }'
+      + '.access:not(:focus):not(:focus-visible) { width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }'
+      + '.access:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }'
+      + '</style><button class="access" type="button">' + escapeHtml(label) + '</button>';
+    linkRoot.querySelector('button').addEventListener('click', onActivate);
   }
 
   function getProactiveMessage(value, assistantName, language) {
