@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   getNextKnowledgeSyncAt,
+  parseManagedWebSourceScope,
   validateManagedWebSourceInput,
 } from './managed-web-sources'
 
@@ -78,5 +79,56 @@ describe('getNextKnowledgeSyncAt', () => {
     ['2026-08-31T12:00:00.000Z', '2026-09-30T12:00:00.000Z'],
   ])('clamps monthly runs from %s to the final valid target-month day', (start, expected) => {
     expect(getNextKnowledgeSyncAt('monthly', new Date(start))?.toISOString()).toBe(expected)
+  })
+})
+
+describe('parseManagedWebSourceScope', () => {
+  it('keeps a website source inside the section it starts from', () => {
+    expect(parseManagedWebSourceScope({
+      sourceType: 'website',
+      sourceUrl: 'https://salafenix.com/programacio/',
+      includePaths: '',
+      excludePaths: null,
+    })).toEqual({ ok: true, scope: { includePaths: ['/programacio'], excludePaths: [] } })
+  })
+
+  it('does not add a scope for a website source that starts at the root', () => {
+    expect(parseManagedWebSourceScope({
+      sourceType: 'website',
+      sourceUrl: 'https://salafenix.com/',
+      includePaths: '',
+      excludePaths: '',
+    })).toEqual({ ok: true, scope: { includePaths: [], excludePaths: [] } })
+  })
+
+  it('normalizes explicit rules from lines or commas and removes duplicates', () => {
+    expect(parseManagedWebSourceScope({
+      sourceType: 'website',
+      sourceUrl: 'https://salafenix.com/',
+      includePaths: '/Programacio/\n/agenda, /programacio',
+      excludePaths: '/cicle-*\n\n/arxiu//2022/',
+    })).toEqual({
+      ok: true,
+      scope: { includePaths: ['/programacio', '/agenda'], excludePaths: ['/cicle-*', '/arxiu/2022'] },
+    })
+  })
+
+  it('rejects rules that are not paths', () => {
+    const result = parseManagedWebSourceScope({
+      sourceType: 'sitemap',
+      sourceUrl: 'https://salafenix.com/sitemap.xml',
+      includePaths: 'https://salafenix.com/programacio',
+      excludePaths: '',
+    })
+    expect(result.ok).toBe(false)
+  })
+
+  it('ignores scope fields for single-page sources', () => {
+    expect(parseManagedWebSourceScope({
+      sourceType: 'url',
+      sourceUrl: 'https://salafenix.com/programacio/angelina',
+      includePaths: '/programacio',
+      excludePaths: '/x',
+    })).toEqual({ ok: true, scope: { includePaths: [], excludePaths: [] } })
   })
 })
