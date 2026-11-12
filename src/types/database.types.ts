@@ -4164,19 +4164,14 @@ export type Database = {
         Args: { p_actor_user_id: string; p_theatre_id: string }
         Returns: Json
       }
-      get_meta_marketing_dashboard_snapshot:
-        | {
-            Args: { p_actor_user_id: string; p_theatre_id: string }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_actor_user_id: string
-              p_period: string
-              p_theatre_id: string
-            }
-            Returns: Json
-          }
+      get_meta_marketing_dashboard_snapshot: {
+        Args: {
+          p_actor_user_id: string
+          p_period: string
+          p_theatre_id: string
+        }
+        Returns: Json
+      }
       get_meta_marketing_sync_context: {
         Args: { p_actor_user_id: string; p_theatre_id: string }
         Returns: Json
@@ -4446,26 +4441,16 @@ export type Database = {
           resolved_theatre_id: string
         }[]
       }
-      record_meta_marketing_sync_failure:
-        | {
-            Args: {
-              p_actor_user_id: string
-              p_connection_id: string
-              p_error_code: string
-              p_theatre_id: string
-            }
-            Returns: boolean
-          }
-        | {
-            Args: {
-              p_actor_user_id: string
-              p_connection_id: string
-              p_error_code: string
-              p_period: string
-              p_theatre_id: string
-            }
-            Returns: boolean
-          }
+      record_meta_marketing_sync_failure: {
+        Args: {
+          p_actor_user_id: string
+          p_connection_id: string
+          p_error_code: string
+          p_period: string
+          p_theatre_id: string
+        }
+        Returns: boolean
+      }
       record_widget_installation: {
         Args: { p_origin: string; p_theatre_id: string }
         Returns: boolean
@@ -4537,40 +4522,18 @@ export type Database = {
         }
         Returns: number
       }
-      replace_meta_marketing_campaign_snapshot:
-        | {
-            Args: {
-              p_actor_user_id: string
-              p_campaigns: Json
-              p_connection_id: string
-              p_daily_insights: Json
-              p_period: string
-              p_summary: Json
-              p_theatre_id: string
-            }
-            Returns: number
-          }
-        | {
-            Args: {
-              p_actor_user_id: string
-              p_campaigns: Json
-              p_connection_id: string
-              p_summary: Json
-              p_theatre_id: string
-            }
-            Returns: number
-          }
-        | {
-            Args: {
-              p_actor_user_id: string
-              p_campaigns: Json
-              p_connection_id: string
-              p_daily_insights: Json
-              p_summary: Json
-              p_theatre_id: string
-            }
-            Returns: number
-          }
+      replace_meta_marketing_campaign_snapshot: {
+        Args: {
+          p_actor_user_id: string
+          p_campaigns: Json
+          p_connection_id: string
+          p_daily_insights: Json
+          p_period: string
+          p_summary: Json
+          p_theatre_id: string
+        }
+        Returns: number
+      }
       replace_programme_events: {
         Args: {
           p_document_id: string
