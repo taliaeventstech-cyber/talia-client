@@ -1,5 +1,6 @@
 'use server'
 
+import { normalizeWidgetLauncherIcon, WIDGET_LAUNCHER_ICONS } from '@/lib/widget/launcher-icon'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { importPdfKnowledgeSource, reindexStructuredKnowledgeSource } from '@/lib/knowledge/ingestion'
 import { embedKnowledgeSourceWithTaliaAi } from '@/lib/knowledge/talia-ai-embeddings'
@@ -19,6 +20,7 @@ import { z } from 'zod'
 import { optionalInternationalPhoneSchema } from '@/lib/phone/schema'
 import { getTenantContentHosts } from '@/lib/widget/domain-allowlist'
 import { normalizePrivacyUrl } from '@/lib/widget/compliance'
+import { normalizeAgentVoice } from '@/lib/widget/agent-voices'
 import {
   getNextKnowledgeSyncAt,
   isKnowledgeRefreshInterval,
@@ -51,6 +53,7 @@ import {
   getOwnerAuthorizedWebCapture,
   withOwnerAuthorizedWebCapture,
 } from '@/lib/knowledge/owner-authorized-web-capture'
+import { RETIRED_CHUNK_METADATA_KEY } from '@/lib/knowledge/installed-web-lifecycle'
 
 export type SettingsFormState = {
   ok: boolean
@@ -75,7 +78,7 @@ const settingsSchema = z.object({
   blockOffset: z.coerce.number().int().min(12).max(320),
   collisionStrategy: z.enum(['auto', 'none']),
   widgetTheme: z.enum(['solid', 'glass']),
-  launcherIcon: z.enum(['talia', 'chat', 'bubble', 'bot']),
+  launcherIcon: z.enum(WIDGET_LAUNCHER_ICONS),
   glassBackground: z.enum(['light', 'dark']),
   glassBlur: z.coerce.number().int().min(0).max(30),
   glassTranslucency: z.coerce.number().int().min(15).max(85),
@@ -190,7 +193,7 @@ export async function updateTenantSettings(
     blockOffset: formData.get('block_offset') ?? 20,
     collisionStrategy: formData.get('collision_strategy') === 'auto' ? 'auto' : 'none',
     widgetTheme: formData.get('widget_theme') === 'glass' ? 'glass' : 'solid',
-    launcherIcon: normalizeLauncherIconFormValue(formData.get('launcher_icon')),
+    launcherIcon: normalizeWidgetLauncherIcon(formData.get('launcher_icon')),
     glassBackground: formData.get('glass_background') === 'dark' ? 'dark' : 'light',
     glassBlur: formData.get('glass_blur') ?? 18,
     glassTranslucency: formData.get('glass_translucency') ?? 58,
@@ -251,6 +254,15 @@ export async function updateTenantSettings(
       autoOpenDelay: data.autoOpenDelay,
       proactiveMessage: data.proactiveMessage,
       allowedDomains: normalizeAllowedWidgetDomains(data.allowedDomains ?? ''),
+      // Only known voices are stored; anything else falls back to the default.
+      agentVoice: normalizeAgentVoice(formData.get('agent_voice') ?? existingWidget.agentVoice),
+      // Off hides every voice control in the widget and blocks the voice endpoints.
+      voiceEnabled: formData.get('voice_enabled') === 'on',
+      // Visitors still have to accept in the widget before the mic turns on.
+      // Kept as it was while voice is off (its checkbox is disabled then).
+      voiceInvitation: formData.get('voice_enabled') === 'on'
+        ? formData.get('voice_invitation') === 'on'
+        : existingWidget.voiceInvitation === true,
       chatbotAi: chatbotAiSettingsToWidgetConfig({
         ...existingAiSettings,
         fallbackMessage: data.fallbackMessage || null,
@@ -282,10 +294,6 @@ async function getExistingWidgetConfig(admin: ReturnType<typeof createAdminClien
 
 function isPlainObject(value: unknown): value is Record<string, Json> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
-}
-
-function normalizeLauncherIconFormValue(value: FormDataEntryValue | null) {
-  return value === 'chat' || value === 'bubble' || value === 'bot' ? value : 'talia'
 }
 
 export async function createKnowledgeItem(
@@ -1161,7 +1169,53 @@ export async function deleteKnowledgeSource(
     .maybeSingle()
 
   if (sourceError) return { ok: false, error: sourceError.message }
-  if (!source) return { ok: false, error: 'Fuente no encontrada.' }
+  if (!source) {
+    // Installed-widget pages are documents of the venue's installed-web source.
+    const page = await admin
+      .from('knowledge_documents')
+      .select('id, metadata, knowledge_sources!inner(type)')
+      .eq('id', sourceId)
+      .eq('theatre_id', tenantId)
+      .eq('knowledge_sources.type', 'web_snapshot')
+      .maybeSingle()
+    if (page.error) return { ok: false, error: page.error.message }
+    if (!page.data) return { ok: false, error: 'Fuente no encontrada.' }
+
+    const retiredAt = new Date().toISOString()
+    const metadata = isRecord(page.data.metadata) ? page.data.metadata : {}
+    const pageRetire = await admin
+      .from('knowledge_documents')
+      .update({
+        status: 'removed',
+        removed_at: retiredAt,
+        metadata: {
+          ...metadata,
+          [RETIRED_CHUNK_METADATA_KEY]: {
+            reason: 'operator_retired',
+            retired_at: retiredAt,
+          },
+        } as Json,
+      })
+      .eq('id', page.data.id)
+      .eq('theatre_id', tenantId)
+    if (pageRetire.error) return { ok: false, error: pageRetire.error.message }
+
+    const chunksDelete = await admin
+      .from('knowledge_chunks')
+      .delete()
+      .eq('document_id', page.data.id)
+      .eq('theatre_id', tenantId)
+    if (chunksDelete.error) {
+      return {
+        ok: false,
+        error: chunksDelete.error.message,
+      }
+    }
+
+    revalidatePath(`/${tenantId}/knowledge`)
+    revalidatePath(`/${tenantId}/overview`)
+    return { ok: true }
+  }
 
   const config = isRecord(source.config) ? source.config : {}
   const storageBucket = typeof config.storage_bucket === 'string' ? config.storage_bucket : null

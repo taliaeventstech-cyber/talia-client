@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireTenantProductAccess } from '@/lib/auth/tenant-access'
 import { getDictionary, getLocale } from '@/lib/i18n/dictionaries'
 import { SettingsForm } from './settings-form'
+import { getAgentVoiceFromWidgetConfig, getAgentVoiceOptions, isVoiceControlEnabled, isVoiceInvitationSaved } from '@/lib/widget/agent-voices'
 import { normalizeChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import { normalizeWidgetLauncherIcon } from '@/lib/widget/launcher-icon'
 import { normalizeProactiveGreeting } from '@/lib/widget/proactive-greeting'
@@ -27,7 +28,7 @@ export default async function SettingsPage({ params }: Props) {
   const [{ data: theatre }, hasUsableKnowledge, { data: installation }] = await Promise.all([
     admin
       .from('theatres')
-      .select('name, slug, primary_language, system_prompt, fallback_email, fallback_phone, website_url, widget_config, n8n_webhook_url')
+      .select('name, slug, primary_language, system_prompt, fallback_email, fallback_phone, website_url, widget_config')
       .eq('id', tenantId)
       .single(),
     hasUsableTenantKnowledge(admin, tenantId),
@@ -46,16 +47,20 @@ export default async function SettingsPage({ params }: Props) {
   const installationSecurity = getWidgetInstallationSecurity(widgetAppUrl)
 
   return (
-    <main className="page-shell">
-      <header className="page-header chatbot-settings-header">
-        <div>
-          <h1>{dictionary.settings.section}</h1>
-          <p className="muted">{dictionary.settings.title}</p>
-        </div>
-      </header>
+    <main className="page-shell chatbot-settings-page">
+      {theatre ? null : (
+        <header className="page-header chatbot-settings-header">
+          <div>
+            <h1>{dictionary.settings.section}</h1>
+            <p className="muted">{dictionary.settings.title}</p>
+          </div>
+        </header>
+      )}
 
       {theatre ? (
         <SettingsForm
+          title={dictionary.settings.section}
+          subtitle={dictionary.settings.title}
           tenantId={tenantId}
           theatre={{
             system_prompt: theatre.system_prompt,
@@ -86,7 +91,12 @@ export default async function SettingsPage({ params }: Props) {
             allowedDomains: widgetConfig.allowedDomains,
             fallbackMessage: aiSettings.fallbackMessage,
             fallbackWhatsApp: aiSettings.fallbackWhatsApp,
+            agentVoice: getAgentVoiceFromWidgetConfig(theatre.widget_config),
+            // Raw saved value, so it survives switching voice off and on again.
+            voiceInvitation: isVoiceInvitationSaved(theatre.widget_config),
+            voiceEnabled: isVoiceControlEnabled(theatre.widget_config),
           }}
+          voiceOptions={getAgentVoiceOptions(locale)}
           hasUsableKnowledge={hasUsableKnowledge}
           labels={dictionary.settings.form}
           compliance={getWidgetComplianceCopy(theatre.primary_language)}

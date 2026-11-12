@@ -1,4 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
+import { getAgentVoiceFromWidgetConfig, isVoiceControlEnabled, isVoiceInvitationEnabled, type AgentVoice } from '@/lib/widget/agent-voices'
 import { getBillingAccess } from '@/lib/billing/access'
 import { normalizeChatbotAiSettings, type ChatbotAiSettings } from '@/lib/chatbot/ai-settings'
 import type { Json } from '@/types/database.types'
@@ -46,6 +47,10 @@ export type PublicWidgetConfig = {
   compliance: WidgetComplianceCopy & { privacyUrl: string }
   installedWebCapture: InstalledWebCaptureSettings
   accessibility: PublicAccessibilityConfig
+  /** Invite visitors to turn on voice ("Di «Hola TALIA»") on first visit. */
+  voiceInvitation: boolean
+  /** Whether the widget shows voice controls at all (Agora switch). */
+  voiceEnabled: boolean
 }
 
 export type WidgetPosition = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
@@ -95,7 +100,6 @@ export type PublicAccessibilityConfig = {
 
 export type TenantChatConfig = {
   tenantId: string
-  n8nWebhookUrl: string | null
   name: string
   language: string
   responseTone: ChatbotResponseTone
@@ -105,6 +109,10 @@ export type TenantChatConfig = {
   websiteUrl: string | null
   aiSettings: ChatbotAiSettings
   suggestedQuestions: SuggestedQuestion[]
+  /** Voice chosen in Agora for spoken Web Agent replies. */
+  agentVoice?: AgentVoice
+  /** False when the venue switched voice off in Agora; voice endpoints refuse. */
+  voiceEnabled?: boolean
 }
 
 export type KnowledgeFaqItem = {
@@ -125,23 +133,6 @@ export type TenantRuntimeChatConfig = {
   fallbackPhone: string | null
   topicCategories: string[]
   knowledgeItems: KnowledgeFaqItem[]
-}
-
-export async function getTenantWebhookSecret(admin: AdminClient, tenantId: string) {
-  const { data, error } = await admin
-    .from('theatres')
-    .select('webhook_secret, n8n_hmac_secret')
-    .eq('id', tenantId)
-    .single()
-
-  if (error || !data) {
-    return { ok: false as const, error: 'Tenant not found' }
-  }
-
-  return {
-    ok: true as const,
-    secret: data.webhook_secret ?? data.n8n_hmac_secret,
-  }
 }
 
 export async function assertTenantAdmin(admin: AdminClient, userId: string, tenantId: string) {
@@ -238,14 +229,21 @@ export async function getPublicWidgetConfig(admin: AdminClient, tenantId: string
       },
       installedWebCapture: widgetConfig.installedWebCapture,
       accessibility: widgetConfig.accessibility,
+      voiceInvitation: isVoiceInvitationEnabled(data.widget_config),
+      voiceEnabled: isVoiceControlEnabled(data.widget_config),
     } satisfies PublicWidgetConfig,
   }
 }
 
-export async function getTenantChatConfig(admin: AdminClient, tenantId: string) {
+export async function getTenantChatConfig(
+  admin: AdminClient,
+  tenantId: string,
+  // Agora's test chat may run while the public widget is still switched off.
+  options: { allowDisabled?: boolean } = {},
+) {
   const { data, error } = await admin
     .from('theatres')
-    .select('id, name, primary_language, system_prompt, n8n_webhook_url, fallback_email, fallback_phone, website_url, widget_config, accounts(status, created_at, metadata)')
+    .select('id, name, primary_language, system_prompt, fallback_email, fallback_phone, website_url, widget_config, accounts(status, created_at, metadata)')
     .eq('id', tenantId)
     .single()
 
@@ -259,7 +257,7 @@ export async function getTenantChatConfig(admin: AdminClient, tenantId: string) 
 
   const widgetConfig = getWidgetConfig(data.widget_config, data.primary_language)
 
-  if (!widgetConfig.enabled) {
+  if (!widgetConfig.enabled && !options.allowDisabled) {
     return { ok: false as const, error: 'Chatbot is disabled' }
   }
 
@@ -267,7 +265,6 @@ export async function getTenantChatConfig(admin: AdminClient, tenantId: string) 
     ok: true as const,
     config: {
       tenantId: data.id,
-      n8nWebhookUrl: data.n8n_webhook_url,
       name: data.name,
       language: data.primary_language ?? 'es',
       responseTone: widgetConfig.tone,
@@ -277,6 +274,8 @@ export async function getTenantChatConfig(admin: AdminClient, tenantId: string) 
       websiteUrl: data.website_url,
       aiSettings: widgetConfig.aiSettings,
       suggestedQuestions: widgetConfig.suggestedQuestions,
+      agentVoice: getAgentVoiceFromWidgetConfig(data.widget_config),
+      voiceEnabled: isVoiceControlEnabled(data.widget_config),
     } satisfies TenantChatConfig,
   }
 }

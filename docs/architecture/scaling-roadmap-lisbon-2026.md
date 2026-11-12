@@ -1,5 +1,9 @@
 # Scalable Architecture Roadmap toward Lisbon 2026
 
+> Historical planning snapshot. Its n8n migration steps describe the starting
+> point and are not current architecture; `talia-ai` is now the sole executable
+> AI runtime and the temporary adapter has been removed.
+
 Date: 19 June 2026
 
 ## Context
@@ -188,7 +192,8 @@ Tasks:
   - `KnowledgeRetrievalResult`;
   - `UsageEvent`.
 - Make `/api/chat/:tenantId` talk to a `ChatAgentProvider`. Started: `src/lib/agent-runtime/chat.ts`.
-- Keep `N8nChatAgentProvider` as the adapter. Started.
+- Keep the workflow provider behind a replaceable adapter. Completed historically;
+  the adapter was later removed when `talia-ai` became the sole provider.
 - Document internal payloads.
 
 Result:
@@ -290,7 +295,8 @@ Result:
 ## Recommended first issues
 
 1. Create TS contracts for the chat and retrieval runtime.
-2. Encapsulate the chat n8n call in `N8nChatAgentProvider`.
+2. Encapsulate the chat workflow call behind the runtime interface. This
+   historical migration step is complete and the temporary adapter is removed.
 3. Create a deterministic `KnowledgeRetriever`.
 4. Add the `knowledge_chunks` table.
 5. Migrate PDFs from `knowledge_items` to `knowledge_chunks`.

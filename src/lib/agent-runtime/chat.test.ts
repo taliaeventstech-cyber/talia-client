@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createChatAgentProvider, N8nChatAgentProvider, type ChatAgentRuntimeInput } from './chat'
+import { createChatAgentProvider, type ChatAgentRuntimeInput } from './chat'
 import { TaliaAiChatAgentProvider } from './talia-ai'
 
 const runtimeInput: ChatAgentRuntimeInput = {
@@ -9,7 +9,6 @@ const runtimeInput: ChatAgentRuntimeInput = {
   sessionId: 'session-1',
   message: 'Hola',
   timeZone: 'Europe/Madrid',
-  n8nWebhookUrl: 'https://n8n.example.test/webhook/chat',
   tenant: {
     name: 'Sala Test',
     fallbackLanguage: 'es',
@@ -20,63 +19,6 @@ const runtimeInput: ChatAgentRuntimeInput = {
     websiteUrl: 'https://example.test',
   },
 }
-
-describe('N8nChatAgentProvider', () => {
-  afterEach(() => {
-    vi.restoreAllMocks()
-    vi.unstubAllGlobals()
-  })
-
-  it('returns a configuration error when the webhook is missing', async () => {
-    const provider = new N8nChatAgentProvider()
-
-    const result = await provider.respond({
-      ...runtimeInput,
-      n8nWebhookUrl: null,
-    })
-
-    expect(result).toEqual({
-      ok: false,
-      provider: 'n8n',
-      status: 503,
-      error: 'Chat is not configured for this tenant',
-    })
-  })
-
-  it('normalizes successful n8n responses into the chat runtime contract', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      text: async () => JSON.stringify({ reply: 'Respuesta de TALIA' }),
-    }))
-
-    const provider = new N8nChatAgentProvider()
-    const result = await provider.respond({
-      ...runtimeInput,
-      relevantKnowledge: [{
-        id: 'chunk-1',
-        sourceId: 'source-1',
-        sourceType: 'pdf',
-        question: 'Documento',
-        answer: 'Contenido relevante',
-        category: 'documento',
-        priority: 45,
-        score: 10,
-      }],
-    })
-
-    expect(result).toMatchObject({
-      ok: true,
-      provider: 'n8n',
-      reply: 'Respuesta de TALIA',
-    })
-    expect(fetch).toHaveBeenCalledWith(
-      'https://n8n.example.test/webhook/chat',
-      expect.objectContaining({
-        method: 'POST',
-      }),
-    )
-  })
-})
 
 describe('TaliaAiChatAgentProvider', () => {
   afterEach(() => {
@@ -100,7 +42,7 @@ describe('TaliaAiChatAgentProvider', () => {
     })
   })
 
-  it('sends tenant context and relevant knowledge to talia-ai', async () => {
+  it('sends tenant and conversation context to talia-ai', async () => {
     process.env.TALIA_AI_BASE_URL = 'https://talia-ai.example.test/'
     process.env.TALIA_AI_INTERNAL_API_KEY = 'secret'
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -163,16 +105,6 @@ describe('TaliaAiChatAgentProvider', () => {
         topic: 'precios',
         intent: 'information',
       },
-      relevantKnowledge: [{
-        id: 'chunk-1',
-        sourceId: 'source-1',
-        sourceType: 'pdf',
-        question: 'Documento',
-        answer: 'Contenido relevante',
-        category: 'documento',
-        priority: 45,
-        score: 10,
-      }],
     })
 
     expect(result).toMatchObject({
@@ -247,16 +179,10 @@ describe('TaliaAiChatAgentProvider', () => {
         name: 'Sala Test',
         response_tone: 'close',
         system_prompt: 'Responde como TALIA.',
+        fallback_email: 'info@example.test',
+        fallback_phone: '+34000000000',
       },
-      relevant_knowledge: [{
-        id: 'chunk-1',
-        source_id: 'source-1',
-        source_type: 'pdf',
-        score: 0.5,
-      }],
     })
-    expect(JSON.parse(String(requestInit?.body)).tenant).not.toHaveProperty('fallback_email')
-    expect(JSON.parse(String(requestInit?.body)).tenant).not.toHaveProperty('fallback_phone')
   })
 
   it('sends fallback contacts to talia-ai only when useful knowledge is missing', async () => {
@@ -288,7 +214,6 @@ describe('TaliaAiChatAgentProvider', () => {
           officialWebFallback: true,
         },
       },
-      relevantKnowledge: [],
     })
 
     const [, requestInit] = vi.mocked(fetch).mock.calls[0]
@@ -362,8 +287,7 @@ describe('TaliaAiChatAgentProvider', () => {
     })
   })
 
-  it('keeps talia-ai authoritative and never falls back to n8n', async () => {
-    process.env.CHAT_AGENT_PROVIDER = 'talia-ai'
+  it('surfaces talia-ai failures without a fallback provider', async () => {
     process.env.TALIA_AI_BASE_URL = 'https://talia-ai.example.test'
     process.env.TALIA_AI_INTERNAL_API_KEY = 'secret'
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({

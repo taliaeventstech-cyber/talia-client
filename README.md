@@ -19,7 +19,7 @@ Do not use old documents, loose notes or code comments as the primary source if 
 - Supabase Auth/Postgres/RLS.
 - Stripe Checkout.
 - Google OAuth/Gmail API for the email agent.
-- `talia-ai` as the classifier and drafter runtime for email; n8n remains legacy only in other channels.
+- `talia-ai` as the sole AI runtime for new Web, Email, WhatsApp and Instagram executions.
 - Vercel for deployment.
 
 ## Current Modules

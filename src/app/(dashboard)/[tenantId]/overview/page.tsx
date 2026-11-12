@@ -52,7 +52,7 @@ export default async function OverviewPage({ params }: Props) {
   ] = await Promise.all([
       admin
         .from('theatres')
-        .select('name, website_url, n8n_webhook_url, widget_config, system_prompt, fallback_email, fallback_phone, onboarding_completed')
+        .select('name, website_url, widget_config, system_prompt, fallback_email, fallback_phone, onboarding_completed')
         .eq('id', tenantId)
         .single(),
       admin
@@ -184,7 +184,6 @@ export default async function OverviewPage({ params }: Props) {
   const checklist = buildChecklist({
     tenantId,
     labels: copy.checklist,
-    hasWebhook: Boolean(theatre?.n8n_webhook_url),
     hasSystemPrompt: Boolean(theatre?.system_prompt?.trim()),
     hasFallbackContact: Boolean(theatre?.fallback_email || theatre?.fallback_phone),
     knowledgeItems: knowledgeItems ?? 0,
@@ -709,7 +708,6 @@ function EmptyState({ title, description, href, action }: { title: string; descr
 function buildChecklist({
   tenantId,
   labels,
-  hasWebhook,
   hasSystemPrompt,
   hasFallbackContact,
   knowledgeItems,
@@ -717,19 +715,16 @@ function buildChecklist({
 }: {
   tenantId: string
   labels: {
-    webhook: string
     prompt: string
     knowledge: string
     fallback: string
   }
-  hasWebhook: boolean
   hasSystemPrompt: boolean
   hasFallbackContact: boolean
   knowledgeItems: number
   knowledgeSources: number
 }) {
   const items = [
-    { label: labels.webhook, done: hasWebhook, href: `/${tenantId}/settings` },
     { label: labels.prompt, done: hasSystemPrompt, href: `/${tenantId}/settings` },
     { label: labels.knowledge, done: knowledgeItems > 0 || knowledgeSources > 0, href: `/${tenantId}/knowledge` },
     { label: labels.fallback, done: hasFallbackContact, href: `/${tenantId}/settings` },

@@ -93,7 +93,7 @@ Legend: ✅ solid · 🟡 partial / in progress · ❌ absent · ⭐ own differe
 | Client UI languages | ✅ 100+ (response) | 🟡 es/ca/en | TALIA strong in Catalan; DocsBot broader in response language |
 | Analytics (topics/intent) | ✅ (+ sentiment) | 🟡 | TALIA has basic topics/intent; missing sentiment and resolution rate |
 | Multi-workspace / teams / RBAC | ✅ | 🟡 | TALIA: accounts/venues + memberships; advanced roles pending |
-| Public API + webhooks | ✅ | 🟡 | TALIA uses n8n as an adapter; no documented public API |
+| Public API + webhooks | ✅ | 🟡 | TALIA exposes its own widget API and provider webhooks; no documented public API |
 | White-label | ✅ (Business+) | ✅ | TALIA: white-label add-on €49 |
 | Message/credit limit | ✅ hard stop + auto-recharge | ✅ degraded fallback + add-on | Different approaches (see §6) |
 | Compliance (SOC2/HIPAA/SSO) | ✅ | 🟡 | TALIA: baseline auth + legal OAuth docs; no SOC2/SSO |

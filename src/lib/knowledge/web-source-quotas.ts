@@ -64,10 +64,13 @@ export async function getManagedWebQuotaUsage(
       .select('id', { count: 'exact', head: true })
       .eq('theatre_id', tenantId)
       .in('type', ['url', 'sitemap', 'website']),
+    // Only managed web documents count; installed-widget pages also live in
+    // knowledge_documents but are governed by their own daily cap.
     admin
       .from('knowledge_documents')
-      .select('id', { count: 'exact', head: true })
+      .select('id, knowledge_sources!inner(type)', { count: 'exact', head: true })
       .eq('theatre_id', tenantId)
+      .in('knowledge_sources.type', ['url', 'sitemap', 'website'])
       .neq('status', 'removed'),
     admin
       .from('knowledge_sync_runs')

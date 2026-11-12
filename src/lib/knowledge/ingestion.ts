@@ -5,10 +5,12 @@ import { getWebPageRejection } from './web-page-validity'
 import {
   hasReachedDailyNewPageLimit,
   isArchiveListingUrl,
+  isRemovedInstalledPage,
   isRetiredInstalledPage,
   RETIRED_CHUNK_METADATA_KEY,
 } from './installed-web-lifecycle'
 import type { createAdminClient } from '@/lib/supabase/admin'
+import type { Json } from '@/types/database.types'
 import { createHash } from 'node:crypto'
 
 type AdminClient = ReturnType<typeof createAdminClient>
@@ -222,6 +224,59 @@ export async function reindexStructuredKnowledgeSource({
   }
 }
 
+export const INSTALLED_WEB_SOURCE_NAME = 'Web capturada por el widget'
+
+/**
+ * Every venue has at most one installed-web source (enforced by a unique
+ * index). Each captured page is a knowledge_documents row under it.
+ */
+export async function getOrCreateInstalledWebSource(
+  admin: AdminClient,
+  tenantId: string,
+): Promise<{ ok: true; sourceId: string } | { ok: false; message: string }> {
+  const existing = await admin
+    .from('knowledge_sources')
+    .select('id')
+    .eq('theatre_id', tenantId)
+    .eq('type', 'web_snapshot')
+    .limit(1)
+    .maybeSingle()
+
+  if (existing.error) return { ok: false, message: existing.error.message }
+  if (existing.data) return { ok: true, sourceId: existing.data.id }
+
+  const created = await admin
+    .from('knowledge_sources')
+    .insert({
+      theatre_id: tenantId,
+      type: 'web_snapshot',
+      name: INSTALLED_WEB_SOURCE_NAME,
+      status: 'ready',
+      source_url: null,
+      config: { installed_web_logical: true, source_type: 'web_snapshot' },
+    })
+    .select('id')
+    .single()
+
+  if (created.error?.code === '23505') return getOrCreateInstalledWebSource(admin, tenantId)
+  if (created.error || !created.data) {
+    return { ok: false, message: created.error?.message ?? 'No se pudo crear la fuente web instalada.' }
+  }
+  return { ok: true, sourceId: created.data.id }
+}
+
+type InstalledPageDocument = {
+  id: string
+  source_id: string
+  status: string
+  title: string | null
+  content_hash: string | null
+  last_discovered_at: string | null
+  metadata: unknown
+}
+
+const INSTALLED_PAGE_COLUMNS = 'id, source_id, status, title, content_hash, last_discovered_at, metadata'
+
 export async function registerInstalledWebPage({
   admin,
   tenantId,
@@ -236,22 +291,22 @@ export async function registerInstalledWebPage({
   title?: string | null
   heading?: string | null
   httpStatus?: number | null
-}): Promise<KnowledgeImportResult & { sourceId?: string }> {
+}): Promise<KnowledgeImportResult & { sourceId?: string; documentId?: string }> {
   const normalizedUrl = normalizeInstalledPageUrl(url)
   if (!normalizedUrl) return { ok: false, message: 'URL no válida.' }
 
-  const name = title?.trim() || getPageSourceName(normalizedUrl)
+  const source = await getOrCreateInstalledWebSource(admin, tenantId)
+  if (!source.ok) return { ok: false, message: source.message }
+
   const pageTitle = title?.trim() || null
   const now = new Date().toISOString()
 
   const existing = await admin
-    .from('knowledge_sources')
-    .select('id, status, config')
+    .from('knowledge_documents')
+    .select(INSTALLED_PAGE_COLUMNS)
     .eq('theatre_id', tenantId)
-    .eq('type', 'web_snapshot')
-    .eq('source_url', normalizedUrl)
-    .order('updated_at', { ascending: false })
-    .limit(1)
+    .eq('source_id', source.sourceId)
+    .eq('canonical_url', normalizedUrl)
     .maybeSingle()
 
   if (existing.error) return { ok: false, message: existing.error.message }
@@ -267,14 +322,14 @@ export async function registerInstalledWebPage({
   }
 
   if (existing.data) {
-    return touchInstalledWebPage({ admin, tenantId, normalizedUrl, name, pageTitle, now, source: existing.data })
+    return touchInstalledWebPage({ admin, tenantId, pageTitle, now, page: existing.data })
   }
 
   const recentPages = await admin
-    .from('knowledge_sources')
+    .from('knowledge_documents')
     .select('id', { count: 'exact', head: true })
     .eq('theatre_id', tenantId)
-    .eq('type', 'web_snapshot')
+    .eq('source_id', source.sourceId)
     .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
 
   if (recentPages.error) return { ok: false, message: recentPages.error.message }
@@ -283,35 +338,32 @@ export async function registerInstalledWebPage({
   }
 
   const created = await admin
-    .from('knowledge_sources')
+    .from('knowledge_documents')
     .insert({
       theatre_id: tenantId,
-      type: 'web_snapshot',
-      name,
-      source_url: normalizedUrl,
-      status: 'connected',
-      config: {
-        capture_url: normalizedUrl,
-        page_title: pageTitle,
-        registered_at: now,
-        last_seen_at: now,
-      },
+      source_id: source.sourceId,
+      canonical_url: normalizedUrl,
+      fetched_url: normalizedUrl,
+      title: pageTitle,
+      status: 'pending',
+      capture_method: 'installed_widget',
+      last_discovered_at: now,
+      metadata: { registered_at: now },
     })
-    .select('id')
+    .select(INSTALLED_PAGE_COLUMNS)
     .single()
 
   if (created.error?.code === '23505') {
     const concurrent = await admin
-      .from('knowledge_sources')
-      .select('id, status, config')
+      .from('knowledge_documents')
+      .select(INSTALLED_PAGE_COLUMNS)
       .eq('theatre_id', tenantId)
-      .eq('type', 'web_snapshot')
-      .eq('source_url', normalizedUrl)
-      .limit(1)
+      .eq('source_id', source.sourceId)
+      .eq('canonical_url', normalizedUrl)
       .maybeSingle()
 
     if (concurrent.data) {
-      return touchInstalledWebPage({ admin, tenantId, normalizedUrl, name, pageTitle, now, source: concurrent.data })
+      return touchInstalledWebPage({ admin, tenantId, pageTitle, now, page: concurrent.data })
     }
   }
 
@@ -319,62 +371,53 @@ export async function registerInstalledWebPage({
     return { ok: false, message: created.error?.message ?? 'No se pudo registrar la página instalada.' }
   }
 
-  return { ok: true, message: 'Página instalada registrada.', sourceId: created.data.id }
+  return {
+    ok: true,
+    message: 'Página instalada registrada.',
+    sourceId: source.sourceId,
+    documentId: created.data.id,
+  }
 }
 
 async function touchInstalledWebPage({
   admin,
   tenantId,
-  normalizedUrl,
-  name,
   pageTitle,
   now,
-  source,
+  page,
 }: {
   admin: AdminClient
   tenantId: string
-  normalizedUrl: string
-  name: string
   pageTitle: string | null
   now: string
-  source: { id: string; status: string; config: unknown }
-}): Promise<KnowledgeImportResult & { sourceId?: string }> {
-  const existingConfig = isRecord(source.config) ? source.config : {}
-  const lastSeenAt = typeof existingConfig.last_seen_at === 'string'
-    ? Date.parse(existingConfig.last_seen_at)
-    : Number.NaN
+  page: InstalledPageDocument
+}): Promise<KnowledgeImportResult & { sourceId?: string; documentId?: string }> {
+  const lastSeenAt = page.last_discovered_at ? Date.parse(page.last_discovered_at) : Number.NaN
   const recentlyTouched = Number.isFinite(lastSeenAt)
     && Date.now() - lastSeenAt < INSTALLED_PAGE_TOUCH_INTERVAL_MS
+  const result = { ok: true, sourceId: page.source_id, documentId: page.id }
 
-  if (recentlyTouched && (source.status === 'ready' || source.status === 'connected')) {
-    return { ok: true, message: 'Página instalada ya registrada.', sourceId: source.id }
+  if (recentlyTouched && (page.status === 'ready' || page.status === 'pending')) {
+    return { ...result, message: 'Página instalada ya registrada.' }
   }
 
   const update = await admin
-    .from('knowledge_sources')
+    .from('knowledge_documents')
     .update({
-      name,
-      source_url: normalizedUrl,
-      status: source.status,
-      config: {
-        ...existingConfig,
-        capture_url: normalizedUrl,
-        page_title: pageTitle,
-        registered_at: typeof existingConfig.registered_at === 'string' ? existingConfig.registered_at : now,
-        last_seen_at: now,
-      },
+      title: pageTitle ?? page.title,
+      last_discovered_at: now,
     })
-    .eq('id', source.id)
+    .eq('id', page.id)
     .eq('theatre_id', tenantId)
 
   if (update.error) return { ok: false, message: update.error.message }
-  return { ok: true, message: 'Página instalada actualizada.', sourceId: source.id }
+  return { ...result, message: 'Página instalada actualizada.' }
 }
 
 export async function ingestWebSnapshotSource({
   admin,
   tenantId,
-  sourceId,
+  documentId,
   url,
   title,
   heading,
@@ -384,7 +427,8 @@ export async function ingestWebSnapshotSource({
 }: {
   admin: AdminClient
   tenantId: string
-  sourceId: string
+  /** Installed page (knowledge_documents row) under the venue's installed-web source. */
+  documentId: string
   url: string
   title?: string | null
   heading?: string | null
@@ -395,15 +439,26 @@ export async function ingestWebSnapshotSource({
   const normalizedUrl = normalizeInstalledPageUrl(url)
   if (!normalizedUrl) return { ok: false, message: 'URL no válida.' }
 
+  const page = await loadInstalledPage(admin, tenantId, documentId)
+  if (!page.ok) return { ok: false, message: page.message }
+  if (isRemovedInstalledPage(page.data.status)) {
+    return {
+      ok: true,
+      count: 0,
+      replaced: false,
+      message: 'La página está retirada de Knowledge; no se ha vuelto a procesar.',
+    }
+  }
+
   const rejection = isArchiveListingUrl(normalizedUrl)
     ? { message: ARCHIVE_LISTING_MESSAGE }
     : getWebPageRejection({ httpStatus, title, heading })
   if (rejection) {
-    await markInstalledWebPageUnavailable(admin, tenantId, sourceId, rejection.message)
+    await markInstalledWebPageUnavailable(admin, tenantId, documentId, rejection.message)
     return { ok: false, message: rejection.message }
   }
 
-  const retired = await getInstalledPageRetirement(admin, tenantId, sourceId)
+  const retired = await getInstalledPageRetirement(admin, tenantId, documentId)
   if (!retired.ok) return { ok: false, message: retired.message }
   if (retired.retired) {
     return {
@@ -416,115 +471,89 @@ export async function ingestWebSnapshotSource({
 
   const cleanText = text.trim()
   if (cleanText.length < 40) {
-    await markKnowledgeSourceError(admin, sourceId, 'La página no contiene texto suficiente para indexar.')
+    await markInstalledPageError(admin, tenantId, documentId, 'La página no contiene texto suficiente para indexar.')
     return { ok: false, message: 'La página no contiene texto suficiente para indexar.' }
   }
 
   const contentHash = createHash('sha256').update(cleanText).digest('hex')
-  const { data: existingSource } = await admin
-    .from('knowledge_sources')
-    .select('config, status')
-    .eq('id', sourceId)
-    .eq('theatre_id', tenantId)
-    .eq('type', 'web_snapshot')
-    .maybeSingle()
-  const existingConfig = isRecord(existingSource?.config) ? existingSource.config : {}
+  const existingMetadata = isRecord(page.data.metadata) ? page.data.metadata : {}
   const programmeExtractionRequested = captureMode === 'automatic'
   if (shouldReuseWebSnapshot({
-    status: existingSource?.status,
-    config: existingConfig,
+    status: page.data.status,
+    config: { ...existingMetadata, content_hash: page.data.content_hash },
     contentHash,
     captureMode,
   })) {
     return {
       ok: true,
-      count: typeof existingConfig.chunk_count === 'number' ? existingConfig.chunk_count : 0,
+      count: typeof existingMetadata.chunk_count === 'number' ? existingMetadata.chunk_count : 0,
       replaced: false,
       message: 'El contenido no ha cambiado; no se ha vuelto a procesar.',
     }
   }
   const captureStartedAt = new Date().toISOString()
-
-  const sourceUpdate = await admin
-    .from('knowledge_sources')
-    .update({
-      name: title?.trim() || getPageSourceName(normalizedUrl),
-      source_url: normalizedUrl,
-      status: 'processing',
-      last_error: null,
-      config: {
-        ...existingConfig,
-        capture_url: normalizedUrl,
-        page_title: title?.trim() || null,
-        source_type: 'web_snapshot',
-        capture_mode: captureMode,
-        content_hash: contentHash,
-        programme_extraction_requested: programmeExtractionRequested,
-        capture_started_at: captureStartedAt,
-      },
-    })
-    .eq('id', sourceId)
-    .eq('theatre_id', tenantId)
-    .eq('type', 'web_snapshot')
-
-  if (sourceUpdate.error) {
-    return { ok: false, message: `No se pudo preparar la captura: ${sourceUpdate.error.message}` }
-  }
+  const pageTitle = title?.trim() || null
 
   const ingest = await ingestKnowledgeTextWithTaliaAi({
     tenantId,
-    sourceId,
+    sourceId: page.data.source_id,
+    documentId,
     sourceType: 'web_snapshot',
     text: cleanText,
     metadata: {
       source_type: 'web_snapshot',
       source_url: normalizedUrl,
-      page_title: title?.trim() || null,
+      page_title: pageTitle,
       capture_method: 'installed_widget',
       capture_mode: captureMode,
       programme_extraction_requested: programmeExtractionRequested,
       language: 'es',
-      indexed_at: new Date().toISOString(),
+      indexed_at: captureStartedAt,
     },
   })
 
   if (!ingest) {
-    await markKnowledgeSourceError(admin, sourceId, 'TALIA AI no está configurado para ingestar capturas web.')
+    await markInstalledPageError(admin, tenantId, documentId, 'TALIA AI no está configurado para ingestar capturas web.')
     return { ok: false, message: 'TALIA AI no está configurado para ingestar capturas web.' }
   }
 
   if (!ingest.ok) {
-    await markKnowledgeSourceError(admin, sourceId, ingest.error ?? 'No se pudo ingestar la captura web.')
+    await markInstalledPageError(admin, tenantId, documentId, ingest.error ?? 'No se pudo ingestar la captura web.')
     return { ok: false, message: `No se pudo ingestar la captura web: ${ingest.error ?? 'error desconocido'}` }
   }
 
   await embedInsertedChunks({
     tenantId,
-    sourceId,
+    sourceId: page.data.source_id,
     limit: ingest.chunks,
   })
 
+  // talia-ai may have written programme extraction diagnostics on the
+  // document meanwhile; merge on top of the latest metadata.
+  const latest = await loadInstalledPage(admin, tenantId, documentId)
+  const latestMetadata = latest.ok && isRecord(latest.data.metadata) ? latest.data.metadata : existingMetadata
   const captureCompletedAt = new Date().toISOString()
-  const previousProgrammeEnabled = existingConfig.programme_extraction_enabled === true
+  const previousProgrammeEnabled = latestMetadata.programme_extraction_enabled === true
   const programmeEnabled = ingest.programme?.status === 'ready'
     ? true
     : ingest.programme?.status === 'skipped'
       ? false
       : previousProgrammeEnabled
   const programmeEvaluated = programmeExtractionRequested && Boolean(ingest.programme)
+
   await admin
-    .from('knowledge_sources')
+    .from('knowledge_documents')
     .update({
       status: 'ready',
+      title: pageTitle ?? page.data.title,
+      fetched_url: normalizedUrl,
+      content_hash: contentHash,
+      last_fetched_at: captureCompletedAt,
       last_error: null,
-      last_synced_at: captureCompletedAt,
-      config: {
-        ...existingConfig,
-        capture_url: normalizedUrl,
-        page_title: title?.trim() || null,
-        source_type: 'web_snapshot',
+      failure_count: 0,
+      metadata: {
+        ...latestMetadata,
         capture_mode: captureMode,
-        content_hash: contentHash,
         programme_extraction_requested: programmeExtractionRequested,
         programme_extraction_enabled: programmeEnabled,
         ...(programmeEvaluated ? {
@@ -534,22 +563,39 @@ export async function ingestWebSnapshotSource({
             ? ingest.programme.eventCount
             : ingest.programme?.status === 'skipped'
               ? 0
-              : existingConfig.programme_event_count,
+              : latestMetadata.programme_event_count,
         } : {}),
         capture_started_at: captureStartedAt,
         capture_completed_at: captureCompletedAt,
         chunk_count: ingest.chunks,
-      },
+      } as Json,
     })
-    .eq('id', sourceId)
+    .eq('id', documentId)
     .eq('theatre_id', tenantId)
-    .eq('type', 'web_snapshot')
 
   return {
     ok: true,
     count: ingest.chunks,
     message: 'Captura web preparada para TALIA.',
   }
+}
+
+async function loadInstalledPage(
+  admin: AdminClient,
+  tenantId: string,
+  documentId: string,
+): Promise<{ ok: true; data: InstalledPageDocument } | { ok: false; message: string }> {
+  const result = await admin
+    .from('knowledge_documents')
+    .select(`${INSTALLED_PAGE_COLUMNS}, knowledge_sources!inner(type)`)
+    .eq('id', documentId)
+    .eq('theatre_id', tenantId)
+    .eq('knowledge_sources.type', 'web_snapshot')
+    .maybeSingle()
+
+  if (result.error) return { ok: false, message: result.error.message }
+  if (!result.data) return { ok: false, message: 'Página instalada no encontrada.' }
+  return { ok: true, data: result.data }
 }
 
 export function shouldReuseWebSnapshot({
@@ -975,15 +1021,6 @@ function getDominantLanguage(items: StructuredKnowledgeItem[]) {
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'es'
 }
 
-function getPageSourceName(value: string) {
-  try {
-    const url = new URL(value)
-    return `${url.hostname}${url.pathname === '/' ? '' : url.pathname}`.slice(0, 120)
-  } catch {
-    return value.slice(0, 120)
-  }
-}
-
 async function uploadPdfToStorage({
   admin,
   tenantId,
@@ -1052,41 +1089,49 @@ async function markKnowledgeSourceError(admin: AdminClient, sourceId: string, me
 async function markInstalledWebPageUnavailable(
   admin: AdminClient,
   tenantId: string,
-  sourceId: string,
+  documentId: string,
   message: string
 ) {
   await Promise.all([
-    admin
-      .from('knowledge_sources')
-      .update({ status: 'error', last_error: message })
-      .eq('id', sourceId)
-      .eq('theatre_id', tenantId)
-      .eq('type', 'web_snapshot'),
+    markInstalledPageError(admin, tenantId, documentId, message),
     admin
       .from('knowledge_chunks')
       .update({ active: false })
-      .eq('source_id', sourceId)
+      .eq('document_id', documentId)
       .eq('theatre_id', tenantId),
   ])
+}
+
+async function markInstalledPageError(
+  admin: AdminClient,
+  tenantId: string,
+  documentId: string,
+  message: string,
+) {
+  await admin
+    .from('knowledge_documents')
+    .update({ status: 'error', last_error: message })
+    .eq('id', documentId)
+    .eq('theatre_id', tenantId)
 }
 
 async function getInstalledPageRetirement(
   admin: AdminClient,
   tenantId: string,
-  sourceId: string,
+  documentId: string,
 ): Promise<{ ok: true; retired: boolean } | { ok: false; message: string }> {
   const [active, retired] = await Promise.all([
     admin
       .from('knowledge_chunks')
       .select('id', { count: 'exact', head: true })
       .eq('theatre_id', tenantId)
-      .eq('source_id', sourceId)
+      .eq('document_id', documentId)
       .eq('active', true),
     admin
       .from('knowledge_chunks')
       .select('id', { count: 'exact', head: true })
       .eq('theatre_id', tenantId)
-      .eq('source_id', sourceId)
+      .eq('document_id', documentId)
       .eq('active', false)
       .not(`metadata->>${RETIRED_CHUNK_METADATA_KEY}`, 'is', null),
   ])

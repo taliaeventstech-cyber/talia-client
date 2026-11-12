@@ -1,12 +1,10 @@
-import { sendChatMessageToN8n } from '@/lib/chat/n8n'
 import type { ChatConversationContextMessage } from '@/lib/chat/conversation-context'
 import type { ChatConversationResolution } from '@/lib/chat/conversation-resolution'
 import type { ChatbotAiSettings } from '@/lib/chatbot/ai-settings'
-import type { RelevantKnowledgeHint } from '@/lib/knowledge/retrieval'
 import type { ChatbotResponseTone } from '@/lib/tenants/service'
 import { TaliaAiChatAgentProvider } from './talia-ai'
 
-export type ChatAgentProviderName = 'n8n' | 'talia-ai'
+export type ChatAgentProviderName = 'talia-ai'
 
 export type ChatAgentRuntimeInput = {
   tenantId: string
@@ -17,7 +15,6 @@ export type ChatAgentRuntimeInput = {
   conversationContext?: ChatConversationContextMessage[]
   pendingClarification?: ChatAgentPendingClarification
   previousResolution?: ChatConversationResolution
-  n8nWebhookUrl: string | null
   tenant: {
     name: string
     fallbackLanguage: string
@@ -28,7 +25,6 @@ export type ChatAgentRuntimeInput = {
     websiteUrl: string | null
     aiSettings?: ChatbotAiSettings
   }
-  relevantKnowledge?: RelevantKnowledgeHint[]
 }
 
 export type ChatAgentPendingClarification = {
@@ -39,7 +35,7 @@ export type ChatAgentPendingClarification = {
 }
 
 export type ChatAiUsageComponent = {
-  component: 'answer_agent' | 'diagnostic_agent' | 'grounding_review_agent' | 'language_agent' | 'official_web_search' | 'retrieval_embedding'
+  component: 'answer_agent' | 'diagnostic_agent' | 'grounding_review_agent' | 'language_agent' | 'official_web_search' | 'retrieval_embedding' | 'speech_to_text' | 'text_to_speech'
   provider: string
   model: string
   request_count: number
@@ -76,54 +72,10 @@ export interface ChatAgentProvider {
   respond(input: ChatAgentRuntimeInput): Promise<ChatAgentRuntimeResult>
 }
 
-export class N8nChatAgentProvider implements ChatAgentProvider {
-  readonly name = 'n8n' as const
-
-  async respond(input: ChatAgentRuntimeInput): Promise<ChatAgentRuntimeResult> {
-    if (!input.n8nWebhookUrl) {
-      return {
-        ok: false,
-        provider: this.name,
-        status: 503,
-        error: 'Chat is not configured for this tenant',
-      }
-    }
-
-    const response = await sendChatMessageToN8n({
-      webhookUrl: input.n8nWebhookUrl,
-      tenantId: input.tenantId,
-      sessionId: input.sessionId,
-      message: input.message,
-      relevantKnowledge: input.relevantKnowledge,
-    })
-
-    if (!response.ok) {
-      return {
-        ok: false,
-        provider: this.name,
-        status: 502,
-        error: response.error,
-        details: response.details,
-      }
-    }
-
-    return {
-      ok: true,
-      provider: this.name,
-      reply: response.reply,
-      raw: response.raw,
-    }
-  }
-}
-
 export function createChatAgentProvider(): ChatAgentProvider {
   return new TaliaAiChatAgentProvider()
 }
 
 export async function runChatAgent(input: ChatAgentRuntimeInput) {
   return createChatAgentProvider().respond(input)
-}
-
-export function isTaliaAiPrimaryProvider() {
-  return true
 }

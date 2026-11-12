@@ -12148,14 +12148,15 @@ a.response-source-link:hover {
 
 .widget-preview-header-mark {
   display: grid;
-  flex: 0 0 34px;
-  width: 34px;
-  height: 34px;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
   place-items: center;
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.32);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62), 0 1px 2px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
 }
 
 .widget-preview-header-mark svg {
@@ -12485,6 +12486,25 @@ a.response-source-link:hover {
   font-weight: 600;
   cursor: not-allowed;
   opacity: 0.72;
+}
+
+.widget-preview-form .widget-preview-mic {
+  display: grid;
+  width: 44px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(26, 26, 46, 0.25);
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.widget-preview-form .widget-preview-mic svg,
+.widget-preview-voice-control svg {
+  width: 21px;
+  height: 21px;
+}
+
+.widget-preview-voice-control {
+  cursor: not-allowed;
 }
 
 .widget-preview-powered {
@@ -12912,6 +12932,11 @@ a.response-source-link:hover {
   width: 82%;
   height: 82%;
   filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+
+.widget-launcher-glyph-mark {
+  width: 54%;
+  height: 54%;
 }
 
 .widget-launcher-glyph-chat,
@@ -13464,4 +13489,440 @@ a.response-source-link:hover {
   .conversation-detail-metadata-row + .conversation-detail-metadata-row {
     margin-top: 8px;
   }
+}
+
+.agent-voice-picker {
+  display: grid;
+  gap: 8px;
+}
+
+.agent-voice-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.agent-voice-row select {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-voice-listen {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.agent-voice-listen:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.agent-voice-listen:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.voice-invitation-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.voice-invitation-toggle input {
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+}
+
+.voice-invitation-toggle > span {
+  display: grid;
+  gap: 4px;
+}
+
+/* Voice options in Agora: plain grouping, dimmed while voice is switched off. */
+.voice-options {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.voice-options:disabled {
+  opacity: 0.5;
+}
+
+.voice-options:disabled .voice-invitation-toggle {
+  cursor: not-allowed;
+}
+
+/* Web Agent settings: tabs by goal + sticky live preview (TAL-73) */
+.chatbot-settings-save-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 10px 0;
+  background: var(--color-base);
+}
+
+.chatbot-settings-unsaved {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.chatbot-settings-save-button {
+  min-width: 124px;
+}
+
+.chatbot-settings-save-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.chatbot-settings-tabs {
+  position: sticky;
+  top: 64px;
+  z-index: 19;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-base);
+  scrollbar-width: none;
+}
+
+.chatbot-settings-tab {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 12px 14px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chatbot-settings-tab[aria-selected="true"] {
+  border-bottom-color: var(--color-brand);
+  color: var(--color-text-primary);
+}
+
+.chatbot-settings-tab:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: -2px;
+}
+
+.chatbot-settings-panel[hidden] {
+  display: none;
+}
+
+.settings-section-hint {
+  margin: -4px 0 4px;
+}
+
+.settings-advanced {
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+
+.settings-advanced summary {
+  margin-bottom: 12px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-advanced:not([open]) summary {
+  margin-bottom: 0;
+}
+
+@media (min-width: 1101px) {
+  .chatbot-settings-preview-column {
+    position: sticky;
+    top: 124px;
+    align-self: start;
+    max-height: calc(100vh - 140px);
+    overflow: auto;
+  }
+}
+
+.settings-color-field {
+  grid-column: 1 / -1;
+  max-width: 180px;
+}
+
+/* Web Agent settings: fixed-height workspace on desktop. The page never
+   scrolls; only the settings cards scroll inside their column and the
+   preview fits the viewport height. */
+.chatbot-settings-save-bar.page-header {
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 1081px) {
+  .dashboard-main:has(.chatbot-settings-page) {
+    overflow: hidden;
+  }
+
+  .chatbot-settings-page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .chatbot-settings-form {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+  }
+
+  .chatbot-settings-save-bar.page-header,
+  .chatbot-settings-tabs {
+    position: static;
+    padding: 0;
+  }
+
+  .chatbot-settings-page .chatbot-settings-grid {
+    flex: 1;
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+    min-height: 0;
+  }
+
+  .chatbot-settings-main-column {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 6px;
+    scrollbar-gutter: stable;
+  }
+
+  .chatbot-settings-preview-column {
+    position: static;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    max-height: none;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .chatbot-settings-preview-column .chatbot-preview-card {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .chatbot-settings-preview-column .widget-live-preview {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
+@media (max-width: 1080px) {
+  /* The title row is taller now: let it scroll away and keep only the tabs pinned. */
+  .chatbot-settings-save-bar.page-header {
+    position: static;
+  }
+
+  .chatbot-settings-tabs {
+    top: 0;
+  }
+}
+
+/* Preview as a mini browser window (TAL-73) */
+.chatbot-preview-frame {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.preview-browser-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+}
+
+.preview-browser-dots {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 5px;
+}
+
+.preview-browser-dots i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+}
+
+.preview-browser-address {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0 12px;
+  background: var(--color-surface);
+  color: var(--color-text-tertiary);
+}
+
+.preview-browser-address:focus-within {
+  border-color: var(--color-brand);
+}
+
+.preview-browser-address input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 12.5px;
+  box-shadow: none;
+}
+
+.preview-browser-address input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.preview-background-switch {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 2px;
+  background: var(--color-surface);
+}
+
+.preview-background-option {
+  display: grid;
+  width: 26px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+
+.preview-background-option[data-checked="true"] {
+  background: var(--color-brand);
+  color: #fff;
+}
+
+.preview-background-option:focus-within {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 1px;
+}
+
+.chatbot-preview-frame .widget-live-preview {
+  flex: 1;
+  min-height: 640px;
+  border: 0;
+  border-radius: 0;
+}
+
+@media (min-width: 1081px) {
+  .chatbot-settings-preview-column .chatbot-preview-frame .widget-live-preview {
+    min-height: 0;
+  }
+}
+
+/* Agora test chat inside the Web Agent preview */
+.widget-preview-test-hint {
+  margin: 0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: rgba(26, 26, 46, 0.06);
+  color: rgba(26, 26, 46, 0.68);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.widget-preview-test-answer {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+
+.widget-preview-test-sources {
+  margin: 0 0 0 4px;
+  color: rgba(26, 26, 46, 0.6);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.widget-preview-test-sources-missing {
+  color: #96720f;
+  font-weight: 600;
+}
+
+.widget-preview-test-error {
+  border: 1px dashed rgba(107, 15, 43, 0.4);
+  background: #fff;
+  color: #6b0f2b;
+}
+
+.widget-preview-message {
+  white-space: pre-wrap;
+}
+
+.widget-preview-test-typing {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.widget-preview-test-typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+  animation: widget-preview-typing 1s ease-in-out infinite;
+}
+
+.widget-preview-test-typing span:nth-child(2) { animation-delay: 0.15s; }
+.widget-preview-test-typing span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes widget-preview-typing {
+  0%, 100% { opacity: 0.35; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-3px); }
+}
+
+.widget-preview-form .widget-preview-send:not(:disabled) {
+  cursor: pointer;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .widget-preview-test-typing span { animation: none; }
 }

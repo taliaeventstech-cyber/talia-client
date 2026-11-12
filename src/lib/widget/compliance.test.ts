@@ -38,7 +38,7 @@ describe('widget compliance', () => {
     expect(widgetSource).toContain("compliance.privacySummary + '\\n\\n' + compliance.privacyMore")
     expect(widgetSource).not.toContain('Conservamos esta conversación durante 30 días')
     expect(widgetSource).toContain("item.setAttribute('data-ai-generated', 'true')")
-    expect(chatRouteSource.match(/ai_generated: true/g)).toHaveLength(3)
+    expect(chatRouteSource.match(/ai_generated: true/g)).toHaveLength(2)
   })
 
   it('keeps the published retention wording aligned with the 90-day deletion policy', async () => {
@@ -67,5 +67,16 @@ describe('widget compliance', () => {
     )
     expect(retentionMigration).toContain("v_chatbot_content_cutoff timestamptz := now() - interval '90 days'")
     expect(retentionMigration).not.toContain("interval '30 days'")
+  })
+})
+
+describe('widget privacy copy for voice mode', () => {
+  it.each(['es', 'ca', 'en', 'pt-BR'] as const)('discloses voice processing and that audio is not kept (%s)', (language) => {
+    const summary = getWidgetComplianceCopy(language).privacySummary
+
+    expect(summary).toContain('OpenAI')
+    expect(summary).toMatch(/grabaciones de audio|enregistraments d’àudio|audio recordings|gravações de áudio/)
+    expect(summary).toContain('TALIA')
+    expect(summary).toMatch(/Hola TALIA|Hi TALIA|Olá TALIA/)
   })
 })

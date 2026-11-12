@@ -323,8 +323,41 @@ Implemented:
   and persist whether they were contextual or general plus the server-validated
   matching rule.
 - Interactive, production-sized Agora preview for the launcher, proactive
-  greeting, suggested questions and chat panel; message submission stays
-  disabled in preview mode.
+  greeting, suggested questions and chat panel. The preview doubles as a test
+  chat: messages are answered by the same agent as the public widget, using the
+  venue's current Knowledge and saved settings (also while the widget is still
+  switched off), and each answer lists the Knowledge sources it used or warns
+  when none were used. Test messages are not stored as conversations, do not
+  appear in analytics and do not count toward the plan; only their AI cost is
+  recorded as an internal `ai_call`.
+- Voice mode in the installed widget: microphone input (speech to text), a
+  global `Alt+Shift+V` shortcut (`Option+Shift+V` on a Mac) for blind and low-vision visitors that opens
+  the agent and starts listening, distinct audio cues and live-region
+  announcements for every step, spoken replies (automatic for voice turns,
+  optional "read answers aloud" toggle for typed turns) and local voice
+  commands (stop, repeat, slower, write it), hands-free follow-up listening
+  after spoken answers, an opt-in "Hola TALIA" wake word, and a per-venue
+  voice chosen in Agora. Listening uses the browser's speech engine first
+  (live transcript in the chat); TALIA's server recognition is used only in
+  browsers without one. Speech goes through the guarded
+  `/api/chat/[tenantId]/transcribe` and `/speech` routes to `talia-ai`
+  (`/v1/voice/*`, OpenAI) on all plans, with measured per-call cost in
+  `ai_usage_events`, and falls back to the browser's Web Speech engine. The
+  widget privacy summary discloses voice processing; the Agora preview shows
+  the voice controls (inert). Venues can switch voice off in Agora (Web Agent
+  → Voice, `widget_config.voiceEnabled`, on by default): the widget then hides
+  every voice control and the voice routes refuse with `voice_disabled`.
+  Accessibility (EN 301 549 / WCAG 2.1 AA): the widget adds a hidden-until-
+  focused access link as the first tab stop of the page ("Asistente de voz
+  TALIA: pulsa Alt+Mayús+V…", opens the agent and starts listening) and is a
+  named landmark ("Agente web TALIA"). Closing the voice greeting hides it for
+  the current visit only (sessionStorage, per venue).
+  After the first spoken answer, TALIA asks once by voice whether to turn on
+  "Hola TALIA" for next time (explaining the browser listens for the phrase);
+  it only turns on after a spoken "yes". Returning visitors with it on see
+  "Di «Hola TALIA» o pulsa Hablar" in the greeting and can open TALIA by
+  voice alone.
+  Details: `docs/requirements/chatbot.md`.
 - Auto-growing chat composer in production and preview, with `Enter` to send,
   `Shift + Enter` for line breaks and a bounded internal scroll for long drafts.
 - Per-response feedback uses a localized TALIA micro-survey with compact
@@ -425,8 +458,9 @@ Implemented:
 - Internal chat runtime in `src/lib/agent-runtime/chat.ts`, with `talia-ai` as
   the sole provider for new web-chat responses.
 - Next acts as a gateway: it validates tenant, limits and session, and delegates
-  retrieval + response to `/v1/chat/respond`. A `talia-ai` failure remains
-  visible and never falls back to n8n.
+  retrieval + response to `/v1/chat/respond`. `talia-ai` is the only executable
+  web-agent provider; failures remain visible and have no secondary runtime
+  fallback.
 - `talia-ai` is the sole authority for visitor-language
   detection and response-language selection. Next sends the tenant language as
   `fallback_language` and requires `metadata.response_language` in successful
@@ -573,6 +607,14 @@ Implemented:
   installed widget can submit visible public page text as pages are visited.
   Enabling the customer-facing fallback selects automatic capture; the legacy
   manual mode remains supported internally for existing configuration.
+- Installed-widget captures are one logical `knowledge_sources` row per venue
+  (`type = web_snapshot`, `config.installed_web_logical = true`, enforced by a
+  unique index) with one `knowledge_documents` row per captured page
+  (`capture_method = installed_widget`) and chunks linked by `document_id`.
+  Pages register, refresh, fail and get retired individually; Agora keeps
+  listing them page by page while Backstage and the Knowledge health counters
+  show a single web source. Capture tokens and "Desvincular" act on the page.
+  Response evidence from these chunks is labelled with the page title.
 - Installed-web sources are connected to `knowledge_sources` as
   `web_snapshot`: the installed widget extracts visible DOM text and `talia-ai`
   normalizes, chunks and generates embeddings. Automatic captures persist a
@@ -586,8 +628,9 @@ Implemented:
   category, author, pagination, search, feed and `?s=`/`?paged=`-style
   parameters) are never registered and existing ones are deactivated when seen
   again; a venue can register at most 50 new installed pages per rolling 24h;
-  and a page whose chunks an operator retired (`metadata.cleanup`, none
-  active) is not reprocessed, so a recapture cannot silently reactivate it.
+  and an operator-retired page remains as a `removed` document tombstone while
+  its chunks and structured events are deleted. A later visit cannot silently
+  recreate or reactivate that retired content.
 - Installed-web URLs are canonicalized across the widget, API and database. Tracking parameters are discarded, functional query parameters are preserved, duplicate rows are merged before a unique tenant/type/URL index is enforced, and page-presence writes are throttled to once per hour per source.
 - Agora can configure managed single-page, sitemap and bounded-website sources
   with manual, daily, weekly or monthly refresh policies. The persistence model
@@ -1078,9 +1121,6 @@ Do not take as a new model:
 Active debt:
 
 - Separate editable prompts from technical prompts.
-- Create a separate `talia-ai` repo following `docs/architecture/talia-ai-service.md`.
-- Remove dormant legacy n8n configuration and webhook routes after the
-  production rollback window closes.
 - Consolidate roadmap docs so there are no parallel sources.
 - Complete advanced roles and permissions.
 - Complete observability and reporting.

@@ -82,15 +82,15 @@ Conversation content is never promoted to Knowledge automatically. Cross-channel
 identity matching and conversation-context sharing are also disabled: any future
 link between channels requires an explicit product flow and visitor consent.
 
-## Temporary Provider vs. In-House Backend
+## Runtime boundary
 
-n8n is useful for demos and speed.
-
-The architecture must allow replacing it with an in-house backend without changing:
+The web agent runs through the internal `talia-ai` service. The architecture
+keeps that runtime replaceable without changing:
 
 - the widget;
 - the data model;
 - the dashboards;
 - per-tenant configuration.
 
-That's why the widget's public API must talk to TALIA, not directly to n8n.
+That's why the widget's public API talks to TALIA and never directly to an AI
+provider or workflow engine.

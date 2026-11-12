@@ -27,8 +27,7 @@ insert into public.theatres (
   plan,
   fallback_email,
   fallback_phone,
-  widget_config,
-  n8n_webhook_url
+  widget_config
 )
 values (
   '00000000-0000-0000-0000-000000000001',
@@ -38,8 +37,7 @@ values (
   'esencial',
   'info@example.com',
   null,
-  '{"assistantName":"TALIA","primaryColor":"#000000"}'::jsonb,
-  null
+  '{"assistantName":"TALIA","primaryColor":"#000000"}'::jsonb
 )
 on conflict (id) do update set
   plan = excluded.plan,

@@ -2,7 +2,8 @@
 
 import { startTransition, useActionState, useMemo, useState, useTransition } from 'react'
 import { ArrowLeft, ArrowRight, Bot, Check, Database, Link2, MessageCircle, MessageCircleMore, Palette } from 'lucide-react'
-import Image from 'next/image'
+import { TaliaFace } from '@/components/talia-face'
+import { TaliaMark } from '@/components/talia-mark'
 import Link from 'next/link'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import type { WidgetLauncherIcon } from '@/lib/widget/launcher-icon'
@@ -498,6 +499,7 @@ function WidgetStep({
         <div className="chatbot-launcher-icon-options" role="radiogroup" aria-label={widget.icon}>
           {([
             ['talia', widget.iconOptions.talia],
+            ['mark', widget.iconOptions.mark],
             ['chat', widget.iconOptions.chat],
             ['bubble', widget.iconOptions.bubble],
             ['bot', widget.iconOptions.bot],
@@ -607,19 +609,12 @@ function WidgetLauncherIconGlyph({
     return <Bot aria-hidden="true" width={iconSize} height={iconSize} strokeWidth={2.2} />
   }
 
+  if (value === 'mark') return <TaliaMark size={Math.round(size * 0.54)} />
+
   return (
-    <Image
-      src="/icon.svg"
-      alt=""
-      aria-hidden="true"
-      width={500}
-      height={500}
-      style={{
-        width: Math.round(size * 0.72),
-        height: Math.round(size * 0.72),
-        objectFit: 'contain',
-        filter: tone === 'light' ? 'brightness(0) invert(1)' : undefined,
-      }}
+    <TaliaFace
+      size={Math.round(size * 0.72)}
+      style={tone === 'light' ? undefined : { filter: 'none' }}
     />
   )
 }

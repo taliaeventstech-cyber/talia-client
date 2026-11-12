@@ -110,7 +110,6 @@ const updateTenantSchema = createTenantSchema.extend({
   voicePublicPhoneNumber: z.string().trim().max(20).optional(),
   voiceForwardingNotes: z.string().trim().max(2000).optional(),
   voiceOperationalStatus: z.enum(['draft', 'provisioning', 'active', 'paused', 'error']),
-  chatbotWebhookUrl: z.string().trim().url('El webhook del chatbot debe ser una URL válida.').optional().or(z.literal('')),
   chatbotSystemPrompt: z.string().trim().max(4000, 'El prompt del chatbot es demasiado largo.').optional(),
   chatbotAllowedDomains: z.string().trim().max(2000, 'La lista de dominios autorizados es demasiado larga.').optional(),
   chatbotTemperature: z.coerce.number().min(0).max(1),
@@ -419,7 +418,6 @@ export async function updateTenantAction(
     voicePublicPhoneNumber: String(formData.get('voice_public_phone_number') ?? '').trim() || undefined,
     voiceForwardingNotes: String(formData.get('voice_forwarding_notes') ?? '').trim() || undefined,
     voiceOperationalStatus: formData.get('voice_operational_status') || 'draft',
-    chatbotWebhookUrl: formData.get('chatbot_webhook_url') || '',
     chatbotSystemPrompt: formData.get('chatbot_system_prompt') || '',
     chatbotAllowedDomains: formData.get('chatbot_allowed_domains') || '',
     chatbotTemperature: formData.get('chatbot_temperature') || '0.2',
@@ -507,7 +505,6 @@ export async function updateTenantAction(
       voice_public_phone_number: data.voicePublicPhoneNumber || null,
       voice_forwarding_notes: data.voiceForwardingNotes || null,
       voice_operational_status: data.voiceOperationalStatus,
-      n8n_webhook_url: data.chatbotWebhookUrl || null,
       system_prompt: data.chatbotSystemPrompt || null,
       widget_config: mergeWidgetConfig(tenantForAccount?.widget_config, {
         allowedDomains: normalizeAllowedWidgetDomains(data.chatbotAllowedDomains ?? ''),

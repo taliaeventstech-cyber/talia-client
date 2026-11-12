@@ -15,6 +15,8 @@
   var baseUrl = (script.getAttribute('data-api-base') || new URL(script.src).origin).replace(/\/$/, '');
   var pageUrlOverride = script.getAttribute('data-page-url') || '';
   var siteOriginOverride = script.getAttribute('data-site-origin') || '';
+  // Opt-in diagnostics for voice testing: logs what the browser heard.
+  var voiceDebug = script.hasAttribute('data-voice-debug') || /[?&]talia_voice_debug=1(&|$)/.test(window.location.search);
   var sessionKey = 'talia-session-' + tenantId;
   var installedWebCapture = { enabled: false, mode: 'manual' };
   var sessionId = getStoredValue(sessionKey);
@@ -96,10 +98,16 @@
     var glassTranslucency = getGlassTranslucency(config.glassTranslucency != null ? config.glassTranslucency : script.getAttribute('data-glass-translucency'));
     var compliance = getComplianceConfig(config.compliance, fallbackLanguage);
     var suggestedQuestions = getVisibleSuggestedQuestions(config.suggestedQuestions, getCurrentPageUrl());
+    var voiceSupport = getVoiceSupport(config.voice, script.getAttribute('data-voice'));
+    var voiceCopy = getVoiceCopy(fallbackLanguage);
     var host = document.createElement('div');
     host.id = 'talia-widget-root';
     host.classList.add('notranslate');
     host.setAttribute('translate', 'no');
+    // Named landmark: screen readers list it among the page regions
+    // (EN 301 549 / WCAG 1.3.1, 2.4.1).
+    host.setAttribute('role', 'region');
+    host.setAttribute('aria-label', widgetCopy.landmark.replace('{name}', assistantName));
     document.body.appendChild(host);
     registerFloatingWidget(host, 'chatbot', position, {
       widgetSize: widgetSize,
@@ -109,7 +117,7 @@
     });
 
     var root = host.attachShadow({ mode: 'open' });
-    root.innerHTML = getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, baseUrl + '/icon.svg', compliance, widgetCopy);
+    root.innerHTML = getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, baseUrl + '/icon.svg', compliance, widgetCopy, voiceSupport, voiceCopy);
 
     var panel = root.querySelector('[data-panel]');
     var welcome = root.querySelector('[data-welcome]');
@@ -124,8 +132,53 @@
     isolateWidgetScroll(host, root);
     var privacyLink = root.querySelector('[data-privacy]');
     var sessionFeedbackPrompt = null;
+    // Per venue. Closing the voice greeting hides it for the rest of this
+    // visit only; it is offered again on the next visit.
+    var voiceInviteKey = 'talia-voice-invite-' + tenantId;
     var conversationHasActivity = false;
     var privacyReplyPending = false;
+    var voice = createVoiceController({
+      support: voiceSupport,
+      copy: voiceCopy,
+      language: fallbackLanguage,
+      initialMessage: initialMessage,
+      micButton: root.querySelector('[data-voice-mic]'),
+      speakerButton: root.querySelector('[data-voice-speaker]'),
+      wakeButton: root.querySelector('[data-voice-wake]'),
+      launcher: toggle,
+      launcherLabel: widgetCopy.openAssistant,
+      assistantName: assistantName,
+      status: root.querySelector('[data-voice-status]'),
+      input: input,
+      isPanelOpen: function () { return panel.classList.contains('panel--open'); },
+      onVisualState: function (state) {
+        toggle.setAttribute('data-voice-state', state);
+        panel.setAttribute('data-voice-state', state);
+        updateVoiceDock(state);
+      },
+      onWakeChange: function (enabled) {
+        if (enabled) revealHandsFree();
+      },
+      onLevel: function (level) {
+        var live = typeof level === 'number';
+        toggle.classList.toggle('voice-live', live);
+        panel.classList.toggle('voice-live', live);
+        if (live) {
+          toggle.style.setProperty('--lvl', level.toFixed(2));
+          panel.style.setProperty('--lvl', level.toFixed(2));
+        }
+      },
+      openPanel: function () {
+        if (!panel.classList.contains('panel--open')) openPanel();
+      },
+      onTranscript: function (text) {
+        submitText(text, true);
+      },
+      onInterim: function (text) {
+        input.value = text;
+        resizeComposer();
+      },
+    });
 
     window.addEventListener('talia:page-context-changed', refreshSuggestedQuestions);
     showSuggestedQuestions();
@@ -147,12 +200,14 @@
 
     function openPanel() {
       hideWelcome();
+      voice.announceShortcutOnce();
       panel.classList.add('panel--open');
       toggle.setAttribute('aria-expanded', 'true');
       setTimeout(function () { input.focus(); }, 280);
     }
 
     function closePanel() {
+      voice.stopAll();
       panel.classList.remove('panel--open');
       toggle.setAttribute('aria-expanded', 'false');
     }
@@ -171,7 +226,23 @@
       welcome.setAttribute('aria-hidden', 'true');
     }
 
-    if (config.autoOpen) {
+    // Venue-enabled voice offer inside the greeting ("Escribir" / "Hablar").
+    var welcomeVoice = root.querySelector('[data-welcome-voice]');
+    var offerVoice = !!welcomeVoice && config.voiceInvitation === true && getSessionValue(voiceInviteKey) !== 'dismissed';
+    if (offerVoice) {
+      welcomeVoice.hidden = false;
+      welcome.classList.add('welcome--voice');
+      welcome.querySelector('[data-welcome-type]').addEventListener('click', openPanel);
+      welcome.querySelector('[data-welcome-talk]').addEventListener('click', function () {
+        setStoredValue(voiceInviteKey, 'used');
+        // The click is the visitor's explicit choice to talk (and lets the
+        // browser ask for the microphone).
+        if (!panel.classList.contains('panel--open')) openPanel();
+        voice.toggleListening();
+      });
+    }
+
+    if (config.autoOpen || offerVoice) {
       var delay = typeof config.autoOpenDelay === 'number' ? config.autoOpenDelay : 3;
       setTimeout(showWelcome, delay * 1000);
     }
@@ -179,6 +250,8 @@
     welcomeAction.addEventListener('click', openPanel);
 
     welcomeClose.addEventListener('click', function () {
+      // Closing a greeting that offered voice means "don't offer it again".
+      if (offerVoice) setSessionValue(voiceInviteKey, 'dismissed');
       hideWelcome();
       toggle.focus();
     });
@@ -237,6 +310,7 @@
     });
 
     function restartConversation() {
+      voice.stopAll();
       sessionId = createSessionId();
       setStoredValue(sessionKey, sessionId);
       conversationHasActivity = false;
@@ -248,6 +322,35 @@
       input.value = '';
       resizeComposer();
       input.focus();
+    }
+
+    // Voice panel in the chat pad: status, what to do next, one clear action.
+    function updateVoiceDock(state) {
+      var dock = root.querySelector('[data-voice-dock]');
+      if (!dock) return;
+      var active = state === 'listening' || state === 'thinking' || state === 'speaking';
+      var hadFocus = root.activeElement && (root.activeElement === input || dock.contains(root.activeElement));
+      dock.setAttribute('aria-hidden', active ? 'false' : 'true');
+      if (active) {
+        revealHandsFree();
+        dock.querySelector('[data-voice-dock-title]').textContent = state === 'listening' ? voiceCopy.dockListeningTitle
+          : state === 'thinking' ? voiceCopy.dockThinkingTitle : voiceCopy.dockSpeakingTitle;
+        dock.querySelector('[data-voice-dock-hint]').textContent = state === 'listening' ? voiceCopy.dockListeningHint
+          : state === 'thinking' ? voiceCopy.dockThinkingHint : voiceCopy.dockSpeakingHint;
+        dock.querySelector('[data-voice-dock-action]').textContent = state === 'listening' ? voiceCopy.dockDone
+          : state === 'thinking' ? voiceCopy.dockCancel : voiceCopy.dockStop;
+        // Keep keyboard focus on something visible.
+        if (hadFocus) dock.querySelector('[data-voice-dock-action]').focus();
+      } else if (hadFocus && root.activeElement !== input) {
+        input.focus();
+      }
+    }
+
+    function revealHandsFree() {
+      var handsFree = root.querySelector('[data-voice-handsfree]');
+      if (!handsFree || !handsFree.hidden) return;
+      handsFree.hidden = false;
+      panel.classList.add('panel--handsfree');
     }
 
     function showSessionFeedback() {
@@ -359,6 +462,10 @@
 
     root.addEventListener('keydown', function (event) {
       if (event.key === 'Escape') {
+        if (voice.isActive()) {
+          voice.stopAll(true);
+          return;
+        }
         if (welcome.classList.contains('welcome--visible')) {
           hideWelcome();
           toggle.focus();
@@ -371,16 +478,79 @@
 
     form.addEventListener('submit', function (event) {
       event.preventDefault();
-      var text = input.value.trim();
+      submitText(input.value, false);
+    });
+
+    function submitText(value, fromVoice) {
+      var text = String(value || '').trim();
       if (!text) return;
       input.value = '';
       resizeComposer();
+      if (!fromVoice) voice.stopAll();
       removeSessionFeedbackPrompt();
       removeSuggestedQuestions(messages);
       appendMessage(messages, text, 'user');
       conversationHasActivity = true;
-      sendMessage(text, messages, undefined, fallbackLanguage);
-    });
+      voice.notifyProcessing(fromVoice);
+      sendMessage(text, messages, undefined, fallbackLanguage, function (reply, replyLanguage, failed) {
+        voice.handleReply(reply, replyLanguage, fromVoice, failed);
+      });
+    }
+
+    // First stop of the keyboard / screen-reader tab order on the page, like a
+    // "skip to content" link: tells blind visitors the agent exists and how to
+    // reach it (EN 301 549 / WCAG 2.4.1, 2.1.1). Hidden until focused.
+    mountAccessLink(
+      voiceSupport.recognition
+        ? widgetCopy.accessLinkVoice.replace('{name}', assistantName).replace('{keys}', voiceCopy.shortcutKeys)
+        : widgetCopy.accessLinkOpen.replace('{name}', assistantName),
+      primaryColor,
+      function () {
+        if (!panel.classList.contains('panel--open')) openPanel();
+        // Activating the link is the visitor's explicit choice, like the shortcut.
+        if (voiceSupport.recognition) voice.toggleListening();
+      }
+    );
+
+    if (voiceSupport.enabled) {
+      // Global, screen-reader friendly shortcut: opens the agent and starts
+      // listening (or stops listening / interrupts speech when already active).
+      document.addEventListener('keydown', function (event) {
+        if (!isVoiceShortcut(event)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (!panel.classList.contains('panel--open')) openPanel();
+        voice.toggleListening();
+      }, true);
+
+      var micButton = root.querySelector('[data-voice-mic]');
+      if (micButton) {
+        micButton.addEventListener('click', function () {
+          voice.toggleListening();
+        });
+      }
+      var speakerButton = root.querySelector('[data-voice-speaker]');
+      if (speakerButton) {
+        speakerButton.addEventListener('click', function () {
+          voice.toggleReadAloud();
+        });
+      }
+      var wakeButton = root.querySelector('[data-voice-wake]');
+      if (wakeButton) {
+        wakeButton.addEventListener('click', function () {
+          voice.toggleWake();
+        });
+      }
+
+      var dockAction = root.querySelector('[data-voice-dock-action]');
+      if (dockAction) {
+        dockAction.addEventListener('click', function () {
+          if (panel.getAttribute('data-voice-state') === 'listening') voice.toggleListening();
+          else voice.stopAll(true);
+        });
+      }
+      if (voice.isWakeEnabled()) revealHandsFree();
+    }
 
     input.addEventListener('input', resizeComposer);
     input.addEventListener('keydown', function (event) {
@@ -405,6 +575,7 @@
         getSuggestedQuestionsLabel(fallbackLanguage),
         getSuggestedQuestionsPrompt(fallbackLanguage),
         function (question) {
+          voice.stopAll();
           removeSessionFeedbackPrompt();
           removeSuggestedQuestions(messages);
           appendMessage(messages, question.text, 'user');
@@ -426,7 +597,7 @@
     }
   }
 
-  function sendMessage(text, messages, suggestedQuestion, fallbackLanguage) {
+  function sendMessage(text, messages, suggestedQuestion, fallbackLanguage, onReply) {
     var requestSessionId = sessionId;
     appendMessage(messages, '...', 'assistant', true, undefined, undefined, undefined, fallbackLanguage);
     fetch(baseUrl + '/api/chat/' + tenantId, {
@@ -444,9 +615,10 @@
       .then(function (data) {
         if (requestSessionId !== sessionId) return;
         removeTyping(messages);
+        var replyText = data.reply || getChatErrorMessage(data.error, fallbackLanguage);
         appendMessage(
           messages,
-          data.reply || getChatErrorMessage(data.error, fallbackLanguage),
+          replyText,
           'assistant',
           false,
           data.actions,
@@ -455,11 +627,14 @@
           fallbackLanguage,
           getAgentResponseLanguage(data, fallbackLanguage)
         );
+        if (onReply) onReply(replyText, getAgentResponseLanguage(data, fallbackLanguage), !data.reply);
       })
       .catch(function () {
         if (requestSessionId !== sessionId) return;
         removeTyping(messages);
-        appendMessage(messages, getChatUnavailableMessage(fallbackLanguage), 'assistant');
+        var unavailable = getChatUnavailableMessage(fallbackLanguage);
+        appendMessage(messages, unavailable, 'assistant');
+        if (onReply) onReply(unavailable, fallbackLanguage, true);
       });
   }
 
@@ -615,7 +790,7 @@
         disclosure: 'Estàs parlant amb un assistent d’IA. Pot cometre errors.',
         privacyLabel: 'Privacitat',
         privacyQuestion: 'Com tracteu les meves dades?',
-        privacySummary: 'Utilitzem els missatges que envies per respondre la teva consulta, supervisar la qualitat i protegir el servei. El contingut de la conversa es conserva durant 90 dies i es pot eliminar abans si ho sol·licites. No venem les teves dades.',
+        privacySummary: 'Utilitzem els missatges que envies per respondre la teva consulta, supervisar la qualitat i protegir el servei. El contingut de la conversa es conserva durant 90 dies i es pot eliminar abans si ho sol·licites. Si parles amb l’agent, la teva veu es transcriu i les respostes es poden llegir en veu alta mitjançant proveïdors d’IA (com OpenAI) o el servei de veu del teu navegador; no desem enregistraments d’àudio. Si actives el mode «Hola TALIA», el teu navegador escolta el micròfon mentre estigui actiu per detectar aquesta frase. No venem les teves dades.',
         privacyMore: 'Pots consultar tots els detalls i com exercir els teus drets aquí:'
       };
     } else if (language === 'en') {
@@ -624,7 +799,7 @@
         disclosure: 'You are talking to an AI assistant. It can make mistakes.',
         privacyLabel: 'Privacy',
         privacyQuestion: 'How do you use my data?',
-        privacySummary: 'We use the messages you send to answer your question, monitor quality, and protect the service. Conversation content is retained for 90 days and can be deleted sooner if you request it. We do not sell your data.',
+        privacySummary: 'We use the messages you send to answer your question, monitor quality, and protect the service. Conversation content is retained for 90 days and can be deleted sooner if you request it. If you talk to the agent, your voice is transcribed and answers may be read aloud using AI providers (such as OpenAI) or your browser’s speech service; we do not keep audio recordings. If you turn on “Hi TALIA” mode, your browser listens to the microphone while it is on to detect that phrase. We do not sell your data.',
         privacyMore: 'You can read the full details and learn how to exercise your rights here:'
       };
     } else if (language === 'pt-BR') {
@@ -633,7 +808,7 @@
         disclosure: 'Você está falando com um assistente de IA. Ele pode cometer erros.',
         privacyLabel: 'Privacidade',
         privacyQuestion: 'Como vocês tratam meus dados?',
-        privacySummary: 'Usamos as mensagens que você envia para responder à sua solicitação, supervisionar a qualidade e proteger o serviço. O conteúdo da conversa é mantido por 90 dias e pode ser excluído antes se você solicitar. Não vendemos seus dados.',
+        privacySummary: 'Usamos as mensagens que você envia para responder à sua solicitação, supervisionar a qualidade e proteger o serviço. O conteúdo da conversa é mantido por 90 dias e pode ser excluído antes se você solicitar. Se você falar com o agente, sua voz é transcrita e as respostas podem ser lidas em voz alta por provedores de IA (como a OpenAI) ou pelo serviço de voz do seu navegador; não guardamos gravações de áudio. Se você ativar o modo “Olá TALIA”, seu navegador ouve o microfone enquanto estiver ativo para detectar essa frase. Não vendemos seus dados.',
         privacyMore: 'Você pode consultar todos os detalhes e saber como exercer seus direitos aqui:'
       };
     } else {
@@ -642,7 +817,7 @@
         disclosure: 'Estás hablando con un asistente de IA. Puede cometer errores.',
         privacyLabel: 'Privacidad',
         privacyQuestion: '¿Cómo tratáis mis datos?',
-        privacySummary: 'Usamos los mensajes que envías para responder a tu consulta, supervisar la calidad y proteger el servicio. El contenido de la conversación se conserva durante 90 días y puede eliminarse antes si lo solicitas. No vendemos tus datos.',
+        privacySummary: 'Usamos los mensajes que envías para responder a tu consulta, supervisar la calidad y proteger el servicio. El contenido de la conversación se conserva durante 90 días y puede eliminarse antes si lo solicitas. Si hablas con el agente, tu voz se transcribe y las respuestas pueden leerse en voz alta mediante proveedores de IA (como OpenAI) o el servicio de voz de tu navegador; no guardamos grabaciones de audio. Si activas el modo «Hola TALIA», tu navegador escucha el micrófono mientras esté activo para detectar esa frase. No vendemos tus datos.',
         privacyMore: 'Puedes consultar todos los detalles y cómo ejercer tus derechos aquí:'
       };
     }
@@ -1653,16 +1828,59 @@
     notice.textContent = message;
   }
 
-  function getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, iconUrl, compliance, widgetCopy) {
+  function getTemplate(assistantName, initialMessage, proactiveMessage, primaryColor, position, widgetSize, widgetTheme, launcherIcon, glassBackground, glassBlur, glassTranslucency, iconUrl, compliance, widgetCopy, voiceSupport, voiceCopy) {
     var togglePosition = getTogglePositionCss(position);
     var panelPosition = getPanelPositionCss(position);
     var toggleSize = getWidgetSizePixels(widgetSize);
     var welcomePosition = getWelcomePositionCss(position, toggleSize);
     var welcomeOrigin = position.indexOf('top') >= 0 ? 'top center' : 'bottom center';
     var welcomeStartTransform = position.indexOf('top') >= 0 ? 'translateY(-8px) scale(.96)' : 'translateY(8px) scale(.96)';
-    var toggleIconSize = Math.round(toggleSize * 0.82);
     var chatIconSize = Math.round(toggleSize * 0.5);
+    var toggleIconSize = Math.round(toggleSize * 0.82);
     var launcherIconMarkup = getLauncherIconMarkup(launcherIcon, iconUrl);
+    // TALIA's own avatar in the chat is always TALIA's face, drawn as a
+    // one-colour icon, whatever launcher icon the venue picked.
+    var taliaFaceMarkup = getTaliaFaceIcon(iconUrl);
+    var voiceMicMarkup = voiceSupport.recognition
+      ? '<button class="mic notranslate" translate="no" data-voice-mic type="button" aria-pressed="false" aria-keyshortcuts="Alt+Shift+V" aria-label="' + escapeHtml(voiceCopy.micStart) + '" title="' + escapeHtml(voiceCopy.micStart + ' (' + voiceCopy.shortcutKeys + ')') + '">' + getMicIcon() + '</button>'
+      : '';
+    var voiceSpeakerMarkup = voiceSupport.synthesis
+      ? '<button class="header-button" data-voice-speaker type="button" aria-pressed="false" aria-label="' + escapeHtml(voiceCopy.readAloud) + '" title="' + escapeHtml(voiceCopy.readAloud) + '">' + getSpeakerIcon() + '</button>'
+      : '';
+    var voiceBarsMarkup = '<span class="voice-bars" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></span>';
+    // Greeting choices (shown only when the venue offers voice): typing and
+    // talking presented side by side, with a just-in-time privacy notice.
+    var welcomeVoiceMarkup = voiceSupport.recognition
+      ? '<div class="welcome-voice" data-welcome-voice hidden>'
+        + '<span class="welcome-voice-hint">' + escapeHtml(voiceSupport.browserRecognition && getStoredValue('talia-voice-wake-word') === 'on' ? voiceCopy.greetingWakeHint : voiceCopy.greetingVoiceHint) + '</span>'
+        + '<div class="welcome-voice-actions">'
+        + '<button class="welcome-choice" data-welcome-type type="button">' + getPencilIcon() + '<span>' + escapeHtml(voiceCopy.greetingType) + '</span></button>'
+        + '<button class="welcome-choice welcome-choice--primary" data-welcome-talk type="button">' + getMicIcon() + '<span>' + escapeHtml(voiceCopy.greetingTalk) + '</span></button>'
+        + '</div>'
+        + '<span class="welcome-voice-notice">' + escapeHtml(voiceCopy.greetingNotice) + ' <a href="' + escapeHtml(compliance.privacyUrl) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(compliance.privacyLabel) + '</a></span>'
+        + '</div>'
+      : '';
+    // Voice panel that takes over the composer while voice is in use.
+    var voiceDockMarkup = voiceSupport.recognition
+      ? '<div class="voice-dock" data-voice-dock aria-hidden="true">'
+        + '<span class="voice-dock-visual">' + voiceBarsMarkup + '</span>'
+        + '<span class="voice-dock-text"><strong data-voice-dock-title></strong><span data-voice-dock-hint></span></span>'
+        + '<button class="voice-dock-action" data-voice-dock-action type="button"></button>'
+        + '</div>'
+      : '';
+    // "Manos libres" switch, revealed after the visitor has used voice once.
+    var voiceHandsFreeMarkup = voiceSupport.browserRecognition
+      ? '<div class="voice-handsfree" data-voice-handsfree hidden>'
+        + '<span class="voice-handsfree-label" data-voice-handsfree-label>' + escapeHtml(voiceCopy.handsFreeLabel) + '</span>'
+        + '<button class="voice-switch" data-voice-wake type="button" role="switch" aria-checked="false" aria-label="' + escapeHtml(voiceCopy.handsFreeLabel) + '" title="' + escapeHtml(voiceCopy.handsFreeTitle) + '"><span class="voice-switch-knob"></span></button>'
+        + '</div>'
+      : '';
+    var voiceStatusMarkup = voiceSupport.enabled
+      ? '<div class="sr-only" data-voice-status role="status" aria-live="assertive" aria-atomic="true"></div><p class="sr-only" id="talia-voice-hint">' + escapeHtml(voiceCopy.shortcutHint) + '</p>'
+      : '';
+    var toggleVoiceAttributes = voiceSupport.enabled
+      ? ' aria-keyshortcuts="Alt+Shift+V" aria-describedby="talia-voice-hint"'
+      : '';
     var transformOrigin = position.indexOf('left') >= 0
       ? (position.indexOf('top') >= 0 ? 'top left' : 'bottom left')
       : (position.indexOf('top') >= 0 ? 'top right' : 'bottom right');
@@ -1729,6 +1947,7 @@
         .toggle:active { transform: scale(0.94); }\
         .toggle .launcher-icon { position: relative; z-index: 1; display: block; object-fit: contain; }\
         .toggle .launcher-icon--talia { width: ' + toggleIconSize + 'px; height: ' + toggleIconSize + 'px; filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(0,0,0,.2)); }\
+        .toggle .launcher-icon--mark { width: ' + chatIconSize + 'px; height: ' + chatIconSize + 'px; fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,.2)); }\
         .toggle .launcher-icon--chat, .toggle .launcher-icon--bubble, .toggle .launcher-icon--bot { width: ' + chatIconSize + 'px; height: ' + chatIconSize + 'px; fill: none; stroke: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,.2)); }\
         ' + toggleSheen + '\
         .welcome { position: fixed; ' + welcomePosition + ' z-index: 2147483647; width: min(320px, calc(100vw - 32px)); min-height: 112px; overflow: hidden; border: ' + welcomeBorder + '; border-radius: 12px; background: ' + welcomeBackground + '; ' + welcomeFilter + ' color: ' + welcomeColor + '; box-shadow: 0 14px 38px rgba(0,0,0,.2); opacity: 0; visibility: hidden; pointer-events: none; transform: ' + welcomeStartTransform + '; transform-origin: ' + welcomeOrigin + '; transition: opacity 180ms ease, transform 240ms cubic-bezier(0.16,1,0.3,1), visibility 0s linear 240ms; }\
@@ -1749,9 +1968,9 @@
         ' + specularBand + '\
         .header { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px; background: ' + headerBackground + '; ' + headerFilter + ' color: white; font: 600 17px "Space Grotesk", system-ui; }\
         .header-brand { display: flex; min-width: 0; align-items: center; gap: 10px; }\
-        .header-mark { flex: 0 0 34px; display: grid; width: 34px; height: 34px; place-items: center; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.92); color: ' + primaryColor + '; box-shadow: inset 0 1px 0 rgba(255,255,255,.62), 0 1px 2px rgba(0,0,0,.08); }\
+        .header-mark { flex: 0 0 36px; display: grid; width: 36px; height: 36px; place-items: center; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.32); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.24); }\
         .header-mark .launcher-icon { display: block; object-fit: contain; }\
-        .header-mark .launcher-icon--talia { width: 78%; height: 78%; }\
+        .header-mark .launcher-icon--talia { width: 88%; height: 88%; filter: brightness(0) invert(1); }\
         .header-mark .launcher-icon--chat, .header-mark .launcher-icon--bubble, .header-mark .launcher-icon--bot { width: 54%; height: 54%; fill: none; stroke: currentColor; }\
         .header-identity { min-width: 0; display: grid; gap: 2px; }\
         .header-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\
@@ -1840,33 +2059,1615 @@
         .input { min-width: 0; min-height: 44px; max-height: 120px; flex: 1; resize: none; overflow-y: hidden; border: .5px solid rgba(26,26,46,.25); border-radius: 7px; padding: 11px; color: #1A1A2E; caret-color: ' + primaryColor + '; font: 15px/1.4 "Space Grotesk", system-ui; background: ' + inputBackground + '; box-sizing: border-box; }\
         .input:focus { outline: none; border-color: ' + primaryColor + '; box-shadow: 0 0 0 2px color-mix(in srgb, ' + primaryColor + ' 22%, transparent); }\
         .input::placeholder { color: rgba(26,26,46,.48); }\
+        .mic { position: relative; flex: 0 0 auto; display: grid; width: 44px; height: 44px; place-items: center; border: .5px solid rgba(26,26,46,.25); border-radius: 7px; padding: 0; background: ' + inputBackground + '; color: ' + primaryColor + '; cursor: pointer; }\
+        .mic svg { display: block; width: 21px; height: 21px; fill: none; stroke: currentColor; }\
+        .mic:hover { border-color: ' + primaryColor + '; }\
+        .mic:focus-visible, .send:focus-visible { outline: 2px solid ' + primaryColor + '; outline-offset: 2px; }\
+        .mic--listening { border-color: ' + primaryColor + '; background: ' + primaryColor + '; color: #fff; }\
+        .mic--listening::after { content: ""; position: absolute; inset: -4px; border: 2px solid ' + primaryColor + '; border-radius: 10px; animation: talia-mic-pulse 1.2s ease-out infinite; pointer-events: none; }\
+        .mic--busy { opacity: .6; }\
+        @keyframes talia-mic-pulse { 0% { opacity: .7; transform: scale(.92); } 100% { opacity: 0; transform: scale(1.18); } }\
+        .header-button[aria-pressed="true"] { background: rgba(255,255,255,.22); }\
+        .voice-bars { display: none; position: relative; z-index: 1; align-items: center; justify-content: center; gap: 4px; height: 60%; }\
+        .voice-bars span { --f: 1; display: block; width: 5px; height: 6px; border-radius: 3px; background: currentColor; transition: height 90ms linear; }\
+        .voice-bars span:nth-child(1) { --f: .45; } .voice-bars span:nth-child(2) { --f: .8; } .voice-bars span:nth-child(3) { --f: 1; } .voice-bars span:nth-child(4) { --f: .7; } .voice-bars span:nth-child(5) { --f: .4; }\
+        .toggle .voice-bars { gap: 3px; } .toggle .voice-bars span { width: 4px; }\
+        .toggle[data-voice-state]:not([data-voice-state="idle"]) .launcher-icon { display: none; }\
+        [data-voice-state]:not([data-voice-state="idle"]) .voice-bars { display: flex; }\
+        [data-voice-state="wake"] .voice-bars span { animation: talia-bars-idle 2.4s ease-in-out infinite; }\
+        [data-voice-state="wake"] .voice-bars span:nth-child(2) { animation-delay: .2s; } [data-voice-state="wake"] .voice-bars span:nth-child(3) { animation-delay: .4s; } [data-voice-state="wake"] .voice-bars span:nth-child(4) { animation-delay: .6s; }\
+        [data-voice-state="listening"] .voice-bars span, [data-voice-state="speaking"] .voice-bars span { animation: talia-bars-voice .5s ease-in-out infinite alternate; }\
+        [data-voice-state="listening"] .voice-bars span:nth-child(2n), [data-voice-state="speaking"] .voice-bars span:nth-child(2n) { animation-duration: .38s; }\
+        .voice-live .voice-bars span { animation: none !important; height: calc(6px + var(--lvl, 0) * var(--f) * 26px); }\
+        [data-voice-state="thinking"] .voice-bars span { width: 6px; height: 6px; animation: talia-bars-think 1s ease-in-out infinite; }\
+        [data-voice-state="thinking"] .voice-bars span:nth-child(2) { animation-delay: .15s; } [data-voice-state="thinking"] .voice-bars span:nth-child(3) { animation-delay: .3s; } [data-voice-state="thinking"] .voice-bars span:nth-child(4) { animation-delay: .45s; }\
+        @keyframes talia-bars-idle { 0%, 100% { height: 6px; opacity: .65; } 50% { height: 14px; opacity: 1; } }\
+        @keyframes talia-bars-voice { from { height: 6px; } to { height: calc(10px + var(--f) * 18px); } }\
+        @keyframes talia-bars-think { 0%, 100% { transform: translateY(0); opacity: .55; } 50% { transform: translateY(-5px); opacity: 1; } }\
+        .form { position: relative; }\
+        .voice-dock { position: absolute; inset: 0; z-index: 3; display: none; align-items: center; gap: 14px; padding: 13px 13px 13px 16px; background: ' + (glass ? skin.chromeFill : '#fff') + '; ' + formFilter + ' animation: talia-dock-in 200ms ease-out both; }\
+        .panel[data-voice-state="listening"] .voice-dock, .panel[data-voice-state="thinking"] .voice-dock, .panel[data-voice-state="speaking"] .voice-dock { display: flex; }\
+        .voice-dock-visual { flex: 0 0 auto; display: grid; width: 56px; height: 44px; place-items: center; border-radius: 12px; background: color-mix(in srgb, ' + primaryColor + ' 10%, #fff); color: ' + primaryColor + '; }\
+        .voice-dock-visual .voice-bars { height: 70%; gap: 3px; }\
+        .voice-dock-visual .voice-bars span { width: 4px; }\
+        .voice-dock-text { display: grid; flex: 1; min-width: 0; gap: 2px; color: #1A1A2E; }\
+        .voice-dock-text strong { font: 700 15px/1.25 "Space Grotesk", system-ui; }\
+        .voice-dock-text span { overflow: hidden; color: rgba(26,26,46,.66); font: 500 12.5px/1.35 "Space Grotesk", system-ui; text-overflow: ellipsis; }\
+        .voice-dock-action { flex: 0 0 auto; height: 40px; border: 0; border-radius: 999px; padding: 0 16px; background: ' + primaryColor + '; color: #fff; font: 600 14px "Space Grotesk", system-ui; cursor: pointer; }\
+        .voice-dock-action:focus-visible, .voice-switch:focus-visible, .welcome-choice:focus-visible { outline: 2px solid ' + primaryColor + '; outline-offset: 2px; }\
+        @keyframes talia-dock-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }\
+        .voice-handsfree { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 2; display: flex; width: max-content; max-width: calc(100% - 26px); margin: 0 auto; align-items: center; gap: 10px; border-radius: 999px; padding: 5px 6px 5px 14px; background: #fff; color: #1A1A2E; box-shadow: 0 4px 16px rgba(0,0,0,.12), 0 0 0 1px rgba(26,26,46,.08); white-space: nowrap; font: 600 12.5px "Space Grotesk", system-ui; animation: talia-dock-in 220ms ease-out both; }\
+        .voice-handsfree[hidden] { display: none; }\
+        .panel--handsfree .messages { padding-bottom: 56px; }\
+        .voice-switch { position: relative; width: 38px; height: 22px; border: 0; border-radius: 999px; padding: 0; background: rgba(26,26,46,.22); cursor: pointer; transition: background 160ms ease; }\
+        .voice-switch-knob { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform 160ms ease; }\
+        .voice-switch[aria-checked="true"] { background: ' + primaryColor + '; }\
+        .voice-switch[aria-checked="true"] .voice-switch-knob { transform: translateX(16px); }\
+        .welcome-voice { display: grid; gap: 10px; padding: 0 16px 16px; }\
+        .welcome-voice[hidden] { display: none; }\
+        .welcome--voice .welcome-action { padding-bottom: 10px; }\
+        .welcome-voice-hint { font: 500 14px/1.4 "Space Grotesk", system-ui; opacity: .78; }\
+        .welcome-voice-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }\
+        .welcome-choice { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border: 1px solid rgba(26,26,46,.2); border-radius: 12px; padding: 0 12px; background: transparent; color: inherit; font: 600 14.5px "Space Grotesk", system-ui; cursor: pointer; transition: transform 120ms ease, box-shadow 120ms ease; }\
+        .welcome-choice:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }\
+        .welcome-choice svg { width: 18px; height: 18px; fill: none; stroke: currentColor; }\
+        .welcome-choice--primary { border-color: ' + primaryColor + '; background: ' + primaryColor + '; color: #fff; }\
+        .welcome-voice-notice { font: 500 11.5px/1.4 "Space Grotesk", system-ui; opacity: .62; }\
+        .welcome-voice-notice a { color: inherit; }\
+        @keyframes talia-msg-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }\
+        .message, .suggested-questions, .feedback { animation: talia-msg-in 220ms ease-out both; }\
+        .voice-invite-body { display: grid; gap: 10px; padding: 16px; }\
+        .voice-invite-text { margin: 0; font-size: 15px; }\
+        .voice-invite-actions { display: flex; flex-wrap: wrap; gap: 8px; }\
+        .voice-invite-primary, .voice-invite-secondary { min-height: 40px; border-radius: 8px; padding: 0 14px; font: 600 14px "Space Grotesk", system-ui; cursor: pointer; }\
+        .voice-invite-primary { border: 0; background: ' + primaryColor + '; color: #fff; }\
+        .voice-invite-secondary { border: 1px solid currentColor; background: transparent; color: inherit; }\
+        .voice-invite-primary[hidden] { display: none; }\
+        .voice-invite-primary:focus-visible, .voice-invite-secondary:focus-visible, .voice-invite-privacy:focus-visible { outline: 2px solid ' + primaryColor + '; outline-offset: 2px; }\
+        .voice-invite-privacy { color: inherit; font-size: 12px; opacity: .75; }\
+        .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }\
         .send { flex: 0 0 auto; height: 44px; border: 0; border-radius: 7px; padding: 0 14px; background: ' + primaryColor + '; color: white; font: 600 14px "Space Grotesk", system-ui; cursor: pointer; }\
         .powered { padding: 0 13px 10px; background: ' + formBackground + '; ' + formFilter + ' color: rgba(26,26,46,.52); text-align: center; font: 600 10px/1.35 "Space Grotesk", system-ui; }\
         .powered a { color: inherit; text-decoration: none; }\
         .powered a:hover { color: ' + primaryColor + '; text-decoration: underline; }\
-        @media (prefers-reduced-motion: reduce) { .panel, .welcome { transition: opacity 120ms ease; } .toggle { transition: none; } .typing-dots span { animation: none; opacity: .62; } }\
+        @media (prefers-reduced-motion: reduce) { .panel, .welcome { transition: opacity 120ms ease; } .toggle { transition: none; } .typing-dots span { animation: none; opacity: .62; } .mic--listening::after { animation: none; opacity: .5; } .voice-bars span { animation: none !important; transition: none; } .message, .suggested-questions, .feedback, .voice-dock, .voice-handsfree { animation: none; } .welcome-choice, .voice-switch, .voice-switch-knob { transition: none; } }\
         ' + reducedTransparencyFallback + '\
       </style>\
       <aside class="welcome notranslate" data-welcome translate="no" aria-hidden="true" aria-label="' + escapeHtml(widgetCopy.greetingLabel) + '">\
         <button class="welcome-action" data-welcome-action type="button">\
-          <span class="welcome-brand"><span class="welcome-mark">' + launcherIconMarkup + '</span><strong class="welcome-name">' + escapeHtml(assistantName) + '</strong></span>\
+          <span class="welcome-brand"><span class="welcome-mark">' + taliaFaceMarkup + '</span><strong class="welcome-name">' + escapeHtml(assistantName) + '</strong></span>\
           <span class="welcome-message">' + escapeHtml(proactiveMessage) + '</span>\
         </button>\
+        ' + welcomeVoiceMarkup + '\
         <button class="welcome-close" data-welcome-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button>\
       </aside>\
       <section class="panel notranslate" data-panel translate="no">\
-        <div class="header"><span class="header-brand"><span class="header-mark">' + launcherIconMarkup + '</span><span class="header-identity"><span class="header-name">' + escapeHtml(assistantName) + '</span><small class="header-ai-label">' + escapeHtml(compliance.aiLabel) + '</small></span></span><div class="header-actions"><button class="header-button" data-restart type="button" aria-label="' + escapeHtml(widgetCopy.restart) + '" title="' + escapeHtml(widgetCopy.restart) + '">' + getRestartIcon() + '</button><button class="header-button close" data-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button></div></div>\
+        <div class="header"><span class="header-brand"><span class="header-mark">' + taliaFaceMarkup + '</span><span class="header-identity"><span class="header-name">' + escapeHtml(assistantName) + '</span><small class="header-ai-label">' + escapeHtml(compliance.aiLabel) + '</small></span></span><div class="header-actions">' + voiceSpeakerMarkup + '<button class="header-button" data-restart type="button" aria-label="' + escapeHtml(widgetCopy.restart) + '" title="' + escapeHtml(widgetCopy.restart) + '">' + getRestartIcon() + '</button><button class="header-button close" data-close type="button" aria-label="' + escapeHtml(widgetCopy.close) + '">×</button></div></div>\
         <div class="ai-disclosure" id="talia-ai-disclosure">' + escapeHtml(compliance.disclosure) + '</div>\
         <div class="messages notranslate" data-messages translate="no"><div class="message notranslate assistant" translate="no" data-ai-generated="true" data-ai-provider="talia">' + escapeHtml(initialMessage) + '</div></div>\
-        <form class="form notranslate" data-form translate="no"><textarea class="input notranslate" data-input translate="no" rows="1" placeholder="' + escapeHtml(widgetCopy.inputPlaceholder) + '" autocomplete="off" aria-describedby="talia-ai-disclosure talia-privacy-notice"></textarea><button class="send notranslate" translate="no" type="submit">' + escapeHtml(widgetCopy.send) + '</button></form>\
+        <form class="form notranslate" data-form translate="no">' + voiceHandsFreeMarkup + voiceDockMarkup + '<textarea class="input notranslate" data-input translate="no" rows="1" placeholder="' + escapeHtml(widgetCopy.inputPlaceholder) + '" autocomplete="off" aria-describedby="talia-ai-disclosure talia-privacy-notice"></textarea>' + voiceMicMarkup + '<button class="send notranslate" translate="no" type="submit">' + escapeHtml(widgetCopy.send) + '</button></form>\
         <div class="powered" id="talia-privacy-notice"><a data-privacy href="' + escapeHtml(compliance.privacyUrl) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(compliance.privacyLabel) + '</a><span aria-hidden="true"> · </span><a href="https://talia.events" target="_blank" rel="noopener noreferrer">Powered by TALIA</a></div>\
+        ' + voiceStatusMarkup + '\
       </section>\
-      <button class="toggle" data-toggle aria-label="' + escapeHtml(widgetCopy.openAssistant) + '">\
+      <button class="toggle" data-toggle aria-label="' + escapeHtml(widgetCopy.openAssistant) + '"' + toggleVoiceAttributes + '>\
         ' + launcherIconMarkup + '\
+        ' + voiceBarsMarkup + '\
       </button>';
   }
 
+  // ---------------------------------------------------------------------------
+  // Voice mode: speech-to-text input, spoken replies and audio cues (earcons).
+  // Preferred engine: TALIA's voice endpoints (OpenAI speech-to-text and
+  // text-to-speech) when the public config reports `voice.provider: 'openai'`.
+  // Fallback engine: the browser's own Web Speech API, used when TALIA voice is
+  // unavailable, rate limited or fails. Audio cues are synthesized locally with
+  // Web Audio. Designed so blind and low-vision visitors can run a full
+  // conversation with Alt+Shift+V (Option+Shift+V on a Mac).
+  // ---------------------------------------------------------------------------
+
+  function getVoiceSupport(configValue, attributeValue) {
+    var disabled = configValue === false
+      || (configValue && typeof configValue === 'object' && configValue.enabled === false)
+      || attributeValue === 'off'
+      || attributeValue === 'false';
+    var serverProvider = !disabled && configValue && typeof configValue === 'object' && configValue.provider === 'talia';
+    var hasAudioContext = !!(window.AudioContext || window.webkitAudioContext);
+    var browserRecognition = !disabled && !!getSpeechRecognitionConstructor();
+    var browserSynthesis = !disabled && typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance === 'function';
+    var serverRecognition = !!serverProvider
+      && typeof window.MediaRecorder === 'function'
+      && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+      && hasAudioContext;
+    var serverSynthesis = !!serverProvider && hasAudioContext;
+    var recognition = serverRecognition || browserRecognition;
+    var synthesis = serverSynthesis || browserSynthesis;
+    return {
+      enabled: recognition || synthesis,
+      recognition: recognition,
+      synthesis: synthesis,
+      serverRecognition: serverRecognition,
+      serverSynthesis: serverSynthesis,
+      browserRecognition: browserRecognition,
+      browserSynthesis: browserSynthesis
+    };
+  }
+
+  function getSpeechRecognitionConstructor() {
+    return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  }
+
+  function isVoiceShortcut(event) {
+    return event.altKey && event.shiftKey && !event.ctrlKey && !event.metaKey
+      && (event.code === 'KeyV' || String(event.key).toLowerCase() === 'v');
+  }
+
+  // The shortcut is the same physical keys everywhere (Alt is Option on a
+  // Mac); only its spoken/visible name changes so Mac users hear their keys.
+  function isApplePlatform() {
+    var platform = ((navigator.userAgentData && navigator.userAgentData.platform) || '') + ' ' + (navigator.platform || '');
+    return /mac|iphone|ipad|ipod/i.test(platform)
+      || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  }
+
+  function getVoiceShortcutLabel(language, apple) {
+    if (apple) {
+      if (language === 'ca') return 'Opció+Maj+V';
+      if (language === 'es') return 'Opción+Mayús+V';
+      return 'Option+Shift+V';
+    }
+    if (language === 'ca') return 'Alt+Maj+V';
+    if (language === 'es') return 'Alt+Mayús+V';
+    return 'Alt+Shift+V';
+  }
+
+  function getVoiceCopy(language, apple) {
+    if (apple === undefined) apple = isApplePlatform();
+    var keys = getVoiceShortcutLabel(language, apple);
+    if (language === 'ca') {
+      return {
+        micStart: 'Parlar amb l’agent',
+        micStop: 'Deixar d’escoltar',
+        listening: 'T’escolto. Pots parlar.',
+        stopped: 'He deixat d’escoltar.',
+        processing: 'Missatge enviat. Preparant la resposta.',
+        transcribing: 'T’he sentit. Un moment.',
+        noSpeech: 'No t’he sentit. Prem ' + keys + ' per tornar-ho a provar.',
+        denied: 'No tinc accés al micròfon. Revisa els permisos del navegador o escriu el teu missatge.',
+        unsupported: 'Aquest navegador no permet parlar amb l’agent. Pots escriure el teu missatge.',
+        repeatPlease: 'Perdona, no t’he sentit bé. Ho pots repetir?',
+        failed: 'No he pogut entendre l’àudio. Torna-ho a provar o escriu el teu missatge.',
+        readAloud: 'Llegir les respostes en veu alta (també les escrites)',
+        readAloudOn: 'Lectura en veu alta activada.',
+        readAloudOff: 'Lectura en veu alta desactivada.',
+        speechStopped: 'Lectura aturada.',
+        slower: 'D’acord, parlaré més a poc a poc.',
+        writtenOnly: 'D’acord, et respondré només per escrit. Activa el botó de lectura en veu alta per tornar a escoltar-me.',
+        nothingToRepeat: 'Encara no hi ha cap resposta per repetir.',
+        link: 'enllaç',
+        shortcutKeys: keys,
+        shortcutHint: 'Prem ' + keys + ' en qualsevol moment per parlar amb l’agent web. Sentiràs un so quan puguis començar a parlar.',
+        firstOpen: 'Consell: prem ' + keys + ' per parlar en comptes d’escriure.',
+        wakeWord: 'Escoltar «Hola TALIA»',
+        wakeOn: 'Mode «Hola TALIA» activat. Mentre estigui actiu, el teu navegador escolta el micròfon per detectar «Hola TALIA». Desactiva’l amb el mateix interruptor.',
+        wakeOff: 'Mode «Hola TALIA» desactivat.',
+        wakeLauncher: 'escoltant «Hola TALIA»',
+        handsFreeEnded: 'No he sentit res més. Prem ' + keys + ' per tornar a parlar.',
+        greetingWakeHint: 'Digues «Hola TALIA» o prem Parlar.',
+        wakeOffer: 'Vols que la propera vegada em pugui activar dient «Hola TALIA»? Mentre aquesta web estigui oberta, el teu navegador escoltarà el micròfon per detectar aquesta frase. Digues sí o no.',
+        wakeOfferAccepted: 'Fet. Quan vulguis, digues «Hola TALIA». Ho pots desactivar amb l’interruptor Mans lliures. Alguna cosa més?',
+        wakeOfferDeclined: 'D’acord. Alguna cosa més?',
+        greetingVoiceHint: 'Pots escriure’m o parlar-me.',
+        greetingType: 'Escriure',
+        greetingTalk: 'Parlar',
+        greetingNotice: 'Si parles, la teva veu es transcriu per respondre’t.',
+        dockListeningTitle: 'T’escolto…',
+        dockListeningHint: 'Parla amb normalitat i fes una pausa en acabar.',
+        dockThinkingTitle: 'Un moment…',
+        dockThinkingHint: 'Estic preparant la resposta.',
+        dockSpeakingTitle: 'TALIA està responent',
+        dockSpeakingHint: 'Digues «para» o prem Aturar.',
+        dockDone: 'Fet',
+        dockCancel: 'Cancel·lar',
+        dockStop: 'Aturar',
+        handsFreeLabel: 'Mans lliures: digues «Hola TALIA»',
+        handsFreeTitle: 'En activar-ho, el navegador escolta el micròfon només per detectar «Hola TALIA».'
+      };
+    }
+    if (language === 'en') {
+      return {
+        micStart: 'Talk to the agent',
+        micStop: 'Stop listening',
+        listening: 'I’m listening. You can talk now.',
+        stopped: 'Stopped listening.',
+        processing: 'Message sent. Preparing the answer.',
+        transcribing: 'Got it. One moment.',
+        noSpeech: 'I didn’t hear anything. Press ' + keys + ' to try again.',
+        denied: 'I can’t access the microphone. Check your browser permissions or type your message.',
+        unsupported: 'This browser doesn’t support talking to the agent. You can type your message.',
+        repeatPlease: 'Sorry, I didn’t catch that. Could you say it again?',
+        failed: 'I couldn’t understand the audio. Try again or type your message.',
+        readAloud: 'Read answers aloud (typed ones too)',
+        readAloudOn: 'Reading answers aloud is on.',
+        readAloudOff: 'Reading answers aloud is off.',
+        speechStopped: 'Reading stopped.',
+        slower: 'Okay, I’ll speak more slowly.',
+        writtenOnly: 'Okay, I’ll answer in writing only. Turn on “read answers aloud” to hear me again.',
+        nothingToRepeat: 'There’s no answer to repeat yet.',
+        link: 'link',
+        shortcutKeys: keys,
+        shortcutHint: 'Press ' + keys + ' at any time to talk to the web agent. You will hear a sound when you can start talking.',
+        firstOpen: 'Tip: press ' + keys + ' to talk instead of typing.',
+        wakeWord: 'Listen for “Hi TALIA”',
+        wakeOn: '“Hi TALIA” mode is on. While it’s on, your browser listens to the microphone to detect “Hi TALIA”. Turn it off with the same switch.',
+        wakeOff: '“Hi TALIA” mode is off.',
+        wakeLauncher: 'listening for “Hi TALIA”',
+        handsFreeEnded: 'I didn’t hear anything else. Press ' + keys + ' to talk again.',
+        greetingWakeHint: 'Say “Hi TALIA” or press Talk.',
+        wakeOffer: 'Would you like to call me next time just by saying “Hi TALIA”? While this site is open, your browser will listen to the microphone to detect that phrase. Say yes or no.',
+        wakeOfferAccepted: 'Done. Whenever you like, say “Hi TALIA”. You can turn it off with the Hands-free switch. Anything else?',
+        wakeOfferDeclined: 'All right. Anything else?',
+        greetingVoiceHint: 'You can type or talk to me.',
+        greetingType: 'Type',
+        greetingTalk: 'Talk',
+        greetingNotice: 'If you talk, your voice is transcribed to answer you.',
+        dockListeningTitle: 'Listening…',
+        dockListeningHint: 'Speak normally and pause when you’re done.',
+        dockThinkingTitle: 'One moment…',
+        dockThinkingHint: 'I’m preparing the answer.',
+        dockSpeakingTitle: 'TALIA is answering',
+        dockSpeakingHint: 'Say “stop” or press Stop.',
+        dockDone: 'Done',
+        dockCancel: 'Cancel',
+        dockStop: 'Stop',
+        handsFreeLabel: 'Hands-free: say “Hi TALIA”',
+        handsFreeTitle: 'When on, your browser listens to the microphone only to detect “Hi TALIA”.'
+      };
+    }
+    if (language === 'pt-BR') {
+      return {
+        micStart: 'Falar com o agente',
+        micStop: 'Parar de ouvir',
+        listening: 'Estou ouvindo. Pode falar.',
+        stopped: 'Parei de ouvir.',
+        processing: 'Mensagem enviada. Preparando a resposta.',
+        transcribing: 'Entendi. Um momento.',
+        noSpeech: 'Não ouvi nada. Pressione ' + keys + ' para tentar de novo.',
+        denied: 'Não tenho acesso ao microfone. Verifique as permissões do navegador ou digite sua mensagem.',
+        unsupported: 'Este navegador não permite falar com o agente. Você pode digitar sua mensagem.',
+        repeatPlease: 'Desculpe, não ouvi bem. Pode repetir?',
+        failed: 'Não consegui entender o áudio. Tente de novo ou digite sua mensagem.',
+        readAloud: 'Ler as respostas em voz alta (também as escritas)',
+        readAloudOn: 'Leitura em voz alta ativada.',
+        readAloudOff: 'Leitura em voz alta desativada.',
+        speechStopped: 'Leitura interrompida.',
+        slower: 'Certo, vou falar mais devagar.',
+        writtenOnly: 'Certo, vou responder só por escrito. Ative “ler respostas em voz alta” para me ouvir de novo.',
+        nothingToRepeat: 'Ainda não há nenhuma resposta para repetir.',
+        link: 'link',
+        shortcutKeys: keys,
+        shortcutHint: 'Pressione ' + keys + ' a qualquer momento para falar com o agente web. Você ouvirá um som quando puder começar a falar.',
+        firstOpen: 'Dica: pressione ' + keys + ' para falar em vez de digitar.',
+        wakeWord: 'Ouvir “Olá TALIA”',
+        wakeOn: 'Modo “Olá TALIA” ativado. Enquanto estiver ativo, seu navegador ouve o microfone para detectar “Olá TALIA”. Desative com o mesmo interruptor.',
+        wakeOff: 'Modo “Olá TALIA” desativado.',
+        wakeLauncher: 'ouvindo “Olá TALIA”',
+        handsFreeEnded: 'Não ouvi mais nada. Pressione ' + keys + ' para falar de novo.',
+        greetingWakeHint: 'Diga “Olá TALIA” ou toque em Falar.',
+        wakeOffer: 'Quer que na próxima vez eu possa ser ativada quando você disser “Olá TALIA”? Enquanto este site estiver aberto, seu navegador vai ouvir o microfone para detectar essa frase. Diga sim ou não.',
+        wakeOfferAccepted: 'Pronto. Quando quiser, diga “Olá TALIA”. Você pode desativar no botão Mãos livres. Mais alguma coisa?',
+        wakeOfferDeclined: 'Tudo bem. Mais alguma coisa?',
+        greetingVoiceHint: 'Você pode escrever ou falar comigo.',
+        greetingType: 'Escrever',
+        greetingTalk: 'Falar',
+        greetingNotice: 'Se você falar, sua voz é transcrita para responder.',
+        dockListeningTitle: 'Estou ouvindo…',
+        dockListeningHint: 'Fale normalmente e faça uma pausa ao terminar.',
+        dockThinkingTitle: 'Um momento…',
+        dockThinkingHint: 'Estou preparando a resposta.',
+        dockSpeakingTitle: 'TALIA está respondendo',
+        dockSpeakingHint: 'Diga “pare” ou toque em Parar.',
+        dockDone: 'Pronto',
+        dockCancel: 'Cancelar',
+        dockStop: 'Parar',
+        handsFreeLabel: 'Mãos livres: diga “Olá TALIA”',
+        handsFreeTitle: 'Quando ativado, seu navegador ouve o microfone apenas para detectar “Olá TALIA”.'
+      };
+    }
+    return {
+      micStart: 'Hablar con el agente',
+      micStop: 'Dejar de escuchar',
+      listening: 'Te escucho. Puedes hablar.',
+      stopped: 'He dejado de escuchar.',
+      processing: 'Mensaje enviado. Preparando la respuesta.',
+      transcribing: 'Te he oído. Un momento.',
+      noSpeech: 'No te he oído. Pulsa ' + keys + ' para volver a intentarlo.',
+      denied: 'No tengo acceso al micrófono. Revisa los permisos del navegador o escribe tu mensaje.',
+      unsupported: 'Este navegador no permite hablar con el agente. Puedes escribir tu mensaje.',
+      repeatPlease: 'Perdona, no te he oído bien. ¿Puedes repetirlo?',
+      failed: 'No he podido entender el audio. Vuelve a intentarlo o escribe tu mensaje.',
+      readAloud: 'Leer las respuestas en voz alta (también las escritas)',
+      readAloudOn: 'Lectura en voz alta activada.',
+      readAloudOff: 'Lectura en voz alta desactivada.',
+      speechStopped: 'Lectura detenida.',
+      slower: 'De acuerdo, hablaré más despacio.',
+      writtenOnly: 'De acuerdo, te responderé solo por escrito. Activa “leer respuestas en voz alta” para volver a escucharme.',
+      nothingToRepeat: 'Todavía no hay ninguna respuesta que repetir.',
+      link: 'enlace',
+      shortcutKeys: keys,
+      shortcutHint: 'Pulsa ' + keys + ' en cualquier momento para hablar con el agente web. Oirás un sonido cuando puedas empezar a hablar.',
+      firstOpen: 'Consejo: pulsa ' + keys + ' para hablar en lugar de escribir.',
+      wakeWord: 'Escuchar «Hola TALIA»',
+      wakeOn: 'Modo «Hola TALIA» activado. Mientras esté activo, tu navegador escucha el micrófono para detectar «Hola TALIA». Desactívalo con el mismo interruptor.',
+      wakeOff: 'Modo «Hola TALIA» desactivado.',
+      wakeLauncher: 'escuchando «Hola TALIA»',
+      handsFreeEnded: 'No he oído nada más. Pulsa ' + keys + ' para volver a hablar.',
+      greetingWakeHint: 'Di «Hola TALIA» o pulsa Hablar.',
+      wakeOffer: '¿Quieres que la próxima vez puedas llamarme diciendo «Hola TALIA»? Mientras esta web esté abierta, tu navegador escuchará el micrófono para detectar esa frase. Di sí o no.',
+      wakeOfferAccepted: 'Hecho. Cuando quieras, di «Hola TALIA». Puedes desactivarlo con el interruptor Manos libres. ¿Algo más?',
+      wakeOfferDeclined: 'De acuerdo. ¿Algo más?',
+      greetingVoiceHint: 'Puedes escribirme o hablarme.',
+      greetingType: 'Escribir',
+      greetingTalk: 'Hablar',
+      greetingNotice: 'Si hablas, tu voz se transcribe para responderte.',
+      dockListeningTitle: 'Te escucho…',
+      dockListeningHint: 'Habla con normalidad y haz una pausa al terminar.',
+      dockThinkingTitle: 'Un momento…',
+      dockThinkingHint: 'Estoy preparando la respuesta.',
+      dockSpeakingTitle: 'TALIA está respondiendo',
+      dockSpeakingHint: 'Di «para» o pulsa Detener.',
+      dockDone: 'Listo',
+      dockCancel: 'Cancelar',
+      dockStop: 'Detener',
+      handsFreeLabel: 'Manos libres: di «Hola TALIA»',
+      handsFreeTitle: 'Al activarlo, tu navegador escucha el micrófono solo para detectar «Hola TALIA».'
+    };
+  }
+
+  function createVoiceController(options) {
+    var support = options.support;
+    var copy = options.copy;
+    var micButton = options.micButton;
+    var speakerButton = options.speakerButton;
+    var statusRegion = options.status;
+    var readAloudKey = 'talia-voice-read-aloud';
+    var shortcutAnnouncedKey = 'talia-voice-shortcut-announced';
+    var readAloud = getStoredValue(readAloudKey) === 'on';
+    // Engines can be downgraded to the browser at runtime (TALIA voice
+    // unavailable, rate limited, over the usage limit...).
+    // Browser engine first where it exists: it writes the visitor's words in
+    // the chat while they talk and answers instantly. TALIA's server
+    // recognition is kept for browsers without one (e.g. Firefox).
+    var useServerRecognition = support.serverRecognition && !support.browserRecognition;
+    var useServerSynthesis = support.serverSynthesis;
+    // Browser recognition state.
+    var recognition = null;
+    var recognitionStarted = false;
+    var recognitionAborted = false;
+    var finalTranscript = '';
+    var interimTranscript = '';
+    var recognitionError = null;
+    // Server recognition state (recording + upload).
+    var capture = null;
+    var captureToken = 0;
+    var transcribing = false;
+    // Shared state.
+    var listening = false;
+    var speaking = false;
+    var voiceUsed = false;
+    var speechToken = 0;
+    var currentSource = null;
+    // Voice commands (TAL-8): "slower" lowers the pace for the rest of the
+    // visit; "write it" stops speaking replies to voice turns.
+    var pace = 'normal';
+    var speakVoiceReplies = true;
+    var lastReply = null;
+    // Hands-free: after a spoken answer to a voice question, listen again.
+    var conversationActive = false;
+    var followUpListening = false;
+    var afterSpeech = null;
+    // Opt-in "Hola TALIA" wake word (browser speech engine only).
+    var wakeKey = 'talia-voice-wake-word';
+    var wakeEnabled = support.browserRecognition && getStoredValue(wakeKey) === 'on';
+    var wakeRecognition = null;
+    var wakeTimer = null;
+    var wakeFailures = 0;
+    // After the first spoken answer TALIA asks, once, whether to turn on
+    // "Hola TALIA" for next time; the visitor answers by voice (yes / no).
+    var wakeOfferKey = 'talia-voice-wake-offer';
+    var wakeOfferPending = false;
+    // Visual state for the animated sound bars on the launcher and header.
+    var awaitingReply = false;
+    var visualState = 'idle';
+    var outputMeterStop = function () {};
+    var earcons = createEarconPlayer();
+    var noop = function () {};
+
+    if (!support.enabled) {
+      return {
+        toggleListening: noop,
+        toggleReadAloud: noop,
+        stopAll: noop,
+        notifyProcessing: noop,
+        handleReply: noop,
+        announceShortcutOnce: noop,
+        toggleWake: noop,
+        enableWake: noop,
+        disableWake: noop,
+        isWakeEnabled: function () { return false; },
+        isActive: function () { return false; }
+      };
+    }
+
+    updateSpeakerButton();
+    updateWakeIndicator();
+    if (wakeEnabled) scheduleWake(1200);
+    document.addEventListener('visibilitychange', function () {
+      // Never listen for the wake word in a background tab.
+      if (document.hidden) stopWake();
+      else scheduleWake(600);
+    });
+
+    function announce(message) {
+      if (!statusRegion) return;
+      // Clear first so identical consecutive messages are announced again.
+      statusRegion.textContent = '';
+      setTimeout(function () { statusRegion.textContent = message; }, 40);
+    }
+
+    // idle | wake | listening | thinking | speaking
+    function refreshVisualState() {
+      var next = listening ? 'listening'
+        : (transcribing || awaitingReply) ? 'thinking'
+          : speaking ? 'speaking'
+            : (wakeEnabled && wakeRecognition) ? 'wake'
+              : 'idle';
+      if (next === visualState) return;
+      visualState = next;
+      if (next !== 'listening' && next !== 'speaking') setLevel(null);
+      if (options.onVisualState) options.onVisualState(next);
+    }
+
+    function setLevel(level) {
+      if (options.onLevel) options.onLevel(level);
+    }
+
+    function updateMicButton() {
+      refreshVisualState();
+      if (!micButton) return;
+      micButton.classList.toggle('mic--listening', listening);
+      micButton.classList.toggle('mic--busy', transcribing);
+      micButton.setAttribute('aria-pressed', listening ? 'true' : 'false');
+      var label = listening ? copy.micStop : copy.micStart;
+      micButton.setAttribute('aria-label', label);
+      micButton.setAttribute('title', label + ' (' + copy.shortcutKeys + ')');
+    }
+
+    function updateSpeakerButton() {
+      if (!speakerButton) return;
+      speakerButton.setAttribute('aria-pressed', readAloud ? 'true' : 'false');
+    }
+
+    function failListening(message) {
+      listening = false;
+      conversationActive = false;
+      updateMicButton();
+      earcons.play('error');
+      announce(message);
+      scheduleWake(1500);
+    }
+
+    // Nothing was said: a hands-free follow-up ends the conversation quietly.
+    function handleNoSpeech() {
+      earcons.play('cancel');
+      if (followUpListening && conversationActive) {
+        conversationActive = false;
+        announce(copy.handsFreeEnded);
+      } else {
+        announce(copy.noSpeech);
+      }
+      followUpListening = false;
+      scheduleWake(800);
+    }
+
+    function toggleListening() {
+      if (speaking) stopSpeaking();
+      if (transcribing) return;
+      if (listening) {
+        stopListening(false);
+        return;
+      }
+      startListening(false);
+    }
+
+    function startListening(followUp) {
+      voiceUsed = true;
+      followUpListening = !!followUp;
+      stopWake();
+      if (useServerRecognition) {
+        startServerListening();
+        return;
+      }
+      if (support.browserRecognition) {
+        startBrowserListening();
+        return;
+      }
+      earcons.play('error');
+      announce(copy.unsupported);
+      speak(copy.unsupported, options.language, false);
+      if (options.input) options.input.focus();
+    }
+
+    // --- TALIA (OpenAI) recognition: record, detect end of speech, upload ----
+
+    function startServerListening() {
+      var token = ++captureToken;
+      listening = true;
+      updateMicButton();
+      earcons.prime();
+
+      navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      })
+        .then(function (stream) {
+          if (token !== captureToken || !listening) {
+            stopStream(stream);
+            return;
+          }
+          announce(copy.listening);
+          // Recording starts after the "you can talk" cue so it is never captured.
+          earcons.play('listen', function () {
+            if (token !== captureToken || !listening) {
+              stopStream(stream);
+              return;
+            }
+            beginRecording(stream, token);
+          });
+        })
+        .catch(function (error) {
+          if (token !== captureToken) return;
+          var denied = error && (error.name === 'NotAllowedError' || error.name === 'SecurityError');
+          if (denied) {
+            failListening(copy.denied);
+            speak(copy.denied, options.language, false);
+            return;
+          }
+          listening = false;
+          updateMicButton();
+          if (support.browserRecognition) {
+            useServerRecognition = false;
+            startBrowserListening();
+            return;
+          }
+          failListening(copy.failed);
+        });
+    }
+
+    function beginRecording(stream, token) {
+      var mimeType = getRecorderMimeType();
+      var recorder;
+      try {
+        recorder = mimeType ? new window.MediaRecorder(stream, { mimeType: mimeType }) : new window.MediaRecorder(stream);
+      } catch {
+        stopStream(stream);
+        failListening(copy.failed);
+        return;
+      }
+
+      var chunks = [];
+      var current = {
+        recorder: recorder,
+        stream: stream,
+        heardSpeech: false,
+        discard: false,
+        stopMeter: noop
+      };
+      capture = current;
+
+      recorder.ondataavailable = function (event) {
+        if (event.data && event.data.size) chunks.push(event.data);
+      };
+
+      recorder.onstop = function () {
+        current.stopMeter();
+        stopStream(stream);
+        if (capture === current) capture = null;
+        listening = false;
+        updateMicButton();
+        if (current.discard || token !== captureToken) return;
+
+        if (!current.heardSpeech || !chunks.length) {
+          handleNoSpeech();
+          return;
+        }
+
+        var blob = new Blob(chunks, { type: recorder.mimeType || mimeType || 'audio/webm' });
+        earcons.play('captured');
+        announce(copy.transcribing);
+        transcribe(blob, token);
+      };
+
+      try {
+        recorder.start(250);
+      } catch {
+        stopStream(stream);
+        capture = null;
+        failListening(copy.failed);
+        return;
+      }
+      current.stopMeter = watchForEndOfSpeech(stream, current);
+    }
+
+    // Stops automatically after a pause once the visitor has spoken, when no
+    // speech is heard at all, or at the hard 30 s cap.
+    function watchForEndOfSpeech(stream, current) {
+      var context = earcons.getContext();
+      if (!context) return noop;
+      var source;
+      var analyser;
+      try {
+        source = context.createMediaStreamSource(stream);
+        analyser = context.createAnalyser();
+        analyser.fftSize = 1024;
+        source.connect(analyser);
+      } catch {
+        return noop;
+      }
+
+      var samples = new Uint8Array(analyser.fftSize);
+      var startedAt = Date.now();
+      var lastVoiceAt = startedAt;
+      var interval = setInterval(function () {
+        analyser.getByteTimeDomainData(samples);
+        var sum = 0;
+        for (var index = 0; index < samples.length; index += 1) {
+          var value = (samples[index] - 128) / 128;
+          sum += value * value;
+        }
+        var level = Math.sqrt(sum / samples.length);
+        setLevel(Math.min(1, level * 7));
+        var now = Date.now();
+        if (level > 0.035) {
+          current.heardSpeech = true;
+          lastVoiceAt = now;
+        }
+        var pauseAfterSpeech = current.heardSpeech && now - lastVoiceAt > 1500;
+        var nothingHeard = !current.heardSpeech && now - startedAt > 8000;
+        if (pauseAfterSpeech || nothingHeard || now - startedAt > 30000) {
+          stopRecorder(current);
+        }
+      }, 100);
+
+      return function () {
+        clearInterval(interval);
+        try { source.disconnect(); } catch { /* already disconnected */ }
+      };
+    }
+
+    function stopRecorder(current) {
+      current.stopMeter();
+      current.stopMeter = noop;
+      if (current.recorder.state !== 'inactive') {
+        try { current.recorder.stop(); } catch { /* already stopped */ }
+      }
+    }
+
+    function transcribe(blob, token) {
+      transcribing = true;
+      updateMicButton();
+      var form = new FormData();
+      form.append('audio', blob, 'speech');
+      form.append('session_id', sessionId);
+      form.append('page_url', getCurrentPageUrl());
+      // No language hint: visitors may speak a language other than the page's,
+      // and TALIA answers in the language they use.
+
+      fetch(baseUrl + '/api/chat/' + tenantId + '/transcribe', { method: 'POST', body: form })
+        .then(function (response) {
+          return response.json().catch(function () { return {}; }).then(function (data) {
+            return { ok: response.ok, status: response.status, data: data };
+          });
+        })
+        .then(function (result) {
+          transcribing = false;
+          updateMicButton();
+          if (token !== captureToken) return;
+          var text = result.ok && result.data && typeof result.data.text === 'string' ? result.data.text.trim() : '';
+          if (text) {
+            deliverTranscript(text);
+            return;
+          }
+          if (result.ok) {
+            handleNoSpeech();
+            return;
+          }
+          voiceLog('transcription failed', result.status, result.data && result.data.error);
+          if (shouldUseBrowserFallback(result.status) && support.browserRecognition) {
+            // The server voice failed: switch to the browser engine and
+            // ask the visitor to repeat, instead of dropping what they said.
+            useServerRecognition = false;
+            conversationActive = true;
+            earcons.play('cancel');
+            announce(copy.repeatPlease);
+            speak(copy.repeatPlease, options.language, false, function () {
+              if (conversationActive && isIdle() && options.isPanelOpen()) startListening(true);
+            });
+            return;
+          }
+          failListening(copy.failed);
+        })
+        .catch(function () {
+          transcribing = false;
+          updateMicButton();
+          if (token !== captureToken) return;
+          failListening(copy.failed);
+        });
+    }
+
+    // --- Browser recognition (fallback) ---------------------------------------
+
+    function startBrowserListening() {
+      var Recognition = getSpeechRecognitionConstructor();
+      if (!Recognition) {
+        failListening(copy.unsupported);
+        return;
+      }
+
+      finalTranscript = '';
+      interimTranscript = '';
+      recognitionError = null;
+      recognitionStarted = false;
+      recognitionAborted = false;
+      try {
+        recognition = new Recognition();
+      } catch {
+        failListening(copy.unsupported);
+        return;
+      }
+      recognition.lang = getRecognitionLanguage(options.language);
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+
+      recognition.onresult = function (event) {
+        interimTranscript = '';
+        for (var index = event.resultIndex; index < event.results.length; index += 1) {
+          var result = event.results[index];
+          var transcript = result[0] && result[0].transcript ? result[0].transcript : '';
+          if (result.isFinal) finalTranscript += transcript;
+          else interimTranscript += transcript;
+        }
+        options.onInterim((finalTranscript + interimTranscript).trim());
+      };
+
+      recognition.onerror = function (event) {
+        recognitionError = event && event.error ? event.error : 'unknown';
+        voiceLog('recognition error', recognitionError);
+      };
+
+      recognition.onend = function () {
+        recognition = null;
+        recognitionStarted = false;
+        listening = false;
+        updateMicButton();
+        var text = (finalTranscript || interimTranscript).trim();
+        finalTranscript = '';
+        interimTranscript = '';
+
+        if (recognitionAborted || recognitionError === 'aborted') return;
+        if (text) {
+          earcons.play('captured');
+          deliverTranscript(text);
+          return;
+        }
+        options.onInterim('');
+        if (recognitionError === 'not-allowed' || recognitionError === 'service-not-allowed') {
+          earcons.play('error');
+          announce(copy.denied);
+          speak(copy.denied, options.language, false);
+        } else if (!recognitionError || recognitionError === 'no-speech') {
+          handleNoSpeech();
+        } else {
+          earcons.play('error');
+          announce(copy.failed);
+        }
+      };
+
+      listening = true;
+      updateMicButton();
+      announce(copy.listening);
+      // Start the recognizer only after the "you can talk" cue has played so the
+      // cue itself is never transcribed.
+      earcons.play('listen', function () {
+        if (!listening || !recognition) {
+          recognition = null;
+          return;
+        }
+        try {
+          recognition.start();
+          recognitionStarted = true;
+        } catch {
+          recognition = null;
+          failListening(copy.failed);
+        }
+      });
+    }
+
+    function stopListening(silent) {
+      if (!listening) return;
+      listening = false;
+      updateMicButton();
+
+      if (capture) {
+        // Server recording in progress: stop() submits it, unless discarded.
+        capture.discard = !!silent;
+        if (silent) captureToken += 1;
+        stopRecorder(capture);
+        return;
+      }
+
+      if (recognition && recognitionStarted) {
+        if (silent) {
+          // Discard what was heard (panel closed, conversation restarted...).
+          recognitionAborted = true;
+          try { recognition.abort(); } catch { /* already stopped */ }
+        } else {
+          // stop() keeps what was already said; `onend` submits it.
+          try { recognition.stop(); } catch { /* already stopped */ }
+        }
+        return;
+      }
+
+      // Stopped while waiting for the microphone or during the start cue.
+      captureToken += 1;
+      recognition = null;
+      if (!silent) {
+        earcons.play('cancel');
+        announce(copy.stopped);
+      }
+    }
+
+    // Short spoken commands are handled locally, without an AI call. Anything
+    // else (including "talk to a person") goes to the agent, whose fallback
+    // policy already offers the venue's human contact options.
+    function deliverTranscript(text) {
+      if (wakeOfferPending) {
+        wakeOfferPending = false;
+        var answer = getYesNoAnswer(text);
+        if (answer) {
+          options.onInterim('');
+          if (answer === 'yes') setWake(true);
+          earcons.play(answer === 'yes' ? 'captured' : 'cancel');
+          var reply = answer === 'yes' ? copy.wakeOfferAccepted : copy.wakeOfferDeclined;
+          announce(reply);
+          speak(reply, options.language, false, continueConversation);
+          return;
+        }
+        // Anything else is a normal question: answer it.
+      }
+      var command = getVoiceCommand(text);
+      if (!command) {
+        conversationActive = true;
+        options.onTranscript(text);
+        return;
+      }
+      options.onInterim('');
+      if (command === 'stop') {
+        conversationActive = false;
+        stopSpeaking();
+        scheduleWake(800);
+        earcons.play('cancel');
+        announce(copy.speechStopped);
+        return;
+      }
+      if (command === 'write') {
+        conversationActive = false;
+        stopSpeaking();
+        scheduleWake(800);
+        speakVoiceReplies = false;
+        readAloud = false;
+        setStoredValue(readAloudKey, 'off');
+        updateSpeakerButton();
+        earcons.play('captured');
+        announce(copy.writtenOnly);
+        return;
+      }
+      if (command === 'slower') {
+        pace = 'slow';
+        if (lastReply) {
+          speak(copy.slower + ' ' + lastReply.text, lastReply.language, true, continueConversation);
+        } else {
+          speak(copy.slower, options.language, false);
+        }
+        return;
+      }
+      // repeat
+      if (lastReply) {
+        speak(lastReply.text, lastReply.language, true, continueConversation);
+        return;
+      }
+      earcons.play('cancel');
+      announce(copy.nothingToRepeat);
+      speak(copy.nothingToRepeat, options.language, false);
+    }
+
+    // --- Spoken replies ---------------------------------------------------------
+
+    function speak(text, language, withCue, then) {
+      if (!support.synthesis) return;
+      var clean = getSpeakableText(text, copy.link);
+      if (!clean) return;
+      var token = ++speechToken;
+      stopCurrentAudio();
+      stopWake();
+      speaking = true;
+      afterSpeech = then || null;
+      refreshVisualState();
+
+      function start() {
+        if (token !== speechToken) return;
+        if (useServerSynthesis) speakWithServer(clean, language, token);
+        else speakWithBrowser(clean, language, token);
+      }
+
+      if (withCue) earcons.play('reply', start);
+      else start();
+    }
+
+    function speakWithServer(text, language, token) {
+      var context = earcons.getContext();
+      if (!context) {
+        speakWithBrowser(text, language, token);
+        return;
+      }
+      // A short first chunk starts playback sooner; the rest is prefetched.
+      var chunks = splitSpeechChunks(text, 240, 1000);
+      var pending = [];
+
+      function fetchChunk(index) {
+        if (!pending[index]) {
+          pending[index] = fetch(baseUrl + '/api/chat/' + tenantId + '/speech', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              session_id: sessionId,
+              text: chunks[index],
+              language: getSpeechLanguage(language),
+              page_url: getCurrentPageUrl(),
+              pace: pace
+            })
+          })
+            .then(function (response) {
+              if (!response.ok) throw response.status;
+              return response.arrayBuffer();
+            })
+            .then(function (buffer) {
+              return new Promise(function (resolve, reject) {
+                context.decodeAudioData(buffer, resolve, reject);
+              });
+            });
+          // Avoid unhandled rejections for prefetched chunks that never play.
+          pending[index].catch(noop);
+        }
+        return pending[index];
+      }
+
+      function playChunk(index) {
+        if (token !== speechToken) return;
+        if (index >= chunks.length) {
+          finishSpeech(token);
+          return;
+        }
+        fetchChunk(index)
+          .then(function (audioBuffer) {
+            if (token !== speechToken) return;
+            if (index + 1 < chunks.length) fetchChunk(index + 1);
+            if (context.state === 'suspended' && typeof context.resume === 'function') context.resume().catch(noop);
+            var source = context.createBufferSource();
+            source.buffer = audioBuffer;
+            outputMeterStop();
+            outputMeterStop = meterOutput(context, source);
+            currentSource = source;
+            source.onended = function () {
+              outputMeterStop();
+              outputMeterStop = noop;
+              if (currentSource === source) currentSource = null;
+              playChunk(index + 1);
+            };
+            source.start();
+          })
+          .catch(function (status) {
+            if (token !== speechToken) return;
+            if (shouldUseBrowserFallback(status)) useServerSynthesis = false;
+            // Finish this reply with the browser voice when possible.
+            if (support.browserSynthesis) {
+              speakWithBrowser(chunks.slice(index).join(' '), language, token);
+              return;
+            }
+            finishSpeech(token, true);
+            earcons.play('error');
+          });
+      }
+
+      playChunk(0);
+    }
+
+    function speakWithBrowser(text, language, token) {
+      if (!support.browserSynthesis) {
+        finishSpeech(token, true);
+        return;
+      }
+      var synth = window.speechSynthesis;
+      synth.cancel();
+      var chunks = splitSpeechChunks(text, 220, 220);
+      var lang = getSpeechLanguage(language);
+      var voice = pickSpeechVoice(lang);
+
+      function speakChunk(index) {
+        if (token !== speechToken) return;
+        if (index >= chunks.length) {
+          finishSpeech(token);
+          return;
+        }
+        var utterance = new window.SpeechSynthesisUtterance(chunks[index]);
+        utterance.lang = lang;
+        if (voice) utterance.voice = voice;
+        utterance.rate = pace === 'slow' ? 0.8 : 1;
+        utterance.onend = function () { speakChunk(index + 1); };
+        utterance.onerror = function () {
+          if (token === speechToken) speaking = false;
+        };
+        synth.speak(utterance);
+      }
+
+      speakChunk(0);
+    }
+
+    function stopCurrentAudio() {
+      if (currentSource) {
+        var source = currentSource;
+        currentSource = null;
+        source.onended = null;
+        try { source.stop(); } catch { /* already stopped */ }
+      }
+      if (support.browserSynthesis) {
+        try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+      }
+    }
+
+    // Routes TALIA's voice through an analyser so the bars follow it.
+    function meterOutput(context, source) {
+      var analyser;
+      try {
+        analyser = context.createAnalyser();
+        analyser.fftSize = 512;
+        source.connect(analyser);
+        analyser.connect(context.destination);
+      } catch {
+        source.connect(context.destination);
+        return noop;
+      }
+      var samples = new Uint8Array(analyser.fftSize);
+      var interval = setInterval(function () {
+        analyser.getByteTimeDomainData(samples);
+        var sum = 0;
+        for (var index = 0; index < samples.length; index += 1) {
+          var value = (samples[index] - 128) / 128;
+          sum += value * value;
+        }
+        setLevel(Math.min(1, Math.sqrt(sum / samples.length) * 5));
+      }, 70);
+      return function () {
+        clearInterval(interval);
+        setLevel(null);
+      };
+    }
+
+    // Called when a reply finishes playing on its own (not when stopped).
+    function finishSpeech(token, failed) {
+      if (token !== speechToken) return;
+      speaking = false;
+      refreshVisualState();
+      var next = afterSpeech;
+      afterSpeech = null;
+      if (next && !failed) next();
+      else scheduleWake(800);
+    }
+
+    function stopSpeaking() {
+      speechToken += 1;
+      speaking = false;
+      afterSpeech = null;
+      outputMeterStop();
+      outputMeterStop = noop;
+      stopCurrentAudio();
+      refreshVisualState();
+    }
+
+    // Explicit, informed opt-in: asked once per browser, only where the
+    // browser engine can listen for the phrase, and only by voice to a
+    // visitor who is already talking to TALIA.
+    function shouldOfferWake() {
+      return support.browserRecognition && !wakeEnabled && !getStoredValue(wakeOfferKey)
+        && conversationActive && options.isPanelOpen();
+    }
+
+    function afterVoiceAnswer() {
+      if (!shouldOfferWake()) {
+        continueConversation();
+        return;
+      }
+      setStoredValue(wakeOfferKey, 'asked');
+      announce(copy.wakeOffer);
+      speak(copy.wakeOffer, options.language, false, function () {
+        wakeOfferPending = true;
+        continueConversation();
+      });
+    }
+
+    function continueConversation() {
+      if (!conversationActive || !options.isPanelOpen()) {
+        conversationActive = false;
+        scheduleWake(800);
+        return;
+      }
+      // Short pause so the end of the answer is not mistaken for speech.
+      setTimeout(function () {
+        if (conversationActive && !listening && !speaking && !transcribing && options.isPanelOpen()) {
+          startListening(true);
+        }
+      }, 350);
+    }
+
+    // --- Opt-in "Hola TALIA" wake word ------------------------------------------
+
+    function isIdle() {
+      return !listening && !speaking && !transcribing;
+    }
+
+    function updateWakeIndicator() {
+      refreshVisualState();
+      var active = wakeEnabled && !!wakeRecognition;
+      if (options.wakeButton) options.wakeButton.setAttribute('aria-checked', wakeEnabled ? 'true' : 'false');
+      if (options.onWakeChange) options.onWakeChange(wakeEnabled);
+      if (options.launcher) {
+        options.launcher.classList.toggle('toggle--wake', active);
+        options.launcher.setAttribute('aria-label', options.launcherLabel + (active ? ' · ' + copy.wakeLauncher : ''));
+      }
+    }
+
+    function scheduleWake(delay) {
+      clearTimeout(wakeTimer);
+      if (!wakeEnabled) return;
+      wakeTimer = setTimeout(startWake, delay);
+    }
+
+    function startWake() {
+      if (!wakeEnabled || wakeRecognition || !isIdle() || document.hidden) return;
+      var Recognition = getSpeechRecognitionConstructor();
+      if (!Recognition) return;
+      var wake;
+      try {
+        wake = new Recognition();
+      } catch {
+        return;
+      }
+      wake.lang = getRecognitionLanguage(options.language);
+      wake.continuous = true;
+      wake.interimResults = true;
+      wake.maxAlternatives = 1;
+      wake.onresult = function (event) {
+        for (var index = event.resultIndex; index < event.results.length; index += 1) {
+          var transcript = event.results[index][0] ? event.results[index][0].transcript : '';
+          voiceLog('wake heard', transcript, isWakePhrase(transcript, options.assistantName) ? '(match)' : '');
+          if (isWakePhrase(transcript, options.assistantName)) {
+            wakeFailures = 0;
+            stopWake();
+            options.openPanel();
+            // Give the browser a moment to release the wake recognizer.
+            setTimeout(function () { if (isIdle()) startListening(false); }, 200);
+            return;
+          }
+        }
+      };
+      wake.onerror = function (event) {
+        var error = event && event.error;
+        voiceLog('wake error', error);
+        if (error === 'not-allowed' || error === 'service-not-allowed') {
+          setWake(false);
+          announce(copy.denied);
+          return;
+        }
+        if (error !== 'no-speech' && error !== 'aborted') wakeFailures += 1;
+      };
+      wake.onend = function () {
+        if (wakeRecognition !== wake) return;
+        wakeRecognition = null;
+        updateWakeIndicator();
+        // Browsers end continuous recognition periodically: resume with backoff.
+        scheduleWake(Math.min(15000, 400 * Math.pow(2, wakeFailures)));
+      };
+      wakeRecognition = wake;
+      voiceLog('wake listening', wake.lang);
+      try {
+        wake.start();
+      } catch {
+        wakeRecognition = null;
+        wakeFailures += 1;
+        scheduleWake(Math.min(15000, 400 * Math.pow(2, wakeFailures)));
+      }
+      updateWakeIndicator();
+    }
+
+    function stopWake() {
+      clearTimeout(wakeTimer);
+      if (wakeRecognition) {
+        var wake = wakeRecognition;
+        wakeRecognition = null;
+        wake.onend = null;
+        wake.onresult = null;
+        try { wake.abort(); } catch { /* already stopped */ }
+      }
+      updateWakeIndicator();
+    }
+
+    function setWake(on) {
+      wakeEnabled = !!on && support.browserRecognition;
+      setStoredValue(wakeKey, wakeEnabled ? 'on' : 'off');
+      wakeFailures = 0;
+      if (wakeEnabled) startWake();
+      else stopWake();
+      updateWakeIndicator();
+    }
+
+    return {
+      toggleListening: toggleListening,
+      toggleReadAloud: function () {
+        readAloud = !readAloud;
+        if (readAloud) speakVoiceReplies = true;
+        setStoredValue(readAloudKey, readAloud ? 'on' : 'off');
+        updateSpeakerButton();
+        announce(readAloud ? copy.readAloudOn : copy.readAloudOff);
+        if (!readAloud) {
+          // Turning it off also stops whatever is being read.
+          stopSpeaking();
+          earcons.play('cancel');
+          return;
+        }
+        // Turning it on reads TALIA's latest message right away, so the
+        // visitor hears that it works (the greeting if nothing else yet).
+        var latest = lastReply || { text: options.initialMessage, language: options.language };
+        earcons.play('captured', function () {
+          if (readAloud && latest.text && !listening && !transcribing) speak(latest.text, latest.language, false);
+        });
+      },
+      stopAll: function (announceStop) {
+        var wasActive = listening || speaking || transcribing;
+        var wasSpeaking = speaking;
+        conversationActive = false;
+        awaitingReply = false;
+        stopListening(true);
+        // Ignore a transcription that is still in flight.
+        captureToken += 1;
+        stopSpeaking();
+        if (announceStop && wasActive) {
+          earcons.play('cancel');
+          announce(wasSpeaking ? copy.speechStopped : copy.stopped);
+        }
+        scheduleWake(1000);
+      },
+      notifyProcessing: function (fromVoice) {
+        // A typed submit is a user gesture: unlock audio so a later read-aloud
+        // reply can play under browser autoplay rules.
+        if (readAloud) earcons.prime();
+        if (!fromVoice) return;
+        awaitingReply = true;
+        refreshVisualState();
+        earcons.play('processing');
+        announce(copy.processing);
+      },
+      handleReply: function (text, language, fromVoice, failed) {
+        awaitingReply = false;
+        refreshVisualState();
+        if (!failed) lastReply = { text: text, language: language };
+        // Replies are spoken for voice turns (unless the visitor said "write
+        // it"), or for every turn when "read answers aloud" is on.
+        if (!(fromVoice && speakVoiceReplies) && !readAloud) return;
+        if (failed) {
+          conversationActive = false;
+          earcons.play('error', function () { speak(text, language, false); });
+          return;
+        }
+        speak(text, language, true, fromVoice ? afterVoiceAnswer : null);
+      },
+      enableWake: function () {
+        // Called from the visitor's click on "Activar voz", so the browser can
+        // show its microphone permission prompt.
+        setWake(true);
+        earcons.play('captured');
+      },
+      disableWake: function () {
+        setWake(false);
+        earcons.play('cancel');
+        announce(copy.wakeOff);
+      },
+      isWakeEnabled: function () { return wakeEnabled; },
+      toggleWake: function () {
+        // Turned on from a click, so the browser can ask for the microphone.
+        setWake(!wakeEnabled);
+        earcons.play(wakeEnabled ? 'captured' : 'cancel');
+        announce(wakeEnabled ? copy.wakeOn : copy.wakeOff);
+      },
+      announceShortcutOnce: function () {
+        if (!support.recognition) return;
+        if (getStoredValue(shortcutAnnouncedKey)) return;
+        setStoredValue(shortcutAnnouncedKey, '1');
+        setTimeout(function () {
+          // Visitors who already opened with the shortcut don't need the tip.
+          if (!voiceUsed) announce(copy.firstOpen);
+        }, 600);
+      },
+      isActive: function () { return listening || speaking || transcribing; }
+    };
+  }
+
+  // "Hola TALIA", "Hello TALIA", "Hey TALIA", "Olá TALIA"... Recognizers may
+  // write the name as Talía or Thalia; the venue's assistant name also works.
+  function voiceLog() {
+    if (!voiceDebug || !window.console) return;
+    var args = Array.prototype.slice.call(arguments);
+    args.unshift('[TALIA voice]');
+    console.info.apply(console, args);
+  }
+
+  function isWakePhrase(text, assistantName) {
+    var normalize = function (value) {
+      var result = String(value || '').toLowerCase();
+      if (typeof result.normalize === 'function') result = result.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return result.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    };
+    // Speech engines often "correct" the uncommon name TALIA into a familiar
+    // word (Spanish engines hear "Hola Italia", "Natalia", "Dalia"...).
+    var names = ['talia', 'thalia', 'tahlia', 'talya', 'tallia', 'tali a', 'tal ia', 'italia', 'natalia', 'dalia', 'thalya'];
+    var custom = normalize(assistantName);
+    if (custom && custom.indexOf(' ') < 0 && names.indexOf(custom) < 0) names.push(custom);
+    var heard = normalize(text);
+    var greeting = '(hola|holaa|hello|hallo|hey|hi|ola|oi|ei|ey|eh|bon dia|buenas|buenos dias|ok|okay|oye)';
+    var pattern = new RegExp('(^| )' + greeting + ' (' + names.join('|') + ')( |$)');
+    if (pattern.test(heard)) return true;
+    // The name alone ("¡Talía!") also wakes the agent, but not a longer
+    // sentence that merely mentions it.
+    return /^(talia|thalia|tahlia|talya)$/.test(heard) || (custom && heard === custom);
+  }
+
+  var VOICE_COMMANDS = {
+    stop: ['para', 'parar', 'detente', 'calla', 'callate', 'silencio', 'basta', 'stop', 'be quiet', 'quiet', 'atura', 'atura t', 'prou', 'pare', 'chega', 'silencio por favor'],
+    repeat: ['repite', 'repitelo', 'repitemelo', 'otra vez', 'puedes repetir', 'repeat', 'repeat that', 'say it again', 'again', 'repeteix', 'repeteix ho', 'una altra vegada', 'repete', 'repita', 'de novo', 'pode repetir'],
+    slower: ['mas despacio', 'mas lento', 'habla mas despacio', 'habla mas lento', 'slower', 'more slowly', 'speak slower', 'speak more slowly', 'mes a poc a poc', 'mes lent', 'parla mes a poc a poc', 'mais devagar', 'mais lento', 'fale mais devagar'],
+    write: ['escribelo', 'por escrito', 'escribemelo', 'solo por escrito', 'write it', 'write it down', 'in writing', 'escriu ho', 'per escrit', 'escreva', 'por escrito por favor', 'so por escrito']
+  };
+
+  var YES_NO_ANSWERS = {
+    yes: ['si', 'vale', 'claro', 'de acuerdo', 'venga', 'ok', 'okay', 'por supuesto', 'si gracias', 'si por favor', 'activalo', 'perfecto', 'val', 'd acord', 'si us plau', 'yes', 'yeah', 'yep', 'sure', 'yes please', 'of course', 'sim', 'pode ser', 'sim por favor'],
+    no: ['no', 'no gracias', 'ahora no', 'mejor no', 'de momento no', 'no cal', 'ara no', 'no thanks', 'no thank you', 'not now', 'nope', 'nao', 'nao obrigado', 'nao obrigada', 'agora nao']
+  };
+
+  function getYesNoAnswer(text) {
+    var normalized = String(text || '').toLowerCase();
+    if (typeof normalized.normalize === 'function') normalized = normalized.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    normalized = normalized.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!normalized || normalized.split(' ').length > 4) return null;
+    if (YES_NO_ANSWERS.yes.indexOf(normalized) >= 0) return 'yes';
+    if (YES_NO_ANSWERS.no.indexOf(normalized) >= 0) return 'no';
+    return null;
+  }
+
+  function getVoiceCommand(text) {
+    var normalized = String(text || '').toLowerCase();
+    if (typeof normalized.normalize === 'function') normalized = normalized.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    normalized = normalized
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\b(por favor|please|si us plau|porfa|talia)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!normalized || normalized.split(' ').length > 6) return null;
+    for (var command in VOICE_COMMANDS) {
+      if (VOICE_COMMANDS[command].indexOf(normalized) >= 0) return command;
+    }
+    return null;
+  }
+
+  // TALIA voice is unavailable, failing, rate limited or over the venue's
+  // usage limit: keep voice working with the browser engine for the rest of
+  // the visit instead of failing on every turn.
+  function shouldUseBrowserFallback(status) {
+    return status === 402 || status === 429 || status === 502 || status === 503;
+  }
+
+  function getRecorderMimeType() {
+    var candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+    if (typeof window.MediaRecorder.isTypeSupported !== 'function') return '';
+    for (var index = 0; index < candidates.length; index += 1) {
+      if (window.MediaRecorder.isTypeSupported(candidates[index])) return candidates[index];
+    }
+    return '';
+  }
+
+  function stopStream(stream) {
+    if (!stream || typeof stream.getTracks !== 'function') return;
+    stream.getTracks().forEach(function (track) {
+      try { track.stop(); } catch { /* already stopped */ }
+    });
+  }
+
+  // Short synthesized tones so no audio files are fetched and the host CSP is
+  // unaffected. Each step of the voice flow has a distinct, recognizable cue.
+  function createEarconPlayer() {
+    var context = null;
+    var patterns = {
+      listen: [[660, 0, 0.09], [880, 0.11, 0.13]],
+      captured: [[880, 0, 0.08], [660, 0.1, 0.1]],
+      processing: [[523, 0, 0.07]],
+      reply: [[523, 0, 0.08], [659, 0.09, 0.08], [784, 0.18, 0.14]],
+      cancel: [[440, 0, 0.12]],
+      error: [[330, 0, 0.14], [262, 0.18, 0.2]]
+    };
+
+    function getContext() {
+      if (context) return context;
+      var AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextConstructor) return null;
+      try {
+        context = new AudioContextConstructor();
+      } catch {
+        context = null;
+      }
+      return context;
+    }
+
+    function prime() {
+      var audio = getContext();
+      if (audio && audio.state === 'suspended' && typeof audio.resume === 'function') {
+        audio.resume().catch(function () {});
+      }
+      return audio;
+    }
+
+    return {
+      getContext: getContext,
+      prime: prime,
+      play: function (name, done) {
+        var pattern = patterns[name];
+        var audio = prime();
+        var duration = 0;
+        if (pattern && audio) {
+          var start = audio.currentTime + 0.02;
+          pattern.forEach(function (note) {
+            var oscillator = audio.createOscillator();
+            var gain = audio.createGain();
+            var noteStart = start + note[1];
+            var noteEnd = noteStart + note[2];
+            oscillator.type = name === 'error' ? 'triangle' : 'sine';
+            oscillator.frequency.setValueAtTime(note[0], noteStart);
+            gain.gain.setValueAtTime(0.0001, noteStart);
+            gain.gain.exponentialRampToValueAtTime(0.18, noteStart + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.0001, noteEnd);
+            oscillator.connect(gain);
+            gain.connect(audio.destination);
+            oscillator.start(noteStart);
+            oscillator.stop(noteEnd + 0.02);
+            duration = Math.max(duration, note[1] + note[2]);
+          });
+        }
+        if (done) setTimeout(done, Math.round((duration + 0.08) * 1000));
+      }
+    };
+  }
+
+  function getRecognitionLanguage(widgetLanguage) {
+    // Prefer the language of the page the visitor is reading (multilingual
+    // venue sites set it per version), then the browser, then the widget.
+    var candidates = [
+      document.documentElement && document.documentElement.lang,
+      navigator.language,
+      getSpeechLanguage(widgetLanguage)
+    ];
+    for (var index = 0; index < candidates.length; index += 1) {
+      var value = typeof candidates[index] === 'string' ? candidates[index].trim() : '';
+      if (/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/i.test(value)) {
+        return value.indexOf('-') > 0 ? value : getSpeechLanguage(value);
+      }
+    }
+    return 'es-ES';
+  }
+
+  function getSpeechLanguage(language) {
+    var value = String(language || '').trim();
+    var base = value.toLowerCase().split(/[-_]/)[0];
+    if (value.indexOf('-') > 0 || value.indexOf('_') > 0) return value.replace('_', '-');
+    if (base === 'es') return 'es-ES';
+    if (base === 'ca') return 'ca-ES';
+    if (base === 'en') return 'en-US';
+    if (base === 'pt') return 'pt-BR';
+    if (base === 'fr') return 'fr-FR';
+    if (base === 'it') return 'it-IT';
+    if (base === 'de') return 'de-DE';
+    return value || 'es-ES';
+  }
+
+  function pickSpeechVoice(lang) {
+    try {
+      var voices = window.speechSynthesis.getVoices() || [];
+      var normalized = lang.toLowerCase();
+      var base = normalized.split('-')[0];
+      return voices.find(function (voice) { return voice.lang && voice.lang.toLowerCase().replace('_', '-') === normalized; })
+        || voices.find(function (voice) { return voice.lang && voice.lang.toLowerCase().split(/[-_]/)[0] === base; })
+        || null;
+    } catch {
+      return null;
+    }
+  }
+
+  function getSpeakableText(text, linkWord) {
+    return String(text || '')
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '$1')
+      .replace(/https?:\/\/\S+/g, linkWord)
+      .replace(/[*_`#>~]+/g, '')
+      .replace(/^\s*[-•]\s+/gm, '')
+      .replace(/\s*\n+\s*/g, '. ')
+      .replace(/\.\s*\./g, '.')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
+  // Speak sentence-sized chunks: some browser engines cut long utterances, and
+  // TALIA voice starts sooner when the first chunk is short.
+  function splitSpeechChunks(text, firstMax, max) {
+    var sentences = text.match(/[^.!?¿¡…]+[.!?…]*\s*/g) || [text];
+    var chunks = [];
+    var current = '';
+    sentences.forEach(function (sentence) {
+      var limit = chunks.length ? max : firstMax;
+      if ((current + sentence).length > limit && current) {
+        chunks.push(current.trim());
+        current = '';
+      }
+      // A single very long sentence is hard-split so it never exceeds the API cap.
+      while (sentence.length > max) {
+        chunks.push(sentence.slice(0, max).trim());
+        sentence = sentence.slice(max);
+      }
+      current += sentence;
+    });
+    if (current.trim()) chunks.push(current.trim());
+    return chunks.filter(function (chunk) { return chunk.length > 0; });
+  }
+
+  function getMicIcon() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><path d="M12 18v4"></path><path d="M8 22h8"></path></svg>';
+  }
+
+  function getPencilIcon() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>';
+  }
+
+  function getSpeakerIcon() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M19 5a10 10 0 0 1 0 14"></path></svg>';
+  }
+
+  // TALIA's face (public/icon.svg). Shown white via a CSS filter, so it needs
+  // no CORS on the venue's site.
+  function getTaliaFaceIcon(iconUrl) {
+    return '<img class="launcher-icon launcher-icon--talia" src="' + escapeHtml(iconUrl) + '" alt="" aria-hidden="true" />';
+  }
+
+  // The TALIA monogram: the open "Λ" of the TALIA wordmark, in currentColor.
+  function getTaliaMarkIcon() {
+    return '<svg class="launcher-icon launcher-icon--mark" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path d="M43 13h15l27 69q1.5 4 6 5v1H67v-1q4.5-1 3-5L50.5 31 32 82q-1.5 4 3 5v1H13v-1q4.5-1 6-5z"></path></svg>';
+  }
+
   function getLauncherIconMarkup(launcherIcon, iconUrl) {
+    if (launcherIcon === 'mark') return getTaliaMarkIcon();
+
     if (launcherIcon === 'bubble') {
       return '<svg class="launcher-icon launcher-icon--bubble" viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path><path d="M8 12h.01"></path><path d="M12 12h.01"></path><path d="M16 12h.01"></path></svg>';
     }
@@ -1879,7 +3680,7 @@
       return '<svg class="launcher-icon launcher-icon--chat" viewBox="0 0 24 24" aria-hidden="true" focusable="false" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path></svg>';
     }
 
-    return '<img class="launcher-icon launcher-icon--talia" src="' + escapeHtml(iconUrl) + '" alt="" aria-hidden="true" />';
+    return getTaliaFaceIcon(iconUrl);
   }
 
   function getRestartIcon() {
@@ -1888,6 +3689,23 @@
 
   function createSessionId() {
     return crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + '-' + Math.random().toString(16).slice(2);
+  }
+
+  // Session storage: lasts for the visitor's current visit (browser tab).
+  function getSessionValue(key) {
+    try {
+      return window.sessionStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+
+  function setSessionValue(key, value) {
+    try {
+      window.sessionStorage.setItem(key, value);
+    } catch {
+      // Without storage the greeting may simply show again on the next page.
+    }
   }
 
   function getStoredValue(key) {
@@ -1941,7 +3759,10 @@
         restart: 'Tornar a començar',
         inputPlaceholder: 'Escriu el teu missatge...',
         send: 'Enviar',
-        openAssistant: 'Obrir agent web'
+        openAssistant: 'Obrir agent web',
+        landmark: 'Agent web {name}',
+        accessLinkVoice: 'Assistent de veu {name}: prem {keys} o aquest botó per parlar',
+        accessLinkOpen: 'Obrir l’assistent {name}'
       };
     }
     if (language === 'en') {
@@ -1952,7 +3773,10 @@
         restart: 'Start over',
         inputPlaceholder: 'Type your message...',
         send: 'Send',
-        openAssistant: 'Open web agent'
+        openAssistant: 'Open web agent',
+        landmark: '{name} web agent',
+        accessLinkVoice: '{name} voice assistant: press {keys} or this button to talk',
+        accessLinkOpen: 'Open the {name} assistant'
       };
     }
     if (language === 'pt-BR') {
@@ -1963,7 +3787,10 @@
         restart: 'Começar novamente',
         inputPlaceholder: 'Digite sua mensagem...',
         send: 'Enviar',
-        openAssistant: 'Abrir agente web'
+        openAssistant: 'Abrir agente web',
+        landmark: 'Agente web {name}',
+        accessLinkVoice: 'Assistente de voz {name}: pressione {keys} ou este botão para falar',
+        accessLinkOpen: 'Abrir a assistente {name}'
       };
     }
     return {
@@ -1973,8 +3800,27 @@
       restart: 'Volver a comenzar',
       inputPlaceholder: 'Escribe tu mensaje...',
       send: 'Enviar',
-      openAssistant: 'Abrir agente web'
+      openAssistant: 'Abrir agente web',
+      landmark: 'Agente web {name}',
+      accessLinkVoice: 'Asistente de voz {name}: pulsa {keys} o este botón para hablar',
+      accessLinkOpen: 'Abrir el asistente {name}'
     };
+  }
+
+  function mountAccessLink(label, color, onActivate) {
+    if (document.getElementById('talia-access-link')) return;
+    var linkHost = document.createElement('div');
+    linkHost.id = 'talia-access-link';
+    linkHost.classList.add('notranslate');
+    linkHost.setAttribute('translate', 'no');
+    document.body.insertBefore(linkHost, document.body.firstChild);
+    var linkRoot = linkHost.attachShadow({ mode: 'open' });
+    linkRoot.innerHTML = '<style>'
+      + '.access { position: fixed; top: 12px; left: 12px; z-index: 2147483647; padding: 12px 18px; border: 2px solid #fff; border-radius: 10px; background: ' + color + '; color: #fff; font: 600 16px/1.3 system-ui, sans-serif; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,.25); }'
+      + '.access:not(:focus):not(:focus-visible) { width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }'
+      + '.access:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }'
+      + '</style><button class="access" type="button">' + escapeHtml(label) + '</button>';
+    linkRoot.querySelector('button').addEventListener('click', onActivate);
   }
 
   function getProactiveMessage(value, assistantName, language) {
@@ -1986,7 +3832,7 @@
   }
 
   function getLauncherIcon(value) {
-    return value === 'chat' || value === 'bubble' || value === 'bot' ? value : 'talia';
+    return value === 'mark' || value === 'chat' || value === 'bubble' || value === 'bot' ? value : 'talia';
   }
 
   function getGlassBackground(value) {

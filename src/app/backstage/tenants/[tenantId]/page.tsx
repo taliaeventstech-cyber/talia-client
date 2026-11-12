@@ -69,7 +69,7 @@ export default async function BackstageClientPage({ params, searchParams }: Prop
   const [{ data: client }, { data: modules }, { data: emailConnections }, { data: emailTraceThreads }, subscriptionResult, traceResult, knowledgeSourcesResult, knowledgeSourceSummaries, knowledgeHealthResult, activeKnowledgeSyncResult, managedWebQuota, webAlerts, { data: knowledgeSupportRequests }] = await Promise.all([
     admin
       .from('theatres')
-      .select('id, account_id, name, slug, entity_type, primary_language, plan, website_url, fallback_email, fallback_phone, n8n_webhook_url, system_prompt, widget_config, voice_phone_number, voice_phone_provider, voice_phone_mode, voice_public_phone_number, voice_forwarding_notes, voice_operational_status')
+      .select('id, account_id, name, slug, entity_type, primary_language, plan, website_url, fallback_email, fallback_phone, system_prompt, widget_config, voice_phone_number, voice_phone_provider, voice_phone_mode, voice_public_phone_number, voice_forwarding_notes, voice_operational_status')
       .eq('id', tenantId)
       .single(),
     admin
@@ -2100,7 +2100,7 @@ function getSourceTypeLabel(type: string) {
   if (type === 'url') return 'URL'
   if (type === 'sitemap') return 'Sitemap'
   if (type === 'website') return 'Web completa'
-  if (type === 'web_snapshot') return 'Página web capturada'
+  if (type === 'web_snapshot') return 'Web capturada por el widget'
   return type
 }
 
