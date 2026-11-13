@@ -334,7 +334,9 @@ Implemented:
   global `Alt+Shift+V` shortcut (`Option+Shift+V` on a Mac) for blind and low-vision visitors that opens
   the agent and starts listening, distinct audio cues and live-region
   announcements for every step, spoken replies (automatic for voice turns,
-  optional "read answers aloud" toggle for typed turns) and local voice
+  optional "read answers aloud" toggle for typed turns), a remembered
+  "Escuchar las respuestas" switch (on by default; off = dictation only, every
+  answer stays in writing, set also by the "write it" command) and local voice
   commands (stop, repeat, slower, write it), hands-free follow-up listening
   after spoken answers, an opt-in "Hola TALIA" wake word, and a per-venue
   voice chosen in Agora. Listening uses the browser's speech engine first
