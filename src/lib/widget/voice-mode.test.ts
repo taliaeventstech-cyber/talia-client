@@ -44,7 +44,7 @@ describe('widget voice mode', () => {
   it('speaks voice-initiated replies and localizes every voice string', async () => {
     const widgetSource = await readWidget()
 
-    expect(widgetSource).toContain('if (!(fromVoice && speakVoiceReplies) && !readAloud) return;')
+    expect(widgetSource).toContain('if (!(fromVoice && speakVoiceReplies) && !readAloud) {')
     expect(widgetSource.match(/shortcutKeys: keys,/g)).toHaveLength(4)
   })
 })
@@ -125,7 +125,7 @@ describe('widget voice commands (TAL-8)', () => {
     expect(widgetSource).toContain('pace: pace')
     expect(widgetSource).toContain("utterance.rate = pace === 'slow' ? 0.8 : 1;")
     expect(widgetSource).toContain('if (!failed) lastReply = { text: text, language: language };')
-    expect(widgetSource).toContain('if (!(fromVoice && speakVoiceReplies) && !readAloud) return;')
+    expect(widgetSource).toContain('if (!(fromVoice && speakVoiceReplies) && !readAloud) {')
   })
 })
 
@@ -203,7 +203,7 @@ describe('widget hands-free conversation and wake word', () => {
     const widgetSource = await readWidget()
 
     expect(widgetSource).toContain("var wakeEnabled = support.browserRecognition && getStoredValue(wakeKey) === 'on';")
-    expect(widgetSource).toContain("var voiceHandsFreeMarkup = voiceSupport.browserRecognition")
+    expect(widgetSource).toContain("var voiceWakeRowMarkup = voiceSupport.browserRecognition")
     expect(widgetSource).toContain('role="switch" aria-checked="false"')
     expect(widgetSource).toContain("options.launcher.classList.toggle('toggle--wake', active);")
     expect(widgetSource).toContain('if (document.hidden) stopWake();')
@@ -309,7 +309,7 @@ describe('widget voice offer in the greeting', () => {
 
     expect(widgetSource).toContain('<div class="voice-dock" data-voice-dock aria-hidden="true">')
     expect(widgetSource).toContain("if (panel.getAttribute('data-voice-state') === 'listening') voice.toggleListening();")
-    expect(widgetSource).toContain('<div class="voice-handsfree" data-voice-handsfree hidden>')
+    expect(widgetSource).toContain(`'<div class="voice-handsfree' + (voiceRepliesRowMarkup && voiceWakeRowMarkup ? ' voice-handsfree--stacked' : '') + '" data-voice-handsfree hidden>'`)
     expect(widgetSource).toContain('function revealHandsFree() {')
     expect(widgetSource).not.toContain('data-voice-visual-status')
   })
@@ -329,11 +329,43 @@ describe('widget voice offer in the greeting', () => {
       'dockListeningTitle', 'dockListeningHint', 'dockThinkingTitle', 'dockThinkingHint',
       'dockSpeakingTitle', 'dockSpeakingHint', 'dockDone', 'dockCancel', 'dockStop',
       'handsFreeLabel', 'handsFreeTitle',
+      'repliesLabel', 'repliesTitle', 'repliesOn', 'repliesOff', 'writtenOnly',
     ]) {
       expect(copy[key]).toBeTruthy()
     }
     expect(copy.handsFreeLabel).toMatch(/TALIA/)
     expect(copy.handsFreeTitle).toMatch(/micr[oóò](f|ph)on/i)
+     // "Write it" points the visitor to the switch that turns answers back on.
+    expect(copy.writtenOnly).toContain(copy.repliesLabel)
+  })
+})
+
+describe('widget dictation only ("Escuchar las respuestas" off)', () => {
+  it('offers a remembered switch, on by default, next to hands-free', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toContain("var repliesKey = 'talia-voice-replies';")
+    expect(widgetSource).toContain("var speakVoiceReplies = getStoredValue(repliesKey) !== 'off';")
+    expect(widgetSource).toContain(`data-voice-replies type="button" role="switch" aria-checked="' + (getStoredValue('talia-voice-replies') === 'off' ? 'false' : 'true') + '"`)
+    expect(widgetSource).toContain('voice.toggleVoiceReplies();')
+  })
+
+  it('keeps voice answers in writing and stops hands-free follow-ups when off', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toMatch(
+      /if \(!\(fromVoice && speakVoiceReplies\) && !readAloud\) \{[\s\S]*?if \(fromVoice\) \{\s*conversationActive = false;\s*scheduleWake\(800\);\s*\}\s*return;/,
+    )
+  })
+
+  it('turning answers off also stops reading aloud; "write it" and read-aloud keep the switch in sync', async () => {
+    const widgetSource = await readWidget()
+
+    expect(widgetSource).toMatch(
+      /toggleVoiceReplies: function \(\) \{[\s\S]*?if \(!on\) \{[\s\S]*?readAloud = false;[\s\S]*?stopSpeaking\(\);/,
+    )
+    expect(widgetSource).toMatch(/if \(command === 'write'\) \{[\s\S]*?setVoiceReplies\(false\);/)
+    expect(widgetSource).toContain('if (readAloud && !speakVoiceReplies) setVoiceReplies(true);')
   })
 })
 
