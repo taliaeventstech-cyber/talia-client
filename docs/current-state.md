@@ -334,7 +334,9 @@ Implemented:
   global `Alt+Shift+V` shortcut (`Option+Shift+V` on a Mac) for blind and low-vision visitors that opens
   the agent and starts listening, distinct audio cues and live-region
   announcements for every step, spoken replies (automatic for voice turns,
-  optional "read answers aloud" toggle for typed turns) and local voice
+  optional "read answers aloud" toggle for typed turns), a remembered
+  "Escuchar las respuestas" switch (on by default; off = dictation only, every
+  answer stays in writing, set also by the "write it" command) and local voice
   commands (stop, repeat, slower, write it), hands-free follow-up listening
   after spoken answers, an opt-in "Hola TALIA" wake word, and a per-venue
   voice chosen in Agora. Listening uses the browser's speech engine first
@@ -637,6 +639,17 @@ Implemented:
   separates logical sources, canonical documents and auditable sync runs, with
   worker leases, idempotency and per-run counters. Monthly refreshes clamp to
   the final valid day of shorter months instead of overflowing into the next one.
+- Website and sitemap sources can be limited to path sections ("Solo estas
+  rutas" / "Ignorar estas rutas", stored as `config.include_paths` /
+  `config.exclude_paths`, `*` within a segment). A website source that starts
+  below the root (e.g. `/programacio/`) is kept inside that path by default.
+  `talia-ai` only crawls in-scope links and retires pages captured before the
+  scope was narrowed. Scope is set when the source is created.
+- Managed pages whose structured programme has fully ended (every event has a
+  last date more than 3 days ago) are retired automatically on the next sync:
+  chunks and events are deleted and the page stays as a `removed` tombstone
+  (`removed_reason = programme_expired`) until its content changes. Pages
+  without events, or with an event lacking an end date, are not retired by date.
 - Managed URL, sitemap and bounded-website sources can opt into structured
   programme extraction. Each successful changed-page capture keeps the normal
   RAG chunks and also refreshes typed current events with dates, times,

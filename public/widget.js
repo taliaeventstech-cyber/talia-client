@@ -145,6 +145,7 @@
       micButton: root.querySelector('[data-voice-mic]'),
       speakerButton: root.querySelector('[data-voice-speaker]'),
       wakeButton: root.querySelector('[data-voice-wake]'),
+      repliesButton: root.querySelector('[data-voice-replies]'),
       launcher: toggle,
       launcherLabel: widgetCopy.openAssistant,
       assistantName: assistantName,
@@ -351,6 +352,7 @@
       if (!handsFree || !handsFree.hidden) return;
       handsFree.hidden = false;
       panel.classList.add('panel--handsfree');
+      if (handsFree.classList.contains('voice-handsfree--stacked')) panel.classList.add('panel--handsfree-stacked');
     }
 
     function showSessionFeedback() {
@@ -533,6 +535,12 @@
       if (speakerButton) {
         speakerButton.addEventListener('click', function () {
           voice.toggleReadAloud();
+        });
+      }
+      var repliesButton = root.querySelector('[data-voice-replies]');
+      if (repliesButton) {
+        repliesButton.addEventListener('click', function () {
+          voice.toggleVoiceReplies();
         });
       }
       var wakeButton = root.querySelector('[data-voice-wake]');
@@ -1868,11 +1876,25 @@
         + '<button class="voice-dock-action" data-voice-dock-action type="button"></button>'
         + '</div>'
       : '';
-    // "Manos libres" switch, revealed after the visitor has used voice once.
-    var voiceHandsFreeMarkup = voiceSupport.browserRecognition
-      ? '<div class="voice-handsfree" data-voice-handsfree hidden>'
+    // Voice options, revealed after the visitor has used voice once:
+    // "Escuchar las respuestas" (off = dictate only, answers in writing) and
+    // the "Manos libres" switch.
+    var voiceRepliesRowMarkup = voiceSupport.synthesis
+      ? '<span class="voice-option">'
+        + '<span class="voice-handsfree-label">' + escapeHtml(voiceCopy.repliesLabel) + '</span>'
+        + '<button class="voice-switch" data-voice-replies type="button" role="switch" aria-checked="' + (getStoredValue('talia-voice-replies') === 'off' ? 'false' : 'true') + '" aria-label="' + escapeHtml(voiceCopy.repliesLabel) + '" title="' + escapeHtml(voiceCopy.repliesTitle) + '"><span class="voice-switch-knob"></span></button>'
+        + '</span>'
+      : '';
+    var voiceWakeRowMarkup = voiceSupport.browserRecognition
+      ? '<span class="voice-option">'
         + '<span class="voice-handsfree-label" data-voice-handsfree-label>' + escapeHtml(voiceCopy.handsFreeLabel) + '</span>'
         + '<button class="voice-switch" data-voice-wake type="button" role="switch" aria-checked="false" aria-label="' + escapeHtml(voiceCopy.handsFreeLabel) + '" title="' + escapeHtml(voiceCopy.handsFreeTitle) + '"><span class="voice-switch-knob"></span></button>'
+        + '</span>'
+      : '';
+    var voiceHandsFreeMarkup = voiceSupport.recognition && (voiceRepliesRowMarkup || voiceWakeRowMarkup)
+      ? '<div class="voice-handsfree' + (voiceRepliesRowMarkup && voiceWakeRowMarkup ? ' voice-handsfree--stacked' : '') + '" data-voice-handsfree hidden>'
+        + voiceRepliesRowMarkup
+        + voiceWakeRowMarkup
         + '</div>'
       : '';
     var voiceStatusMarkup = voiceSupport.enabled
@@ -2099,6 +2121,9 @@
         .voice-handsfree { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 2; display: flex; width: max-content; max-width: calc(100% - 26px); margin: 0 auto; align-items: center; gap: 10px; border-radius: 999px; padding: 5px 6px 5px 14px; background: #fff; color: #1A1A2E; box-shadow: 0 4px 16px rgba(0,0,0,.12), 0 0 0 1px rgba(26,26,46,.08); white-space: nowrap; font: 600 12.5px "Space Grotesk", system-ui; animation: talia-dock-in 220ms ease-out both; }\
         .voice-handsfree[hidden] { display: none; }\
         .panel--handsfree .messages { padding-bottom: 56px; }\
+        .voice-option { display: flex; align-items: center; justify-content: space-between; gap: 10px; }\
+        .voice-handsfree--stacked { flex-direction: column; align-items: stretch; gap: 6px; border-radius: 16px; padding: 7px 8px 7px 14px; }\
+        .panel--handsfree-stacked .messages { padding-bottom: 96px; }\
         .voice-switch { position: relative; width: 38px; height: 22px; border: 0; border-radius: 999px; padding: 0; background: rgba(26,26,46,.22); cursor: pointer; transition: background 160ms ease; }\
         .voice-switch-knob { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform 160ms ease; }\
         .voice-switch[aria-checked="true"] { background: ' + primaryColor + '; }\
@@ -2241,7 +2266,7 @@
         readAloudOff: 'Lectura en veu alta desactivada.',
         speechStopped: 'Lectura aturada.',
         slower: 'D’acord, parlaré més a poc a poc.',
-        writtenOnly: 'D’acord, et respondré només per escrit. Activa el botó de lectura en veu alta per tornar a escoltar-me.',
+        writtenOnly: 'D’acord, et respondré només per escrit. Activa «Escoltar les respostes» per tornar a escoltar-me.',
         nothingToRepeat: 'Encara no hi ha cap resposta per repetir.',
         link: 'enllaç',
         shortcutKeys: keys,
@@ -2270,7 +2295,11 @@
         dockCancel: 'Cancel·lar',
         dockStop: 'Aturar',
         handsFreeLabel: 'Mans lliures: digues «Hola TALIA»',
-        handsFreeTitle: 'En activar-ho, el navegador escolta el micròfon només per detectar «Hola TALIA».'
+        handsFreeTitle: 'En activar-ho, el navegador escolta el micròfon només per detectar «Hola TALIA».',
+        repliesLabel: 'Escoltar les respostes',
+        repliesTitle: 'Desactiva-ho per dictar les preguntes i llegir les respostes sense àudio.',
+        repliesOn: 'Et llegiré en veu alta les respostes al que em diguis.',
+        repliesOff: 'Respostes només per escrit. Pots continuar dictant amb el micròfon.'
       };
     }
     if (language === 'en') {
@@ -2291,7 +2320,7 @@
         readAloudOff: 'Reading answers aloud is off.',
         speechStopped: 'Reading stopped.',
         slower: 'Okay, I’ll speak more slowly.',
-        writtenOnly: 'Okay, I’ll answer in writing only. Turn on “read answers aloud” to hear me again.',
+        writtenOnly: 'Okay, I’ll answer in writing only. Turn on “Hear answers” to hear me again.',
         nothingToRepeat: 'There’s no answer to repeat yet.',
         link: 'link',
         shortcutKeys: keys,
@@ -2320,7 +2349,11 @@
         dockCancel: 'Cancel',
         dockStop: 'Stop',
         handsFreeLabel: 'Hands-free: say “Hi TALIA”',
-        handsFreeTitle: 'When on, your browser listens to the microphone only to detect “Hi TALIA”.'
+        handsFreeTitle: 'When on, your browser listens to the microphone only to detect “Hi TALIA”.',
+        repliesLabel: 'Hear answers',
+        repliesTitle: 'Turn off to dictate your questions and read the answers without audio.',
+        repliesOn: 'I’ll read my answers aloud when you speak to me.',
+        repliesOff: 'Answers in writing only. You can keep dictating with the microphone.'
       };
     }
     if (language === 'pt-BR') {
@@ -2341,7 +2374,7 @@
         readAloudOff: 'Leitura em voz alta desativada.',
         speechStopped: 'Leitura interrompida.',
         slower: 'Certo, vou falar mais devagar.',
-        writtenOnly: 'Certo, vou responder só por escrito. Ative “ler respostas em voz alta” para me ouvir de novo.',
+        writtenOnly: 'Certo, vou responder só por escrito. Ative “Ouvir as respostas” para me ouvir de novo.',
         nothingToRepeat: 'Ainda não há nenhuma resposta para repetir.',
         link: 'link',
         shortcutKeys: keys,
@@ -2370,7 +2403,11 @@
         dockCancel: 'Cancelar',
         dockStop: 'Parar',
         handsFreeLabel: 'Mãos livres: diga “Olá TALIA”',
-        handsFreeTitle: 'Quando ativado, seu navegador ouve o microfone apenas para detectar “Olá TALIA”.'
+        handsFreeTitle: 'Quando ativado, seu navegador ouve o microfone apenas para detectar “Olá TALIA”.',
+        repliesLabel: 'Ouvir as respostas',
+        repliesTitle: 'Desative para ditar suas perguntas e ler as respostas sem áudio.',
+        repliesOn: 'Vou ler em voz alta as respostas ao que você me disser.',
+        repliesOff: 'Respostas só por escrito. Você pode continuar ditando com o microfone.'
       };
     }
     return {
@@ -2390,7 +2427,7 @@
       readAloudOff: 'Lectura en voz alta desactivada.',
       speechStopped: 'Lectura detenida.',
       slower: 'De acuerdo, hablaré más despacio.',
-      writtenOnly: 'De acuerdo, te responderé solo por escrito. Activa “leer respuestas en voz alta” para volver a escucharme.',
+      writtenOnly: 'De acuerdo, te responderé solo por escrito. Activa «Escuchar las respuestas» para volver a escucharme.',
       nothingToRepeat: 'Todavía no hay ninguna respuesta que repetir.',
       link: 'enlace',
       shortcutKeys: keys,
@@ -2419,7 +2456,11 @@
       dockCancel: 'Cancelar',
       dockStop: 'Detener',
       handsFreeLabel: 'Manos libres: di «Hola TALIA»',
-      handsFreeTitle: 'Al activarlo, tu navegador escucha el micrófono solo para detectar «Hola TALIA».'
+      handsFreeTitle: 'Al activarlo, tu navegador escucha el micrófono solo para detectar «Hola TALIA».',
+      repliesLabel: 'Escuchar las respuestas',
+      repliesTitle: 'Desactívalo para dictar tus preguntas y leer las respuestas sin audio.',
+      repliesOn: 'Te leeré en voz alta las respuestas a lo que me digas.',
+      repliesOff: 'Respuestas solo por escrito. Puedes seguir dictando con el micrófono.'
     };
   }
 
@@ -2459,7 +2500,10 @@
     // Voice commands (TAL-8): "slower" lowers the pace for the rest of the
     // visit; "write it" stops speaking replies to voice turns.
     var pace = 'normal';
-    var speakVoiceReplies = true;
+    // "Escuchar las respuestas" switch: off means the visitor dictates and
+    // reads every answer, with no audio. Remembered in this browser.
+    var repliesKey = 'talia-voice-replies';
+    var speakVoiceReplies = getStoredValue(repliesKey) !== 'off';
     var lastReply = null;
     // Hands-free: after a spoken answer to a voice question, listen again.
     var conversationActive = false;
@@ -2545,6 +2589,12 @@
     function updateSpeakerButton() {
       if (!speakerButton) return;
       speakerButton.setAttribute('aria-pressed', readAloud ? 'true' : 'false');
+    }
+
+    function setVoiceReplies(on) {
+      speakVoiceReplies = !!on;
+      setStoredValue(repliesKey, speakVoiceReplies ? 'on' : 'off');
+      if (options.repliesButton) options.repliesButton.setAttribute('aria-checked', speakVoiceReplies ? 'true' : 'false');
     }
 
     function failListening(message) {
@@ -2963,7 +3013,7 @@
         conversationActive = false;
         stopSpeaking();
         scheduleWake(800);
-        speakVoiceReplies = false;
+        setVoiceReplies(false);
         readAloud = false;
         setStoredValue(readAloudKey, 'off');
         updateSpeakerButton();
@@ -3323,7 +3373,7 @@
       toggleListening: toggleListening,
       toggleReadAloud: function () {
         readAloud = !readAloud;
-        if (readAloud) speakVoiceReplies = true;
+        if (readAloud && !speakVoiceReplies) setVoiceReplies(true);
         setStoredValue(readAloudKey, readAloud ? 'on' : 'off');
         updateSpeakerButton();
         announce(readAloud ? copy.readAloudOn : copy.readAloudOff);
@@ -3339,6 +3389,24 @@
         earcons.play('captured', function () {
           if (readAloud && latest.text && !listening && !transcribing) speak(latest.text, latest.language, false);
         });
+      },
+      toggleVoiceReplies: function () {
+        var on = !speakVoiceReplies;
+        setVoiceReplies(on);
+        if (!on) {
+          conversationActive = false;
+          if (readAloud) {
+            readAloud = false;
+            setStoredValue(readAloudKey, 'off');
+            updateSpeakerButton();
+          }
+          stopSpeaking();
+          scheduleWake(800);
+          earcons.play('cancel');
+        } else {
+          earcons.play('captured');
+        }
+        announce(on ? copy.repliesOn : copy.repliesOff);
       },
       stopAll: function (announceStop) {
         var wasActive = listening || speaking || transcribing;
@@ -3371,7 +3439,15 @@
         if (!failed) lastReply = { text: text, language: language };
         // Replies are spoken for voice turns (unless the visitor said "write
         // it"), or for every turn when "read answers aloud" is on.
-        if (!(fromVoice && speakVoiceReplies) && !readAloud) return;
+        if (!(fromVoice && speakVoiceReplies) && !readAloud) {
+          // Dictation only: the answer stays in writing and hands-free does
+          // not listen again, since there was no spoken answer to follow.
+          if (fromVoice) {
+            conversationActive = false;
+            scheduleWake(800);
+          }
+          return;
+        }
         if (failed) {
           conversationActive = false;
           earcons.play('error', function () { speak(text, language, false); });
