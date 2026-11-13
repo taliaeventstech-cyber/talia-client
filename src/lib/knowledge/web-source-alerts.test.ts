@@ -75,8 +75,43 @@ describe('managed web operational alerts', () => {
       ratio: 0.8,
       severity: 'warning',
     })).toMatchObject({
-      title: 'Cuota de páginas de la fuente cerca del límite',
-      detail: 'Uso: 80 de 100 páginas (80%).',
+      title: 'La fuente se acerca al máximo de páginas por actualización',
+      detail: '80 de 100 páginas (80%). Si la web crece, las páginas por encima del máximo no se capturarán.',
+    })
+  })
+
+  it('says the per-source page maximum was reached and what to do at 100%', () => {
+    const alert = buildKnowledgeWebOperationalAlert({
+      ...baseRow,
+      alert_key: 'source-page-quota:source-1',
+      current_value: 100,
+      error_code: null,
+      kind: 'source_page_quota_usage',
+      latest_status: null,
+      limit_value: 100,
+      ratio: 1,
+      severity: 'critical',
+    })
+    expect(alert.title).toBe('La fuente ha alcanzado el máximo de páginas por actualización')
+    expect(alert.detail).toMatch(/^100 de 100 páginas \(100%\)\. El resto de la web no se ha revisado\./)
+  })
+
+  it('does not call a reached tenant quota "near the limit"', () => {
+    expect(buildKnowledgeWebOperationalAlert({
+      ...baseRow,
+      alert_key: 'quota:tenant-1:document_quota_usage',
+      current_value: 500,
+      error_code: null,
+      kind: 'document_quota_usage',
+      latest_status: null,
+      limit_value: 500,
+      ratio: 1,
+      severity: 'critical',
+      source_id: null,
+      source_name: null,
+    })).toMatchObject({
+      title: 'Cuota de páginas alcanzada',
+      detail: 'Uso: 500 de 500 páginas (100%).',
     })
   })
 })

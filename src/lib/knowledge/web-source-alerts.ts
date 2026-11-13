@@ -95,11 +95,13 @@ export function buildKnowledgeWebOperationalAlert(row: OperationalAlertRow): Kno
     }
   }
 
-  const quota = getQuotaCopy(kind)
+  const reached = ratio >= 1
+  const quota = getQuotaCopy(kind, reached)
+  const usage = `${row.current_value} de ${row.limit_value} ${quota.unit} (${Math.round(ratio * 100)}%)`
   return {
     ...base,
     title: quota.title,
-    detail: `Uso: ${row.current_value} de ${row.limit_value} ${quota.unit} (${Math.round(ratio * 100)}%).`,
+    detail: quota.consequence ? `${usage}. ${quota.consequence}` : `Uso: ${usage}.`,
   }
 }
 
@@ -126,9 +128,27 @@ function formatHours(hours: number) {
   return remainingHours ? `${days} d ${remainingHours} h` : `${days} d`
 }
 
-function getQuotaCopy(kind: Exclude<KnowledgeWebAlertKind, 'source_failure_streak' | 'source_sync_overdue'>) {
-  if (kind === 'source_quota_usage') return { title: 'Cuota de fuentes web cerca del límite', unit: 'fuentes' }
-  if (kind === 'source_page_quota_usage') return { title: 'Cuota de páginas de la fuente cerca del límite', unit: 'páginas' }
-  if (kind === 'document_quota_usage') return { title: 'Cuota de páginas cerca del límite', unit: 'páginas' }
-  return { title: 'Cuota diaria de sincronizaciones manuales cerca del límite', unit: 'sincronizaciones' }
+function getQuotaCopy(
+  kind: Exclude<KnowledgeWebAlertKind, 'source_failure_streak' | 'source_sync_overdue'>,
+  reached: boolean
+): { title: string; unit: string; consequence?: string } {
+  if (kind === 'source_page_quota_usage') {
+    // A per-crawl maximum, not an allowance consumed over time: at 100% the
+    // last update stopped early and the rest of the site was not read.
+    return reached
+      ? {
+        title: 'La fuente ha alcanzado el máximo de páginas por actualización',
+        unit: 'páginas',
+        consequence: 'El resto de la web no se ha revisado. Limita la fuente a las rutas útiles (por ejemplo /programacio), divídela en varias fuentes o sube su máximo (hasta 500).',
+      }
+      : {
+        title: 'La fuente se acerca al máximo de páginas por actualización',
+        unit: 'páginas',
+        consequence: 'Si la web crece, las páginas por encima del máximo no se capturarán.',
+      }
+  }
+  const state = reached ? 'alcanzada' : 'cerca del límite'
+  if (kind === 'source_quota_usage') return { title: `Cuota de fuentes web ${state}`, unit: 'fuentes' }
+  if (kind === 'document_quota_usage') return { title: `Cuota de páginas ${state}`, unit: 'páginas' }
+  return { title: `Cuota diaria de sincronizaciones manuales ${state}`, unit: 'sincronizaciones' }
 }
