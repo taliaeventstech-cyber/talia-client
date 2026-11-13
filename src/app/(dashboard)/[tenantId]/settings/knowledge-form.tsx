@@ -123,6 +123,10 @@ type KnowledgeFormProps = {
     sourceTypeWebsite: string
     sourceUrl: string
     sourceUrlPlaceholder: string
+    includePaths: string
+    includePathsHelp: string
+    excludePaths: string
+    excludePathsHelp: string
     refreshInterval: string
     refreshManual: string
     refreshDaily: string
@@ -710,6 +714,16 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
               <label className="field knowledge-managed-url-field">
                 {labels.sourceUrl}
                 <input name="source_url" type="url" placeholder={labels.sourceUrlPlaceholder} maxLength={2048} required />
+              </label>
+              <label className="field">
+                {labels.includePaths}
+                <textarea name="include_paths" rows={2} maxLength={4000} placeholder="/programacio" aria-describedby="managed-web-include-help" />
+                <span className="muted" id="managed-web-include-help">{labels.includePathsHelp}</span>
+              </label>
+              <label className="field">
+                {labels.excludePaths}
+                <textarea name="exclude_paths" rows={2} maxLength={4000} placeholder="/arxiu" aria-describedby="managed-web-exclude-help" />
+                <span className="muted" id="managed-web-exclude-help">{labels.excludePathsHelp}</span>
               </label>
               <label className="field">
                 {labels.refreshInterval}

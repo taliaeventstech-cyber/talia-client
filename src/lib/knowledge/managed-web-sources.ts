@@ -152,3 +152,62 @@ function isPrivateIpv4(host: string) {
     || (a === 192 && b === 168)
     || a >= 224
 }
+
+export type ManagedWebSourceScope = {
+  includePaths: string[]
+  excludePaths: string[]
+}
+
+const MAX_SCOPE_RULES = 20
+const MAX_SCOPE_RULE_LENGTH = 200
+const SCOPE_RULE_PATTERN = /^\/[A-Za-z0-9\-._~%!$&'()+,;=:@/*]*$/
+
+/**
+ * Path scope of a managed website/sitemap source, stored as
+ * `config.include_paths` / `config.exclude_paths` and applied by talia-ai's
+ * crawler. One path per line (or comma separated), `*` within a segment.
+ * A website source that starts below the root (e.g. `/programacio/`) is kept
+ * inside that path unless the venue lists other paths explicitly, so old
+ * show pages elsewhere on the site are not crawled.
+ */
+export function parseManagedWebSourceScope(input: {
+  sourceType: ManagedWebSourceType
+  sourceUrl: string
+  includePaths: unknown
+  excludePaths: unknown
+}): { ok: true; scope: ManagedWebSourceScope } | { ok: false; error: string } {
+  if (input.sourceType === 'url') return { ok: true, scope: { includePaths: [], excludePaths: [] } }
+
+  const include = parseScopeRules(input.includePaths)
+  if (!include.ok) return include
+  const exclude = parseScopeRules(input.excludePaths)
+  if (!exclude.ok) return exclude
+
+  let includePaths = include.rules
+  if (!includePaths.length && input.sourceType === 'website') {
+    const startPath = normalizeScopeRule(new URL(input.sourceUrl).pathname)
+    if (startPath !== '/') includePaths = [startPath]
+  }
+
+  return { ok: true, scope: { includePaths, excludePaths: exclude.rules } }
+}
+
+function parseScopeRules(value: unknown): { ok: true; rules: string[] } | { ok: false; error: string } {
+  const raw = typeof value === 'string' ? value : ''
+  const entries = raw.split(/[\n,]/).map((entry) => entry.trim()).filter(Boolean)
+  const rules = new Set<string>()
+  for (const entry of entries) {
+    if (entry.length > MAX_SCOPE_RULE_LENGTH || !SCOPE_RULE_PATTERN.test(entry)) {
+      return { ok: false, error: `La ruta «${entry.slice(0, 60)}» no es válida: debe empezar por / (por ejemplo /programacio).` }
+    }
+    rules.add(normalizeScopeRule(entry))
+  }
+  if (rules.size > MAX_SCOPE_RULES) {
+    return { ok: false, error: `Indica como máximo ${MAX_SCOPE_RULES} rutas por lista.` }
+  }
+  return { ok: true, rules: [...rules] }
+}
+
+function normalizeScopeRule(path: string) {
+  return path.toLowerCase().replace(/\/{2,}/g, '/').replace(/\/+$/, '') || '/'
+}

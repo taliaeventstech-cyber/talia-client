@@ -25,6 +25,7 @@ import {
   getNextKnowledgeSyncAt,
   isKnowledgeRefreshInterval,
   isManagedWebSourceType,
+  parseManagedWebSourceScope,
   validateManagedWebSourceInput,
 } from '@/lib/knowledge/managed-web-sources'
 import {
@@ -419,6 +420,14 @@ export async function createManagedWebKnowledgeSource(
 
   if (!parsed.ok) return { ok: false, message: parsed.error }
 
+  const scope = parseManagedWebSourceScope({
+    sourceType: parsed.data.sourceType,
+    sourceUrl: parsed.data.sourceUrl,
+    includePaths: formData.get('include_paths'),
+    excludePaths: formData.get('exclude_paths'),
+  })
+  if (!scope.ok) return { ok: false, message: scope.error }
+
   const autoEnable = shouldAutoEnableManagedWebSource({
     creationMode,
     chatbotSetupCompleted: access.chatbotSetupCompleted,
@@ -440,6 +449,8 @@ export async function createManagedWebKnowledgeSource(
         original_url: parsed.data.originalUrl,
         max_pages: quota.limits.maxPagesPerSource,
         capture_waterfall: ['http', 'browser', 'installed_widget', 'manual_browser'],
+        ...(scope.scope.includePaths.length ? { include_paths: scope.scope.includePaths } : {}),
+        ...(scope.scope.excludePaths.length ? { exclude_paths: scope.scope.excludePaths } : {}),
       },
     })
     .select('id')

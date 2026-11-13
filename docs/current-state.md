@@ -637,6 +637,17 @@ Implemented:
   separates logical sources, canonical documents and auditable sync runs, with
   worker leases, idempotency and per-run counters. Monthly refreshes clamp to
   the final valid day of shorter months instead of overflowing into the next one.
+- Website and sitemap sources can be limited to path sections ("Solo estas
+  rutas" / "Ignorar estas rutas", stored as `config.include_paths` /
+  `config.exclude_paths`, `*` within a segment). A website source that starts
+  below the root (e.g. `/programacio/`) is kept inside that path by default.
+  `talia-ai` only crawls in-scope links and retires pages captured before the
+  scope was narrowed. Scope is set when the source is created.
+- Managed pages whose structured programme has fully ended (every event has a
+  last date more than 3 days ago) are retired automatically on the next sync:
+  chunks and events are deleted and the page stays as a `removed` tombstone
+  (`removed_reason = programme_expired`) until its content changes. Pages
+  without events, or with an event lacking an end date, are not retired by date.
 - Managed URL, sitemap and bounded-website sources can opt into structured
   programme extraction. Each successful changed-page capture keeps the normal
   RAG chunks and also refreshes typed current events with dates, times,
