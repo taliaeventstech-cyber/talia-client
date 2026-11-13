@@ -716,16 +716,6 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
                 <input name="source_url" type="url" placeholder={labels.sourceUrlPlaceholder} maxLength={2048} required />
               </label>
               <label className="field">
-                {labels.includePaths}
-                <textarea name="include_paths" rows={2} maxLength={4000} placeholder="/programacio" aria-describedby="managed-web-include-help" />
-                <span className="muted" id="managed-web-include-help">{labels.includePathsHelp}</span>
-              </label>
-              <label className="field">
-                {labels.excludePaths}
-                <textarea name="exclude_paths" rows={2} maxLength={4000} placeholder="/arxiu" aria-describedby="managed-web-exclude-help" />
-                <span className="muted" id="managed-web-exclude-help">{labels.excludePathsHelp}</span>
-              </label>
-              <label className="field">
                 {labels.refreshInterval}
                 <select name="refresh_interval" defaultValue="daily">
                   <option value="manual">{labels.refreshManual}</option>
@@ -734,6 +724,18 @@ export function KnowledgeForm({ tenantId, activeTab, sources, items, managedWebQ
                   <option value="monthly">{labels.refreshMonthly}</option>
                 </select>
               </label>
+              <div className="knowledge-managed-scope">
+                <label className="field">
+                  {labels.includePaths}
+                  <textarea name="include_paths" rows={2} maxLength={4000} placeholder="/programacio" aria-describedby="managed-web-include-help" />
+                  <span className="knowledge-managed-scope-help" id="managed-web-include-help">{labels.includePathsHelp}</span>
+                </label>
+                <label className="field">
+                  {labels.excludePaths}
+                  <textarea name="exclude_paths" rows={2} maxLength={4000} placeholder="/arxiu" aria-describedby="managed-web-exclude-help" />
+                  <span className="knowledge-managed-scope-help" id="managed-web-exclude-help">{labels.excludePathsHelp}</span>
+                </label>
+              </div>
               <button
                 className="button-primary button-fit knowledge-managed-submit"
                 type="submit"

@@ -9576,8 +9576,36 @@ textarea {
 }
 
 .knowledge-managed-submit {
+  /* Stays at the end of the first row; the optional scope row sits below. */
+  grid-row: 1;
+  grid-column: 5;
   min-height: 42px;
   white-space: nowrap;
+}
+
+/* The success/error notice spans the first row when present. */
+.knowledge-managed-notice ~ .knowledge-managed-submit {
+  grid-row: 2;
+}
+
+.knowledge-managed-scope {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px;
+}
+
+.knowledge-managed-scope textarea {
+  min-height: 64px;
+  resize: vertical;
+}
+
+.knowledge-managed-scope-help {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
 }
 
 .knowledge-managed-item {
@@ -9840,6 +9868,10 @@ textarea {
   .knowledge-managed-submit {
     justify-content: center;
   }
+
+  .knowledge-managed-create .knowledge-managed-submit {
+    grid-row: auto;
+  }
 }
 
 .knowledge-installed-list {
@@ -9930,6 +9962,10 @@ textarea {
   .knowledge-managed-url-field,
   .knowledge-managed-submit {
     grid-column: auto;
+  }
+
+  .knowledge-managed-scope {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .knowledge-managed-actions {
